@@ -32,7 +32,7 @@ import socket
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
+from urllib.parse import SplitResult, urlencode, urljoin, urlsplit, urlunsplit
 
 import httpx
 
@@ -347,6 +347,52 @@ async def fetch(
                 current = target
                 continue
             return OutboundResponse(status, response_headers, body, current, tuple(hops))
+
+
+async def post_form(
+    url: str,
+    form: Mapping[str, str],
+    *,
+    policy: OutboundPolicy,
+    headers: Mapping[str, str] | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> OutboundResponse:
+    """POST ``form`` (``application/x-www-form-urlencoded``) to ``url`` under ``policy``; any status is returned.
+
+    The same rules as ``fetch``: the address is resolved off the event loop, checked and pinned, no proxy
+    environment, the answer streamed and capped. A redirect is never followed (``outbound_redirect``): a form
+    carrying a client secret goes to exactly one endpoint. Used for the SCORETech Identity token, revocation
+    and end-session endpoints, which the operator configures.
+    """
+    deadline = time.monotonic() + policy.total_timeout_s
+    sent = {key.lower(): value for key, value in (headers or {}).items()}
+    sent["accept-encoding"] = "identity"
+    sent["content-type"] = "application/x-www-form-urlencoded"
+    body = urlencode(dict(form))
+    timeout = httpx.Timeout(policy.read_timeout_s, connect=policy.connect_timeout_s)
+    chosen = transport if transport is not None else default_transport()
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, transport=chosen, trust_env=False) as client:
+        try:
+            addresses = await asyncio.wait_for(
+                avalidate_endpoint(url, allow_internal_http=not policy.https_only, allow_internal=policy.allow_internal),
+                timeout=max(deadline - time.monotonic(), 0.001),
+            )
+        except TimeoutError as exc:
+            raise OutboundError("outbound_timeout", f"DNS took too long for {mask_url(url)}") from exc
+        address = addresses[0] if addresses else None
+        request = build_pinned_request(client, "POST", url, address, headers=sent, content=body)
+        try:
+            status, response_headers, content = await asyncio.wait_for(
+                _send(client, request, policy.max_bytes), timeout=max(deadline - time.monotonic(), 0.001)
+            )
+        except TimeoutError as exc:
+            raise OutboundError("outbound_timeout", f"total time exceeded posting to {mask_url(url)}") from exc
+        except httpx.HTTPError as exc:
+            logger.info("outbound_failed url=%s error=%s", mask_url(url), type(exc).__name__)
+            raise OutboundError(_timeout_code(exc), f"request to {mask_url(url)} failed") from exc
+        if status in _REDIRECTS:
+            raise OutboundError("outbound_redirect", f"redirect refused from {mask_url(url)}")
+        return OutboundResponse(status, response_headers, content, url)
 
 
 async def _send(client: httpx.AsyncClient, request: httpx.Request, limit: int) -> tuple[int, httpx.Headers, bytes]:

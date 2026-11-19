@@ -444,12 +444,46 @@ for a missing environment).
 | `code` | Status | Meaning |
 |---|---|---|
 | `quota_exceeded` | 402 | a per-account limit of the plan would be passed: `maxApiKeys`, `maxFederatedEngines`, `maxProblems`, `maxRepositoryStorage`. `quota` names `limit_id`, `limit` and `used` |
-| `username_unavailable` | 409 | registration or a first CAS sign-in asked for a reserved username: one that names engines or engine registrations already (engine namespaces are usernames baked into immutable manifests, and they outlive a deleted account), or one starting with `deleted-`, the pseudonyms of deleted accounts |
+| `username_unavailable` | 409 | registration or a first CAS or SCORETech sign-in asked for a reserved username: one that names engines or engine registrations already (engine namespaces are usernames baked into immutable manifests, and they outlive a deleted account), or one starting with `deleted-`, the pseudonyms of deleted accounts; a first SCORETech sign-in also refuses the platform's own names (`admin`, `identity`, `support`, …) |
 | `last_owner` | 409 | `DELETE /v1/users/me`: the account owns an organization; it hands it over first |
 | `owner_transfer_required` | 409 | a member route named the owner of the organization: the owner's seat moves only by `PUT /v1/organizations/{org}/owner` |
 
 Quotas are per account: there are no billing sponsors. Deleting an account pseudonymises it
 ([ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md)).
+
+## Sign-in
+
+`/v1/auth/*` answers carry `Cache-Control: no-store`. See [IDENTITY.md](IDENTITY.md).
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `identity_disabled` | 409 | a SCORETech Identity route was called on a gateway that signs people in locally (`AUTH_PROVIDER=local`) |
+| `local_auth_disabled` | 409 | a local credential route (register, login, password reset) was called on a gateway that signs people in with SCORETech Identity (`AUTH_PROVIDER=scoretech`) |
+| `no_session` | 401 | `POST /v1/auth/identity/session` without a session cookie, or with one that names no session; sign in |
+| `session_ended` | 401 | the session was signed out, expired (seven days at most, twelve hours idle), ended in SCORETech Identity, lost the `openbinding:access` permission, or its account was deactivated; the cookie is cleared |
+| `identity_unavailable` | 503 | SCORETech Identity (or the shared lock that keeps renewals single) could not be reached, or another worker is renewing the same session; the session survives, retry after `Retry-After` |
+| `api_key_suspended` | 401 | an API key whose owner has not signed in to OpenBinding with SCORETech Identity for `API_KEY_ORPHAN_DAYS` (30 by default), or never did; the key is not revoked and works again at the owner's next sign-in (`UserProfile.api_keys_suspended_at` says when) |
+| `no_pending_signup` | 404 | `GET /v1/auth/identity/pending` or `POST /v1/auth/identity/complete` without a first sign-in waiting (it lasts 15 minutes); start signing in again |
+| `pending_in_progress` | 409 | `POST /v1/auth/identity/complete` while the same sign-up is being completed |
+| `username_taken` | 409 | the chosen username is in use, whatever its case |
+| `identity_already_provisioned` | 409 | this SCORETech account already has an OpenBinding account (completed from another browser); start signing in again |
+| `account_not_linked` | 409 | the verified email of the SCORETech account belongs to another OpenBinding account whose email is verified too; accounts are never linked by email |
+| `managed_by_identity` | 409 | `PATCH /v1/users/me` changing the email or the password while the gateway signs people in with SCORETech Identity: both are managed in the Identity account |
+| `origin_refused` | 403 | a sign-in route that reads the session cookie was called without an `Origin` from the frontend (`FRONTEND_URL`'s origin or `AUTH_TRUSTED_ORIGINS`) |
+
+### Redirect codes
+
+`GET /v1/auth/identity/login` and `/callback` are navigated to, not fetched: a failure sends the browser to
+`/authentication?identity_error=<code>`, one of this closed list.
+
+| `identity_error` | Meaning |
+|---|---|
+| `signin_failed` | Identity's answer could not be trusted (a token failed verification, an `iss` of another issuer, a missing code) or anything unexpected |
+| `account_not_linked` | the verified email belongs to another OpenBinding account whose email is verified too; nothing was created |
+| `access_denied` | the person declined at Identity, or the account lacks the permission OpenBinding requires (`openbinding:access`) |
+| `unavailable` | Identity could not be reached, or this gateway does not sign in with Identity |
+| `expired` | the sign-in took longer than ten minutes, was already used, or came back to another browser |
+| `account_disabled` | the OpenBinding account is deactivated or deleted |
 
 ## Conditional writes (`If-Match`)
 

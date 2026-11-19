@@ -18,6 +18,9 @@ _BEARER = re.compile(r"(?i)\bBearer\s+[^\s,;]+")
 _OPENBINDING_KEY = re.compile(r"\bob[ke]_[A-Za-z0-9_-]+")
 #: A SPHERE API key (an organization's connection): never logged, whatever carries it.
 _SPHERE_KEY = re.compile(r"\bsk-[0-9a-f]{64}\b")
+#: OAuth parameters of a sign-in callback in any URL a message carries. A bare ``code`` label is not masked:
+#: closed error codes are logged as ``code=…``.
+_OAUTH_QUERY = re.compile(r"([?&](?:code|state|session_state)=)[^&\s\"']+")
 
 
 def redact(value: str, secrets: Iterable[str] = ()) -> str:
@@ -30,7 +33,22 @@ def redact(value: str, secrets: Iterable[str] = ()) -> str:
     result = _BEARER.sub("Bearer [REDACTED]", result)
     result = _LABELED_SECRET.sub(r"\1\2[REDACTED]", result)
     result = _SPHERE_KEY.sub("[REDACTED]", result)
+    result = _OAUTH_QUERY.sub(r"\1[REDACTED]", result)
     return _OPENBINDING_KEY.sub("[REDACTED]", result)
+
+
+class AuthQueryFilter(logging.Filter):
+    """Drop the query string of every ``/v1/auth/`` path from uvicorn's access log, before it is formatted.
+
+    Uvicorn logs the path with its query (``args[2]``), and the sign-in callback's query is an authorization
+    code and a state; a password reset may carry a token too.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str) and "/v1/auth/" in args[2]:
+            record.args = (*args[:2], args[2].split("?", 1)[0], *args[3:])
+        return True
 
 
 class JsonFormatter(logging.Formatter):
@@ -62,3 +80,6 @@ def configure_logging(*, level: str = "INFO", secrets: Iterable[str] = ()) -> No
         logger = logging.getLogger(name)
         logger.handlers[:] = [handler]
         logger.propagate = False
+    access = logging.getLogger("uvicorn.access")
+    if not any(isinstance(item, AuthQueryFilter) for item in access.filters):
+        access.addFilter(AuthQueryFilter())

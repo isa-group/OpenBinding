@@ -200,7 +200,7 @@ async def test_anybody_reads_the_list_and_a_credential_that_names_nobody_is_refu
     user = await db_session.get(User, uuid.UUID(account["id"]))
     settings = get_settings()
     expired = issue_access_token(
-        settings.gateway_jwt_secret, user_id=user.id, role=user.role.value, ttl_seconds=-60,
+        settings.gateway_jwt_secret, user_id=user.id, ttl_seconds=-60,
         issuer=settings.gateway_jwt_issuer, audience=settings.gateway_jwt_audience,
     )
     for credential in ({"Authorization": f"Bearer {expired}"}, {"Authorization": "Bearer not-a-token"}):

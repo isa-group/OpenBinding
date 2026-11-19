@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....access.dependencies import get_current_user, session_dependency
 from ....collaboration import effective_role, organization_by_ref
 from ....core.jsonio import strict_json_loads
+from ....core.settings import get_settings
 from ....core.public_errors import (
     BIM_EVALUATION_UNAVAILABLE,
     CANCELLATION_REQUESTED,
@@ -55,6 +56,7 @@ from ....models.errors import (
 )
 from ....models.platform import JobView, RunList, RunView, job_view, run_view
 from ....models.problem import JSON_MEDIA_TYPE, PROBLEM_TYPE_BASE, problem_response
+from ....modules.identity.application import session_still_valid
 from ....modules.plans.application import entitlement_map as ids
 from ....repositories import jobs as job_repository
 from ....security.apikeys import allows_engine, authenticated_api_key
@@ -539,6 +541,8 @@ async def stream_run_events(
         }
 
     initial = snapshot(first)
+    user_id, session_id = user.id, getattr(user, "_identity_session_id", None)
+    settings = get_settings()
 
     async def events():
         last = None
@@ -550,6 +554,12 @@ async def stream_run_events(
                 # A streaming response may outlive its dependency session. Each poll therefore owns a
                 # short read-only session and releases its connection before waiting for the next event.
                 async with db_base.session_factory()() as poll_session:
+                    # Every 30 s: a signed-out session or a deactivated account ends the stream.
+                    if attempt % 30 == 0 and not await session_still_valid(
+                        poll_session, user_id, session_id, settings=settings
+                    ):
+                        yield "event: session-ended\ndata: {}\n\n"
+                        return
                     job = await job_repository.get_in_org(poll_session, organization_id, run)
                     if job is None:
                         return

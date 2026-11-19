@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Any, Awaitable, Callable, Literal, Optional
 
 from fastapi import Depends, HTTPException, Request, Security, status
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
@@ -65,6 +65,34 @@ _API_KEY_AUTH = APIKeyHeader(
         "access to either selected immutable Engine revisions or all visible Engines."
     ),
 )
+
+#: Resolves a session-bound gateway token to its user (``identity.application.active_for_token``), installed by
+#: the composition root (``main.create_app``): this layer sits below the identity module and may not import it.
+SessionResolver = Callable[..., Awaitable[Optional[User]]]
+_session_resolver: Optional[SessionResolver] = None
+
+
+def set_session_resolver(resolver: Optional[SessionResolver]) -> None:
+    global _session_resolver
+    _session_resolver = resolver
+
+
+#: Decides whether a person's API keys work (``identity.application.owner_may_use_keys``), installed by the
+#: composition root like the session resolver. Without one, keys work only in ``local`` mode.
+KeyAdmissionRule = Callable[..., object]
+_key_admission: Optional[KeyAdmissionRule] = None
+
+
+def set_key_admission(rule: Optional[KeyAdmissionRule]) -> None:
+    global _key_admission
+    _key_admission = rule
+
+
+def _key_owner_admitted(user: User, settings: Settings) -> bool:
+    if _key_admission is None:
+        return settings.auth_provider == "local"
+    return bool(_key_admission(user, settings=settings).admitted)
+
 
 #: How stale ``last_used_at`` is allowed to get before it is worth a write.
 LAST_USED_RESOLUTION = timedelta(minutes=1)
@@ -168,17 +196,28 @@ async def _user_for_api_key(credential: str, session: AsyncSession) -> Optional[
     if not matches(credential, api_key.secret_hash):
         return None
 
+    user = await session.get(User, api_key.user_id)
+    if user is not None and user.is_active and not _key_owner_admitted(user, get_settings()):
+        # The person behind the key has not signed in with SCORETech Identity for API_KEY_ORPHAN_DAYS (or
+        # never did): the key is suspended, not revoked, and works again at their next sign-in.
+        raise api_error(
+            status.HTTP_401_UNAUTHORIZED,
+            "api_key_suspended",
+            "Sign in to OpenBinding with SCORETech Identity to reactivate your API keys.",
+            headers=_AUTHENTICATE_CHALLENGE,
+        )
+
     now = utcnow()
     if api_key.last_used_at is None or (now - _as_utc(api_key.last_used_at)) > LAST_USED_RESOLUTION:
         api_key.last_used_at = now
 
-    user = await session.get(User, api_key.user_id)
     if user is not None:
         # SQLAlchemy model instances may safely carry request-local, unmapped
         # attributes. This keeps the existing User-shaped dependency contract
         # while preserving which key authenticated it for authorization and
         # Engine allow-list checks deeper in the call graph.
         user._authenticated_api_key = api_key  # type: ignore[attr-defined]
+        user._identity_session_id = None  # type: ignore[attr-defined]
     return user
 
 
@@ -205,7 +244,21 @@ async def _user_for_credential(
     except TokenError:
         return None
 
-    user = await session.get(User, claims.user_id)
+    if claims.session_id is not None:
+        # One joined read of the session and its user: logout, deactivation, deletion and a change of
+        # AUTH_PROVIDER end the token on its next request. No resolver installed: refused.
+        user = (
+            await _session_resolver(session, claims.session_id, claims.user_id, claims.provider, settings=settings)
+            if _session_resolver is not None
+            else None
+        )
+    elif settings.auth_provider == "local":
+        # Tokens of the local TokenPair, until local sign-in opens sessions too.
+        user = await session.get(User, claims.user_id)
+        if user is not None:
+            user._identity_session_id = None  # type: ignore[attr-defined]
+    else:
+        user = None
     if user is not None:
         user._authenticated_api_key = None  # type: ignore[attr-defined]
     return user

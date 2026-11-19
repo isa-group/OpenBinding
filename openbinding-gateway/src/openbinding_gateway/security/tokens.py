@@ -33,7 +33,10 @@ class TokenError(Exception):
 @dataclass(frozen=True)
 class AccessClaims:
     user_id: uuid.UUID
-    role: str
+    #: The browser session the token was minted from (``identity_sessions.id``), checked on every request.
+    session_id: Optional[uuid.UUID] = None
+    #: The provider of that session (``local`` or ``scoretech``), which must be the gateway's mode.
+    provider: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -112,14 +115,23 @@ def issue_access_token(
     secret: str,
     *,
     user_id: uuid.UUID,
-    role: str,
     ttl_seconds: int,
+    session_id: Optional[uuid.UUID] = None,
+    provider: Optional[str] = None,
     issuer: Optional[str] = None,
     audience: Optional[str] = None,
 ) -> str:
+    """An access token; ``session_id`` and ``provider`` (``sid``, ``prv``) bind it to a browser session.
+
+    The token carries no role: the account's role is read from the database on every request.
+    """
+    payload: dict = {"sub": str(user_id), "kind": "access"}
+    if session_id is not None:
+        payload["sid"] = str(session_id)
+        payload["prv"] = provider
     return _encode(
         secret,
-        {"sub": str(user_id), "role": role, "kind": "access"},
+        payload,
         ttl_seconds,
         issuer=issuer,
         audience=audience,
@@ -153,9 +165,14 @@ def read_access_token(
 ) -> AccessClaims:
     claims = _decode(secret, token, "access", issuer=issuer, audience=audience)
     try:
-        return AccessClaims(user_id=uuid.UUID(claims["sub"]), role=str(claims.get("role", "user")))
-    except (KeyError, ValueError) as error:
+        user_id = uuid.UUID(claims["sub"])
+        session_id = uuid.UUID(claims["sid"]) if claims.get("sid") is not None else None
+    except (KeyError, ValueError, TypeError, AttributeError) as error:
         raise TokenError("Token is missing a usable subject.") from error
+    provider = claims.get("prv")
+    if session_id is not None and provider not in ("local", "scoretech"):
+        raise TokenError("Token names a session without its provider.")
+    return AccessClaims(user_id=user_id, session_id=session_id, provider=provider)
 
 
 def read_refresh_token(

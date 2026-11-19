@@ -443,6 +443,147 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How this gateway signs people in
+         * @description The provider and, in `scoretech` mode, where the browser signs in, registers and manages its account.
+         *
+         *     Public; it names no secret, client id or internal address.
+         */
+        get: operations["getAuthConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/identity/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Finish a SCORETech Identity sign-in and return to the frontend */
+        get: operations["completeIdentitySignIn"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/identity/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Choose a username and create the account of a first SCORETech sign-in */
+        post: operations["completeIdentitySignUp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/identity/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Start signing in (or registering) with SCORETech Identity
+         * @description Navigated to by the browser. `returnTo` is a frontend path, kept only when it is safe.
+         */
+        get: operations["startIdentitySignIn"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/identity/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign out: end this session (or every session of the account) and the SCORETech SSO session
+         * @description Always 204. A tokens minted from the session stop working at once; in `scoretech` mode the Identity
+         *     session behind it is ended too (so signing in again asks for a code), and so is a sign-up still waiting
+         *     for its username.
+         */
+        post: operations["signOut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/identity/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The first SCORETech sign-in waiting for its username
+         * @description Read with the pending cookie the callback set; the email is shown only when Identity verified it.
+         */
+        get: operations["getPendingIdentitySignUp"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/identity/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mint a short gateway token from the session cookie, renewing Identity when needed
+         * @description The browser's only credential is the HttpOnly cookie; this turns it into a 5-minute bearer token.
+         *
+         *     Each call also keeps the session from going idle. In `scoretech` mode the Identity access behind it is
+         *     renewed (once per expiry, whatever the number of tabs or workers).
+         */
+        post: operations["mintSessionAccessToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/login": {
         parameters: {
             query?: never;
@@ -3237,6 +3378,24 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AccessGrant
+         * @description A short gateway access token minted from the session cookie; kept in memory by the browser.
+         */
+        AccessGrant: {
+            /** Access Token */
+            access_token: string;
+            /**
+             * Expires In
+             * @description Lifetime of the access token, in seconds.
+             */
+            expires_in: number;
+            /**
+             * Token Type
+             * @default bearer
+             */
+            token_type: string;
+        };
         /** AccountDeleteRequest */
         AccountDeleteRequest: {
             /**
@@ -3326,6 +3485,11 @@ export interface components {
              */
             api_key_count: number;
             /**
+             * Api Keys Suspended At
+             * @description SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.
+             */
+            api_keys_suspended_at?: string | null;
+            /**
              * Cas Verified
              * @default false
              */
@@ -3343,14 +3507,26 @@ export interface components {
             created_at: string;
             /**
              * Email
-             * Format: email
+             * @description The account's address as stored: what the person registered, the email SCORETech Identity verified, or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an `email` format).
              */
             email: string;
+            /**
+             * Email Verified
+             * @description Whether SCORETech Identity verified `email` (never for a local account).
+             * @default false
+             */
+            email_verified: boolean;
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            /**
+             * Institutional Email
+             * @description Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.
+             * @default false
+             */
+            institutional_email: boolean;
             /** Is Active */
             is_active: boolean;
             /**
@@ -3533,6 +3709,33 @@ export interface components {
             permissions: components["schemas"]["ApiKeyPermission"][];
             /** Prefix */
             prefix: string;
+        };
+        /**
+         * AuthConfigView
+         * @description How this gateway signs people in, for the frontend to read before it draws anything.
+         */
+        AuthConfigView: {
+            /**
+             * Account Url
+             * @description The person's SCORETech Identity account page; null in `local` mode.
+             */
+            account_url?: string | null;
+            /**
+             * Login Url
+             * @description Where the browser starts a SCORETech sign-in (add `returnTo`); null in `local` mode.
+             */
+            login_url?: string | null;
+            /**
+             * Provider
+             * @description `scoretech`: SCORETech Identity through the gateway; `local`: OpenBinding's own accounts.
+             * @enum {string}
+             */
+            provider: "local" | "scoretech";
+            /**
+             * Register Url
+             * @description Where the browser starts a SCORETech registration; null in `local` mode.
+             */
+            register_url?: string | null;
         };
         /**
          * AvatarSelection
@@ -4277,6 +4480,22 @@ export interface components {
             toolchain?: {
                 [key: string]: unknown;
             };
+        };
+        /** CompleteSignUpRequest */
+        CompleteSignUpRequest: {
+            /**
+             * Username
+             * @description Letters, digits, dot, underscore or hyphen; 3 to 64 characters. Public: it names your compositions, engines and organizations.
+             */
+            username: string;
+        };
+        /** CompletedSignUp */
+        CompletedSignUp: {
+            /**
+             * Return To
+             * @description The frontend path to continue at.
+             */
+            return_to: string;
         };
         /** CompositionAdoptionList */
         CompositionAdoptionList: {
@@ -7259,6 +7478,32 @@ export interface components {
              */
             email: string;
         };
+        /**
+         * PendingSignUp
+         * @description A first SCORETech Identity sign-in waiting for its username.
+         */
+        PendingSignUp: {
+            /** Display Name */
+            display_name?: string | null;
+            /**
+             * Email
+             * @description The email Identity verified; null when it shared none or did not verify it.
+             */
+            email?: string | null;
+            /** Email Verified */
+            email_verified: boolean;
+            /**
+             * Expires At
+             * Format: date-time
+             * @description When this pending sign-up is discarded.
+             */
+            expires_at: string;
+            /**
+             * Suggested Username
+             * @description A free username derived from the verified email or the display name; advisory.
+             */
+            suggested_username: string;
+        };
         /** PermanentLink */
         PermanentLink: {
             /**
@@ -8430,6 +8675,16 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** SignOutRequest */
+        SignOutRequest: {
+            /**
+             * Scope
+             * @description `this` session, or `all` the sessions of the account.
+             * @default this
+             * @enum {string}
+             */
+            scope: "this" | "all";
+        };
         /** SphereAnalytics */
         SphereAnalytics: {
             /** Addons */
@@ -9446,6 +9701,11 @@ export interface components {
         /** UserProfile */
         UserProfile: {
             /**
+             * Api Keys Suspended At
+             * @description SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.
+             */
+            api_keys_suspended_at?: string | null;
+            /**
              * Cas Verified
              * @default false
              */
@@ -9457,14 +9717,26 @@ export interface components {
             created_at: string;
             /**
              * Email
-             * Format: email
+             * @description The account's address as stored: what the person registered, the email SCORETech Identity verified, or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an `email` format).
              */
             email: string;
+            /**
+             * Email Verified
+             * @description Whether SCORETech Identity verified `email` (never for a local account).
+             * @default false
+             */
+            email_verified: boolean;
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            /**
+             * Institutional Email
+             * @description Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.
+             * @default false
+             */
+            institutional_email: boolean;
             /** Is Active */
             is_active: boolean;
             /**
@@ -10588,7 +10860,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description `contract_changed`: the contract changed while the gateway was applying this change (another administrator, a renewal), and nothing changed. Read the subscription again and decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead. `research_requires_us_cas`: RESEARCH needs a verified Universidad de Sevilla CAS identity. */
+            /** @description `contract_changed`: the contract changed while the gateway was applying this change (another administrator, a renewal), and nothing changed. Read the subscription again and decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10762,7 +11034,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description `contract_changed`: the contract changed while the gateway was applying this change (another administrator, a renewal), and nothing changed. Read the subscription again and decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead. `research_requires_us_cas`: RESEARCH needs a verified Universidad de Sevilla CAS identity. */
+            /** @description `contract_changed`: the contract changed while the gateway was applying this change (another administrator, a renewal), and nothing changed. Read the subscription again and decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11013,6 +11285,299 @@ export interface operations {
             };
         };
     };
+    getAuthConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthConfigView"];
+                };
+            };
+        };
+    };
+    completeIdentitySignIn: {
+        parameters: {
+            query?: {
+                state?: string | null;
+                code?: string | null;
+                error?: string | null;
+                iss?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To `/sso/identity/callback?returnTo=` with a session cookie, to `/sso/identity/username?returnTo=` for a first sign-in, or to `/authentication?identity_error=<code>`, where code is one of: `signin_failed`, `account_not_linked`, `access_denied`, `unavailable`, `expired`, `account_disabled`. The destination comes from configuration only, never from the request. */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many callbacks from this address; see `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    completeIdentitySignUp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteSignUpRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompletedSignUp"];
+                };
+            };
+            /** @description Not from the frontend's origin (`origin_refused`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No sign-up is waiting (`no_pending_signup`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `username_taken`, `username_unavailable`, `account_not_linked`, `pending_in_progress` or `identity_already_provisioned`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts; see `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    startIdentitySignIn: {
+        parameters: {
+            query?: {
+                screen?: "login" | "register";
+                returnTo?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To SCORETech Identity's sign-in (or registration) page, with a flow cookie. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description To `/authentication?identity_error=unavailable` when Identity cannot be used. */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many sign-ins from this address; see `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    signOut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SignOutRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not from the frontend's origin (`origin_refused`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getPendingIdentitySignUp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingSignUp"];
+                };
+            };
+            /** @description No sign-up is waiting (`no_pending_signup`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    mintSessionAccessToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessGrant"];
+                };
+            };
+            /** @description `no_session` or `session_ended`; the cookie is cleared. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not from the frontend's origin (`origin_refused`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many renewals; see `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `identity_unavailable`; see `Retry-After`. The session survives. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     login: {
         parameters: {
             query?: never;
@@ -11142,6 +11707,15 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Too many attempts from this address; see the `Retry-After` header. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     requestPasswordReset: {
@@ -11175,6 +11749,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this address; see the `Retry-After` header. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

@@ -1,76 +1,10 @@
-"""Universidad de Sevilla CAS 2.0 validation and one-time state storage."""
+"""Universidad de Sevilla CAS 2.0 validation (its one-time state lives in ``modules.identity``'s store)."""
 
 from __future__ import annotations
 
-import json
-import time
-from dataclasses import dataclass, field
-from typing import Protocol
+from dataclasses import dataclass
 
 from lxml import etree
-from redis.asyncio import Redis
-
-from .core.settings import Settings
-
-
-class OneTimeStore(Protocol):
-    async def put(self, namespace: str, key: str, value: dict, ttl: int) -> None: ...
-    async def pop(self, namespace: str, key: str) -> dict | None: ...
-
-
-@dataclass
-class MemoryOneTimeStore:
-    """Deterministic test/development store; production configuration uses Redis."""
-
-    values: dict[tuple[str, str], tuple[dict, float]] = field(default_factory=dict)
-
-    async def put(self, namespace: str, key: str, value: dict, ttl: int) -> None:
-        self.values[(namespace, key)] = (dict(value), time.monotonic() + ttl)
-
-    async def pop(self, namespace: str, key: str) -> dict | None:
-        stored = self.values.pop((namespace, key), None)
-        if stored is None:
-            return None
-        value, expires_at = stored
-        return value if expires_at > time.monotonic() else None
-
-
-class RedisOneTimeStore:
-    def __init__(self, url: str) -> None:
-        self.redis = Redis.from_url(url, decode_responses=True)
-
-    @staticmethod
-    def _key(namespace: str, key: str) -> str:
-        return f"openbinding:{namespace}:{key}"
-
-    async def put(self, namespace: str, key: str, value: dict, ttl: int) -> None:
-        await self.redis.set(self._key(namespace, key), json.dumps(value), ex=ttl, nx=True)
-
-    async def pop(self, namespace: str, key: str) -> dict | None:
-        raw = await self.redis.getdel(self._key(namespace, key))
-        return json.loads(raw) if raw else None
-
-    async def aclose(self) -> None:
-        await self.redis.aclose()
-
-
-_store: OneTimeStore | None = None
-
-
-def set_cas_store(store: OneTimeStore | None) -> None:
-    global _store
-    _store = store
-
-
-def get_cas_store(settings: Settings) -> OneTimeStore:
-    global _store
-    if _store is None:
-        _store = (
-            MemoryOneTimeStore()
-            if settings.cas_store_backend == "memory"
-            else RedisOneTimeStore(settings.redis_url)
-        )
-    return _store
 
 
 @dataclass(frozen=True)

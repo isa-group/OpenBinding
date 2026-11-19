@@ -85,6 +85,7 @@ from ..space_client import (
     get_gate,
 )
 from ..mailer import send_mail
+from ..modules.identity.application import end_all, institutional_email
 from .users import cas_verified_ids, usage_view_for
 
 router = APIRouter(
@@ -251,6 +252,8 @@ async def list_users(
                 contract_pending=user.contract_pending,
                 api_key_count=key_counts.get(user.id, 0),
                 cas_verified=user.id in verified,
+                email_verified=user.email_verified,
+                institutional_email=institutional_email(user),
             )
         )
     return AdminUserPage(
@@ -301,6 +304,9 @@ async def update_user(
     if request.is_active is not None and request.is_active != user.is_active:
         changes["is_active"] = {"from": user.is_active, "to": request.is_active}
         user.is_active = request.is_active
+        if request.is_active is False:
+            # Deactivation ends every browser session at once (and the Identity sessions behind them).
+            await end_all(session, get_settings(), user, "deactivated")
     if request.role is not None and request.role.value != user.role.value:
         changes["role"] = {"from": user.role.value, "to": request.role.value}
         user.role = UserRole(request.role.value)
@@ -322,6 +328,8 @@ async def update_user(
         contract_pending=user.contract_pending,
         api_key_count=0,
         cas_verified=user.id in await cas_verified_ids(session, [user.id]),
+        email_verified=user.email_verified,
+        institutional_email=institutional_email(user),
     )
 
 
@@ -381,21 +389,8 @@ def _admin_user_view(user: User, plan: str, cas_verified: bool = False) -> Admin
         id=user.id, username=user.username, email=user.email, role=user.role.value,
         is_active=user.is_active, plan=plan, created_at=user.created_at,
         contract_pending=user.contract_pending, api_key_count=0, cas_verified=cas_verified,
+        email_verified=user.email_verified, institutional_email=institutional_email(user),
     )
-
-
-async def _assert_research_identity(session: AsyncSession, user: User, plan: str) -> None:
-    if plan != "RESEARCH":
-        return
-    verified = await session.scalar(select(func.count(AuthIdentity.id)).where(
-        AuthIdentity.user_id == user.id, AuthIdentity.provider == "us-cas"
-    ))
-    if not verified:
-        raise api_error(
-            status.HTTP_409_CONFLICT,
-            "research_requires_us_cas",
-            "RESEARCH requires a verified Universidad de Sevilla CAS identity.",
-        )
 
 
 async def _apply_subscription(
@@ -426,7 +421,6 @@ async def _apply_subscription(
         if before is None:
             before = await gate.subscription(user.id)
         revision.check(if_match, _subscription_etag(user, before))
-        await _assert_research_identity(session, user, plan)
         # The version is SPACE_PRICING_VERSION when configured; otherwise the
         # contract keeps the one it is pinned to. SPACE validates the novation.
         target_version = live_pricing_version(settings) or before.pricing_version
@@ -483,6 +477,15 @@ async def _apply_subscription(
             target_id=user.id,
             detail=payload,
         ))
+        if after.plan == "RESEARCH" and before.plan != "RESEARCH":
+            # An administrator grants RESEARCH to any account: no identity is required.
+            session.add(AuditEvent(
+                actor_id=administrator.id,
+                action="account.research.granted",
+                target_type="User",
+                target_id=user.id,
+                detail={"basis": "admin"},
+            ))
         if (user.preferences or {}).get("email_contract_changes", True):
             await send_mail(settings, user.email, subject, body)
     await session.flush()

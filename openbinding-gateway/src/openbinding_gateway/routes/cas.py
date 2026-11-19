@@ -5,8 +5,7 @@ from __future__ import annotations
 import logging
 import secrets
 import uuid
-from collections.abc import Awaitable, Callable
-from typing import Literal, TypeVar
+from typing import Literal
 from urllib.parse import urlencode
 
 import httpx
@@ -18,21 +17,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import space_client
 from ..access.dependencies import get_current_user, get_optional_user, session_dependency
-from ..cas import CasPrincipal, get_cas_store, parse_service_validate
+from ..cas import CasPrincipal, parse_service_validate
 from ..core.public_errors import pricing_unavailable_error
 from ..core.settings import Settings, get_settings
 from ..db.models import AuditEvent, AuthIdentity, User
 from ..models.accounts import CasSession, PlanChange
 from ..models.errors import api_error
 from ..security.passwords import hash_password
-from .auth import _issue_session, username_reserved, username_unavailable
-from ..access.contracts import live_pricing_version
+from .auth import _issue_session
+from ..modules.identity.application import requires_provider, apply_plan_rule, upgrade_to_research, username_reserved, username_unavailable
+from ..access.contracts import create_contract_or_mark_pending, live_pricing_version
+from ..modules.identity.application import get_store
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar("T")
-
-router = APIRouter(prefix="/v1/auth/cas", tags=["Authentication"])
+router = APIRouter(
+    prefix="/v1/auth/cas", tags=["Authentication"], dependencies=[Depends(requires_provider("local"))]
+)
 identity_router = APIRouter(prefix="/v1/users/me/identities", tags=["Users"])
 
 #: The closed list of values `GET /v1/auth/cas/callback` may put in `?error=`.
@@ -84,7 +85,7 @@ async def start_cas(
     linking_user_id = str(current.id) if current else None
     if mode == "link" and current is None:
         stored_intent = (
-            await get_cas_store(settings).pop("cas-link-intent", intent)
+            await get_store().pop("cas-link-intent", intent)
             if intent
             else None
         )
@@ -96,7 +97,7 @@ async def start_cas(
                 "The CAS link intent was used, expired or is invalid.",
             )
     state = secrets.token_urlsafe(32)
-    store = get_cas_store(settings)
+    store = get_store()
     await store.put(
         "cas-state", state,
         {"mode": mode, "userId": linking_user_id},
@@ -114,7 +115,7 @@ async def create_link_intent(
     """Mint a one-use navigation URL without putting a JWT in the browser URL."""
     _enabled(settings)
     intent = secrets.token_urlsafe(32)
-    await get_cas_store(settings).put(
+    await get_store().put(
         "cas-link-intent",
         intent,
         {"userId": str(user.id)},
@@ -148,60 +149,11 @@ def _attribute(principal: CasPrincipal, *names: str) -> str | None:
 
 
 async def _upgrade_to_research(user: User, session: AsyncSession) -> PlanChange | None:
-    """Move a default-plan account to RESEARCH; the change made, or ``None`` if there was none.
-
-    Deliberate product rule (decided by the owner): linking a verified CAS
-    identity is what entitles an account to RESEARCH, so the upgrade is
-    automatic and costs nothing. An account on any other plan is left alone.
-    The caller reports the returned change to the person (``plan_changed``).
-    The rule is applied to the contract version it was decided on
-    (``_apply_plan_rule``), so it never overwrites a change made meanwhile.
-    """
-    settings = get_settings()
-    default_plan = settings.space_default_plan
-    if not default_plan:
-        # Without a configured default plan there is no "default-plan account"
-        # to upgrade; plans are SPACE's to assign.
-        return None
-    version = live_pricing_version(settings)
-
-    async def upgrade(current: space_client.SubscriptionSnapshot) -> PlanChange | None:
-        if current.plan != default_plan:
-            return None
-        # SPACE rejects the novation if the pricing version has no RESEARCH plan.
-        await space_client.get_gate().change_plan(
-            user.id, "RESEARCH", version, current.contract_version
-        )
-        return PlanChange(from_plan=current.plan, to="RESEARCH", extra_cost=False)
-
+    """Linking a verified CAS identity entitles a default-plan account to RESEARCH (the identity module's rule)."""
     try:
-        change = await _apply_plan_rule(user.id, upgrade)
+        return await upgrade_to_research(user)
     except space_client.PricingUnavailable as exc:
         raise pricing_unavailable_error(exc, where="CAS research upgrade") from exc
-    if change is not None:
-        user.plan_cache = "RESEARCH"
-    return change
-
-
-async def _apply_plan_rule(
-    user_id: uuid.UUID,
-    rule: Callable[[space_client.SubscriptionSnapshot], Awaitable[T]],
-    current: space_client.SubscriptionSnapshot | None = None,
-) -> T:
-    """Apply a plan change that follows a rule to the contract it was decided on.
-
-    ``rule`` looks at a subscription and, when the rule applies, novates with
-    that subscription's ``contract_version``. If the contract changed in between
-    (a renewal, an administrator), the novation is refused with
-    ``ContractChanged`` and the rule is applied again, once, to the contract as
-    it is now: a rule, unlike a person, can decide again on its own. A second
-    change in a row propagates as the ``PricingUnavailable`` it also is.
-    """
-    gate = space_client.get_gate()
-    try:
-        return await rule(current if current is not None else await gate.subscription(user_id))
-    except space_client.ContractChanged:
-        return await rule(await gate.subscription(user_id))
 
 
 def _frontend_redirect(settings: Settings, params: dict[str, str]) -> RedirectResponse:
@@ -272,14 +224,16 @@ async def _complete_callback(
     _enabled(settings)
     if not state:
         raise api_error(status.HTTP_401_UNAUTHORIZED, "cas_state_invalid", "CAS state is missing.")
-    stored = await get_cas_store(settings).pop("cas-state", state)
+    stored = await get_store().pop("cas-state", state)
     if stored is None:
         raise api_error(status.HTTP_401_UNAUTHORIZED, "cas_state_invalid", "CAS state was used, expired or is invalid.")
     if not ticket:
         raise api_error(status.HTTP_401_UNAUTHORIZED, "cas_ticket_invalid", "The CAS ticket is missing.")
     principal = await _validated_principal(settings, state, ticket)
     identity = (await session.execute(select(AuthIdentity).where(
-        AuthIdentity.provider == "us-cas", AuthIdentity.subject == principal.subject
+        AuthIdentity.provider == "us-cas",
+        AuthIdentity.issuer == settings.effective_cas_base_url,
+        AuthIdentity.subject == principal.subject,
     ))).scalars().first()
     mode = stored.get("mode")
     plan_changed: PlanChange | None = None
@@ -292,7 +246,7 @@ async def _complete_callback(
         plan_changed = await _upgrade_to_research(user, session)
         if identity is None:
             identity = AuthIdentity(
-                user_id=user.id, provider="us-cas", subject=principal.subject,
+                user_id=user.id, provider="us-cas", issuer=settings.effective_cas_base_url, subject=principal.subject,
                 attributes=principal.attributes,
             )
             session.add(identity)
@@ -339,23 +293,14 @@ async def _complete_callback(
         )
         session.add(user)
         await session.flush()
-        try:
-            await space_client.get_gate().create_contract(
-                user.id,
-                "RESEARCH",
-                user.email,
-                live_pricing_version(settings),
-            )
-            user.contract_pending = False
-        except space_client.PricingUnavailable:
-            user.contract_pending = True
+        await create_contract_or_mark_pending(user, "RESEARCH", settings)
         session.add(AuthIdentity(
-            user_id=user.id, provider="us-cas", subject=principal.subject,
+            user_id=user.id, provider="us-cas", issuer=settings.effective_cas_base_url, subject=principal.subject,
             attributes=principal.attributes,
         ))
     await session.flush()
     code = secrets.token_urlsafe(32)
-    await get_cas_store(settings).put(
+    await get_store().put(
         "cas-exchange", code,
         {
             "userId": str(user.id),
@@ -388,7 +333,7 @@ async def exchange_cas_code(
     plan did not change.
     """
     _enabled(settings)
-    value = await get_cas_store(settings).pop("cas-exchange", payload.code)
+    value = await get_store().pop("cas-exchange", payload.code)
     if value is None:
         raise api_error(status.HTTP_401_UNAUTHORIZED, "cas_code_invalid", "CAS code was used, expired or is invalid.")
     user = await session.get(User, uuid.UUID(value["userId"]))
@@ -463,7 +408,7 @@ async def unlink_identity(
             return True
 
         try:
-            if await _apply_plan_rule(user.id, downgrade, current):
+            if await apply_plan_rule(user.id, downgrade, current):
                 user.plan_cache = default_plan
         except space_client.PricingUnavailable as exc:
             raise pricing_unavailable_error(exc, where="CAS research downgrade") from exc

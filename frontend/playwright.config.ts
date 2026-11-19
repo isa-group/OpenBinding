@@ -25,7 +25,8 @@ export default defineConfig({
   projects: [
     {
       name: 'mocked',
-      testIgnore: '**/live/**',
+      // The live specs run against the lab, and the SCORETech Identity walks only through lab/identity/walk.sh.
+      testIgnore: ['**/live/**', '**/identity/**'],
       use: { baseURL: analysisLive ? 'http://localhost:5173' : 'http://127.0.0.1:4177' },
     },
     {

@@ -37,6 +37,7 @@ const configs = [
   `${root}/playwright.config.ts`,
   `${root}/playwright.live.config.ts`,
   `${root}/playwright.acceptance.config.ts`,
+  `${root}/playwright.identity.config.ts`,
 ];
 const liveFiles = ts.sys.readDirectory(live, ['.ts']);
 const rootNames = [...ts.sys.readDirectory(e2e, ['.ts']), ...configs];
@@ -102,6 +103,47 @@ describe('the Playwright specs', () => {
     expect(journeys.sort()).toEqual(['f2b-problem-editor.spec.ts', 'f2b-study-front.spec.ts']);
     for (const name of journeys)
       expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
+  });
+
+  describe('the SCORETech Identity walks', () => {
+    const identity = `${e2e}/identity`;
+    const specs = ts.sys
+      .readDirectory(identity, ['.ts'])
+      .filter(name => name.endsWith('.spec.ts'))
+      .map(name => name.replace(`${identity}/`, ''));
+
+    it('live in e2e/identity, numbered apart from e2e/live, and run only by their own configuration', () => {
+      expect(specs.sort()).toEqual(['01-gateway.spec.ts']);
+      const config = read(`${root}/playwright.identity.config.ts`);
+      expect(config).toContain("testDir: './e2e/identity'");
+      expect(config).toMatch(/workers: 1\b/);
+      expect(config).not.toContain('webServer');
+      expect(config).toContain("process.env.BASE_URL ?? 'http://localhost:18198'");
+      expect(read(`${root}/playwright.config.ts`)).toContain(
+        "testIgnore: ['**/live/**', '**/identity/**']"
+      );
+    });
+
+    it('walk the gateway phase by phase: bootstrap, the main phase, a native registration, its grant and the rollback', () => {
+      const spec = read(`${identity}/01-gateway.spec.ts`);
+      for (const tag of ['@bootstrap', '@signup', '@granted', '@rollback'])
+        expect(spec).toContain(`'${tag} `);
+      for (const role of ['member', 'research', 'clash', 'squat', 'norole'])
+        expect(spec).toContain(`'${role}: `);
+    });
+
+    it('read codes from the lab Mailpit and never type a literal password or address of a real domain', () => {
+      const support = read(`${identity}/support.ts`);
+      expect(support).toContain('/api/v1/message/');
+      expect(support).toMatch(/\[0-9\]\{6\}/);
+      for (const name of specs
+        .map(spec => `${identity}/${spec}`)
+        .concat(`${identity}/support.ts`)) {
+        const text = read(name);
+        expect(text, name).not.toMatch(/password['"]?\s*[:=]\s*['"`]/i);
+        expect(text, name).not.toMatch(/@us\.es\b/);
+      }
+    });
   });
 
   describe('the live project', () => {
@@ -235,7 +277,7 @@ describe('the Playwright specs', () => {
       const config = read(`${root}/playwright.config.ts`);
       expect(config).toContain("name: 'live'");
       expect(config).toContain("process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:18100'");
-      expect(config).toContain("testIgnore: '**/live/**'");
+      expect(config).toContain("testIgnore: ['**/live/**', '**/identity/**']");
     });
 
     it('has a configuration for the lab: no web server, one worker, a desktop and a mobile project, Chromium without a sandbox', () => {

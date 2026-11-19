@@ -256,3 +256,5 @@ space/space-src/
 /openbinding-gateway/.bim-wheels/
 
 .claude-work/
+# The SCORETech Identity lab, cloned at its pinned revision by lab/identity/up.sh.
+/.lab/

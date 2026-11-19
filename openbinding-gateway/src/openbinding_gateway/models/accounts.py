@@ -54,6 +54,59 @@ class TokenPair(BaseModel):
     expires_in: int = Field(..., description="Lifetime of the access token, in seconds.")
 
 
+class AuthConfigView(BaseModel):
+    """How this gateway signs people in, for the frontend to read before it draws anything."""
+
+    provider: Literal["local", "scoretech"] = Field(
+        ..., description="`scoretech`: SCORETech Identity through the gateway; `local`: OpenBinding's own accounts."
+    )
+    login_url: Optional[str] = Field(
+        default=None, description="Where the browser starts a SCORETech sign-in (add `returnTo`); null in `local` mode."
+    )
+    register_url: Optional[str] = Field(
+        default=None, description="Where the browser starts a SCORETech registration; null in `local` mode."
+    )
+    account_url: Optional[str] = Field(
+        default=None, description="The person's SCORETech Identity account page; null in `local` mode."
+    )
+
+
+class AccessGrant(BaseModel):
+    """A short gateway access token minted from the session cookie; kept in memory by the browser."""
+
+    access_token: str
+    token_type: str = Field(default="bearer")
+    expires_in: int = Field(..., description="Lifetime of the access token, in seconds.")
+
+
+class SignOutRequest(BaseModel):
+    scope: Literal["this", "all"] = Field(
+        default="this", description="`this` session, or `all` the sessions of the account."
+    )
+
+
+class PendingSignUp(BaseModel):
+    """A first SCORETech Identity sign-in waiting for its username."""
+
+    suggested_username: str = Field(..., description="A free username derived from the verified email or the display name; advisory.")
+    email: Optional[str] = Field(default=None, description="The email Identity verified; null when it shared none or did not verify it.")
+    email_verified: bool
+    display_name: Optional[str] = None
+    expires_at: datetime = Field(..., description="When this pending sign-up is discarded.")
+
+
+class CompleteSignUpRequest(BaseModel):
+    username: str = Field(
+        ...,
+        pattern=USERNAME_PATTERN,
+        description="Letters, digits, dot, underscore or hyphen; 3 to 64 characters. Public: it names your compositions, engines and organizations.",
+    )
+
+
+class CompletedSignUp(BaseModel):
+    return_to: str = Field(..., description="The frontend path to continue at.")
+
+
 class PlanChange(BaseModel):
     """A plan change the account holder did not ask for by name, and what it costs."""
 
@@ -81,7 +134,14 @@ class UserProfile(BaseModel):
 
     id: uuid.UUID
     username: str
-    email: EmailStr
+    email: str = Field(
+        ...,
+        description=(
+            "The account's address as stored: what the person registered, the email SCORETech Identity verified, "
+            "or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an "
+            "`email` format)."
+        ),
+    )
     role: RoleName
     is_active: bool
     plan: str = Field(
@@ -96,6 +156,20 @@ class UserProfile(BaseModel):
     )
     created_at: datetime
     cas_verified: bool = False
+    email_verified: bool = Field(
+        default=False, description="Whether SCORETech Identity verified `email` (never for a local account)."
+    )
+    institutional_email: bool = Field(
+        default=False,
+        description="Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.",
+    )
+    api_keys_suspended_at: Optional[datetime] = Field(
+        default=None,
+        description=(
+            "SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person "
+            "signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode."
+        ),
+    )
 
 
 class PasswordResetRequest(BaseModel):

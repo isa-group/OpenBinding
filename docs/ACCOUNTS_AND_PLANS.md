@@ -262,8 +262,9 @@ The gateway uses SPACE's optimistic concurrency against that
   (with the `ETag` as it is now) when the request's `If-Match` named a revision,
   `409 contract_changed` with a fixed sentence otherwise, `*` included. Nothing
   was written, so there is no audit event and no notification. Read the
-  subscription again and decide again. (`409` on these two endpoints can also be
-  `research_requires_us_cas`.)
+  subscription again and decide again. An administrator may put any account on
+  RESEARCH; no identity is required (an account with a verified institutional
+  email gets it on its own, docs/IDENTITY.md).
 - Without `If-Match` the change is computed on the contract as the gateway reads
   it, so only a change landing during the request itself is caught: a screen
   that wants its own reading protected sends the `ETag` it was given. The

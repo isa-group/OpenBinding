@@ -19,13 +19,16 @@ from datetime import timedelta
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..access.contracts import create_contract_or_mark_pending
 
 from ..access.dependencies import get_user_by_identifier, session_dependency
 from ..core.ratelimit import enforce_auth_rate_limit
 from ..core.settings import Settings, get_settings
-from ..db.models import ApiKey, EngineRegistrationRevision, EngineRevision, Notification, PasswordResetToken, RefreshToken, User, UserRole, utcnow
+from ..db.models import ApiKey, AuditEvent, Notification, PasswordResetToken, RefreshToken, User, UserRole, utcnow
 from ..mailer import send_mail
 from ..models.accounts import (
     LoginRequest,
@@ -51,11 +54,14 @@ from ..security.tokens import (
     issue_refresh_token,
     read_refresh_token,
 )
-from .. import space_client
-from .users import PSEUDONYM_PREFIX, profile_of
-from ..space_client import PricingUnavailable
+from .users import profile_of
+from ..modules.identity.application import end_all, requires_provider, username_reserved, username_unavailable
 
-router = APIRouter(prefix="/v1/auth", tags=["Authentication"])
+#: Every route here serves ``AUTH_PROVIDER=local`` only: in ``scoretech`` mode each answers 409
+#: ``local_auth_disabled`` (SCORETech Identity is then the only way in).
+router = APIRouter(
+    prefix="/v1/auth", tags=["Authentication"], dependencies=[Depends(requires_provider("local"))]
+)
 
 TOO_MANY_ATTEMPTS_RESPONSE = {
     "model": ErrorResponse,
@@ -83,33 +89,6 @@ def _read_refresh(settings: Settings, token: str):
     )
 
 
-async def username_reserved(session: AsyncSession, username: str) -> bool:
-    """Whether ``username`` is kept from new accounts.
-
-    Engine namespaces are the username of whoever registered them, baked into
-    immutable manifests (engines and engine registrations alike), and they
-    outlive the account (a deleted account keeps them, under a pseudonymised
-    username). A new account with that name would inherit them and could publish
-    further versions under a namespace that consumers already trust, so the name
-    stays taken. Names in the pseudonym space of deleted accounts are kept too.
-    """
-    name = username.casefold()
-    if name.startswith(PSEUDONYM_PREFIX):
-        return True
-    for column in (EngineRevision.namespace, EngineRegistrationRevision.namespace):
-        if await session.scalar(select(column).where(func.lower(column) == name).limit(1)):
-            return True
-    return False
-
-
-def username_unavailable() -> Exception:
-    return api_error(
-        status.HTTP_409_CONFLICT,
-        "username_unavailable",
-        "That username is reserved: it names published engines, or belongs to a deleted account.",
-    )
-
-
 async def _issue_session(
     session: AsyncSession, user: User, settings: Settings
 ) -> TokenPair:
@@ -129,7 +108,6 @@ async def _issue_session(
         access_token=issue_access_token(
             secret,
             user_id=user.id,
-            role=user.role.value,
             ttl_seconds=settings.access_token_ttl_s,
             issuer=settings.gateway_jwt_issuer,
             audience=settings.gateway_jwt_audience,
@@ -197,27 +175,23 @@ async def register(
         contract_pending=True,
     )
     session.add(user)
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError:
+        # Two registrations racing for one name, or "Alice" beside "alice" (uq_users_username_lower).
+        await session.rollback()
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            "already_registered",
+            "That username or email is already in use.",
+        ) from None
 
     # A contract is what entitles the account to anything, but registration
     # does not depend on SPACE being up: the account is created either way and
     # `contract_pending` records that it still owes one, to be settled the next
     # time this user turns up. Losing the sign-up because a pricing service was
     # restarting would be a worse failure than a delayed contract.
-    try:
-        from ..access.contracts import live_pricing_version, record_assigned_plan
-
-        gate = space_client.get_gate()
-        await gate.create_contract(
-            user.id,
-            default_plan,
-            user.email,
-            live_pricing_version(settings),
-        )
-        user.contract_pending = False
-        await record_assigned_plan(user, gate)
-    except PricingUnavailable:
-        user.contract_pending = True
+    await create_contract_or_mark_pending(user, default_plan, settings)
 
     return await profile_of(session, user)
 
@@ -361,12 +335,16 @@ _DUMMY_HASH = hash_password("openbinding-timing-equalizer")
     status_code=status.HTTP_202_ACCEPTED,
     operation_id="requestPasswordReset",
     summary="Request a one-time password reset",
+    responses={429: TOO_MANY_ATTEMPTS_RESPONSE},
 )
 async def request_password_reset(
     payload: PasswordResetRequest,
+    http_request: Request,
     session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> dict:
+    # Counted per address and per email (hashed) whether or not the account exists: the answer stays uniform.
+    await enforce_auth_rate_limit(http_request, "reset_request", str(payload.email).lower(), settings)
     user = await get_user_by_identifier(session, str(payload.email).lower())
     response = {"accepted": True, "delivery": "email" if settings.smtp_url else "inbox"}
     if user is None or not user.is_active:
@@ -399,11 +377,15 @@ async def request_password_reset(
     status_code=status.HTTP_204_NO_CONTENT,
     operation_id="completePasswordReset",
     summary="Spend a reset token and set a password",
+    responses={429: TOO_MANY_ATTEMPTS_RESPONSE},
 )
 async def complete_password_reset(
     payload: PasswordResetComplete,
+    http_request: Request,
     session: AsyncSession = Depends(session_dependency, scope="function"),
+    settings: Settings = Depends(get_settings),
 ) -> None:
+    await enforce_auth_rate_limit(http_request, "reset_complete", None, settings)
     complaint = password_complaint(payload.new_password)
     if complaint:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "weak_password", complaint)
@@ -431,3 +413,8 @@ async def complete_password_reset(
     await session.execute(ApiKey.__table__.update().where(
         ApiKey.user_id == user.id, ApiKey.revoked_at.is_(None)
     ).values(revoked_at=utcnow()))
+    # Every browser session of the account ends too (and any SCORETech session behind one, after a rollback).
+    await end_all(session, settings, user, "password_reset")
+    session.add(AuditEvent(
+        actor_id=user.id, action="account.password_reset.completed", target_type="User", target_id=user.id, detail={},
+    ))

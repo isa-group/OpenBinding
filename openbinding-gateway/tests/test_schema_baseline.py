@@ -187,3 +187,10 @@ def test_a_database_from_an_older_baseline_is_refused_with_the_reset_recipe(tmp_
 def test_no_retired_table_is_modelled_or_migrated(migrated):
     assert not RETIRED_TABLES & set(Base.metadata.tables)
     assert not RETIRED_TABLES & tables_of(migrated)
+
+
+def test_usernames_have_a_case_insensitive_unique_index(migrated, created):
+    """``uq_users_username_lower`` (``lower(username)``), which autogenerate skips on SQLite and the generator adds."""
+    for database in (migrated, created):
+        sql = index_sql(database, "uq_users_username_lower")
+        assert sql.startswith("CREATE UNIQUE INDEX") and "lower(username)" in sql

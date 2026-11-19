@@ -1,0 +1,75 @@
+{
+  "x-description": "The SCORETech Identity overlay of the lab (lab/identity/README.md): docker compose -f compose.lab.json -f compose.lab-identity.json. The gateway signs in with the Identity lab, which runs as its own compose project (scoretech-identity-lab); it reaches the realm through Identity's internal network while every token is checked against the public issuer. e2e-identity runs the walk with host networking, because Identity's issuer is fixed to http://localhost:18000 and it accepts only loopback return origins in the local environment.",
+  "services": {
+    "gateway": {
+      "environment": {
+        "AUTH_PROVIDER": "${OB_AUTH_PROVIDER:-scoretech}",
+        "SCORETECH_IDENTITY_ISSUER": "http://localhost:18000/identity/auth/realms/score",
+        "SCORETECH_IDENTITY_CLIENT_ID": "${IDENTITY_CLIENT_ID:?set by lab/identity/walk.sh}",
+        "SCORETECH_IDENTITY_CLIENT_SECRET_FILE": "/run/secrets/scoretech_identity_client_secret",
+        "SCORETECH_IDENTITY_TRANSPORT_URL": "http://keycloak:8080/identity/auth/realms/score",
+        "IDENTITY_STORE_BACKEND": "redis",
+        "BOOTSTRAP_ADMIN_SUB": "${IDENTITY_BOOTSTRAP_ADMIN_SUB:-}",
+        "RESEARCH_EMAIL_DOMAINS": "us.es,alum.us.es,research.example",
+        "EXPOSE_RECOVERY_TOKENS": "true"
+      },
+      "secrets": [
+        "scoretech_identity_client_secret"
+      ],
+      "networks": {
+        "default": {},
+        "identity": {}
+      }
+    },
+    "e2e-identity": {
+      "profiles": [
+        "identity-walk"
+      ],
+      "build": {
+        "context": "frontend",
+        "dockerfile": "Dockerfile.e2e"
+      },
+      "image": "openbinding-lab-e2e-identity:${DEMO_LAB_PORT:-18198}",
+      "user": "pwuser",
+      "network_mode": "host",
+      "command": [
+        "pnpm",
+        "exec",
+        "playwright",
+        "test",
+        "-c",
+        "playwright.identity.config.ts"
+      ],
+      "environment": {
+        "BASE_URL": "http://localhost:${DEMO_LAB_PORT:-18198}",
+        "IDENTITY_ORIGIN": "http://localhost:18000",
+        "MAILPIT_URL": "http://localhost:18025",
+        "WALK_RUN": "${WALK_RUN:-}",
+        "E2E_RESULTS_DIR": "/results"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "lab-identity-e2e",
+          "target": "/results"
+        }
+      ],
+      "restart": "no",
+      "mem_limit": "576m"
+    }
+  },
+  "secrets": {
+    "scoretech_identity_client_secret": {
+      "file": "${IDENTITY_CLIENT_SECRET_PATH:?set by lab/identity/walk.sh}"
+    }
+  },
+  "networks": {
+    "identity": {
+      "external": true,
+      "name": "scoretech-identity-lab_default"
+    }
+  },
+  "volumes": {
+    "lab-identity-e2e": {}
+  }
+}

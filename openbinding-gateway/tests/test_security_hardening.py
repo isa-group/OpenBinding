@@ -438,17 +438,17 @@ def test_the_token_claims_default_to_the_gateway_name():
 
 def test_an_access_token_carries_issuer_and_audience_and_both_are_verified():
     user_id = uuid.uuid4()
-    token = issue_access_token(LONG_SECRET, user_id=user_id, role="user", ttl_seconds=60)
+    token = issue_access_token(LONG_SECRET, user_id=user_id, ttl_seconds=60)
 
     claims = jwt.decode(token, LONG_SECRET, algorithms=["HS256"], audience="openbinding-gateway")
     assert claims["iss"] == "openbinding-gateway" and claims["aud"] == "openbinding-gateway"
     assert read_access_token(LONG_SECRET, token).user_id == user_id
 
     foreign_audience = issue_access_token(
-        LONG_SECRET, user_id=user_id, role="user", ttl_seconds=60, audience="another-service"
+        LONG_SECRET, user_id=user_id, ttl_seconds=60, audience="another-service"
     )
     foreign_issuer = issue_access_token(
-        LONG_SECRET, user_id=user_id, role="user", ttl_seconds=60, issuer="another-issuer"
+        LONG_SECRET, user_id=user_id, ttl_seconds=60, issuer="another-issuer"
     )
     for rejected in (foreign_audience, foreign_issuer):
         with pytest.raises(TokenError):
@@ -479,7 +479,7 @@ def test_the_configured_issuer_and_audience_are_what_gets_issued_and_read(monkey
     monkeypatch.setattr(get_settings(), "gateway_jwt_audience", "acme-clients")
     user_id = uuid.uuid4()
 
-    token = issue_access_token(LONG_SECRET, user_id=user_id, role="user", ttl_seconds=60)
+    token = issue_access_token(LONG_SECRET, user_id=user_id, ttl_seconds=60)
 
     claims = jwt.decode(token, LONG_SECRET, algorithms=["HS256"], audience="acme-clients")
     assert claims["iss"] == "acme-gateway"
@@ -493,12 +493,11 @@ async def test_the_api_refuses_a_correctly_signed_token_for_another_audience(
     created = await api_client.post("/v1/auth/register", json=details)
     secret = get_settings().gateway_jwt_secret
     good = issue_access_token(
-        secret, user_id=uuid.UUID(created.json()["id"]), role="user", ttl_seconds=60
+        secret, user_id=uuid.UUID(created.json()["id"]), ttl_seconds=60
     )
     forged = issue_access_token(
         secret,
         user_id=uuid.UUID(created.json()["id"]),
-        role="user",
         ttl_seconds=60,
         audience="another-service",
     )

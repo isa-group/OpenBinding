@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import space_client
 from .jobs import reconciler as job_reconciler
-from .access.dependencies import session_dependency
+from .access.dependencies import session_dependency, set_key_admission, set_session_resolver
 from .access.work_limits import ANONYMOUS_READ_ROUTES, WORK_ROUTES
 from .core import revision
 from .core.settings import Settings, get_settings
@@ -66,6 +66,21 @@ from .modules.plans.adapters.routes import public_router as plans_public_router
 from .modules.plans.adapters.routes import router as plans_router
 from .modules.plans.adapters.sphere import SphereHttpSource
 from .modules.plans.application import installed_pricing_source, set_pricing_source
+from .modules.identity.adapters.stores import (
+    MemoryOneTimeStore,
+    MemorySessionLock,
+    RedisOneTimeStore,
+    RedisSessionLock,
+)
+from .modules.identity.adapters.cookies import NoStoreAuthMiddleware
+from .modules.identity.adapters.oidc import IdentityOidc
+from .modules.identity.adapters.routes import router as identity_auth_router
+from .modules.identity.application import set_lock as set_identity_lock
+from .modules.identity.application import active_for_token as identity_active_for_token
+from .modules.identity.application import owner_may_use_keys
+from .modules.identity.application import set_oidc as set_identity_oidc
+from .modules.identity.application import startup_warnings as identity_startup_warnings
+from .modules.identity.application import set_store as set_identity_store
 from .modules.execution.adapters.routes import router as runs_router
 from .modules.problems.adapters.bim_routes import router as bim_router
 from .modules.problems.adapters.routes import router as problems_router
@@ -109,6 +124,11 @@ def _configure_logging(startup_settings: Settings) -> None:
             startup_settings.space_api_key or "",
             startup_settings.bootstrap_admin_password or "",
             startup_settings.federation_secret_key or "",
+            (
+                startup_settings.scoretech_identity_client_secret.get_secret_value()
+                if startup_settings.scoretech_identity_client_secret
+                else ""
+            ),
             *(startup_settings.secrets_fernet_keys or "").split(","),
         ),
     )
@@ -125,6 +145,34 @@ def _make_lifespan(explicit_settings: Settings | None):
     return lifespan
 
 
+def _install_identity_stores(settings: Settings):
+    """Install the identity module's one-time store, lock and (``scoretech`` mode) Identity client; the returned
+    coroutine function removes and closes them."""
+    set_identity_oidc(IdentityOidc(settings) if settings.auth_provider == "scoretech" else None)
+    if settings.identity_store_backend == "memory":
+        set_identity_store(MemoryOneTimeStore())
+        set_identity_lock(MemorySessionLock())
+
+        async def close_memory() -> None:
+            set_identity_store(None)
+            set_identity_lock(None)
+            set_identity_oidc(None)
+
+        return close_memory
+    store = RedisOneTimeStore(settings.redis_url)
+    lock = RedisSessionLock(client=store.redis)
+    set_identity_store(store)
+    set_identity_lock(lock)
+
+    async def close_redis() -> None:
+        set_identity_store(None)
+        set_identity_lock(None)
+        set_identity_oidc(None)
+        await store.aclose()
+
+    return close_redis
+
+
 @asynccontextmanager
 async def _lifespan(settings: Settings):
     # Fails the start when the BIM service is unreachable or runs another toolchain.
@@ -137,6 +185,9 @@ async def _lifespan(settings: Settings):
     # The one reader of SPHERE, its registries and Pricing2Yaml URLs (modules/plans); its requests go through
     # core.outbound, so there is nothing to close but its in-process cache.
     set_pricing_source(SphereHttpSource(settings))
+    close_identity_stores = _install_identity_stores(settings)
+    for warning in identity_startup_warnings(settings):
+        logging.getLogger(__name__).warning(warning)
     try:
         await check_pricing(settings, gate)
     except BaseException:
@@ -144,6 +195,7 @@ async def _lifespan(settings: Settings):
             await gate.aclose()
         space_client.set_gate(None)
         set_pricing_source(None)
+        await close_identity_stores()
         await db_base.dispose_engine()
         bim_integration.close_bim()
         raise
@@ -175,6 +227,7 @@ async def _lifespan(settings: Settings):
             await gate.aclose()
         space_client.set_gate(None)
         set_pricing_source(None)
+        await close_identity_stores()
         await db_base.dispose_engine()
         bim_integration.close_bim()
 
@@ -394,6 +447,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = explicit or get_settings()
     if explicit is None:
         _configure_logging(settings)
+    # Session-bound gateway tokens resolve through the identity module (access sits below it).
+    set_session_resolver(identity_active_for_token)
+    set_key_admission(owner_may_use_keys)
 
     app = FastAPI(
         title="OpenBinding Gateway",
@@ -419,6 +475,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Added first, so it is the innermost: a 413 still leaves through the CORS and telemetry
     # layers, and nothing inside it reads a body it has not counted.
     app.add_middleware(BodyLimitMiddleware)
+    # Nothing a sign-in route answers may be cached by a browser or a proxy.
+    app.add_middleware(NoStoreAuthMiddleware)
     # Next, so telemetry and CORS see the 5xx documents with their correlationId.
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(
@@ -439,6 +497,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(v1_router)
     app.include_router(auth_router)
+    app.include_router(identity_auth_router)
     app.include_router(cas_router)
     app.include_router(users_router)
     app.include_router(identity_router)

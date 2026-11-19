@@ -43,3 +43,4 @@ and `tests/` and `tools/` without a prefix to `openbinding-gateway/`.
 | [0053](0053-frontend-on-sphere-stack.md) | F2c PR-A | The frontend on SPHERE's stack, structure and conventions (supersedes the layers and reuse rule of 0050) |
 | [0054](0054-composition-environments-and-the-feed.md) | F4-A D2-D10, D19, D22 | Composition environments, adoption with a required `If-Match`, the pinned history, environment feed keys and the feed |
 | [0055](0055-margins-per-offering-plan.md) | F4-A D12 | Margins per offering plan: uniform apportionment, explicit users, exact six-place money, statuses |
+| [0056](0056-identity-bff-session.md) | F5 D-a to D-l, O9 | SCORETech Identity through a backend-for-frontend session: cookies, sessions in PostgreSQL, single-flight renewal, never by email |

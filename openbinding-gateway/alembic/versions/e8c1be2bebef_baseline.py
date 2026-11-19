@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '7ae1a0f3979c'
+revision: str = 'e8c1be2bebef'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -100,6 +100,10 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('username', sa.String(length=64), nullable=False),
     sa.Column('email', sa.String(length=320), nullable=False),
+    sa.Column('email_verified', sa.Boolean(), server_default=sa.text('(false)'), nullable=False),
+    sa.Column('last_identity_refresh_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('display_name', sa.String(length=160), nullable=True),
+    sa.Column('avatar', sa.JSON(), nullable=True),
     sa.Column('password_hash', sa.String(length=255), nullable=False),
     sa.Column('password_enabled', sa.Boolean(), nullable=False),
     sa.Column('preferences', sa.JSON(), nullable=False),
@@ -157,28 +161,18 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('provider', sa.String(length=32), nullable=False),
+    sa.Column('issuer', sa.String(length=512), nullable=False),
     sa.Column('subject', sa.String(length=160), nullable=False),
     sa.Column('attributes', sa.JSON(), nullable=False),
     sa.Column('verified_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_auth_identities_user_id_users'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_auth_identities')),
-    sa.UniqueConstraint('provider', 'subject', name='uq_identity_provider_subject')
+    sa.UniqueConstraint('provider', 'issuer', 'subject', name='uq_identity_provider_issuer_subject')
     )
     op.create_index(op.f('ix_auth_identities_provider'), 'auth_identities', ['provider'], unique=False)
     op.create_index(op.f('ix_auth_identities_subject'), 'auth_identities', ['subject'], unique=False)
     op.create_index(op.f('ix_auth_identities_user_id'), 'auth_identities', ['user_id'], unique=False)
-    op.create_table('notification_stream_tickets',
-    sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('user_id', sa.Uuid(), nullable=False),
-    sa.Column('ticket_hash', sa.String(length=64), nullable=False),
-    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_notification_stream_tickets_user_id_users'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_notification_stream_tickets')),
-    sa.UniqueConstraint('ticket_hash', name=op.f('uq_notification_stream_tickets_ticket_hash'))
-    )
-    op.create_index(op.f('ix_notification_stream_tickets_user_id'), 'notification_stream_tickets', ['user_id'], unique=False)
     op.create_table('notifications',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
@@ -367,6 +361,32 @@ def upgrade() -> None:
     op.create_index(op.f('ix_compositions_created_by_id'), 'compositions', ['created_by_id'], unique=False)
     op.create_index(op.f('ix_compositions_organization_id'), 'compositions', ['organization_id'], unique=False)
     op.create_index('ix_compositions_visibility_updated', 'compositions', ['visibility', 'updated_at'], unique=False)
+    op.create_table('identity_sessions',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('token_hash', sa.String(length=64), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('provider', sa.String(length=16), nullable=False),
+    sa.Column('identity_id', sa.Uuid(), nullable=True),
+    sa.Column('refresh_ciphertext', sa.Text(), nullable=True),
+    sa.Column('refresh_generation', sa.Integer(), server_default='0', nullable=False),
+    sa.Column('access_expires_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('refresh_expires_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('idle_expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('last_renewed_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('revoked_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('revoked_reason', sa.String(length=32), nullable=True),
+    sa.CheckConstraint("provider <> 'scoretech' OR identity_id IS NOT NULL", name=op.f('ck_identity_sessions_identity_session_scoretech_identity')),
+    sa.CheckConstraint("provider IN ('local', 'scoretech')", name=op.f('ck_identity_sessions_identity_session_provider')),
+    sa.CheckConstraint("revoked_reason IS NULL OR revoked_reason IN ('logout', 'logout_all', 'replaced', 'identity_ended', 'admin', 'deactivated', 'password_reset', 'deleted', 'provider_changed')", name=op.f('ck_identity_sessions_identity_session_revoked_reason')),
+    sa.ForeignKeyConstraint(['identity_id'], ['auth_identities.id'], name=op.f('fk_identity_sessions_identity_id_auth_identities'), ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_identity_sessions_user_id_users'), ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_identity_sessions')),
+    sa.UniqueConstraint('token_hash', name=op.f('uq_identity_sessions_token_hash'))
+    )
+    op.create_index(op.f('ix_identity_sessions_identity_id'), 'identity_sessions', ['identity_id'], unique=False)
+    op.create_index('ix_identity_sessions_user_revoked', 'identity_sessions', ['user_id', 'revoked_at'], unique=False)
     op.create_table('org_connections',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
@@ -551,6 +571,20 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_composition_follows_composition_id'), 'composition_follows', ['composition_id'], unique=False)
     op.create_index(op.f('ix_composition_follows_user_id'), 'composition_follows', ['user_id'], unique=False)
+    op.create_table('notification_stream_tickets',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('ticket_hash', sa.String(length=64), nullable=False),
+    sa.Column('session_id', sa.Uuid(), nullable=True),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.ForeignKeyConstraint(['session_id'], ['identity_sessions.id'], name=op.f('fk_notification_stream_tickets_session_id_identity_sessions'), ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_notification_stream_tickets_user_id_users'), ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_notification_stream_tickets')),
+    sa.UniqueConstraint('ticket_hash', name=op.f('uq_notification_stream_tickets_ticket_hash'))
+    )
+    op.create_index(op.f('ix_notification_stream_tickets_session_id'), 'notification_stream_tickets', ['session_id'], unique=False)
+    op.create_index(op.f('ix_notification_stream_tickets_user_id'), 'notification_stream_tickets', ['user_id'], unique=False)
     op.create_table('study_runs',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('study_id', sa.Uuid(), nullable=False),
@@ -902,6 +936,8 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_composition_environment_keys_created_by_id'), 'composition_environment_keys', ['created_by_id'], unique=False)
     op.create_index(op.f('ix_composition_environment_keys_environment_id'), 'composition_environment_keys', ['environment_id'], unique=False)
+    # Indexes on expressions, which autogenerate cannot compare on SQLite.
+    op.create_index('uq_users_username_lower', 'users', [sa.text('lower(username)')], unique=True)
     # Foreign keys that close a cycle: inline on SQLite, added once both tables exist elsewhere.
     if dialect != 'sqlite':
         op.create_foreign_key('fk_jobs_study_cell_id', 'jobs', 'study_cells', ['study_cell_id'], ['id'], ondelete='SET NULL')
@@ -974,6 +1010,9 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_study_runs_study_id'), table_name='study_runs')
     op.drop_index(op.f('ix_study_runs_matrix_digest'), table_name='study_runs')
     op.drop_table('study_runs')
+    op.drop_index(op.f('ix_notification_stream_tickets_user_id'), table_name='notification_stream_tickets')
+    op.drop_index(op.f('ix_notification_stream_tickets_session_id'), table_name='notification_stream_tickets')
+    op.drop_table('notification_stream_tickets')
     op.drop_index(op.f('ix_composition_follows_user_id'), table_name='composition_follows')
     op.drop_index(op.f('ix_composition_follows_composition_id'), table_name='composition_follows')
     op.drop_table('composition_follows')
@@ -1003,6 +1042,9 @@ def downgrade() -> None:
     op.drop_table('organization_invitation_codes')
     op.drop_index(op.f('ix_org_connections_organization_id'), table_name='org_connections')
     op.drop_table('org_connections')
+    op.drop_index('ix_identity_sessions_user_revoked', table_name='identity_sessions')
+    op.drop_index(op.f('ix_identity_sessions_identity_id'), table_name='identity_sessions')
+    op.drop_table('identity_sessions')
     op.drop_index('ix_compositions_visibility_updated', table_name='compositions')
     op.drop_index(op.f('ix_compositions_organization_id'), table_name='compositions')
     op.drop_index(op.f('ix_compositions_created_by_id'), table_name='compositions')
@@ -1042,8 +1084,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_notifications_kind'), table_name='notifications')
     op.drop_index(op.f('ix_notifications_created_at'), table_name='notifications')
     op.drop_table('notifications')
-    op.drop_index(op.f('ix_notification_stream_tickets_user_id'), table_name='notification_stream_tickets')
-    op.drop_table('notification_stream_tickets')
     op.drop_index(op.f('ix_auth_identities_user_id'), table_name='auth_identities')
     op.drop_index(op.f('ix_auth_identities_subject'), table_name='auth_identities')
     op.drop_index(op.f('ix_auth_identities_provider'), table_name='auth_identities')

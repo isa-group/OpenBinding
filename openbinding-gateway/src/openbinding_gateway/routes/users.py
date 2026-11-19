@@ -12,9 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
-    ApiKey, AuditEvent, AuthIdentity, Notification, OrganizationInvitationCode, OrganizationMembership,
+    ApiKey, AuditEvent, AuthIdentity, IdentitySession, Notification, NotificationStreamTicket, OrganizationInvitationCode, OrganizationMembership,
     OrganizationRole, PasswordResetToken, RefreshToken, User, UserRole, utcnow,
 )
+from ..modules.identity.application import PSEUDONYM_PREFIX, end_all, institutional_email, managed_by_identity, owner_may_use_keys
 from ..models.accounts import (
     ApiKeyList,
     ApiKeyBoundary,
@@ -53,6 +54,7 @@ from ..security.apikeys import (
 )
 from ..security.passwords import hash_password, password_complaint, verify_password
 from ..core import revision
+from ..core.settings import get_settings
 from ..core.public_errors import pricing_unavailable_error
 from ..services import engine_registry
 from ..services.entitlements import entitlement_service
@@ -106,6 +108,9 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
         plan=user.plan_cache,
         created_at=user.created_at,
         cas_verified=cas_verified,
+        email_verified=user.email_verified,
+        institutional_email=institutional_email(user),
+        api_keys_suspended_at=owner_may_use_keys(user, settings=get_settings()).suspended_at,
     )
 
 
@@ -226,6 +231,8 @@ async def update_own_profile(
 
     The revision is the account row's, shared with the notification preferences.
     """
+    if request.new_password is not None or request.email is not None:
+        managed_by_identity(get_settings())
     if request.new_password is None and request.email is None:
         # A read: the tag is still checked, but nothing is stored and the revision stays.
         revision.precondition(user, if_match)
@@ -625,6 +632,9 @@ async def delete_own_account(
                 "Transfer or delete every organization for which this is the last owner.",
             )
 
+    # Every browser session ends now, and the SCORETech sessions behind them (best effort); pseudonymise
+    # then deletes the rows. The access token of this very request stops working with them.
+    await end_all(session, get_settings(), user, "deleted")
     # Pseudonymised and flushed first, so that a database refusal (a taken
     # pseudonym, a RESTRICT) stops the deletion while the contract still exists;
     # a contract that cannot be removed then rolls the whole request back.
@@ -635,10 +645,6 @@ async def delete_own_account(
         raise pricing_unavailable_error(exc, where="contract removal") from exc
 
 
-#: The prefix of the username a deleted account is given. Registration and CAS refuse
-#: every name that starts with it (``routes/auth.py``, ``username_reserved``), so a
-#: deletion never finds its pseudonym taken.
-PSEUDONYM_PREFIX = "deleted-"
 
 
 async def pseudonymise(session: AsyncSession, user: User) -> None:
@@ -648,6 +654,10 @@ async def pseudonymise(session: AsyncSession, user: User) -> None:
     user.password_hash = hash_password(secrets.token_urlsafe(48))
     user.password_enabled = False
     user.preferences = {}
+    user.email_verified = False
+    user.display_name = None
+    user.avatar = None
+    user.last_identity_refresh_at = None
     user.plan_cache = ""
     user.contract_pending = False
     user.is_active = False
@@ -659,6 +669,8 @@ async def pseudonymise(session: AsyncSession, user: User) -> None:
         (ApiKey, ApiKey.user_id),
         (RefreshToken, RefreshToken.user_id),
         (PasswordResetToken, PasswordResetToken.user_id),
+        (NotificationStreamTicket, NotificationStreamTicket.user_id),
+        (IdentitySession, IdentitySession.user_id),
         (AuthIdentity, AuthIdentity.user_id),
         (Notification, Notification.user_id),
         (OrganizationMembership, OrganizationMembership.user_id),
