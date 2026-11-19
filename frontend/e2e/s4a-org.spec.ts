@@ -1,7 +1,7 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
-import { signedIn } from './helpers/session';
+import { authConfig, signedIn } from './helpers/session';
 
 // S4a · organization and collaboration, part 1: app-home, SPHERE's organization tree (/me/orgs) and creation page (/orgs/new), org-overview, org-settings (General, with the members, run presets and audit sections at /settings/members, /settings/presets and /settings/audit).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
@@ -334,6 +334,7 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   await signedIn(page, 's4a-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));

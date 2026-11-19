@@ -9,7 +9,7 @@ import {
 import { failureBody } from './helpers/problems';
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
 import { AGREEMENT_PRICING_FIXTURE } from '../src/test/fixtures/agreementPricing';
-import { signedIn } from './helpers/session';
+import { authConfig, signedIn } from './helpers/session';
 
 // S3 · pub-pricing /pricing: SPHERE's hero, the document drawn by pricing-renderer through the bridge, and OpenBinding's
 // comparison and explainers as cards; the API answered by page.route() (there is no backend).
@@ -64,6 +64,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/v1/plans/pricing`, mocks.pricing ?? json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   if (mocks.plan) {

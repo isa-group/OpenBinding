@@ -54,6 +54,7 @@ import {
 import { presetPage } from '../../src/test/fixtures/presets';
 import { compositionStore, type CompositionSeed, type CompositionStore } from './mockCompositions';
 import { snapshotRoutes, sphereProblemRoutes, sphereRoutes, tomatometerListed } from './sphereMock';
+import { authConfigBody } from './session';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
 // with compositions, problems, runs and studies, and everything the public screens read.
@@ -1314,12 +1315,13 @@ function route(request: Request): Reply | null {
 
 /**
  * Answers the API origin of the page: a signed-in administrator, nobody when `session` is `none`, or a visitor who signs in as the
- * administrator (`visitor`); `seed` adds compositions.
+ * administrator (`visitor`); `seed` adds compositions; `authProvider` is what `GET /v1/auth/config` says (local by default).
  */
 export async function installMockApi(
   page: Page,
   session: Session,
-  seed: CompositionSeed = {}
+  seed: CompositionSeed = {},
+  authProvider: 'local' | 'scoretech' = 'local'
 ): Promise<MockHandle> {
   const handle: MockHandle = { unmocked: [] };
   await page.clock.setFixedTime(new Date(NOW));
@@ -1364,6 +1366,10 @@ export async function installMockApi(
           expires_in: 300,
         },
       });
+      return;
+    }
+    if (known.method === 'GET' && parts.join('/') === 'v1/auth/config') {
+      await call.fulfill({ json: authConfigBody(authProvider) });
       return;
     }
     if (known.method === 'POST' && parts.join('/') === 'v1/auth/identity/session') {
@@ -1894,6 +1900,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
         expires_in: 300,
       });
     }
+    if (area === 'auth' && second === 'config' && method === 'GET') return ok(authConfigBody());
     if (area === 'auth' && second === 'identity' && third === 'session' && method === 'POST') {
       return walkCookie
         ? ok({ access_token: 'walk-access', token_type: 'bearer', expires_in: 300 })

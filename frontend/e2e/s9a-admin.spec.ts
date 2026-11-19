@@ -27,7 +27,7 @@ import {
   usageOf,
   userPage,
 } from '../src/test/fixtures/admin';
-import { signedIn } from './helpers/session';
+import { authConfig, signedIn } from './helpers/session';
 
 // S9a · administration, part one: `/admin/:section?` (SPHERE's settings shell: the overview, accounts, audit, errors and queues
 // sections) and `/admin/users/:user` (admin-user-detail, on the card shell with its tabs).
@@ -154,6 +154,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   await signedIn(page, 's9a-access');
   await page.route(`${API}/v1/plans/pricing`, route => answer('catalog', PRICING_FIXTURE)(route));

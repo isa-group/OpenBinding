@@ -35,3 +35,27 @@ export async function signedOut(page: Page): Promise<void> {
     })
   );
 }
+
+/** What `GET /v1/auth/config` answers: the application draws nothing before it knows how the gateway signs people in. */
+export function authConfigBody(provider: 'local' | 'scoretech' = 'local') {
+  return provider === 'local'
+    ? { provider, login_url: null, account_url: null }
+    : {
+        provider,
+        login_url: `${API}/v1/auth/identity/login`,
+        account_url: 'https://identity.example.invalid/identity/account/#public-profile',
+      };
+}
+
+/**
+ * Answer `GET /v1/auth/config` (local mode unless told otherwise). Register it after any catch-all route of the API
+ * origin (the route registered last answers first).
+ */
+export async function authConfig(
+  page: Page,
+  provider: 'local' | 'scoretech' = 'local'
+): Promise<void> {
+  await page.route(`${API}/v1/auth/config`, route =>
+    route.fulfill({ json: authConfigBody(provider) })
+  );
+}

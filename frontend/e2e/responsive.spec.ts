@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { installMockApi } from './helpers/mockApi';
-import { signedIn } from './helpers/session';
+import { authConfig, signedIn } from './helpers/session';
 
 // Public routes of the redesigned site. The footer holds the service-status chip; there is no /status page.
 const PUBLIC_ROUTES = [
@@ -147,6 +147,7 @@ async function openOrganizationSettings(page: Page) {
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await signedIn(page, 'responsive-token');
   await page.route(`${API}/v1/users/me`, route => route.fulfill({ json: account }));
   await page.route(`${API}/v1/users/me/pricing-token`, route =>

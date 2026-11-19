@@ -9,7 +9,7 @@ import {
 import { failureBody } from './helpers/problems';
 import { AGREEMENT_PRICING_FIXTURE as PRICING_FIXTURE } from '../src/test/fixtures/agreementPricing';
 import { ALEX, MARIA, PENDING_ENGINE, usageOf } from '../src/test/fixtures/admin';
-import { signedIn } from './helpers/session';
+import { authConfig, signedIn } from './helpers/session';
 
 // S9b · administration, part two: the Moderation and Maintenance sections of `/admin/:section?` (pricing is administered in the
 // native SPACE and SPHERE consoles).
@@ -111,6 +111,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   await signedIn(page, 's9b-access');
   await page.route(`${API}/v1/plans/pricing`, json(PRICING_FIXTURE));

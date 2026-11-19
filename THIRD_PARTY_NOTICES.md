@@ -152,6 +152,8 @@ Generated from the origin header of each file.
 | `frontend/src/modules/api-keys/pages/api-keys-page/index.tsx` | `frontend/src/modules/api-keys/pages/ApiKeysPage.tsx` | adapted |
 | `frontend/src/modules/api-keys/utils/accessLevel.ts` | `frontend/src/modules/core/components/scope-selector.tsx` | adapted (extracted) |
 | `frontend/src/modules/auth/components/animated-logo/index.tsx` | `frontend/src/modules/auth/components/animated-logo/index.tsx` | adapted |
+| `frontend/src/modules/auth/api/identityApi.ts` | `frontend/src/modules/auth/api/identityApi.ts` | adapted |
+| `frontend/src/modules/auth/contexts/authConfig.tsx` and `authConfigContext.ts` | `frontend/src/modules/auth/contexts/authConfig.tsx` | adapted |
 | `frontend/src/modules/auth/components/auth-field/index.tsx` | `frontend/src/modules/auth/components/login-form/index.tsx` | pattern-only |
 | `frontend/src/modules/auth/components/auth-layout/index.tsx` | `frontend/src/modules/auth/components/auth-layout/index.tsx` | adapted |
 | `frontend/src/modules/auth/components/auth-layout/variants.ts` | `frontend/src/modules/auth/components/auth-layout/index.tsx` | verbatim |

@@ -26,7 +26,7 @@ import {
   runFixture,
   studyFixture,
 } from '../src/test/fixtures/studies';
-import { signedIn } from './helpers/session';
+import { authConfig, signedIn } from './helpers/session';
 
 // S7a · studies: the Studies tab of an organization (/orgs/:org/studies, SPHERE's collection cards), the form study-builder
 // (/studies/new) and the card page study-detail (/studies/:org/:study/:tab?) with its tabs Setup, Progress (the run), Results
@@ -282,6 +282,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   await signedIn(page, 's7a-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));

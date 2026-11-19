@@ -5,7 +5,7 @@ import { failureBody } from './helpers/problems';
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
 import { checkoutFacts, compiledDocument, digestOf } from '../src/modules/problem/utils/fixtures';
 import type { CompositionVersionView } from '../src/modules/core/api/types';
-import { signedIn } from './helpers/session';
+import { authConfig, signedIn } from './helpers/session';
 
 // S5a · the problems of an organization: its Problems tab (/orgs/:org/problems, filtered by origin and by linking composition)
 // and the problem page problem-detail (/problems/:org/:problem/:tab?) with its tabs Overview, Candidates, Versions, Runs, Compositions, Source and Settings. A problem is
@@ -268,6 +268,7 @@ async function mockApi(page: Page): Promise<State> {
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   await signedIn(page, 's5a-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));

@@ -77,6 +77,8 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
   });
 
   await page.route(`${API}/**`, json({ detail: 'not mocked' }, 404));
+  // How the gateway signs people in: the application draws nothing before it knows (local mode, the form).
+  await page.route(`${API}/v1/auth/config`, json({ provider: 'local', login_url: null, account_url: null }));
   await page.route(`${API}/v1/bim/templates`, json({ templates: TEMPLATES }));
   await page.route(`${API}/v1/engines/protocol`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
   await page.route(`${API}/v1/engines`, json({ engines: [] }));

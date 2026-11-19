@@ -1,7 +1,7 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
-import { signedIn } from './helpers/session';
+import { authConfig, signedIn } from './helpers/session';
 
 // S3 · the account: acct-settings (`/me/settings?section=`: account, sign-in & security, notifications, plan, appearance, beta
 // features, danger zone) and acct-api-keys (`/me/api-keys`, with the Create new API key dialog at `?create=key`).
@@ -271,6 +271,7 @@ async function mockApi(
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   await signedIn(page, 's3-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));

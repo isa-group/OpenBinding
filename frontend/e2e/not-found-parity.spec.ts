@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { signedIn as withSession } from './helpers/session';
+import { authConfig, signedIn as withSession } from './helpers/session';
 
 // Anything missing and anything unreadable read the same (design §1 and §3.7): every address of a resource answers with the
 // in-place 404 whether the gateway says 404 (missing) or 403 (not yours), so the page never reveals that something private
@@ -24,6 +24,7 @@ async function mockApi(page: Page, status: 404 | 403, signedIn: boolean) {
       json: { code: status === 404 ? 'not_found' : 'forbidden', detail: 'refused' },
     })
   );
+  await authConfig(page);
   if (!signedIn) return;
   await withSession(page, 'parity-token');
   await page.route(`${API}/v1/users/me`, route =>

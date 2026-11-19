@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
+import { authConfig } from './helpers/session';
 
 // S2 · authentication and invitations, on SPHERE's split authentication layout:
 // auth (/authentication, its login and register views), auth-forgot-password, auth-reset-password, auth-sso-callback, org-join.
@@ -83,6 +84,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   // Whoever signs in during a test becomes this account; /v1/users/me is only asked once a token exists.
   let current = mocks.account ?? person();
   let cookie = Boolean(mocks.account);

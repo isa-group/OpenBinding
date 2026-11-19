@@ -1,6 +1,6 @@
 import { expect as baseExpect, test, type Page, type Route } from '@playwright/test';
 import { compositionStore } from './helpers/mockCompositions';
-import { signedIn } from './helpers/session';
+import { authConfig, signedIn } from './helpers/session';
 
 // The dev server compiles each route on first use, so the first assertion of a test can wait for a cold page.
 const expect = baseExpect.configure({ timeout: 15_000 });
@@ -89,6 +89,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   // The public engine catalogue; a signed-in account gets its own list below.
   await page.route(`${API}/v1/engines`, json({ engines }));
   if (mocks.signedIn) {

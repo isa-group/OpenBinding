@@ -21,7 +21,7 @@ import {
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 import { FEDERATED_PRESET, presetFixture, presetPage } from '../src/test/fixtures/presets';
-import { signedIn } from './helpers/session';
+import { authConfig, signedIn } from './helpers/session';
 
 // S6a · execution: run-launch (`/runs/new`, with run presets), the organization's Runs tab (`/orgs/:org/runs`) and run-detail
 // (`/runs/:org/:run`, with deriving a composition from a finished run).
@@ -417,6 +417,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   await signedIn(page, 's6a-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
