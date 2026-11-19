@@ -73,8 +73,10 @@ from .modules.identity.adapters.stores import (
     RedisSessionLock,
 )
 from .modules.identity.adapters.cookies import NoStoreAuthMiddleware
+from .modules.identity.adapters.oidc import IdentityOidc
 from .modules.identity.adapters.routes import router as identity_auth_router
 from .modules.identity.application import set_lock as set_identity_lock
+from .modules.identity.application import set_oidc as set_identity_oidc
 from .modules.identity.application import startup_warnings as identity_startup_warnings
 from .modules.identity.application import set_store as set_identity_store
 from .modules.execution.adapters.routes import router as runs_router
@@ -142,7 +144,9 @@ def _make_lifespan(explicit_settings: Settings | None):
 
 
 def _install_identity_stores(settings: Settings):
-    """Install the identity module's one-time store and lock; the returned coroutine function closes them."""
+    """Install the identity module's one-time store, lock and (``scoretech`` mode) Identity client; the returned
+    coroutine function removes and closes them."""
+    set_identity_oidc(IdentityOidc(settings) if settings.auth_provider == "scoretech" else None)
     if settings.identity_store_backend == "memory":
         set_identity_store(MemoryOneTimeStore())
         set_identity_lock(MemorySessionLock())
@@ -150,6 +154,7 @@ def _install_identity_stores(settings: Settings):
         async def close_memory() -> None:
             set_identity_store(None)
             set_identity_lock(None)
+            set_identity_oidc(None)
 
         return close_memory
     store = RedisOneTimeStore(settings.redis_url)
@@ -160,6 +165,7 @@ def _install_identity_stores(settings: Settings):
     async def close_redis() -> None:
         set_identity_store(None)
         set_identity_lock(None)
+        set_identity_oidc(None)
         await store.aclose()
 
     return close_redis

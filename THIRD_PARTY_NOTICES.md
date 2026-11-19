@@ -83,6 +83,7 @@ listed with its module:
 |---|---|
 | `openbinding-gateway/src/openbinding_gateway/composition/diff.py` | `frontend/src/modules/pricing/utils/pricing-diff.ts` (the PricingDiff shape and rules) |
 | `openbinding-gateway/src/openbinding_gateway/modules/compositions/application/fork.py` | `PricingService.forkPricing` and its `ForkedFrom` snapshot (the fork rules) |
+| `openbinding-gateway/src/openbinding_gateway/modules/identity/adapters/oidc.py` | `api/src/main/services/ScoretechIdentityService.ts` (discovery, the token grant and verification; stricter: `aud` and `azp` on both tokens, `typ`, the `kid` and refetch rules, an hour of discovery cache) |
 | `frontend/src/modules/core/theme/editor-themes/GitHub-Dark.json` | `frontend/src/modules/core/theme/editor-themes/GitHub-Dark.json` | verbatim |
 | `frontend/src/modules/core/theme/editor-themes/Textmate.json` | `frontend/src/modules/core/theme/editor-themes/Textmate.json` | verbatim |
 | `frontend/src/modules/core/utils/sphere/text-diff.ts` | `frontend/src/modules/pricing/utils/text-diff.ts` (copied verbatim) |

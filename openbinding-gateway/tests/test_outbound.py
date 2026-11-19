@@ -333,3 +333,84 @@ async def test_the_log_line_masks_the_query_string(monkeypatch: pytest.MonkeyPat
     text = "\n".join(record.getMessage() for record in caplog.records)
     assert "pricing.example/a?…" in text
     assert "s3cret" not in text
+
+
+# --- post_form (the SCORETech Identity endpoints) ---------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_post_form_pins_the_address_and_sends_a_form(monkeypatch: pytest.MonkeyPatch) -> None:
+    asked = _dns(monkeypatch, "93.184.216.34", "10.0.0.7")
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"ok": True})
+
+    answer = await outbound.post_form(
+        "https://identity.example/token", {"grant_type": "x", "a": "b c"},
+        policy=OutboundPolicy(), transport=httpx.MockTransport(handler),
+    )
+    assert answer.status == 200 and asked == ["identity.example"]
+    request = seen[0]
+    assert request.method == "POST" and request.url.host == "93.184.216.34"
+    assert request.headers["host"] == "identity.example"
+    assert request.extensions["sni_hostname"] == "identity.example"
+    assert request.headers["content-type"] == "application/x-www-form-urlencoded"
+    assert request.content == b"grant_type=x&a=b+c"
+
+
+@pytest.mark.asyncio
+async def test_post_form_never_follows_a_redirect(monkeypatch: pytest.MonkeyPatch) -> None:
+    _dns(monkeypatch, "93.184.216.34")
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return httpx.Response(307, headers={"location": "https://identity.example/elsewhere"})
+
+    with pytest.raises(OutboundError) as caught:
+        await outbound.post_form(
+            "https://identity.example/token", {"a": "b"}, policy=OutboundPolicy(max_redirects=3),
+            transport=httpx.MockTransport(handler),
+        )
+    assert caught.value.code == "outbound_redirect" and len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_post_form_caps_the_answer_and_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    _dns(monkeypatch, "93.184.216.34")
+    with pytest.raises(OutboundError) as caught:
+        await outbound.post_form(
+            "https://identity.example/token", {}, policy=OutboundPolicy(max_bytes=10),
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, content=b"x" * 100)),
+        )
+    assert caught.value.code == "outbound_too_large"
+
+    async def slow(request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(5)
+        return httpx.Response(200)
+
+    with pytest.raises(OutboundError) as caught:
+        await outbound.post_form(
+            "https://identity.example/token", {}, policy=OutboundPolicy(total_timeout_s=0.1),
+            transport=httpx.MockTransport(slow),
+        )
+    assert caught.value.code == "outbound_timeout"
+
+
+@pytest.mark.asyncio
+async def test_post_form_ignores_the_proxy_environment_and_refuses_private_addresses(monkeypatch) -> None:
+    _dns(monkeypatch, "10.0.0.7")
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.invalid:3128")
+    with pytest.raises(OutboundError) as caught:
+        await outbound.post_form(
+            "https://identity.example/token", {}, policy=OutboundPolicy(),
+            transport=httpx.MockTransport(lambda request: httpx.Response(200)),
+        )
+    assert caught.value.code == "outbound_address"
+    answer = await outbound.post_form(
+        "https://identity.example/token", {}, policy=OutboundPolicy(allow_internal=True),
+        transport=httpx.MockTransport(lambda request: httpx.Response(204)),
+    )
+    assert answer.status == 204

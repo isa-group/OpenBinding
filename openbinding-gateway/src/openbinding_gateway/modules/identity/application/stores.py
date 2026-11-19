@@ -1,4 +1,4 @@
-"""The registry of the identity module's ports: the one-time store and the lock.
+"""The registry of the identity module's ports: the one-time store, the lock and the Identity client.
 
 ``application`` never imports ``adapters`` (the module-inside contract), so the composition root installs the
 adapters here (``main._lifespan``, by ``IDENTITY_STORE_BACKEND``) and the tests install memory ones
@@ -7,7 +7,7 @@ adapters here (``main._lifespan``, by ``IDENTITY_STORE_BACKEND``) and the tests 
 
 from __future__ import annotations
 
-from .ports import OneTimeStore, SessionLock
+from .ports import OidcClient, OneTimeStore, SessionLock
 
 
 class IdentityStoreNotConfigured(RuntimeError):
@@ -15,6 +15,7 @@ class IdentityStoreNotConfigured(RuntimeError):
 
 
 _store: OneTimeStore | None = None
+_oidc: OidcClient | None = None
 _lock: SessionLock | None = None
 
 
@@ -38,3 +39,14 @@ def get_lock() -> SessionLock:
     if _lock is None:
         raise IdentityStoreNotConfigured("no identity session lock is installed")
     return _lock
+
+
+def set_oidc(client: OidcClient | None) -> None:
+    global _oidc
+    _oidc = client
+
+
+def get_oidc() -> OidcClient:
+    if _oidc is None:
+        raise IdentityStoreNotConfigured("no SCORETech Identity client is installed")
+    return _oidc
