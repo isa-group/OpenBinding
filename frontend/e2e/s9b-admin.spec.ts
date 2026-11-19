@@ -9,6 +9,7 @@ import {
 import { failureBody } from './helpers/problems';
 import { AGREEMENT_PRICING_FIXTURE as PRICING_FIXTURE } from '../src/test/fixtures/agreementPricing';
 import { ALEX, MARIA, PENDING_ENGINE, usageOf } from '../src/test/fixtures/admin';
+import { signedIn } from './helpers/session';
 
 // S9b · administration, part two: the Moderation and Maintenance sections of `/admin/:section?` (pricing is administered in the
 // native SPACE and SPHERE consoles).
@@ -107,24 +108,11 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
         ? state.refuse[key](route)
         : json(typeof body === 'function' ? (body as () => unknown)() : body)(route);
 
-  await page.addInitScript(() => {
-    localStorage.setItem('openbinding-access-token', 's9b-access');
-    localStorage.setItem('openbinding-refresh-token', 's9b-refresh');
-  });
-
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  await page.route(
-    `${API}/v1/auth/refresh`,
-    json({
-      access_token: 's9b-access-2',
-      refresh_token: 's9b-refresh-2',
-      token_type: 'bearer',
-      expires_in: 900,
-    })
-  );
+  await signedIn(page, 's9b-access');
   await page.route(`${API}/v1/plans/pricing`, json(PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(me));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf('PRO')));

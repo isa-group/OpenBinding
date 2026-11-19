@@ -74,15 +74,32 @@ interface Mocks {
   organizations?: unknown[] | (() => unknown[]);
 }
 
-/** Everything these screens read, answered; anything else on the API origin is an empty 404. */
+/**
+ * Everything these screens read, answered; anything else on the API origin is an empty 404. The session is the gateway's
+ * cookie: `POST /v1/auth/identity/session` answers a token while it lives (from the start with `account`, after a sign-in,
+ * registration or CAS exchange) and 401 otherwise. `setSession` plants or ends it, as another tab would.
+ */
 async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
   // Whoever signs in during a test becomes this account; /v1/users/me is only asked once a token exists.
   let current = mocks.account ?? person();
-  if (mocks.account)
-    await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 's2-access'));
+  let cookie = Boolean(mocks.account);
+  await page.route(`${API}/v1/auth/identity/session`, route =>
+    cookie
+      ? route.fulfill({
+          json: { access_token: 's2-access', token_type: 'bearer', expires_in: 300 },
+        })
+      : route.fulfill({
+          status: 401,
+          json: failureBody(401, 'no_session', 'There is no session; sign in.'),
+        })
+  );
+  await page.route(`${API}/v1/auth/identity/logout`, route => {
+    cookie = false;
+    return route.fulfill({ status: 204 });
+  });
   await page.route(`${API}/v1/users/me`, route => route.fulfill({ json: current }));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: 's2-pricing' }));
   await page.route(`${API}/v1/notifications**`, json([]));
@@ -94,8 +111,16 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
         json: typeof organizations === 'function' ? organizations() : organizations,
       })
   );
-  await page.route(`${API}/v1/auth/login`, json(tokens));
-  await page.route(`${API}/v1/auth/register`, json(person(), 201));
+  const signIn = (route: Route) => {
+    cookie = true;
+    return route.fulfill({ json: tokens });
+  };
+  const register = (route: Route) => {
+    cookie = true;
+    return route.fulfill({ status: 201, json: person() });
+  };
+  await page.route(`${API}/v1/auth/login`, signIn);
+  await page.route(`${API}/v1/auth/register`, register);
   await page.route(
     `${API}/v1/auth/password-reset/request`,
     json({ accepted: true, delivery: 'email' }, 202)
@@ -105,9 +130,19 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   );
   await page.route(`${API}/v1/auth/cas/exchange`, route => {
     current = researcher;
+    cookie = true;
     return route.fulfill({ json: tokens });
   });
   await page.route(`${API}/health**`, json({ status: 'ok' }));
+  return {
+    /** Plant or end the session cookie, as another tab signing in or out would. */
+    setSession(on: boolean) {
+      cookie = on;
+    },
+    /** The successful sign-in and registration answers (they set the cookie), to route again after a refusal. */
+    signIn,
+    register,
+  };
 }
 
 function watchCriticalErrors(page: Page) {
@@ -170,7 +205,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
     test('auth /authentication (log in)', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
-      await mockApi(page);
+      const gateway = await mockApi(page);
       await page.goto('/authentication');
       const main = page.locator('main');
 
@@ -234,7 +269,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `login-${name}-session-expired`);
 
       // Someone who is signed in already is told so, with the way on.
-      await page.evaluate(() => localStorage.setItem('openbinding-access-token', 's2-access'));
+      gateway.setSession(true);
       await page.goto('/authentication');
       await expect(
         main.getByRole('heading', { level: 1, name: 'You’re already signed in' })
@@ -249,7 +284,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // A visitor sent here by a protected page signs in and goes back to it.
       await forgetEverything(page);
-      await page.route(`${API}/v1/auth/login`, json(tokens));
+      gateway.setSession(false);
+      await page.route(`${API}/v1/auth/login`, gateway.signIn);
       await page.goto('/me/orgs');
       await expect(page).toHaveURL(/\/authentication$/);
       await main.getByLabel('Username or email').fill('sofia');
@@ -265,7 +301,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
     test('auth /authentication?view=register (create an account)', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
-      await mockApi(page);
+      const gateway = await mockApi(page);
       await page.route(
         `${API}/v1/auth/register`,
         detail(409, 'already_registered', 'That username or email is already in use.')
@@ -332,7 +368,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `register-${name}-503`);
 
       // The account is created, signed in and taken to the dashboard.
-      await page.route(`${API}/v1/auth/register`, json(person(), 201));
+      await page.route(`${API}/v1/auth/register`, gateway.register);
       await main.getByRole('button', { name: 'Create account' }).click();
       await expect.poll(() => new URL(page.url()).pathname).toBe('/');
       await expect(page.locator('header.app-header')).toBeVisible();

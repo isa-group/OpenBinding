@@ -1,6 +1,7 @@
 // The gateway transport, taken out of api/client.ts so that SPHERE-style module APIs (`use<Domain>Api()` over
-// `useAuth().fetchWithInterceptor`) and the legacy client share one session: the bearer token, the single-flight refresh
-// rotation, the typed refusals and the session-ended event. api/client.ts extends it until the client is emptied (D8).
+// `useAuth().fetchWithInterceptor`) and the legacy client share one session: the bearer token, its single-flight renewal
+// from the session cookie, the typed refusals and the session-ended event. api/client.ts extends it until the client is
+// emptied (D8).
 
 import { config } from '../../../config';
 import { PricingUnavailableError, QuotaError } from './account';
@@ -37,10 +38,18 @@ export class HttpError extends Error {
   }
 }
 
-/** Where the session lives. Header-based rather than cookies: see AuthContext. */
-export const ACCESS_TOKEN_KEY = 'openbinding-access-token';
-export const REFRESH_TOKEN_KEY = 'openbinding-refresh-token';
 export const PRICING_TOKEN_KEY = 'pricingToken';
+
+/** What `POST /v1/auth/identity/session` and a local sign-in answer: a short gateway token, kept in memory only. */
+export interface AccessGrant {
+  access_token: string;
+  token_type?: string;
+  /** Seconds the token is valid for. */
+  expires_in?: number;
+}
+
+/** Renew the gateway token when it has less than this left (and on focus, visibility and every 30 s, see AuthProvider). */
+export const RENEW_BEFORE_MS = 60_000;
 
 /**
  * Fired when a new pricing token is retrieved from the gateway so that
@@ -61,10 +70,9 @@ export function getStoredPricingToken(): string | null {
 }
 
 /**
- * Fired when a session ends without the user asking - a refresh token that was
- * spent, revoked or expired. AuthContext listens and clears the user. The event is local
- * to the tab that made the request; the other tabs learn of it from the `storage` event
- * that clearing the tokens raises (see AuthContext).
+ * Fired when a session ends without the user asking - the session cookie no longer names a live session (signed out
+ * elsewhere, expired, revoked). AuthProvider listens and clears the user. The event is local to the tab that made the
+ * request; the other tabs learn of a sign-out through the `openbinding-auth` BroadcastChannel (see AuthProvider).
  */
 export const SESSION_ENDED_EVENT = 'openbinding:session-ended';
 
@@ -188,8 +196,15 @@ export async function readResponse<T>(response: Response): Promise<T> {
 
 export class HttpTransport {
   readonly baseUrl: string;
-  /** In flight refresh, so that ten simultaneous 401s cause one refresh. */
-  protected refreshing: Promise<boolean> | null = null;
+  /**
+   * The gateway token. It lives in this object only, never in Web Storage (plan §5): the browser's credential is the
+   * HttpOnly session cookie, which `renewSession` turns into a token whenever the page loads or the token runs out.
+   */
+  private accessToken: string | null = null;
+  /** When the token stops being valid (ms since the epoch), when the gateway said so. */
+  private accessTokenExpiresAt: number | null = null;
+  /** The renewal in flight, so that ten simultaneous 401s (or tabs' timers) cause one `POST /v1/auth/identity/session`. */
+  private renewing: Promise<AccessGrant> | null = null;
 
   constructor(baseUrl: string = config.apiBaseUrl) {
     this.baseUrl = baseUrl;
@@ -198,20 +213,31 @@ export class HttpTransport {
   // -- Session ---------------------------------------------------------
 
   getAccessToken(): string | null {
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
+    return this.accessToken;
   }
 
-  setTokens(tokens: { access_token: string; refresh_token: string }): void {
-    localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access_token);
-    localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token);
+  /** Keep a token the gateway granted (a sign-in or a renewal); nothing is written to storage. */
+  setTokens(grant: AccessGrant): void {
+    this.accessToken = grant.access_token;
+    this.accessTokenExpiresAt =
+      typeof grant.expires_in === 'number' ? Date.now() + grant.expires_in * 1000 : null;
   }
 
   clearTokens(): void {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    this.accessToken = null;
+    this.accessTokenExpiresAt = null;
     localStorage.removeItem(PRICING_TOKEN_KEY);
     // Whoever shows the state of the pricing token (the usage screen) learns that there is none.
     window.dispatchEvent(new CustomEvent(PRICING_TOKEN_UPDATED_EVENT));
+  }
+
+  /** Whether the token is missing its expiry or has less than `RENEW_BEFORE_MS` left. */
+  tokenDueForRenewal(now: number = Date.now()): boolean {
+    return (
+      this.accessToken !== null &&
+      this.accessTokenExpiresAt !== null &&
+      this.accessTokenExpiresAt - now < RENEW_BEFORE_MS
+    );
   }
 
   protected authHeaders(): Record<string, string> {
@@ -220,36 +246,50 @@ export class HttpTransport {
   }
 
   /**
-   * Exchange the refresh token for a new pair, once however many callers ask.
+   * Turn the session cookie into a fresh gateway token, once however many callers ask.
    *
-   * The gateway rotates refresh tokens: presenting one spends it. Two
-   * concurrent refreshes would therefore race, and the loser would be holding
-   * a token that has just been invalidated - so they share one attempt.
+   * The only credentialed request of the application: the cookie is HttpOnly and reaches only `/v1/auth/*`. Rejects with
+   * the gateway's error: 401 (`no_session`, `session_ended`) means there is no session; 503 (`identity_unavailable`)
+   * means the session exists but SCORETech Identity could not renew it right now.
    */
-  protected async refreshSession(): Promise<boolean> {
-    if (this.refreshing) return this.refreshing;
-
-    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    if (!refreshToken) return false;
-
-    this.refreshing = (async () => {
+  renewSession(): Promise<AccessGrant> {
+    if (this.renewing) return this.renewing;
+    this.renewing = (async () => {
       try {
-        const response = await fetch(`${this.baseUrl}/v1/auth/refresh`, {
+        const response = await fetch(`${this.baseUrl}/v1/auth/identity/session`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: refreshToken }),
+          credentials: 'include',
+          cache: 'no-store',
         });
-        if (!response.ok) return false;
-        this.setTokens(await response.json());
-        return true;
-      } catch {
-        return false;
+        if (!response.ok) throw await this.errorFor(response);
+        const grant = (await response.json()) as AccessGrant;
+        this.setTokens(grant);
+        return grant;
       } finally {
-        this.refreshing = null;
+        this.renewing = null;
       }
     })();
+    return this.renewing;
+  }
 
-    return this.refreshing;
+  /** Renew before sending when the token is about to run out, so a request rarely meets a 401. */
+  protected async freshen(): Promise<void> {
+    if (!this.tokenDueForRenewal()) return;
+    try {
+      await this.renewSession();
+    } catch {
+      // The request goes out with what there is; its 401, if any, ends the session below.
+    }
+  }
+
+  /** Renew after a 401, once however many callers ask; whether a new token came of it. */
+  protected async refreshSession(): Promise<boolean> {
+    try {
+      await this.renewSession();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   protected endSession(): void {
@@ -290,6 +330,7 @@ export class HttpTransport {
     options.signal?.addEventListener('abort', abortFromCaller, { once: true });
 
     try {
+      if (retryOnUnauthorized) await this.freshen();
       const response = await fetch(url, {
         ...options,
         headers: {
@@ -373,6 +414,7 @@ export class HttpTransport {
     const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
 
     try {
+      if (retryOnUnauthorized) await this.freshen();
       const response = await fetch(url, {
         ...options,
         headers: {
@@ -414,6 +456,7 @@ export class HttpTransport {
     const controller = new AbortController();
     const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
     try {
+      if (retryOnUnauthorized) await this.freshen();
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         headers: this.authHeaders(),
         signal: controller.signal,
@@ -430,9 +473,10 @@ export class HttpTransport {
   }
 
   /**
-   * SPHERE's `fetchWithInterceptor`, over this transport: a `fetch` against the gateway with the bearer token, one silent
-   * refresh on a 401 (shared by every caller: the gateway rotates refresh tokens, so two refreshes would race), and the
-   * session ended when that fails. It answers the raw `Response`, as SPHERE's does; `errorFor` reads a refusal.
+   * SPHERE's `fetchWithInterceptor`, over this transport: a `fetch` against the gateway with the bearer token, renewed
+   * before it runs out and once more on a 401 (shared by every caller: SCORETech Identity's refresh tokens are single
+   * use), and the session ended when that fails. It answers the raw `Response`, as SPHERE's does; `errorFor` reads a
+   * refusal.
    */
   fetchWithInterceptor = async (
     path: string,
@@ -440,6 +484,7 @@ export class HttpTransport {
     retryOnUnauthorized = true
   ): Promise<Response> => {
     const url = /^https?:\/\//.test(path) ? path : `${this.baseUrl}${path}`;
+    if (retryOnUnauthorized) await this.freshen();
     const headers = new Headers(init.headers);
     for (const [name, value] of Object.entries(this.authHeaders())) {
       if (!headers.has(name)) headers.set(name, value);
@@ -457,7 +502,7 @@ export class HttpTransport {
 }
 
 /**
- * The one transport of the application. Every module's client sends through it, so the session, its single refresh and the
+ * The one transport of the application. Every module's client sends through it, so the session, its single renewal and the
  * session-ended event are shared; `useAuth().fetchWithInterceptor` is its `fetchWithInterceptor`.
  */
 export const apiClient = new HttpTransport();

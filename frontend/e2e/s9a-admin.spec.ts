@@ -27,6 +27,7 @@ import {
   usageOf,
   userPage,
 } from '../src/test/fixtures/admin';
+import { signedIn } from './helpers/session';
 
 // S9a · administration, part one: `/admin/:section?` (SPHERE's settings shell: the overview, accounts, audit, errors and queues
 // sections) and `/admin/users/:user` (admin-user-detail, on the card shell with its tabs).
@@ -150,24 +151,11 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     );
   const userOf = (id: string | undefined) => state.users.find(account => account.id === id);
 
-  await page.addInitScript(() => {
-    localStorage.setItem('openbinding-access-token', 's9a-access');
-    localStorage.setItem('openbinding-refresh-token', 's9a-refresh');
-  });
-
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  await page.route(
-    `${API}/v1/auth/refresh`,
-    json({
-      access_token: 's9a-access-2',
-      refresh_token: 's9a-refresh-2',
-      token_type: 'bearer',
-      expires_in: 900,
-    })
-  );
+  await signedIn(page, 's9a-access');
   await page.route(`${API}/v1/plans/pricing`, route => answer('catalog', PRICING_FIXTURE)(route));
   await page.route(`${API}/v1/users/me`, json(me));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf('PRO')));

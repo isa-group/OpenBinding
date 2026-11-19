@@ -1,5 +1,6 @@
 import { expect as baseExpect, test, type Page, type Route } from '@playwright/test';
 import { compositionStore } from './helpers/mockCompositions';
+import { signedIn } from './helpers/session';
 
 // The dev server compiles each route on first use, so the first assertion of a test can wait for a cold page.
 const expect = baseExpect.configure({ timeout: 15_000 });
@@ -91,7 +92,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   // The public engine catalogue; a signed-in account gets its own list below.
   await page.route(`${API}/v1/engines`, json({ engines }));
   if (mocks.signedIn) {
-    await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 's1a-token'));
+    await signedIn(page, 's1a-token');
     await page.route(`${API}/v1/users/me`, json(researchUser));
     await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: 's1a-pricing' }));
     await page.route(

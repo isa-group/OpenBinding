@@ -5,6 +5,7 @@ import { failureBody } from './helpers/problems';
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
 import { checkoutFacts, compiledDocument, digestOf } from '../src/modules/problem/utils/fixtures';
 import type { CompositionVersionView } from '../src/modules/core/api/types';
+import { signedIn } from './helpers/session';
 
 // S5a · the problems of an organization: its Problems tab (/orgs/:org/problems, filtered by origin and by linking composition)
 // and the problem page problem-detail (/problems/:org/:problem/:tab?) with its tabs Overview, Candidates, Versions, Runs, Compositions, Source and Settings. A problem is
@@ -263,24 +264,12 @@ async function mockApi(page: Page): Promise<State> {
     .file('instance.json', '{"apiVersion":"bim/v1","kind":"Instance"}')
     .file('application.json', '{"kind":"Application"}')
     .generateAsync({ type: 'nodebuffer' });
-  await page.addInitScript(() => {
-    localStorage.setItem('openbinding-access-token', 's5a-access');
-    localStorage.setItem('openbinding-refresh-token', 's5a-refresh');
-  });
 
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  await page.route(
-    `${API}/v1/auth/refresh`,
-    json({
-      access_token: 's5a-access-2',
-      refresh_token: 's5a-refresh-2',
-      token_type: 'bearer',
-      expires_in: 900,
-    })
-  );
+  await signedIn(page, 's5a-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));

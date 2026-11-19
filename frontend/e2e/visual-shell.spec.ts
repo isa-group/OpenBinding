@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { signedIn } from './helpers/session';
 
 // Screenshots go to testInfo.outputPath() (test-results/, ignored by git) so they can be inspected after a run.
 
@@ -57,12 +58,10 @@ const notifications = [
 
 /** Answers what the application shell loads; everything else on the API origin gets an empty 404. */
 async function signIn(page: Page, persona: keyof typeof personas) {
-  await page.addInitScript(() =>
-    localStorage.setItem('openbinding-access-token', 'visual-shell-token')
-  );
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await signedIn(page, 'visual-shell-token');
   await page.route(`${API}/v1/users/me`, route => route.fulfill({ json: personas[persona] }));
   await page.route(`${API}/v1/users/me/pricing-token`, route =>
     route.fulfill({ json: { pricing_token: 'visual-token' } })

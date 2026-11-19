@@ -9,6 +9,7 @@ import {
 import { failureBody } from './helpers/problems';
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
 import { AGREEMENT_PRICING_FIXTURE } from '../src/test/fixtures/agreementPricing';
+import { signedIn } from './helpers/session';
 
 // S3 · pub-pricing /pricing: SPHERE's hero, the document drawn by pricing-renderer through the bridge, and OpenBinding's
 // comparison and explainers as cards; the API answered by page.route() (there is no backend).
@@ -66,9 +67,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/v1/plans/pricing`, mocks.pricing ?? json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   if (mocks.plan) {
-    await page.addInitScript(() =>
-      localStorage.setItem('openbinding-access-token', 'pricing-access')
-    );
+    await signedIn(page, 'pricing-access');
     await page.route(`${API}/v1/users/me`, json(account(mocks.plan)));
     await page.route(
       `${API}/v1/users/me/pricing-token`,
@@ -234,7 +233,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await mockApi(page);
       const posts: string[] = [];
       page.on('request', request => {
-        if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method()))
+        // Every page asks the session route whether there is a session when it loads; the dialog sends nothing.
+        if (
+          ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method()) &&
+          !request.url().endsWith('/v1/auth/identity/session')
+        )
           posts.push(request.url());
       });
       await page.goto('/pricing');

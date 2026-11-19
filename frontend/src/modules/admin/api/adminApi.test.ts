@@ -12,7 +12,8 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 }
 
 describe('an account’s subscription is a conditional write (If-Match)', () => {
-  const client = adminApiOf(new HttpTransport('https://gateway.example').fetchWithInterceptor);
+  const transport = new HttpTransport('https://gateway.example');
+  const client = adminApiOf(transport.fetchWithInterceptor);
   const fetchMock = vi.fn<typeof fetch>();
   const view = {
     user: { id: 'u-1', plan: 'BASIC' },
@@ -90,13 +91,12 @@ describe('an account’s subscription is a conditional write (If-Match)', () => 
   });
 
   it('keeps the revision through a renewed session', async () => {
-    localStorage.setItem('openbinding-access-token', 'old');
-    localStorage.setItem('openbinding-refresh-token', 'refresh');
+    transport.setTokens({ access_token: 'old', expires_in: 300 });
     fetchMock
       .mockResolvedValueOnce(
         jsonResponse({ detail: { code: 'not_authenticated', error: 'expired' } }, 401)
       )
-      .mockResolvedValueOnce(jsonResponse({ access_token: 'new', refresh_token: 'refresh-2' }))
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'new', expires_in: 300 }))
       .mockResolvedValueOnce(jsonResponse({ id: 'u-1', plan: 'PRO' }, 200, { ETag: '"c-3"' }));
     await expect(client.adminChangePlan('u-1', 'PRO', '"c-2"')).resolves.toEqual({
       value: { id: 'u-1', plan: 'PRO' },

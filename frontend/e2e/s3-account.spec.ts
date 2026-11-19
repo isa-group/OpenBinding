@@ -1,6 +1,7 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
+import { signedIn } from './helpers/session';
 
 // S3 · the account: acct-settings (`/me/settings?section=`: account, sign-in & security, notifications, plan, appearance, beta
 // features, danger zone) and acct-api-keys (`/me/api-keys`, with the Create new API key dialog at `?create=key`).
@@ -266,26 +267,12 @@ async function mockApi(
     refuse: {},
     ...overrides,
   };
-  await page.addInitScript(() => {
-    localStorage.setItem('openbinding-access-token', 's3-access');
-    localStorage.setItem('openbinding-refresh-token', 's3-refresh');
-  });
 
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  // A 401 that is not an expired session (a wrong password) makes the client renew the session once before it reports it.
-  await page.route(
-    `${API}/v1/auth/refresh`,
-    json({
-      access_token: 's3-access-2',
-      refresh_token: 's3-refresh-2',
-      token_type: 'bearer',
-      expires_in: 900,
-    })
-  );
-  await page.route(`${API}/v1/auth/logout`, noContent);
+  await signedIn(page, 's3-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/v1/engines`, json({ engines: [engine] }));
   await page.route(

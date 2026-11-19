@@ -10,6 +10,7 @@ import { failureBody } from './helpers/problems';
 import type { AdminUserView } from '../src/modules/core/api/account';
 import { AGREEMENT_PRICING_FIXTURE as PRICING_FIXTURE } from '../src/test/fixtures/agreementPricing';
 import { ALEX, SAM, USERS, subscriptionOf, usageOf } from '../src/test/fixtures/admin';
+import { signedIn } from './helpers/session';
 
 // admin-user-detail /admin/users/:user?tab=agreement · the review of a subscription change, drawn by pricing-renderer's <pricing-change-review>.
 // In jsdom the element never takes its properties, so this is where its drawing is checked: plan, price, add-ons, features and limits
@@ -82,24 +83,11 @@ async function mockApi(
       etagOf(id)
     );
 
-  await page.addInitScript(() => {
-    localStorage.setItem('openbinding-access-token', 'review-access');
-    localStorage.setItem('openbinding-refresh-token', 'review-refresh');
-  });
-
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  await page.route(
-    `${API}/v1/auth/refresh`,
-    json({
-      access_token: 'review-access-2',
-      refresh_token: 'review-refresh-2',
-      token_type: 'bearer',
-      expires_in: 900,
-    })
-  );
+  await signedIn(page, 'review-access');
   await page.route(`${API}/v1/plans/pricing`, json(PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(ALEX));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf('PRO')));

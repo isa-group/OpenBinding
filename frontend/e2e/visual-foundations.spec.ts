@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { signedIn } from './helpers/session';
 
 // Screenshots go to testInfo.outputPath() (test-results/, ignored by git) so they can be inspected after a run.
 
@@ -19,12 +20,10 @@ const researchUser = {
 
 /** Answers the two calls AuthContext makes on load; everything else on the API origin gets an empty 404. */
 async function signInAsResearchAccount(page: Page) {
-  await page.addInitScript(() =>
-    localStorage.setItem('openbinding-access-token', 'visual-foundations-token')
-  );
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await signedIn(page, 'visual-foundations-token');
   await page.route(`${API}/v1/users/me`, route => route.fulfill({ json: researchUser }));
   await page.route(`${API}/v1/users/me/pricing-token`, route =>
     route.fulfill({ json: { pricing_token: 'visual-token' } })

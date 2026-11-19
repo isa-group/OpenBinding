@@ -26,6 +26,7 @@ import {
   runFixture,
   studyFixture,
 } from '../src/test/fixtures/studies';
+import { signedIn } from './helpers/session';
 
 // S7a · studies: the Studies tab of an organization (/orgs/:org/studies, SPHERE's collection cards), the form study-builder
 // (/studies/new) and the card page study-detail (/studies/:org/:study/:tab?) with its tabs Setup, Progress (the run), Results
@@ -277,24 +278,12 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     org('org-4', 'read-lab', 'Read Lab', 'VIEWER'),
     org('org-5', 'empty-lab', 'Empty Lab', 'OWNER'),
   ];
-  await page.addInitScript(() => {
-    localStorage.setItem('openbinding-access-token', 's7a-access');
-    localStorage.setItem('openbinding-refresh-token', 's7a-refresh');
-  });
 
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  await page.route(
-    `${API}/v1/auth/refresh`,
-    json({
-      access_token: 's7a-access-2',
-      refresh_token: 's7a-refresh-2',
-      token_type: 'bearer',
-      expires_in: 900,
-    })
-  );
+  await signedIn(page, 's7a-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(

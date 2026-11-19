@@ -9,7 +9,8 @@ import {
 } from './support';
 
 // Runs against the lab: see playwright.live.config.ts (the `e2e` service). This is the only spec that uses the
-// login form for the four users: the others hand a session to the page (support.ts), because the gateway throttles logins per user.
+// login form for the four users: the others sign in through the API from the page's context (support.ts), because the gateway
+// throttles logins per user.
 
 test.describe('live · login', () => {
   for (const role of Object.keys(LAB_USERS) as LabRole[]) {
@@ -24,11 +25,17 @@ test.describe('live · login', () => {
       await expect(
         page.getByRole('heading', { level: 1, name: `Welcome back, ${LAB_USERS[role]}` })
       ).toBeVisible();
-      // The session is in the browser: a reload keeps it.
+      // The session is the gateway's HttpOnly cookie: a reload keeps it, and nothing in Web Storage authenticates anyone.
       await page.reload();
       await expect(
         page.getByRole('heading', { level: 1, name: `Welcome back, ${LAB_USERS[role]}` })
       ).toBeVisible();
+      const stored = await page.evaluate(() =>
+        [localStorage, sessionStorage].flatMap(storage =>
+          Object.keys(storage).map(key => `${key}=${storage.getItem(key)}`)
+        )
+      );
+      expect(stored.filter(entry => /eyJ|access|refresh/i.test(entry))).toEqual([]);
       if (role === 'owner') await capture(page, testInfo, 'login-owner-home');
       expect(errors).toEqual([]);
     });

@@ -54,10 +54,6 @@ export function labPassword(): string {
   return value;
 }
 
-/** The access and refresh token keys of the browser session (`src/api/client.ts`). */
-const ACCESS_TOKEN_KEY = 'openbinding-access-token';
-const REFRESH_TOKEN_KEY = 'openbinding-refresh-token';
-
 /** Where the API is: under `/api` of the same origin through the lab proxy; `PLAYWRIGHT_API_URL` names another one. */
 export const API = process.env.PLAYWRIGHT_API_URL ?? '/api';
 
@@ -69,32 +65,25 @@ export const API = process.env.PLAYWRIGHT_API_URL ?? '/api';
 const LOGIN_TRIES = 3;
 const LONGEST_WAIT_S = 300;
 
+/** The origin the walks browse (`BASE_URL`, `http://web:8080` in the lab), which the gateway trusts (`AUTH_TRUSTED_ORIGINS`). */
+const BROWSER_ORIGIN = new URL(process.env.BASE_URL ?? 'http://web:8080').origin;
+
 /**
- * Signs in through the API and hands the session to the page before it loads, so a spec does not spend a login of the (throttled)
- * form. Returns the access token, for the specs that ask the API something themselves.
+ * Signs in through the API from the page's own browser context, so a spec does not spend a login of the (throttled) form: the
+ * answer's HttpOnly session cookie lands in the context's cookie jar, and the page turns it into a token when it loads, as after a
+ * sign-in by the form. Returns the access token, for the specs that ask the API something themselves.
  */
 export async function signInByApi(page: Page, role: LabRole): Promise<string> {
   let status = 0;
   for (let attempt = 1; attempt <= LOGIN_TRIES; attempt += 1) {
     const response = await page.request.post(`${API}/v1/auth/login`, {
       data: { username_or_email: LAB_USERS[role], password: labPassword() },
+      headers: { Origin: BROWSER_ORIGIN },
     });
     status = response.status();
     if (response.ok()) {
-      const tokens = (await response.json()) as { access_token: string; refresh_token: string };
-      await page.addInitScript(
-        session => {
-          localStorage.setItem(session.access, session.accessToken);
-          localStorage.setItem(session.refresh, session.refreshToken);
-        },
-        {
-          access: ACCESS_TOKEN_KEY,
-          refresh: REFRESH_TOKEN_KEY,
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token,
-        }
-      );
-      return tokens.access_token;
+      const grant = (await response.json()) as { access_token: string };
+      return grant.access_token;
     }
     if (status !== 429 || attempt === LOGIN_TRIES) break;
     const wait = Number(response.headers()['retry-after']);
