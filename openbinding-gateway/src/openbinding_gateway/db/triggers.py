@@ -146,6 +146,22 @@ TRIGGERS: tuple[Trigger, ...] = (
         name="retain_pricing_snapshots_shared",
         message="shared pricing snapshots are retained",
     ),
+    # A composition environment keeps what names it (its feed's address); an adoption is history, deleted only
+    # with its environment or organization; a feed key keeps its secret and owner, and a revoked one stays so.
+    protect("composition_environments", ("organization_id", "composition_id", "slug", "created_by_id", "created_at")),
+    *immutable("composition_adoptions", delete=False, message="composition adoptions are history and immutable"),
+    protect("composition_environment_keys", ("environment_id", "prefix", "secret_hash", "created_by_id", "created_at")),
+    protect(
+        "composition_environment_keys",
+        when=(
+            "OLD.revoked_at IS NOT NULL AND (NEW.revoked_at IS NOT OLD.revoked_at"
+            " OR NEW.revoked_by_id IS NOT OLD.revoked_by_id)",
+            "OLD.revoked_at IS NOT NULL AND (NEW.revoked_at IS DISTINCT FROM OLD.revoked_at"
+            " OR NEW.revoked_by_id IS DISTINCT FROM OLD.revoked_by_id)",
+        ),
+        name="revoked_composition_environment_keys",
+        message="a revoked feed key stays revoked",
+    ),
     # A connection is replaced or deleted, never moved to another organization or kind.
     protect("org_connections", ("organization_id", "kind")),
 )

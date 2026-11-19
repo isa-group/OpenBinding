@@ -31,6 +31,7 @@ from ....db.models import (
     BindingCaseRevision,
     Composition,
     CompositionDerivation,
+    CompositionEnvironment,
     CompositionEvaluation,
     CompositionFollow,
     CompositionKind,
@@ -374,9 +375,25 @@ async def delete_composition(session: AsyncSession, composition: Composition, ac
     """Delete ``composition`` with its versions, their evaluations and derivations, in one transaction.
 
     The composition's row is locked first, as a seal locks it, so a seal in flight either commits before
-    the delete sees the versions or waits for it and finds the composition gone.
+    the delete sees the versions or waits for it and finds the composition gone. A composition with
+    environments is refused (``409 composition_in_operation``, naming them): an application may be reading
+    one, so its environments are deleted first, by a person. An adopt holds the composition ``FOR KEY SHARE``,
+    so it either commits first (and the delete sees its environment) or finds the composition gone.
     """
     await session.execute(select(Composition.id).where(Composition.id == composition.id).with_for_update())
+    environments = list(
+        (await session.scalars(
+            select(CompositionEnvironment.slug)
+            .where(CompositionEnvironment.composition_id == composition.id)
+            .order_by(CompositionEnvironment.slug)
+        )).all()
+    )
+    if environments:
+        raise api_error(
+            status.HTTP_409_CONFLICT, "composition_in_operation",
+            "This composition has environments; delete them before deleting the composition.",
+            environments=environments,
+        )
     versions = select(CompositionVersion.id).where(CompositionVersion.composition_id == composition.id)
     await session.execute(delete(CompositionFollow).where(CompositionFollow.composition_id == composition.id))
     await session.execute(delete(CompositionDerivation).where(CompositionDerivation.version_id.in_(versions)))

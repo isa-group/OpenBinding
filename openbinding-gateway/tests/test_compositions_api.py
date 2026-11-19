@@ -265,3 +265,24 @@ async def test_the_list_filters_on_the_problem_a_version_links(api_client, regis
     assert await slugs(problem="nowhere") == []
     assert await slugs(problem=str(uuid.uuid4())) == []
     assert await slugs(problem=world.linked.slug, archived=True) == []
+
+
+async def test_a_composition_with_environments_is_not_deleted(api_client, registration, db_session, gate):  # noqa: F811
+    """D-h: an application may read one of its environments; a person deletes them first."""
+    from _environment_rows import environment
+    from _environment_rows import World
+
+    account, headers, org = await owner(api_client, registration, db_session, gate)
+    base = f"/v1/organizations/{org}/compositions"
+    body = (await create(api_client, headers, org, "tomato")).json()
+    w = World(uuid.UUID(account["id"]), uuid.UUID(body["organization"]["id"]), uuid.UUID(body["id"]),
+              (), (), uuid.uuid4(), uuid.uuid4(), uuid.uuid4())
+    await environment(db_session, w, "staging")
+    await environment(db_session, w, "production")
+    await db_session.commit()
+
+    refused = await api_client.delete(f"{base}/tomato", headers=headers)
+
+    assert refused.status_code == 409 and code(refused) == "composition_in_operation"
+    assert refused.json()["detail"]["environments"] == ["production", "staging"]
+    assert (await api_client.get(f"{base}/tomato", headers=headers)).status_code == 200

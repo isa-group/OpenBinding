@@ -230,3 +230,41 @@ async def test_the_slug_of_an_organization_cannot_be_changed(api_client, registr
 
     assert refused.status_code == 422, refused.text
     assert (await api_client.get(f"/v1/organizations/{org['slug']}", headers=headers)).status_code == 200
+
+
+async def test_deleting_an_organization_takes_its_composition_environments(
+    api_client, db_session, registration, study_gate  # noqa: F811
+) -> None:
+    """Environment keys, adoptions and environments go before the versions and evaluations they reference."""
+    from _environment_rows import operated
+    from openbinding_gateway.db.models import (
+        CompositionAdoption,
+        CompositionEnvironment,
+        CompositionEnvironmentKey,
+        CompositionVersion,
+    )
+
+    headers = await _signed_in(api_client, registration, study_gate)
+    created = await api_client.post("/v1/organizations", headers=headers,
+                                    json={"slug": f"o-{uuid.uuid4().hex[:8]}", "name": "O"})
+    assert created.status_code == 201, created.text
+    org = created.json()["slug"]
+    composed = await api_client.post(
+        f"/v1/organizations/{org}/compositions", headers=headers, json={"slug": "tomato", "name": "Tomato"}
+    )
+    assert composed.status_code == 201, composed.text
+    body = composed.json()
+    environment_id = await operated(
+        db_session, uuid.UUID(body["organization"]["id"]), uuid.UUID(body["id"]), await _user_id(api_client, headers)
+    )
+
+    deleted = await api_client.delete(f"/v1/organizations/{org}", headers=headers)
+
+    assert deleted.status_code == 204, deleted.text
+    db_session.expire_all()
+    assert await _count(db_session, CompositionEnvironment, CompositionEnvironment.id == environment_id) == 0
+    assert await _count(db_session, CompositionAdoption, CompositionAdoption.environment_id == environment_id) == 0
+    assert await _count(
+        db_session, CompositionEnvironmentKey, CompositionEnvironmentKey.environment_id == environment_id
+    ) == 0
+    assert await _count(db_session, CompositionVersion, CompositionVersion.composition_id == uuid.UUID(body["id"])) == 0

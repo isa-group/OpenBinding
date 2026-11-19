@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '01f0e39a77c2'
+revision: str = '7ae1a0f3979c'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -31,6 +31,10 @@ SQLITE_TRIGGERS = (
     "CREATE TRIGGER retain_study_cells BEFORE DELETE ON study_cells BEGIN SELECT RAISE(ABORT, 'study_cells history is retained'); END",
     "CREATE TRIGGER immutable_pricing_snapshots_update BEFORE UPDATE ON pricing_snapshots BEGIN SELECT RAISE(ABORT, 'pricing snapshots are immutable'); END",
     "CREATE TRIGGER retain_pricing_snapshots_shared BEFORE DELETE ON pricing_snapshots WHEN OLD.scope_key = 'public' OR substr(OLD.scope_key, 1, 9) = 'registry:' BEGIN SELECT RAISE(ABORT, 'shared pricing snapshots are retained'); END",
+    "CREATE TRIGGER protect_composition_environments BEFORE UPDATE ON composition_environments WHEN OLD.organization_id IS NOT NEW.organization_id OR OLD.composition_id IS NOT NEW.composition_id OR OLD.slug IS NOT NEW.slug OR OLD.created_by_id IS NOT NEW.created_by_id OR OLD.created_at IS NOT NEW.created_at BEGIN SELECT RAISE(ABORT, 'the protected columns of composition_environments are immutable'); END",
+    "CREATE TRIGGER immutable_composition_adoptions_update BEFORE UPDATE ON composition_adoptions BEGIN SELECT RAISE(ABORT, 'composition adoptions are history and immutable'); END",
+    "CREATE TRIGGER protect_composition_environment_keys BEFORE UPDATE ON composition_environment_keys WHEN OLD.environment_id IS NOT NEW.environment_id OR OLD.prefix IS NOT NEW.prefix OR OLD.secret_hash IS NOT NEW.secret_hash OR OLD.created_by_id IS NOT NEW.created_by_id OR OLD.created_at IS NOT NEW.created_at BEGIN SELECT RAISE(ABORT, 'the protected columns of composition_environment_keys are immutable'); END",
+    "CREATE TRIGGER revoked_composition_environment_keys BEFORE UPDATE ON composition_environment_keys WHEN (OLD.revoked_at IS NOT NULL AND (NEW.revoked_at IS NOT OLD.revoked_at OR NEW.revoked_by_id IS NOT OLD.revoked_by_id)) BEGIN SELECT RAISE(ABORT, 'a revoked feed key stays revoked'); END",
     "CREATE TRIGGER protect_org_connections BEFORE UPDATE ON org_connections WHEN OLD.organization_id IS NOT NEW.organization_id OR OLD.kind IS NOT NEW.kind BEGIN SELECT RAISE(ABORT, 'the protected columns of org_connections are immutable'); END",
 )
 POSTGRESQL_TRIGGERS = (
@@ -58,6 +62,14 @@ POSTGRESQL_TRIGGERS = (
     'CREATE TRIGGER immutable_pricing_snapshots_update BEFORE UPDATE ON pricing_snapshots FOR EACH ROW EXECUTE FUNCTION immutable_pricing_snapshots_update()',
     "CREATE OR REPLACE FUNCTION retain_pricing_snapshots_shared() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.scope_key = 'public' OR substr(OLD.scope_key, 1, 9) = 'registry:' THEN RAISE EXCEPTION 'shared pricing snapshots are retained'; END IF; RETURN OLD; END $$",
     'CREATE TRIGGER retain_pricing_snapshots_shared BEFORE DELETE ON pricing_snapshots FOR EACH ROW EXECUTE FUNCTION retain_pricing_snapshots_shared()',
+    "CREATE OR REPLACE FUNCTION protect_composition_environments() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.organization_id IS DISTINCT FROM NEW.organization_id OR OLD.composition_id IS DISTINCT FROM NEW.composition_id OR OLD.slug IS DISTINCT FROM NEW.slug OR OLD.created_by_id IS DISTINCT FROM NEW.created_by_id OR OLD.created_at IS DISTINCT FROM NEW.created_at THEN RAISE EXCEPTION 'the protected columns of composition_environments are immutable'; END IF; RETURN NEW; END $$",
+    'CREATE TRIGGER protect_composition_environments BEFORE UPDATE ON composition_environments FOR EACH ROW EXECUTE FUNCTION protect_composition_environments()',
+    "CREATE OR REPLACE FUNCTION immutable_composition_adoptions_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'composition adoptions are history and immutable'; END $$",
+    'CREATE TRIGGER immutable_composition_adoptions_update BEFORE UPDATE ON composition_adoptions FOR EACH ROW EXECUTE FUNCTION immutable_composition_adoptions_update()',
+    "CREATE OR REPLACE FUNCTION protect_composition_environment_keys() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.environment_id IS DISTINCT FROM NEW.environment_id OR OLD.prefix IS DISTINCT FROM NEW.prefix OR OLD.secret_hash IS DISTINCT FROM NEW.secret_hash OR OLD.created_by_id IS DISTINCT FROM NEW.created_by_id OR OLD.created_at IS DISTINCT FROM NEW.created_at THEN RAISE EXCEPTION 'the protected columns of composition_environment_keys are immutable'; END IF; RETURN NEW; END $$",
+    'CREATE TRIGGER protect_composition_environment_keys BEFORE UPDATE ON composition_environment_keys FOR EACH ROW EXECUTE FUNCTION protect_composition_environment_keys()',
+    "CREATE OR REPLACE FUNCTION revoked_composition_environment_keys() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF (OLD.revoked_at IS NOT NULL AND (NEW.revoked_at IS DISTINCT FROM OLD.revoked_at OR NEW.revoked_by_id IS DISTINCT FROM OLD.revoked_by_id)) THEN RAISE EXCEPTION 'a revoked feed key stays revoked'; END IF; RETURN NEW; END $$",
+    'CREATE TRIGGER revoked_composition_environment_keys BEFORE UPDATE ON composition_environment_keys FOR EACH ROW EXECUTE FUNCTION revoked_composition_environment_keys()',
     "CREATE OR REPLACE FUNCTION protect_org_connections() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.organization_id IS DISTINCT FROM NEW.organization_id OR OLD.kind IS DISTINCT FROM NEW.kind THEN RAISE EXCEPTION 'the protected columns of org_connections are immutable'; END IF; RETURN NEW; END $$",
     'CREATE TRIGGER protect_org_connections BEFORE UPDATE ON org_connections FOR EACH ROW EXECUTE FUNCTION protect_org_connections()',
 )
@@ -74,6 +86,10 @@ POSTGRESQL_TRIGGER_FUNCTIONS = (
     'retain_study_cells',
     'immutable_pricing_snapshots_update',
     'retain_pricing_snapshots_shared',
+    'protect_composition_environments',
+    'immutable_composition_adoptions_update',
+    'protect_composition_environment_keys',
+    'revoked_composition_environment_keys',
     'protect_org_connections',
 )
 
@@ -345,6 +361,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_compositions_created_by_id_users'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_compositions_organization_id_organizations'), ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_compositions')),
+    sa.UniqueConstraint('id', 'organization_id', name='uq_compositions_id_organization'),
     sa.UniqueConstraint('organization_id', 'slug', name='uq_compositions_organization_slug')
     )
     op.create_index(op.f('ix_compositions_created_by_id'), 'compositions', ['created_by_id'], unique=False)
@@ -685,7 +702,8 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_versions')),
     sa.UniqueConstraint('composition_id', 'content_digest', name='uq_composition_versions_composition_digest'),
     sa.UniqueConstraint('composition_id', 'label', name='uq_composition_versions_composition_label'),
-    sa.UniqueConstraint('composition_id', 'ordinal', name='uq_composition_versions_composition_ordinal')
+    sa.UniqueConstraint('composition_id', 'ordinal', name='uq_composition_versions_composition_ordinal'),
+    sa.UniqueConstraint('id', 'composition_id', name='uq_composition_versions_id_composition')
     )
     op.create_index(op.f('ix_composition_versions_composition_id'), 'composition_versions', ['composition_id'], unique=False)
     op.create_index(op.f('ix_composition_versions_created_by_id'), 'composition_versions', ['created_by_id'], unique=False)
@@ -773,6 +791,37 @@ def upgrade() -> None:
     op.create_index('ix_composition_derivations_binding', 'composition_derivations', ['revision_id', 'compilation_id', 'binding_digest'], unique=False)
     op.create_index(op.f('ix_composition_derivations_created_by_id'), 'composition_derivations', ['created_by_id'], unique=False)
     op.create_index(op.f('ix_composition_derivations_job_id'), 'composition_derivations', ['job_id'], unique=False)
+    op.create_table('composition_environments',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('organization_id', sa.Uuid(), nullable=False),
+    sa.Column('composition_id', sa.Uuid(), nullable=False),
+    sa.Column('slug', sa.String(length=40), nullable=False),
+    sa.Column('name', sa.String(length=80), nullable=False),
+    sa.Column('description', sa.String(length=500), server_default='', nullable=False),
+    sa.Column('operator_id', sa.Uuid(), nullable=True),
+    sa.Column('adopt_role', sa.String(length=8), server_default='ADMIN', nullable=False),
+    sa.Column('expected_users', sa.Integer(), nullable=True),
+    sa.Column('adopted_version_id', sa.Uuid(), nullable=True),
+    sa.Column('adoption_ordinal', sa.Integer(), server_default='0', nullable=False),
+    sa.Column('created_by_id', sa.Uuid(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint("adopt_role IN ('MEMBER', 'ADMIN')", name=op.f('ck_composition_environments_adopt_role')),
+    sa.CheckConstraint('(adoption_ordinal = 0) = (adopted_version_id IS NULL)', name=op.f('ck_composition_environments_adopted_whole')),
+    sa.CheckConstraint('adoption_ordinal >= 0', name=op.f('ck_composition_environments_ordinal_nonnegative')),
+    sa.CheckConstraint('expected_users IS NULL OR (expected_users >= 1 AND expected_users <= 1000000000)', name=op.f('ck_composition_environments_expected_users')),
+    sa.ForeignKeyConstraint(['adopted_version_id', 'composition_id'], ['composition_versions.id', 'composition_versions.composition_id'], name='fk_composition_environments_adopted_version', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['composition_id', 'organization_id'], ['compositions.id', 'compositions.organization_id'], name='fk_composition_environments_composition', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_composition_environments_created_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['operator_id'], ['users.id'], name=op.f('fk_composition_environments_operator_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_composition_environments_organization_id_organizations'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_environments')),
+    sa.UniqueConstraint('composition_id', 'slug', name='uq_composition_environments_composition_slug')
+    )
+    op.create_index(op.f('ix_composition_environments_adopted_version_id'), 'composition_environments', ['adopted_version_id'], unique=False)
+    op.create_index(op.f('ix_composition_environments_created_by_id'), 'composition_environments', ['created_by_id'], unique=False)
+    op.create_index(op.f('ix_composition_environments_operator_id'), 'composition_environments', ['operator_id'], unique=False)
+    op.create_index(op.f('ix_composition_environments_organization_id'), 'composition_environments', ['organization_id'], unique=False)
     op.create_table('composition_evaluations',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('version_id', sa.Uuid(), nullable=False),
@@ -801,12 +850,58 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['offering_snapshot_id'], ['pricing_snapshots.id'], name=op.f('fk_composition_evaluations_offering_snapshot_id_pricing_snapshots'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['version_id'], ['composition_versions.id'], name=op.f('fk_composition_evaluations_version_id_composition_versions'), ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_evaluations')),
+    sa.UniqueConstraint('id', 'version_id', name='uq_composition_evaluations_id_version'),
     sa.UniqueConstraint('version_id', 'basis_key', name='uq_composition_evaluations_version_basis')
     )
     op.create_index(op.f('ix_composition_evaluations_created_by_id'), 'composition_evaluations', ['created_by_id'], unique=False)
     op.create_index(op.f('ix_composition_evaluations_offering_snapshot_id'), 'composition_evaluations', ['offering_snapshot_id'], unique=False)
     op.create_index(op.f('ix_composition_evaluations_revision_id'), 'composition_evaluations', ['revision_id'], unique=False)
     op.create_index(op.f('ix_composition_evaluations_version_id'), 'composition_evaluations', ['version_id'], unique=False)
+    op.create_table('composition_adoptions',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('environment_id', sa.Uuid(), nullable=False),
+    sa.Column('ordinal', sa.Integer(), nullable=False),
+    sa.Column('composition_id', sa.Uuid(), nullable=False),
+    sa.Column('version_id', sa.Uuid(), nullable=False),
+    sa.Column('previous_version_id', sa.Uuid(), nullable=True),
+    sa.Column('evaluation_id', sa.Uuid(), nullable=False),
+    sa.Column('content_digest', sa.String(length=80), nullable=False),
+    sa.Column('actor_id', sa.Uuid(), nullable=False),
+    sa.Column('note', sa.String(length=500), server_default='', nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('ordinal > 0', name=op.f('ck_composition_adoptions_ordinal_positive')),
+    sa.ForeignKeyConstraint(['actor_id'], ['users.id'], name=op.f('fk_composition_adoptions_actor_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['environment_id'], ['composition_environments.id'], name=op.f('fk_composition_adoptions_environment_id_composition_environments'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['evaluation_id', 'version_id'], ['composition_evaluations.id', 'composition_evaluations.version_id'], name='fk_composition_adoptions_evaluation', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['previous_version_id', 'composition_id'], ['composition_versions.id', 'composition_versions.composition_id'], name='fk_composition_adoptions_previous_version', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['version_id', 'composition_id'], ['composition_versions.id', 'composition_versions.composition_id'], name='fk_composition_adoptions_version', ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_adoptions')),
+    sa.UniqueConstraint('environment_id', 'ordinal', name='uq_composition_adoptions_environment_ordinal')
+    )
+    op.create_index(op.f('ix_composition_adoptions_actor_id'), 'composition_adoptions', ['actor_id'], unique=False)
+    op.create_index(op.f('ix_composition_adoptions_composition_id'), 'composition_adoptions', ['composition_id'], unique=False)
+    op.create_index(op.f('ix_composition_adoptions_evaluation_id'), 'composition_adoptions', ['evaluation_id'], unique=False)
+    op.create_index(op.f('ix_composition_adoptions_previous_version_id'), 'composition_adoptions', ['previous_version_id'], unique=False)
+    op.create_index(op.f('ix_composition_adoptions_version_id'), 'composition_adoptions', ['version_id'], unique=False)
+    op.create_table('composition_environment_keys',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('environment_id', sa.Uuid(), nullable=False),
+    sa.Column('prefix', sa.String(length=16), nullable=False),
+    sa.Column('secret_hash', sa.String(length=64), nullable=False),
+    sa.Column('label', sa.String(length=80), server_default='', nullable=False),
+    sa.Column('created_by_id', sa.Uuid(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('last_used_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('revoked_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('revoked_by_id', sa.Uuid(), nullable=True),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_composition_environment_keys_created_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['environment_id'], ['composition_environments.id'], name=op.f('fk_composition_environment_keys_environment_id_composition_environments'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['revoked_by_id'], ['users.id'], name=op.f('fk_composition_environment_keys_revoked_by_id_users'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_environment_keys')),
+    sa.UniqueConstraint('prefix', name=op.f('uq_composition_environment_keys_prefix'))
+    )
+    op.create_index(op.f('ix_composition_environment_keys_created_by_id'), 'composition_environment_keys', ['created_by_id'], unique=False)
+    op.create_index(op.f('ix_composition_environment_keys_environment_id'), 'composition_environment_keys', ['environment_id'], unique=False)
     # Foreign keys that close a cycle: inline on SQLite, added once both tables exist elsewhere.
     if dialect != 'sqlite':
         op.create_foreign_key('fk_jobs_study_cell_id', 'jobs', 'study_cells', ['study_cell_id'], ['id'], ondelete='SET NULL')
@@ -818,11 +913,25 @@ def downgrade() -> None:
     dialect = op.get_bind().dialect.name
     if dialect != 'sqlite':
         op.drop_constraint('fk_jobs_study_cell_id', 'jobs', type_='foreignkey')
+    op.drop_index(op.f('ix_composition_environment_keys_environment_id'), table_name='composition_environment_keys')
+    op.drop_index(op.f('ix_composition_environment_keys_created_by_id'), table_name='composition_environment_keys')
+    op.drop_table('composition_environment_keys')
+    op.drop_index(op.f('ix_composition_adoptions_version_id'), table_name='composition_adoptions')
+    op.drop_index(op.f('ix_composition_adoptions_previous_version_id'), table_name='composition_adoptions')
+    op.drop_index(op.f('ix_composition_adoptions_evaluation_id'), table_name='composition_adoptions')
+    op.drop_index(op.f('ix_composition_adoptions_composition_id'), table_name='composition_adoptions')
+    op.drop_index(op.f('ix_composition_adoptions_actor_id'), table_name='composition_adoptions')
+    op.drop_table('composition_adoptions')
     op.drop_index(op.f('ix_composition_evaluations_version_id'), table_name='composition_evaluations')
     op.drop_index(op.f('ix_composition_evaluations_revision_id'), table_name='composition_evaluations')
     op.drop_index(op.f('ix_composition_evaluations_offering_snapshot_id'), table_name='composition_evaluations')
     op.drop_index(op.f('ix_composition_evaluations_created_by_id'), table_name='composition_evaluations')
     op.drop_table('composition_evaluations')
+    op.drop_index(op.f('ix_composition_environments_organization_id'), table_name='composition_environments')
+    op.drop_index(op.f('ix_composition_environments_operator_id'), table_name='composition_environments')
+    op.drop_index(op.f('ix_composition_environments_created_by_id'), table_name='composition_environments')
+    op.drop_index(op.f('ix_composition_environments_adopted_version_id'), table_name='composition_environments')
+    op.drop_table('composition_environments')
     op.drop_index(op.f('ix_composition_derivations_job_id'), table_name='composition_derivations')
     op.drop_index(op.f('ix_composition_derivations_created_by_id'), table_name='composition_derivations')
     op.drop_index('ix_composition_derivations_binding', table_name='composition_derivations')

@@ -400,6 +400,8 @@ class Composition(Base):
     __tablename__ = "compositions"
     __table_args__ = (
         UniqueConstraint("organization_id", "slug", name="uq_compositions_organization_slug"),
+        # The target of composition environments' composite key: an environment's organization is its composition's.
+        UniqueConstraint("id", "organization_id", name="uq_compositions_id_organization"),
         CheckConstraint("visibility IN ('private', 'public')", name="visibility"),
         # The public list across organizations, newest first.
         Index("ix_compositions_visibility_updated", "visibility", "updated_at"),
@@ -485,6 +487,8 @@ class CompositionVersion(Base):
         UniqueConstraint("composition_id", "ordinal", name="uq_composition_versions_composition_ordinal"),
         UniqueConstraint("composition_id", "label", name="uq_composition_versions_composition_label"),
         UniqueConstraint("composition_id", "content_digest", name="uq_composition_versions_composition_digest"),
+        # The target of the composite keys that keep an adopted version within its environment's composition.
+        UniqueConstraint("id", "composition_id", name="uq_composition_versions_id_composition"),
         CheckConstraint("ordinal > 0", name="composition_version_ordinal_positive"),
         CheckConstraint("size_bytes > 0 AND size_bytes <= 262144", name="composition_version_size_bounded"),
         CheckConstraint(
@@ -552,6 +556,8 @@ class CompositionEvaluation(Base):
     __tablename__ = "composition_evaluations"
     __table_args__ = (
         UniqueConstraint("version_id", "basis_key", name="uq_composition_evaluations_version_basis"),
+        # The target of the composite key that keeps an adoption's pinned evaluation one of its version's.
+        UniqueConstraint("id", "version_id", name="uq_composition_evaluations_id_version"),
         CheckConstraint(
             "(basis = 'bim') = (compilation_id IS NOT NULL)", name="composition_evaluation_bim_compiled",
         ),
@@ -656,6 +662,154 @@ class CompositionDerivation(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class CompositionEnvironment(Base):
+    """A composition environment: where an application reads the version of a composition in effect.
+
+    Mutable (the ETag is ``updated_at``), except for what names it: its organization, composition and ``slug``
+    (the feed's address) never change. ``adopted_version_id`` is the version in effect and ``adoption_ordinal``
+    the number of the adoption that put it there (0: nothing adopted yet); both change only on adopt, which
+    also inserts the ``composition_adoptions`` row. ``adopt_role`` is who may adopt (``MEMBER`` or ``ADMIN``),
+    ``operator_id`` the member answerable for it, and ``expected_users`` the demand its margins assume.
+    """
+
+    __tablename__ = "composition_environments"
+    __table_args__ = (
+        UniqueConstraint("composition_id", "slug", name="uq_composition_environments_composition_slug"),
+        CheckConstraint("adopt_role IN ('MEMBER', 'ADMIN')", name="adopt_role"),
+        CheckConstraint(
+            "expected_users IS NULL OR (expected_users >= 1 AND expected_users <= 1000000000)",
+            name="expected_users",
+        ),
+        CheckConstraint("adoption_ordinal >= 0", name="ordinal_nonnegative"),
+        CheckConstraint(
+            "(adoption_ordinal = 0) = (adopted_version_id IS NULL)", name="adopted_whole",
+        ),
+        # The environment's organization is its composition's.
+        ForeignKeyConstraint(
+            ["composition_id", "organization_id"],
+            ["compositions.id", "compositions.organization_id"],
+            ondelete="RESTRICT",
+            name="fk_composition_environments_composition",
+        ),
+        # The version in effect is one of the composition's.
+        ForeignKeyConstraint(
+            ["adopted_version_id", "composition_id"],
+            ["composition_versions.id", "composition_versions.composition_id"],
+            ondelete="RESTRICT",
+            name="fk_composition_environments_adopted_version",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    composition_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    slug: Mapped[str] = mapped_column(String(40), nullable=False)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
+    operator_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    adopt_role: Mapped[str] = mapped_column(String(8), nullable=False, default="ADMIN", server_default="ADMIN")
+    expected_users: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    adopted_version_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True, index=True)
+    adoption_ordinal: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
+    )
+
+
+class CompositionAdoption(Base):
+    """One adoption of a version in an environment: who, when, what was in effect before. Insert only.
+
+    The history of an environment, numbered 1, 2, 3 per environment. ``evaluation_id`` pins the evaluation the
+    version was judged on when adopted, so the environment's margins move only with an adoption, and
+    ``content_digest`` is the version's: the feed's ETag after this adoption. Rows go only with their
+    environment or organization.
+    """
+
+    __tablename__ = "composition_adoptions"
+    __table_args__ = (
+        UniqueConstraint("environment_id", "ordinal", name="uq_composition_adoptions_environment_ordinal"),
+        CheckConstraint("ordinal > 0", name="ordinal_positive"),
+        ForeignKeyConstraint(
+            ["version_id", "composition_id"],
+            ["composition_versions.id", "composition_versions.composition_id"],
+            ondelete="RESTRICT",
+            name="fk_composition_adoptions_version",
+        ),
+        ForeignKeyConstraint(
+            ["previous_version_id", "composition_id"],
+            ["composition_versions.id", "composition_versions.composition_id"],
+            ondelete="RESTRICT",
+            name="fk_composition_adoptions_previous_version",
+        ),
+        ForeignKeyConstraint(
+            ["evaluation_id", "version_id"],
+            ["composition_evaluations.id", "composition_evaluations.version_id"],
+            ondelete="RESTRICT",
+            name="fk_composition_adoptions_evaluation",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    environment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("composition_environments.id", ondelete="RESTRICT"), nullable=False
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    composition_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    version_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    previous_version_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True, index=True)
+    #: The evaluation the version was adopted on (its margins read it).
+    evaluation_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    #: The version's content digest: the feed's ETag after this adoption.
+    content_digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    actor_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    note: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class CompositionEnvironmentKey(Base):
+    """A feed key of an environment (``obe_…``): it reads that environment's feed and nothing else.
+
+    It belongs to the environment, not to a person: its creator leaving the organization or deleting the
+    account does not break the feed. Only the SHA-256 of the whole key is stored; ``prefix`` finds the row.
+    A revoked key never authenticates again, and stays revoked.
+    """
+
+    __tablename__ = "composition_environment_keys"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    environment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("composition_environments.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    prefix: Mapped[str] = mapped_column(String(16), nullable=False, unique=True)
+    secret_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    label: Mapped[str] = mapped_column(String(80), nullable=False, default="", server_default="")
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
     )
 
 
