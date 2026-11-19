@@ -261,7 +261,7 @@ export function sphereProblemRoutes(method: string, parts: string[]): SphereRepl
       // walk is the first import of that recipe, so the gallery answers it as made now.
       return ok(
         known
-          ? { ...fixture('sphere', 'apply.tomatometer-email.json'), created: true }
+          ? { ...fixture<Json>('sphere', 'apply.tomatometer-email.json'), created: true }
           : fixture('sphere', 'apply.storage.json'),
         known ? 200 : 201
       );
