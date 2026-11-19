@@ -823,6 +823,7 @@ function CardBody({
             composition={composition}
             model={analysisModel}
             canDerive={canWrite}
+            role={role}
             candidates={candidates}
             onNotLinked={() => setUnlinked(version?.id ?? null)}
           />

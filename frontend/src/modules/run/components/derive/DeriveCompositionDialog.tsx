@@ -23,6 +23,7 @@ import { compositionPath, editorPath } from '../../../../routes/paths/compositio
 import { readApiError } from '../../../core/api/errors';
 import type {
   CompositionDerive,
+  CompositionVersionView,
   CompositionView,
   DeriveDraft,
   DeriveResult,
@@ -51,6 +52,9 @@ import {
   type SingleSource,
 } from './deriveModel';
 import { refusalOf, type Refusal } from './refusal';
+import AdoptDialog from '../../../composition/components/adopt-dialog';
+import { roleAtLeast } from '../../../composition/hooks/useCompositionRole';
+import type { OrgRole } from '../../../organization/api/organizationsApi';
 
 type Step = 'where' | 'what' | 'preview';
 
@@ -218,6 +222,11 @@ export interface DeriveCompositionDialogProps {
   onClose: () => void;
   /** Batch mode: called each time a point's composition holds the point as its version 1.0.0. */
   onDerived?: (key: string, derived: DerivedPoint) => void;
+  /**
+   * The reader's role in the organization: given, a seal into a composition with an environment it may adopt in offers
+   * "Adopt in environment" beside "Open versions" (F4); without it the dialog opens the versions at once.
+   */
+  role?: OrgRole | null;
 }
 
 /**
@@ -229,10 +238,11 @@ export function DeriveCompositionDialog({
   source,
   onClose,
   onDerived,
+  role,
 }: DeriveCompositionDialogProps) {
   if (isPointsSource(source))
     return <DeriveBatch org={org} points={source.points} onClose={onClose} onDerived={onDerived} />;
-  return <DeriveOne org={org} source={source} onClose={onClose} />;
+  return <DeriveOne org={org} source={source} onClose={onClose} role={role} />;
 }
 
 /**
@@ -246,10 +256,12 @@ function DeriveOne({
   org,
   source,
   onClose,
+  role,
 }: {
   org: string;
   source: SingleSource;
   onClose: () => void;
+  role?: OrgRole | null;
 }) {
   const navigate = useNavigate();
   const ids = useId();
@@ -260,6 +272,14 @@ function DeriveOne({
   const points = run ? pointsOf(run.solutions) : [];
 
   const [step, setStep] = useState<Step>(into ? 'what' : 'where');
+  // After a seal into a composition with an environment the reader may adopt in: "Open versions" or "Adopt in environment",
+  // a second human step (adoption is never chained to the derivation).
+  const [sealed, setSealed] = useState<{
+    slug: string;
+    version: CompositionVersionView;
+    toast: string;
+  } | null>(null);
+  const [adoptInto, setAdoptInto] = useState<CompositionView | null>(null);
   const [compositions, setCompositions] = useState<Compositions>({ status: 'loading' });
   const [mode, setMode] = useState<'new' | 'existing'>(into ? 'existing' : 'new');
   const [chosen, setChosen] = useState(into?.slug ?? '');
@@ -408,13 +428,24 @@ function DeriveOne({
     const request = { ...preview.request, seal: true };
     try {
       const answer = await compositionsApi.derive(org, preview.slug, request);
-      const sealed = isSealed(answer.result) ? answer.result.version.label : request.version;
-      void navigate(compositionPath(org, preview.slug, 'versions', { version: sealed }), {
-        state: {
-          toast: answer.created
-            ? `Version ${sealed} sealed.`
-            : `Version ${sealed} already holds this document.`,
-        },
+      const label = isSealed(answer.result) ? answer.result.version.label : request.version;
+      const toast = answer.created
+        ? `Version ${label} sealed.`
+        : `Version ${label} already holds this document.`;
+      const environments =
+        role && isSealed(answer.result)
+          ? await compositionsApi.environments(org, preview.slug).catch(() => [])
+          : [];
+      if (
+        isSealed(answer.result) &&
+        environments.some(environment => roleAtLeast(role, environment.adoptRole))
+      ) {
+        setSealed({ slug: preview.slug, version: answer.result.version, toast });
+        setBusy(null);
+        return;
+      }
+      void navigate(compositionPath(org, preview.slug, 'versions', { version: label }), {
+        state: { toast },
         viewTransition: true,
       });
     } catch (caught) {
@@ -455,6 +486,68 @@ function DeriveOne({
     : slug && !SLUG_PATTERN.test(slug)
       ? 'Lowercase letters, numbers and hyphens.'
       : undefined;
+
+  const openVersions = (done: { slug: string; version: CompositionVersionView; toast: string }) =>
+    void navigate(compositionPath(org, done.slug, 'versions', { version: done.version.label }), {
+      state: { toast: done.toast },
+      viewTransition: true,
+    });
+
+  if (sealed && adoptInto)
+    return (
+      <AdoptDialog
+        org={org}
+        composition={adoptInto}
+        versions={[sealed.version]}
+        role={role ?? null}
+        version={sealed.version.id}
+        onClose={() => setAdoptInto(null)}
+        onAdopted={result =>
+          void navigate(
+            compositionPath(org, sealed.slug, 'operation', {
+              environment: result.environment.slug,
+            }),
+            {
+              state: {
+                toast: `Version ${result.adoption.version.label} adopted in ${result.environment.name} (adoption #${result.adoption.ordinal}).`,
+              },
+            }
+          )
+        }
+      />
+    );
+
+  if (sealed)
+    return (
+      <Modal title="Derive a composition" size="lg" onClose={() => openVersions(sealed)}>
+        <div className={FORM}>
+          <p className="m-0 text-sm text-tp-ink" role="status">
+            {`${sealed.toast.replace(/\.$/, '')} in ${sealed.slug}.`}
+          </p>
+          <p className={MUTED}>
+            Nothing is adopted yet. Adopting it in an environment is a separate step: the
+            application reading that environment’s feed gets it on its next poll.
+          </p>
+          {refusal && <RefusalNotice refusal={refusal} />}
+          <div className={ACTIONS}>
+            <Action
+              variant="secondary"
+              onClick={() =>
+                void compositionsApi.get(org, sealed.slug).then(
+                  read => setAdoptInto(read.value),
+                  caught => setRefusal(refusalOf(caught, 'derive', from))
+                )
+              }
+            >
+              Adopt in environment…
+            </Action>
+            <Action variant="primary" onClick={() => openVersions(sealed)}>
+              Open versions
+            </Action>
+          </div>
+        </div>
+      </Modal>
+    );
 
   return (
     <Modal title="Derive a composition" size="lg" onClose={close}>

@@ -167,6 +167,9 @@ export type ParetoPoint = Schemas['ParetoPoint'];
 /** A composition environment: where an application reads the version in effect (`GET …/environments/{environment}`). */
 export type CompositionEnvironmentView = Schemas['CompositionEnvironmentView'];
 
+/** A composition's environments (`GET …/environments`). */
+export type CompositionEnvironmentList = Schemas['CompositionEnvironmentList'];
+
 /** What creating a composition environment takes (`POST …/environments`). */
 export type CompositionEnvironmentCreate = Schemas['CompositionEnvironmentCreate'];
 

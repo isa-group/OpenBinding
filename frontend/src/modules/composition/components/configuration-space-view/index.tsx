@@ -42,6 +42,7 @@ import ConfigurationDetailsModal from '../configuration-details-modal';
 import ConfigurationSpaceItem from '../configuration-space-item';
 import CompareTray from './compare-tray';
 import { captureLabel, nextSlot, type CompareSide, type CompareSlots } from './compare-slots';
+import type { OrgRole } from '../../../organization/api/organizationsApi';
 import ConfigurationComparison from './configuration-comparison';
 import DemandControls from './demand-controls';
 import { configurationsOf, type ExplorerConfiguration } from './configurations';
@@ -65,6 +66,8 @@ interface Props {
   candidates?: { status: 'loading' | 'error'; marker: string; retry: () => void } | null;
   /** The gateway says the shown version links no problem after all: the page hides the tab. */
   onNotLinked: () => void;
+  /** The reader's role: after a seal, the derive dialog offers adopting where this role may (F4). */
+  role?: OrgRole | null;
 }
 
 const smallButton =
@@ -77,6 +80,7 @@ export default function ConfigurationSpaceView({
   canDerive,
   candidates = null,
   onNotLinked,
+  role = null,
 }: Props) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -639,6 +643,7 @@ export default function ConfigurationSpaceView({
           org={org}
           source={{ ...deriving, composition }}
           onClose={() => setDeriving(null)}
+          role={role}
         />
       )}
     </div>

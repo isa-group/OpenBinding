@@ -25,11 +25,15 @@ import { useEnvironmentsApi } from '../../api/environmentsApi';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
 import { adoptionRefusal, type AdoptionRefusal } from '../../utils/environments';
 
+/** A version the dialog offers: its id and label, and its value status when the caller read it. */
+export type AdoptableVersion = Pick<CompositionVersionView, 'id' | 'label'> &
+  Partial<Pick<CompositionVersionView, 'values_status' | 'current_evaluation'>>;
+
 interface Props {
   org: string;
   composition: CompositionView;
-  /** The versions that may be chosen, newest first. */
-  versions: CompositionVersionView[];
+  /** The versions that may be chosen, newest first (a version view, or just its id and label: a run's derived versions). */
+  versions: AdoptableVersion[];
   /** The reader's role: only the environments it may adopt in are offered. */
   role: OrgRole | null;
   /** The environment chosen first (its slug). */
@@ -165,7 +169,15 @@ export default function AdoptDialog({
                           className="h-4 w-4 accent-tp-primary"
                         />
                         <span className="font-mono font-medium text-tp-ink">{item.label}</span>
-                        <ValueBadge status={valueStatus(item)} compact />
+                        {item.values_status !== undefined && (
+                          <ValueBadge
+                            status={valueStatus({
+                              values_status: item.values_status,
+                              current_evaluation: item.current_evaluation ?? null,
+                            })}
+                            compact
+                          />
+                        )}
                         {inEffect && (
                           <span className="rounded-full bg-tp-primary/10 px-2 py-0.5 text-[10px] font-medium text-tp-accent">
                             in effect

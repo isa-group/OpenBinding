@@ -945,7 +945,7 @@ function tomatometerEntry(): Entry {
   };
   const first: CompositionVersionView = {
     ...structuredClone(base),
-    id: uuid(0xe001),
+    id: uuid(0xe0a1),
     created_at: '2026-10-03T09:00:00Z',
     created_by_id: AUTHOR,
     problem,
@@ -960,7 +960,7 @@ function tomatometerEntry(): Entry {
   };
   const second: CompositionVersionView = {
     ...structuredClone(first),
-    id: uuid(0xe002),
+    id: uuid(0xe0a2),
     ordinal: 2,
     label: '1.1.0',
     created_at: '2026-10-04T09:00:00Z',
@@ -1451,7 +1451,12 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     const needle = (query.get('q') ?? '').toLowerCase();
     // `problem`: the compositions with a version linking a revision of that problem (its slug or id).
     const problem = query.get('problem');
+    // `run` (F4): the compositions with a version derived from that run, each with its `derivedVersions`.
+    const run = query.get('run');
+    const fromRun = (version: CompositionVersionView) =>
+      version.derivation?.source === 'run' && version.derivation.run?.id === run;
     const matched = pool
+      .filter(entry => !run || entry.versions.some(fromRun))
       .filter(
         entry =>
           !problem ||
@@ -1473,7 +1478,22 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       );
     const rows = matched
       .filter(({ view }) => !owners.length || owners.includes(view.organization.slug))
-      .map(listed);
+      .map(entry =>
+        run
+          ? {
+              ...listed(entry),
+              derivedVersions: [...entry.versions]
+                .reverse()
+                .filter(fromRun)
+                .map(version => ({
+                  id: version.id,
+                  label: version.label,
+                  sealedAt: version.created_at,
+                  inEffect: [],
+                })),
+            }
+          : listed(entry)
+      );
     const limit = Number(query.get('limit') ?? 50);
     const offset = Number(query.get('offset') ?? 0);
     return ok({

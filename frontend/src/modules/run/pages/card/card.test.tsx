@@ -13,7 +13,8 @@ import {
   jobOf,
   provenanceOf,
 } from '../../../../test/fixtures/jobs';
-import { ME, orgNode, renderModule } from '../../../../test/moduleKit';
+import environments from '../../../../test/fixtures/core/tomatometer.environments.json';
+import { ME, fakeGateway, orgNode, renderModule } from '../../../../test/moduleKit';
 import { problemEditorPath, problemPath } from '../../../../routes/paths/problems';
 import { runPath, runsPath } from '../../../../routes/paths/runs';
 import RunCardPage from '.';
@@ -87,6 +88,51 @@ describe('One run', () => {
     problems.revision.mockResolvedValue({ document: { apiVersion: 'bim/v1', kind: 'Instance' } });
     runsApi.neighborhood.mockResolvedValue(NEIGHBORHOOD);
     compositions.list.mockResolvedValue({ compositions: [], total: 0, limit: 200, offset: 0 });
+  });
+
+  it('offers "Adopt in environment" for a version derived from the run where the reader may adopt, and opens the adopt dialog on it', async () => {
+    const tomatometer = {
+      id: 'c-tm',
+      slug: 'tomatometer',
+      name: 'TomatoMeter',
+      archived: false,
+      derivedVersions: [
+        { id: 'v-12', label: '1.2.0', sealedAt: '2026-09-30T09:02:00Z', inEffect: [] },
+      ],
+    };
+    compositions.list.mockImplementation(async (_org: string, options: { run?: string }) =>
+      options.run === JOB_ID
+        ? { compositions: [tomatometer], total: 1, limit: 50, offset: 0 }
+        : { compositions: [], total: 0, limit: 200, offset: 0 }
+    );
+    const root = '/v1/organizations/isa-demo/compositions/tomatometer/environments';
+    renderModule(<RunCardPage />, {
+      path: '/runs/:org/:run',
+      entry: `/runs/isa-demo/${JOB_ID}`,
+      tree: [group, reader],
+      gateway: fakeGateway({
+        [`GET ${root}`]: { body: environments },
+        [`GET ${root}/production`]: {
+          body: environments.environments[0],
+          headers: { ETag: '"1"' },
+        },
+      }),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Adopt in environment' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Adopt a version' });
+    expect(within(dialog).getByRole('radio', { name: /1\.2\.0/ })).toBeChecked();
+    expect(within(dialog).getAllByRole('radio')).toHaveLength(1);
+  });
+
+  it('offers no adoption to a reader below MEMBER, nor when nothing was derived from the run', async () => {
+    renderJob();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'random-search run' })
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(compositions.list).toHaveBeenCalledWith('isa-demo', { run: JOB_ID })
+    );
+    expect(screen.queryByRole('button', { name: 'Adopt in environment' })).toBeNull();
   });
 
   it('shows a finished run: its state, outcome, who ran it and from what', async () => {

@@ -3,6 +3,7 @@ import type {
   CheckResult,
   CompositionCreate,
   CompositionDerive,
+  CompositionEnvironmentList,
   CompositionEvaluate,
   CompositionFork,
   CompositionList,
@@ -78,6 +79,8 @@ export interface ListOptions {
   archived?: boolean;
   /** Only compositions with a version linking a revision of this problem (its slug or id); none for an unknown one. */
   problem?: string;
+  /** Only compositions with a version derived from this run (its id), each with its `derivedVersions` (members only). */
+  run?: string;
   sort?: 'name' | 'updated';
   limit?: number;
   offset?: number;
@@ -151,6 +154,14 @@ export const compositionsApi = {
   /** The public compositions of every organization; anybody may list them. */
   publicList: (options: PublicListOptions = {}) =>
     apiClient.request<PublicCompositionList>(`/v1/compositions${query({ ...options })}`),
+
+  /** A composition's environments, by slug (members only; `useEnvironmentsApi` has the rest of their routes). */
+  environments: async (org: string, composition: string) =>
+    (
+      await apiClient.request<CompositionEnvironmentList>(
+        `${compositionRoot(org, composition)}/environments`
+      )
+    ).environments,
 
   /** One composition, with its `ETag` for a later change. */
   get: (org: string, composition: string) =>
