@@ -358,26 +358,36 @@ async def test_without_sphere_the_sphere_steps_are_skipped(db_session):
     assert await db_session.scalar(select(BindingCase).where(BindingCase.slug == seed_lab.TOMATOMETER)) is None
 
 
-async def test_with_sphere_the_tomatometer_problem_comes_from_real_pricings(db_session, recorded_sphere):
+async def test_with_sphere_tomatometer_comes_from_its_template(db_session, recorded_sphere):
     from openbinding_gateway.db.models import CompositionEvaluation, ProblemValueOrigin
 
     result = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
     assert result["sphere"]["status"] == "seeded", result["sphere"]
-    assert result["sphere"]["revision"] == 2
+    assert result["sphere"]["revision"] == 3
+    assert result["sphere"]["versions"] == ["1.0.0", "1.1.0"]
+    assert result["sphere"]["environments"] == ["production", "staging"] and result["sphere"]["handoff"] is None
     problem = await db_session.scalar(select(BindingCase).where(BindingCase.slug == seed_lab.TOMATOMETER))
     revisions = (await db_session.scalars(
         select(BindingCaseRevision).where(BindingCaseRevision.binding_case_id == problem.id)
         .order_by(BindingCaseRevision.revision)
     )).all()
-    assert [r.origin for r in revisions] == ["upload", "sphere"]
+    assert [r.origin for r in revisions] == ["upload", "sphere", "sphere"]
     assert revisions[1].provenance["recipe"]["tasks"][0]["from"][0]["sphere"]["version"] == "6ade36454b2b5b01c587db3d"
-    origins = (await db_session.scalars(select(ProblemValueOrigin).where(ProblemValueOrigin.revision_id == revisions[1].id))).all()
+    assert [task["task"] for task in revisions[2].provenance["recipe"]["tasks"]] == ["dailySummary", "export", "quotes"]
+    origins = (await db_session.scalars(select(ProblemValueOrigin).where(ProblemValueOrigin.revision_id == revisions[2].id))).all()
     assert origins and all(o.snapshot_id is not None for o in origins if o.pricing_id)
     composition = await db_session.scalar(select(Composition).where(Composition.slug == "tomatometer"))
-    version = await db_session.scalar(select(CompositionVersion).where(CompositionVersion.composition_id == composition.id))
-    assert "from:" in version.content and "danruilop1/mailgun" in version.content
-    evaluation = await db_session.scalar(select(CompositionEvaluation).where(CompositionEvaluation.version_id == version.id))
-    assert evaluation.offering_status == "read"
+    versions = {v.label: v for v in (await db_session.scalars(
+        select(CompositionVersion).where(CompositionVersion.composition_id == composition.id))).all()}
+    assert set(versions) == {"1.0.0", "1.1.0"}
+    first, switched = versions["1.0.0"].content, versions["1.1.0"].content
+    assert "tomatometer-email@3" in first and "email.brevo.professional" in first and "storage.dropbox.plus" in first
+    assert "quotes.zenquotes.free" in first and "offering:\n  sphere: sphere/tomatometer" in first
+    assert "email.resend.pro" in switched and "email.brevo.professional" not in switched
+    assert first.replace("email.brevo.professional", "") != switched
+    for version in versions.values():
+        evaluation = await db_session.scalar(select(CompositionEvaluation).where(CompositionEvaluation.version_id == version.id))
+        assert evaluation.offering_status == "read" and evaluation.outcome.value == "verified"
     # The order-desk offering is a URL that never resolves: recorded as unreadable, sealed all the same.
     order = await db_session.scalar(select(Composition).where(Composition.slug == "order-desk"))
     order_version = await db_session.scalar(select(CompositionVersion).where(CompositionVersion.composition_id == order.id))
@@ -387,5 +397,79 @@ async def test_with_sphere_the_tomatometer_problem_comes_from_real_pricings(db_s
     assert order_evaluation.offering_status == "unreadable"
     calls = len(recorded_sphere.requests)
     again = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
-    assert again["sphere"]["status"] == "seeded" and not [c for c in again["created"] if "tomatometer" in c]
+    assert again["sphere"]["status"] == "seeded" and again["created"] == []
     assert len(recorded_sphere.requests) == calls
+
+
+async def test_the_environments_of_tomatometer_and_the_derived_feed_key(db_session, recorded_sphere):
+    from openbinding_gateway.db.models import (
+        CompositionAdoption,
+        CompositionEnvironment,
+        CompositionEnvironmentKey,
+    )
+    from openbinding_gateway.security.apikeys import hash_key
+
+    await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
+    users = {user.id: user.username for user in (await db_session.scalars(select(User))).all()}
+    rows = {row.slug: row for row in (await db_session.scalars(select(CompositionEnvironment))).all()}
+    assert set(rows) == {"production", "staging"}
+    production, staging = rows["production"], rows["staging"]
+    assert users[production.operator_id] == "lab-owner"
+    assert (production.adopt_role, production.expected_users, production.adoption_ordinal) == ("ADMIN", 1000, 1)
+    assert (staging.adopt_role, staging.expected_users, staging.adoption_ordinal) == ("MEMBER", None, 0)
+    assert staging.adopted_version_id is None and staging.operator_id is None
+    (adopted,) = (await db_session.scalars(select(CompositionAdoption))).all()
+    first = await db_session.get(CompositionVersion, adopted.version_id)
+    assert first.label == "1.0.0" and users[adopted.actor_id] == "lab-owner"
+    assert adopted.content_digest == first.content_digest
+    (key,) = (await db_session.scalars(select(CompositionEnvironmentKey))).all()
+    assert key.environment_id == production.id and key.revoked_at is None
+    minted = seed_lab.feed_key_for(PASSWORD, "lab-main", "tomatometer", "production")
+    # The fixed vector the live walks' TypeScript twin is held to (frontend/e2e/live/support.ts, F4-C).
+    assert minted.secret == "obe_d99385bd_03249980caea333a4ea61ff76c91fd581521f8015d72f89341f8c067"
+    assert (key.prefix, key.secret_hash) == (minted.prefix, hash_key(minted.secret))
+    assert seed_lab.feed_key_for("another-password-1", "lab-main", "tomatometer", "production").secret != minted.secret
+
+
+async def test_the_handoff_file(db_session, recorded_sphere, tmp_path):
+    result = await seed_lab.seed(db_session, PASSWORD, EXAMPLES, handoff_dir=str(tmp_path))
+    path = tmp_path / "openbinding.json"
+    assert result["sphere"]["handoff"] == str(path)
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert json.loads(path.read_text()) == {
+        "organization": "lab-main", "composition": "tomatometer", "environment": "production",
+        "feedUrl": "http://web:8080/api/v1/organizations/lab-main/compositions/tomatometer/environments/production/composition",
+        "feedKey": seed_lab.feed_key_for(PASSWORD, "lab-main", "tomatometer", "production").secret,
+    }
+    assert not list(tmp_path.glob(".*.tmp"))
+    # A second run rewrites the same file (a consumer may pick up a re-seed).
+    path.write_text("{}")
+    await seed_lab.seed(db_session, PASSWORD, EXAMPLES, handoff_dir=str(tmp_path))
+    assert json.loads(path.read_text())["feedKey"].startswith("obe_d99385bd_")
+
+
+async def test_a_missing_or_unwritable_handoff_directory_is_said_plainly(db_session, recorded_sphere, tmp_path):
+    with pytest.raises(seed_lab.HandoffError, match="is not a directory"):
+        await seed_lab.seed(db_session, PASSWORD, EXAMPLES, handoff_dir=str(tmp_path / "missing"))
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    locked.chmod(0o500)
+    try:
+        if os.access(locked, os.W_OK):
+            pytest.skip("running as a user who writes anywhere")
+        with pytest.raises(seed_lab.HandoffError, match="is not writable"):
+            seed_lab.write_handoff(str(locked), organization="o", composition="c", environment="e", key="k")
+    finally:
+        locked.chmod(0o700)
+
+
+def test_main_reports_a_missing_handoff_directory_without_a_traceback(tmp_path, monkeypatch, capsys):
+    async def refuse(*_args, **_kwargs):
+        raise seed_lab.HandoffError(f"LAB_HANDOFF_DIR {tmp_path / 'missing'} is not a directory")
+
+    monkeypatch.setattr(seed_lab, "seed", refuse)
+    environ = {"DEMO_SEED_PASSWORD": PASSWORD, "DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path / 'db.sqlite'}",
+               "LAB_HANDOFF_DIR": str(tmp_path / "missing")}
+    code = seed_lab.main([], environ)
+    err = capsys.readouterr().err
+    assert code == 1 and "is not a directory" in err and "Traceback" not in err

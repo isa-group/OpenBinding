@@ -41,7 +41,8 @@ def test_two_runs_write_byte_identical_trees(two_runs) -> None:
     assert sorted(_tree(first / "core")) == sorted(
         [f"{name}.{kind}.json" for name, _ in tool.PACKAGES for kind in ("facts", "validate", "version", "diff")]
         + ["refused.package.json", "refused.validate.json", "plans-pricing.json", "tomatometer-email.facts.json",
-           "tomatometer-email.version.json", "tomatometer-email.upstream.json"]
+           "tomatometer-email.version.json", "tomatometer-email.upstream.json", "templates.json",
+           "template.tomatometer.json"]
         + [f"tomatometer.{name}" for name in OPERATION]
     )
 
@@ -68,12 +69,18 @@ def test_the_operation_fixtures_hold_what_the_screens_draw(two_runs) -> None:
     assert [item["slug"] for item in read("environments.json")["environments"]] == ["production", "staging"]
     assert read("margins.1.0.0.json")["status"] == "ok" and read("margins.1.1.0.json")["status"] == "ok"
     assert {row["status"] for row in read("check.production.json")["upstream"]} == {"current"}
-    assert {row["status"] for row in read("check.production.newer.json")["upstream"]} == {"newer"}
+    # Only the e-mail plan's family is scripted newer; Dropbox stays current.
+    assert {row["task"]: row["status"] for row in read("check.production.newer.json")["upstream"]} == {
+        "dailySummary": "newer", "export": "current",
+    }
     assert read("key.created.json")["secret"] == tool.FIXTURE_FEED_KEY
     headers = read("feed.production.headers.json")
     assert headers["etag"] == production["feed"]["etag"] and headers["openbinding-adoption"] == "3"
     assert (core / "tomatometer.feed.production.yaml").read_text(encoding="utf-8").startswith("syntaxVersion")
-    assert read("evaluate.revision.json")["revision"]["number"] == 3
+    assert read("evaluate.revision.json")["revision"]["number"] == 4
+    assert {item["name"]: item["value"] for item in read("evaluate.revision.json")["revision"]["demand"]} == {
+        "monthlyEmails": 60000, "dailyEmails": 2000,
+    }
     assert read("evaluate.users.json")["margins"]["users"] == 1000
     (derived,) = read("runs.derived.json")["compositions"]
     assert derived["slug"] == "simple-seq" and derived["derivedVersions"][0]["label"] == "2.0.0"
@@ -97,11 +104,18 @@ def test_the_generated_facts_carry_sources_properties_and_provenance(two_runs) -
     assert foundation["origins"]["subscription"]["source"]["kind"] == "priced"
     assert foundation["propertyOrigins"]["emailsPerMonth"]["source"]["kind"] == "limit"
     assert foundation["provenance"]["sphere"] == "danruilop1/mailgun"
+    # Revision 3 (the template's latest) also offers Dropbox for export and the built-in quotes.
+    assert {"sphere-storage/storage.dropbox.plus", "sphere-quotes/quotes.builtin.static"} <= {
+        c["key"] for c in facts["candidates"]
+    }
     version = json.loads((first / "core" / "tomatometer-email.version.json").read_text(encoding="utf-8"))
-    assert version["document"]["binding"]["dailySummary"]["from"]["plan"] == "FOUNDATION"
+    binding = version["document"]["binding"]
+    assert binding["dailySummary"]["from"]["plan"] == "PROFESSIONAL" and binding["export"]["from"]["plan"] == "PLUS"
     assert [e["offering"]["status"] for e in version["evaluations"]] == ["read"]
     upstream = json.loads((first / "core" / "tomatometer-email.upstream.json").read_text(encoding="utf-8"))
-    assert [e["status"] for e in upstream["entries"] if e["task"] == "dailySummary"] == ["snapshotted"]
+    assert {e["task"]: e["status"] for e in upstream["entries"] if e["from"]} == {
+        "dailySummary": "snapshotted", "export": "snapshotted",
+    }
 
 
 def test_the_sphere_fixtures_pair_every_readable_version_with_its_golden(two_runs) -> None:

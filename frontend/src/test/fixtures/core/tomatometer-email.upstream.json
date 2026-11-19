@@ -9,43 +9,68 @@
       "task": "login"
     },
     {
-      "candidate": "email.mailgun.foundation",
+      "candidate": "email.brevo.professional",
       "from": {
-        "plan": "FOUNDATION",
-        "sphere": "danruilop1/mailgun",
-        "version": "6ade36454b2b5b01c587db3d"
+        "plan": "PROFESSIONAL",
+        "sphere": "danruilop1/brevo",
+        "version": "6ade2d444b2b5b01c587d80d"
       },
       "plan": {
-        "name": "FOUNDATION",
+        "name": "PROFESSIONAL",
         "price": {
-          "amount": 35.0,
-          "kind": "fixed"
+          "kind": "expression",
+          "source": "#professionalPrices[String(#professionalVolume)]",
+          "value": 499.0
         },
         "private": false,
         "unit": "account/month"
       },
       "snapshot": {
         "createdAt": "2026-01-01T00:00:08Z",
-        "id": "00000000-0000-4000-8000-000000000027",
+        "id": "00000000-0000-4000-8000-000000000026",
         "owner": "danruilop1",
-        "permanentUrl": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d",
-        "pricingId": "6ade364540e55445692b0eda",
+        "permanentUrl": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+        "pricingId": "6ade2d4440e55445692b07f1",
         "registry": null,
-        "slug": "mailgun",
-        "title": "Mailgun",
+        "slug": "brevo",
+        "title": "brevo",
         "url": null,
-        "versionId": "6ade36454b2b5b01c587db3d",
+        "versionId": "6ade2d444b2b5b01c587d80d",
         "versionName": "2026-10"
       },
       "status": "snapshotted",
       "task": "dailySummary"
     },
     {
-      "candidate": "storage.local.disk",
-      "from": null,
-      "plan": null,
-      "snapshot": null,
-      "status": "not_snapshotted",
+      "candidate": "storage.dropbox.plus",
+      "from": {
+        "plan": "PLUS",
+        "sphere": "atenea/dropbox",
+        "version": "687e4b68102baa50f3a5c7b7"
+      },
+      "plan": {
+        "name": "PLUS",
+        "price": {
+          "amount": 9.99,
+          "kind": "fixed"
+        },
+        "private": false,
+        "unit": "account"
+      },
+      "snapshot": {
+        "createdAt": "2026-01-01T00:00:09Z",
+        "id": "00000000-0000-4000-8000-000000000031",
+        "owner": "atenea",
+        "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+        "pricingId": "6ab0a323697330667ccce9c1",
+        "registry": null,
+        "slug": "dropbox",
+        "title": "Dropbox",
+        "url": null,
+        "versionId": "687e4b68102baa50f3a5c7b7",
+        "versionName": "2021"
+      },
+      "status": "snapshotted",
       "task": "export"
     },
     {
@@ -58,10 +83,10 @@
     }
   ],
   "offering": {
-    "createdAt": "2026-01-01T00:00:09Z",
+    "createdAt": "2026-01-01T00:00:10Z",
     "snapshot": {
-      "createdAt": "2026-01-01T00:00:09Z",
-      "id": "00000000-0000-4000-8000-000000000031",
+      "createdAt": "2026-01-01T00:00:10Z",
+      "id": "00000000-0000-4000-8000-000000000032",
       "owner": "sphere",
       "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce8cd?version=6921867e7004563bd918e7e8",
       "pricingId": "6ab0a323697330667ccce8cd",

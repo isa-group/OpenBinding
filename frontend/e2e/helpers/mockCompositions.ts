@@ -922,9 +922,9 @@ function publicVersion(
 }
 
 /**
- * TomatoMeter (F3 J4): the composition the lab derives from tomatometer-email@2, whose version 1.0.0 is the gateway's fixture
- * (core/tomatometer-email.version.json: Mailgun FOUNDATION pinned by `from`, the offering `sphere/tomatometer` read when it was
- * evaluated) and whose version 1.1.0 binds Mailgun SCALE of the same pricing version instead.
+ * TomatoMeter (F3 J4, F4): the composition the lab makes from its template, whose version 1.0.0 is the gateway's fixture
+ * (core/tomatometer-email.version.json: Brevo PROFESSIONAL and Dropbox PLUS pinned by `from`, the offering `sphere/tomatometer`
+ * read when it was evaluated) and whose version 1.1.0 binds Brevo STANDARD of the same pricing version instead.
  */
 function tomatometerEntry(): Entry {
   const base = core('tomatometer-email.version.json') as unknown as CompositionVersionView;
@@ -949,8 +949,8 @@ function tomatometerEntry(): Entry {
   };
   document.version = '1.1.0';
   document.binding.dailySummary = {
-    candidate: 'email.mailgun.scale',
-    from: { plan: 'SCALE', sphere: 'danruilop1/mailgun', version: '6ade36454b2b5b01c587db3d' },
+    candidate: 'email.brevo.standard',
+    from: { plan: 'STANDARD', sphere: 'danruilop1/brevo', version: '6ade2d444b2b5b01c587d80d' },
   };
   const second: CompositionVersionView = {
     ...structuredClone(first),

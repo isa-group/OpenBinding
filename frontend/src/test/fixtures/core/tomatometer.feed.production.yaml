@@ -3,8 +3,8 @@ composition: tomatometer
 version: 1.0.0
 kind: application
 problem:
-  ref: fixtures/problems/tomatometer-email@2
-  compilation: sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78
+  ref: fixtures/problems/tomatometer-email@3
+  compilation: sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c
 workflow:
   seq:
   - login
@@ -16,22 +16,26 @@ binding:
   login:
     candidate: auth.builtin.local
   dailySummary:
-    candidate: email.mailgun.foundation
+    candidate: email.brevo.professional
     from:
-      sphere: danruilop1/mailgun
-      version: 6ade36454b2b5b01c587db3d
-      plan: FOUNDATION
+      sphere: danruilop1/brevo
+      version: 6ade2d444b2b5b01c587d80d
+      plan: PROFESSIONAL
   export:
-    candidate: storage.local.disk
+    candidate: storage.dropbox.plus
+    from:
+      sphere: atenea/dropbox
+      version: 687e4b68102baa50f3a5c7b7
+      plan: PLUS
   quotes:
     candidate: quotes.zenquotes.free
 values:
-  availability: 0.9736378375500001
+  availability: 0.9682605702
   latency:
-    value: 375.0
+    value: 615.0
     unit: ms
   subscription:
-    value: 35.0
+    value: 508.99
     unit: USD/month
 offering:
   sphere: sphere/tomatometer

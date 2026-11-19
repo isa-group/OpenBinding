@@ -6,14 +6,14 @@
     {
       "analytics": null,
       "based_on": null,
-      "content_digest": "sha256-83efb9ee96b05a261a911d2b4dd4edb2e3377ee3e297252492eded6edb2a7241",
-      "created_at": "2026-01-01T00:00:26Z",
+      "content_digest": "sha256-8f3be077d629c797d4cd93693f0026d07ee93015cbce5e90648dcf1ae8a878a1",
+      "created_at": "2026-01-01T00:00:27Z",
       "created_by_id": "00000000-0000-4000-8000-000000000003",
       "current_evaluation": {
         "basis": "bim",
         "compilation": {
-          "compilation_digest": "sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78",
-          "semantic_digest": "sha256-7568924f5773baa488714b1c34b0b8d9bf72b29bee13712897f355012e7e8f95",
+          "compilation_digest": "sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c",
+          "semantic_digest": "sha256-1430132ab32ba230127c567a8c19895124711b893883e1d6ff862ef49b2de508",
           "toolchain": {
             "apiVersion": "bim/v1",
             "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
@@ -21,16 +21,16 @@
             "version": "0.2.0"
           }
         },
-        "created_at": "2026-01-01T00:00:27Z",
-        "id": "00000000-0000-4000-8000-000000000038",
+        "created_at": "2026-01-01T00:00:28Z",
+        "id": "00000000-0000-4000-8000-000000000039",
         "outcome": "verified"
       },
-      "current_evaluation_id": "00000000-0000-4000-8000-000000000038",
+      "current_evaluation_id": "00000000-0000-4000-8000-000000000039",
       "derivation": {
         "point": null,
         "revision": {
-          "id": "00000000-0000-4000-8000-000000000033",
-          "revision": 2
+          "id": "00000000-0000-4000-8000-000000000034",
+          "revision": 3
         },
         "run": null,
         "source": "binding"
@@ -39,7 +39,7 @@
       "evaluations": [],
       "evidence_run": null,
       "forked_from": null,
-      "id": "00000000-0000-4000-8000-000000000037",
+      "id": "00000000-0000-4000-8000-000000000038",
       "kind": "application",
       "label": "1.1.0",
       "offering": {
@@ -48,34 +48,34 @@
       "ordinal": 2,
       "problem": {
         "linked_compilation": {
-          "compilation_digest": "sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78",
-          "id": "00000000-0000-4000-8000-000000000034",
-          "semantic_digest": "sha256-7568924f5773baa488714b1c34b0b8d9bf72b29bee13712897f355012e7e8f95"
+          "compilation_digest": "sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c",
+          "id": "00000000-0000-4000-8000-000000000035",
+          "semantic_digest": "sha256-1430132ab32ba230127c567a8c19895124711b893883e1d6ff862ef49b2de508"
         },
         "problem": {
-          "id": "00000000-0000-4000-8000-000000000036",
-          "name": "tomatometer-email",
+          "id": "00000000-0000-4000-8000-000000000037",
+          "name": "TomatoMeter e-mail",
           "slug": "tomatometer-email"
         },
         "revision": {
-          "id": "00000000-0000-4000-8000-000000000033",
-          "revision": 2
+          "id": "00000000-0000-4000-8000-000000000034",
+          "revision": 3
         }
       },
-      "size_bytes": 839,
+      "size_bytes": 945,
       "syntax_version": "1.0",
       "values": {
         "availability": {
           "unit": "1",
-          "value": 0.9643836509999999
+          "value": 0.9682605702
         },
         "latency": {
           "unit": "ms",
-          "value": 355.0
+          "value": 495.0
         },
         "subscription": {
           "unit": "USD/month",
-          "value": 20.0
+          "value": 29.990000000000002
         }
       },
       "values_status": "verified",
@@ -84,14 +84,14 @@
     {
       "analytics": null,
       "based_on": null,
-      "content_digest": "sha256-7974798d9e27731cb07f50f9fb0139ea06136554d1c1ee77a74f17ff04cd95ce",
-      "created_at": "2026-01-01T00:00:10Z",
+      "content_digest": "sha256-f8877f33423f7fa96418c4a7af8d6388696c0275e3c9b53482610b0c4b63172d",
+      "created_at": "2026-01-01T00:00:11Z",
       "created_by_id": "00000000-0000-4000-8000-000000000003",
       "current_evaluation": {
         "basis": "bim",
         "compilation": {
-          "compilation_digest": "sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78",
-          "semantic_digest": "sha256-7568924f5773baa488714b1c34b0b8d9bf72b29bee13712897f355012e7e8f95",
+          "compilation_digest": "sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c",
+          "semantic_digest": "sha256-1430132ab32ba230127c567a8c19895124711b893883e1d6ff862ef49b2de508",
           "toolchain": {
             "apiVersion": "bim/v1",
             "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
@@ -99,16 +99,16 @@
             "version": "0.2.0"
           }
         },
-        "created_at": "2026-01-01T00:00:11Z",
-        "id": "00000000-0000-4000-8000-000000000032",
+        "created_at": "2026-01-01T00:00:12Z",
+        "id": "00000000-0000-4000-8000-000000000033",
         "outcome": "verified"
       },
-      "current_evaluation_id": "00000000-0000-4000-8000-000000000032",
+      "current_evaluation_id": "00000000-0000-4000-8000-000000000033",
       "derivation": {
         "point": null,
         "revision": {
-          "id": "00000000-0000-4000-8000-000000000033",
-          "revision": 2
+          "id": "00000000-0000-4000-8000-000000000034",
+          "revision": 3
         },
         "run": null,
         "source": "binding"
@@ -117,7 +117,7 @@
       "evaluations": [],
       "evidence_run": null,
       "forked_from": null,
-      "id": "00000000-0000-4000-8000-000000000035",
+      "id": "00000000-0000-4000-8000-000000000036",
       "kind": "application",
       "label": "1.0.0",
       "offering": {
@@ -126,34 +126,34 @@
       "ordinal": 1,
       "problem": {
         "linked_compilation": {
-          "compilation_digest": "sha256-54f288f056ab90e0050c9de96f49bbc422e6a801beb05aa2f7cdbe88e1ff0e78",
-          "id": "00000000-0000-4000-8000-000000000034",
-          "semantic_digest": "sha256-7568924f5773baa488714b1c34b0b8d9bf72b29bee13712897f355012e7e8f95"
+          "compilation_digest": "sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c",
+          "id": "00000000-0000-4000-8000-000000000035",
+          "semantic_digest": "sha256-1430132ab32ba230127c567a8c19895124711b893883e1d6ff862ef49b2de508"
         },
         "problem": {
-          "id": "00000000-0000-4000-8000-000000000036",
-          "name": "tomatometer-email",
+          "id": "00000000-0000-4000-8000-000000000037",
+          "name": "TomatoMeter e-mail",
           "slug": "tomatometer-email"
         },
         "revision": {
-          "id": "00000000-0000-4000-8000-000000000033",
-          "revision": 2
+          "id": "00000000-0000-4000-8000-000000000034",
+          "revision": 3
         }
       },
-      "size_bytes": 855,
+      "size_bytes": 949,
       "syntax_version": "1.0",
       "values": {
         "availability": {
           "unit": "1",
-          "value": 0.9736378375500001
+          "value": 0.9682605702
         },
         "latency": {
           "unit": "ms",
-          "value": 375.0
+          "value": 615.0
         },
         "subscription": {
           "unit": "USD/month",
-          "value": 35.0
+          "value": 508.99
         }
       },
       "values_status": "verified",

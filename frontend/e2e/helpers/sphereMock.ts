@@ -257,8 +257,12 @@ export function sphereProblemRoutes(method: string, parts: string[]): SphereRepl
     if (action === 'expand' && method === 'POST')
       return ok(fixture('sphere', known ? 'expand.tomatometer-email.json' : 'expand.storage.json'));
     if (action === 'apply' && method === 'POST')
+      // The gateway's apply answered revision 2 that the TomatoMeter template had made already (`created: false`); the
+      // walk is the first import of that recipe, so the gallery answers it as made now.
       return ok(
-        fixture('sphere', known ? 'apply.tomatometer-email.json' : 'apply.storage.json'),
+        known
+          ? { ...fixture('sphere', 'apply.tomatometer-email.json'), created: true }
+          : fixture('sphere', 'apply.storage.json'),
         known ? 200 : 201
       );
     if (action === 'recipe')

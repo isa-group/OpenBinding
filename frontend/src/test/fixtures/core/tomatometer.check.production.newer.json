@@ -4,14 +4,14 @@
     "status": "valid",
     "toolchain": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4"
   },
-  "checkedAt": "2026-01-01T00:00:16Z",
+  "checkedAt": "2026-01-01T00:00:17Z",
   "offering": {
     "latest": {
-      "createdAt": "2026-01-01T00:00:09Z",
+      "createdAt": "2026-01-01T00:00:10Z",
       "versionName": "1.0.0"
     },
     "pinned": {
-      "createdAt": "2026-01-01T00:00:09Z",
+      "createdAt": "2026-01-01T00:00:10Z",
       "versionName": "1.0.0"
     },
     "source": {
@@ -22,23 +22,39 @@
   "upstream": [
     {
       "latest": {
-        "createdAt": "2026-01-01T00:00:17Z",
+        "createdAt": "2026-01-01T00:00:18Z",
         "name": "2027-01",
         "versionId": "6ffffffffffffffffffffff1"
       },
       "pinned": {
         "createdAt": "2026-01-01T00:00:08Z",
         "name": "2026-10",
-        "versionId": "6ade36454b2b5b01c587db3d"
+        "versionId": "6ade2d444b2b5b01c587d80d"
       },
-      "plan": "FOUNDATION",
-      "sphere": "danruilop1/mailgun",
+      "plan": "PROFESSIONAL",
+      "sphere": "danruilop1/brevo",
       "status": "newer",
       "task": "dailySummary"
+    },
+    {
+      "latest": {
+        "createdAt": "2026-01-01T00:00:09Z",
+        "name": "2021",
+        "versionId": "687e4b68102baa50f3a5c7b7"
+      },
+      "pinned": {
+        "createdAt": "2026-01-01T00:00:09Z",
+        "name": "2021",
+        "versionId": "687e4b68102baa50f3a5c7b7"
+      },
+      "plan": "PLUS",
+      "sphere": "atenea/dropbox",
+      "status": "current",
+      "task": "export"
     }
   ],
   "version": {
-    "id": "00000000-0000-4000-8000-000000000035",
+    "id": "00000000-0000-4000-8000-000000000036",
     "label": "1.0.0"
   }
 }

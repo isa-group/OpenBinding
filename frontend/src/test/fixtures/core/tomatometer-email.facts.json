@@ -1,5 +1,5 @@
 {
-  "binding_space": "8",
+  "binding_space": "96",
   "candidates": [
     {
       "id": "auth.builtin.local",
@@ -3362,6 +3362,619 @@
         "latency": 220,
         "subscription": 89.95
       }
+    },
+    {
+      "id": "quotes.builtin.static",
+      "key": "sphere-quotes/quotes.builtin.static",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-quotes.json",
+          "pointer": "/spec/candidates/quotes.builtin.static/features/availability",
+          "resource": "sphere-quotes",
+          "source": {
+            "carried": false,
+            "detail": {
+              "handMade": true
+            },
+            "kind": "manual",
+            "pricing": null
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-quotes.json",
+          "pointer": "/spec/candidates/quotes.builtin.static/features/latency",
+          "resource": "sphere-quotes",
+          "source": {
+            "carried": false,
+            "detail": {
+              "handMade": true
+            },
+            "kind": "manual",
+            "pricing": null
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-quotes.json",
+          "pointer": "/spec/candidates/quotes.builtin.static/features/subscription",
+          "resource": "sphere-quotes",
+          "source": {
+            "carried": false,
+            "detail": {
+              "handMade": true
+            },
+            "kind": "manual",
+            "pricing": null
+          }
+        }
+      },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": null,
+      "provider": "builtin",
+      "resource": "sphere-quotes",
+      "values": {
+        "availability": 0.999,
+        "latency": 2,
+        "subscription": 0
+      }
+    },
+    {
+      "id": "storage.dropbox.advanced",
+      "key": "sphere-storage/storage.dropbox.advanced",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.advanced/features/availability",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "dropbox"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "ADVANCED",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.advanced/features/latency",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "dropbox"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "ADVANCED",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.advanced/features/subscription",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "ADVANCED 20 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 20,
+                  "id": "ADVANCED",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": null,
+                  "seats": 1,
+                  "unit": "user",
+                  "unitAmount": 20
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "ADVANCED",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        }
+      },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+        "plan": "ADVANCED",
+        "pricingId": "6ab0a323697330667ccce9c1",
+        "registry": null,
+        "snapshot": "00000000-0000-4000-8000-000000000031",
+        "sphere": "atenea/dropbox",
+        "version": "687e4b68102baa50f3a5c7b7",
+        "versionLabel": "2021"
+      },
+      "provider": "dropbox",
+      "resource": "sphere-storage",
+      "values": {
+        "availability": 0.999,
+        "latency": 180,
+        "subscription": 20
+      }
+    },
+    {
+      "id": "storage.dropbox.family",
+      "key": "sphere-storage/storage.dropbox.family",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.family/features/availability",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "dropbox"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "FAMILY",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.family/features/latency",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "dropbox"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "FAMILY",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.family/features/subscription",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "FAMILY 16.99 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 16.99,
+                  "id": "FAMILY",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": null,
+                  "seats": 1,
+                  "unit": "account",
+                  "unitAmount": 16.99
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "FAMILY",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        }
+      },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+        "plan": "FAMILY",
+        "pricingId": "6ab0a323697330667ccce9c1",
+        "registry": null,
+        "snapshot": "00000000-0000-4000-8000-000000000031",
+        "sphere": "atenea/dropbox",
+        "version": "687e4b68102baa50f3a5c7b7",
+        "versionLabel": "2021"
+      },
+      "provider": "dropbox",
+      "resource": "sphere-storage",
+      "values": {
+        "availability": 0.999,
+        "latency": 180,
+        "subscription": 16.99
+      }
+    },
+    {
+      "id": "storage.dropbox.plus",
+      "key": "sphere-storage/storage.dropbox.plus",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.plus/features/availability",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "dropbox"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "PLUS",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.plus/features/latency",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "dropbox"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "PLUS",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.plus/features/subscription",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "PLUS 9.99 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 9.99,
+                  "id": "PLUS",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": null,
+                  "seats": 1,
+                  "unit": "account",
+                  "unitAmount": 9.99
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "PLUS",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        }
+      },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+        "plan": "PLUS",
+        "pricingId": "6ab0a323697330667ccce9c1",
+        "registry": null,
+        "snapshot": "00000000-0000-4000-8000-000000000031",
+        "sphere": "atenea/dropbox",
+        "version": "687e4b68102baa50f3a5c7b7",
+        "versionLabel": "2021"
+      },
+      "provider": "dropbox",
+      "resource": "sphere-storage",
+      "values": {
+        "availability": 0.999,
+        "latency": 180,
+        "subscription": 9.99
+      }
+    },
+    {
+      "id": "storage.dropbox.professional",
+      "key": "sphere-storage/storage.dropbox.professional",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.professional/features/availability",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "dropbox"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "PROFESSIONAL",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.professional/features/latency",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "dropbox"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "PROFESSIONAL",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.professional/features/subscription",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "PROFESSIONAL 16.58 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 16.58,
+                  "id": "PROFESSIONAL",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": null,
+                  "seats": 1,
+                  "unit": "account",
+                  "unitAmount": 16.58
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "PROFESSIONAL",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        }
+      },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+        "plan": "PROFESSIONAL",
+        "pricingId": "6ab0a323697330667ccce9c1",
+        "registry": null,
+        "snapshot": "00000000-0000-4000-8000-000000000031",
+        "sphere": "atenea/dropbox",
+        "version": "687e4b68102baa50f3a5c7b7",
+        "versionLabel": "2021"
+      },
+      "provider": "dropbox",
+      "resource": "sphere-storage",
+      "values": {
+        "availability": 0.999,
+        "latency": 180,
+        "subscription": 16.58
+      }
+    },
+    {
+      "id": "storage.dropbox.standard",
+      "key": "sphere-storage/storage.dropbox.standard",
+      "origins": {
+        "availability": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.standard/features/availability",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "dropbox"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "STANDARD",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        },
+        "latency": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.standard/features/latency",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "key": "dropbox"
+            },
+            "kind": "manual",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "STANDARD",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        },
+        "subscription": {
+          "kind": "package",
+          "path": "sphere-storage.json",
+          "pointer": "/spec/candidates/storage.dropbox.standard/features/subscription",
+          "resource": "sphere-storage",
+          "source": {
+            "carried": false,
+            "detail": {
+              "billing": "monthly",
+              "currency": "USD",
+              "formula": "STANDARD 12.5 x 1 (monthly)",
+              "multiplier": 1,
+              "parts": [
+                {
+                  "amount": 12.5,
+                  "id": "STANDARD",
+                  "kind": "plan",
+                  "monthlyFactor": 1,
+                  "period": null,
+                  "seats": 1,
+                  "unit": "user",
+                  "unitAmount": 12.5
+                }
+              ],
+              "seats": 1
+            },
+            "kind": "priced",
+            "pricing": {
+              "addOns": [],
+              "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+              "plan": "STANDARD",
+              "pricingId": "6ab0a323697330667ccce9c1",
+              "registry": null,
+              "sphere": "atenea/dropbox",
+              "versionId": "687e4b68102baa50f3a5c7b7",
+              "versionLabel": "2021"
+            }
+          }
+        }
+      },
+      "properties": {},
+      "propertyOrigins": {},
+      "provenance": {
+        "addons": [],
+        "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+        "plan": "STANDARD",
+        "pricingId": "6ab0a323697330667ccce9c1",
+        "registry": null,
+        "snapshot": "00000000-0000-4000-8000-000000000031",
+        "sphere": "atenea/dropbox",
+        "version": "687e4b68102baa50f3a5c7b7",
+        "versionLabel": "2021"
+      },
+      "provider": "dropbox",
+      "resource": "sphere-storage",
+      "values": {
+        "availability": 0.999,
+        "latency": 180,
+        "subscription": 12.5
+      }
     }
   ],
   "constraints": [],
@@ -3385,7 +3998,7 @@
       "unit": "USD/month"
     }
   ],
-  "ir_digest": "sha256-20bdde978f13423a4c72683c00184e410a59920286b876262fa82119a0fa3a3d",
+  "ir_digest": "sha256-c3795c531553077e1c3edf747777bd6ae603094251bc663cb42907b3404e7010",
   "objectives": {
     "criteria": [
       {
@@ -3484,6 +4097,26 @@
         {
           "candidate": "catalog/storage.local.disk",
           "written": "storage.local.disk"
+        },
+        {
+          "candidate": "sphere-storage/storage.dropbox.advanced",
+          "written": "storage.dropbox.advanced"
+        },
+        {
+          "candidate": "sphere-storage/storage.dropbox.family",
+          "written": "storage.dropbox.family"
+        },
+        {
+          "candidate": "sphere-storage/storage.dropbox.plus",
+          "written": "storage.dropbox.plus"
+        },
+        {
+          "candidate": "sphere-storage/storage.dropbox.professional",
+          "written": "storage.dropbox.professional"
+        },
+        {
+          "candidate": "sphere-storage/storage.dropbox.standard",
+          "written": "storage.dropbox.standard"
         }
       ],
       "id": "export",
@@ -3494,6 +4127,10 @@
         {
           "candidate": "catalog/quotes.zenquotes.free",
           "written": "quotes.zenquotes.free"
+        },
+        {
+          "candidate": "sphere-quotes/quotes.builtin.static",
+          "written": "quotes.builtin.static"
         }
       ],
       "id": "quotes",

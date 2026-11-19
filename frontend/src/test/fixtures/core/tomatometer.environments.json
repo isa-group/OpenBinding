@@ -2,16 +2,16 @@
   "environments": [
     {
       "adoptRole": "ADMIN",
-      "createdAt": "2026-01-01T00:00:18Z",
+      "createdAt": "2026-01-01T00:00:19Z",
       "description": "What TomatoMeter reads in production.",
       "expectedUsers": 1000,
       "feed": {
-        "etag": "\"sha256-7974798d9e27731cb07f50f9fb0139ea06136554d1c1ee77a74f17ff04cd95ce\"",
+        "etag": "\"sha256-f8877f33423f7fa96418c4a7af8d6388696c0275e3c9b53482610b0c4b63172d\"",
         "path": "/v1/organizations/fixtures/compositions/tomatometer/environments/production/composition"
       },
-      "id": "00000000-0000-4000-8000-000000000039",
+      "id": "00000000-0000-4000-8000-000000000040",
       "inEffect": {
-        "adoptedAt": "2026-01-01T00:00:12Z",
+        "adoptedAt": "2026-01-01T00:00:13Z",
         "adoptedBy": {
           "displayName": "fixtures",
           "username": "fixtures"
@@ -19,10 +19,10 @@
         "adoption": 3,
         "binding": {
           "dailySummary": {
-            "candidate": "email.mailgun.foundation"
+            "candidate": "email.brevo.professional"
           },
           "export": {
-            "candidate": "storage.local.disk"
+            "candidate": "storage.dropbox.plus"
           },
           "login": {
             "candidate": "auth.builtin.local"
@@ -33,18 +33,18 @@
         },
         "evaluation": {
           "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
-          "id": "00000000-0000-4000-8000-000000000032",
+          "id": "00000000-0000-4000-8000-000000000033",
           "outcome": "verified",
           "valuesStatus": "verified"
         },
-        "note": "Back to Mailgun",
+        "note": "Back to Brevo",
         "offering": {
-          "createdAt": "2026-01-01T00:00:09Z",
+          "createdAt": "2026-01-01T00:00:10Z",
           "status": "read",
           "versionName": "1.0.0"
         },
         "version": {
-          "id": "00000000-0000-4000-8000-000000000035",
+          "id": "00000000-0000-4000-8000-000000000036",
           "label": "1.0.0",
           "ordinal": 1
         }
@@ -52,11 +52,11 @@
       "keyCount": 1,
       "keys": [
         {
-          "createdAt": "2026-01-01T00:00:19Z",
+          "createdAt": "2026-01-01T00:00:20Z",
           "createdBy": "fixtures",
           "creatorIsMember": true,
           "hint": "obe_f1c7a5e0…",
-          "id": "00000000-0000-4000-8000-000000000040",
+          "id": "00000000-0000-4000-8000-000000000041",
           "label": "TomatoMeter production",
           "lastUsedAt": null,
           "revokedAt": null
@@ -69,25 +69,25 @@
         "username": "fixtures"
       },
       "slug": "production",
-      "updatedAt": "2026-01-01T00:00:20Z"
+      "updatedAt": "2026-01-01T00:00:21Z"
     },
     {
       "adoptRole": "MEMBER",
-      "createdAt": "2026-01-01T00:00:21Z",
+      "createdAt": "2026-01-01T00:00:22Z",
       "description": "",
       "expectedUsers": null,
       "feed": {
         "etag": null,
         "path": "/v1/organizations/fixtures/compositions/tomatometer/environments/staging/composition"
       },
-      "id": "00000000-0000-4000-8000-000000000041",
+      "id": "00000000-0000-4000-8000-000000000042",
       "inEffect": null,
       "keyCount": 0,
       "keys": [],
       "name": "Staging",
       "operator": null,
       "slug": "staging",
-      "updatedAt": "2026-01-01T00:00:22Z"
+      "updatedAt": "2026-01-01T00:00:23Z"
     }
   ]
 }
