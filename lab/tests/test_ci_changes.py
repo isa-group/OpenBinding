@@ -238,6 +238,7 @@ WALKING_TESTS = {
     "test_bim_schema_parity.py": "schemas/bim/v1",
     "test_compose_production.py": "a temporary secrets directory, not the repository",
     "test_composition_derive_api.py": "the files of examples/demo/16_json_complete, copied into a temporary package",
+    "test_composition_templates.py": "examples/templates, the composition template manifests (the examples/ rule)",
     "test_composition_versions_api.py": "the composition goldens of the tests directory",
     "test_docker_context.py": "the sources of the Dockerfile COPY lines",
     "test_entitlement_map.py": "the gateway sources (and docs/pricing/openbinding-0.2.0.yml, read by name)",
