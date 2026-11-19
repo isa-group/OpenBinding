@@ -159,9 +159,11 @@ test.describe('live · F3 SPHERE candidates', () => {
       { params: { include: 'document' }, headers: { Authorization: `Bearer ${token}` } }
     );
     expect(read.ok()).toBe(true);
-    const binding = ((await read.json()) as {
-      document: { binding: Record<string, { from?: { plan: string; version: string } }> };
-    }).document.binding;
+    const binding = (
+      (await read.json()) as {
+        document: { binding: Record<string, { from?: { plan: string; version: string } }> };
+      }
+    ).document.binding;
     const pinned = Object.values(binding).flatMap(entry => (entry.from ? [entry.from] : []));
     expect(pinned.length).toBeGreaterThan(0);
     await page.goto(`/compositions/${ORG}/tomatometer`);

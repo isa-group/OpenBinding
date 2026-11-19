@@ -87,36 +87,38 @@ values: {}
 ## 2. An example
 
 TomatoMeter, the flagship composite: a sign-in done in house, a daily e-mail summary and an export in parallel,
-then a quote of the day. The e-mail candidate carries its SPHERE provenance, and the composite's own pricing is a
-SPHERE pricing. Written as an author might:
+then a quote of the day. The e-mail and storage candidates carry their SPHERE provenance (real plans of public SPHERE
+pricings), the values are the ones the gateway evaluated on the linked problem, and the composite's own pricing is a
+SPHERE pricing. This is version 1.0.0 as the lab seals it (`examples/tomatometer/composition.yaml`), written as an
+author might:
 
 ```yaml c2y valid
 syntaxVersion: "1.0"
 composition: tomatometer
-version: 1.3.0
+version: 1.0.0
 kind: application
-problem: {ref: isa/problems/tomatometer-email@3, compilation: sha256-6b1c0d6f1e9e4a8f0d2c3b4a5968778695a4b3c2d1e0f9e8d7c6b5a493827160}
+problem: {ref: lab-main/problems/tomatometer-email@3, compilation: sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c}
 workflow: {seq: [login, {and: [dailySummary, export]}, quotes]}
 binding:
-  login: {local: true}
-  dailySummary: {candidate: email.brevo.business, from: {sphere: brevo/brevo, version: 665f1c2e9b1d4a0012ab34cd, plan: BUSINESS}}
-  export: {candidate: storage.dropbox.plus}
+  login: {candidate: auth.builtin.local}
+  dailySummary: {candidate: email.brevo.professional, from: {sphere: danruilop1/brevo, version: 6ade2d444b2b5b01c587d80d, plan: PROFESSIONAL}}
+  export: {candidate: storage.dropbox.plus, from: {sphere: atenea/dropbox, version: 687e4b68102baa50f3a5c7b7, plan: PLUS}}
   quotes: {candidate: quotes.zenquotes.free}
-values: {cost: {value: 34.5, unit: EUR/month}, availability: 0.9985, latency: {value: 420, unit: ms}}
-offering: {sphere: isa/tomatometer}
-evidence: {run: 3f2b8c1e-7d4a-4e9b-9c1f-2a6d8e5b7c90, evaluatedBy: gateway, toolchain: bim-core 0.2.0}
+values: {availability: 0.9682605702, latency: {value: 615.0, unit: ms}, subscription: {value: 508.99, unit: USD/month}}
+offering: {sphere: sphere/tomatometer}
+evidence: {manual: true, evaluatedBy: gateway, toolchain: bim-core 0.2.0}
 ```
 
-The same document in canonical form, the bytes a seal stores (§11):
+The same document in canonical form, the bytes a seal stores (§11), and the file's bytes:
 
 ```yaml c2y valid canonical
 syntaxVersion: '1.0'
 composition: tomatometer
-version: 1.3.0
+version: 1.0.0
 kind: application
 problem:
-  ref: isa/problems/tomatometer-email@3
-  compilation: sha256-6b1c0d6f1e9e4a8f0d2c3b4a5968778695a4b3c2d1e0f9e8d7c6b5a493827160
+  ref: lab-main/problems/tomatometer-email@3
+  compilation: sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c
 workflow:
   seq:
   - login
@@ -126,29 +128,33 @@ workflow:
   - quotes
 binding:
   login:
-    local: true
+    candidate: auth.builtin.local
   dailySummary:
-    candidate: email.brevo.business
+    candidate: email.brevo.professional
     from:
-      sphere: brevo/brevo
-      version: 665f1c2e9b1d4a0012ab34cd
-      plan: BUSINESS
+      sphere: danruilop1/brevo
+      version: 6ade2d444b2b5b01c587d80d
+      plan: PROFESSIONAL
   export:
     candidate: storage.dropbox.plus
+    from:
+      sphere: atenea/dropbox
+      version: 687e4b68102baa50f3a5c7b7
+      plan: PLUS
   quotes:
     candidate: quotes.zenquotes.free
 values:
-  availability: 0.9985
-  cost:
-    value: 34.5
-    unit: EUR/month
+  availability: 0.9682605702
   latency:
-    value: 420
+    value: 615.0
     unit: ms
+  subscription:
+    value: 508.99
+    unit: USD/month
 offering:
-  sphere: isa/tomatometer
+  sphere: sphere/tomatometer
 evidence:
-  run: 3f2b8c1e-7d4a-4e9b-9c1f-2a6d8e5b7c90
+  manual: true
   evaluatedBy: gateway
   toolchain: bim-core 0.2.0
 ```
@@ -241,7 +247,7 @@ syntaxVersion: "1.0"
 composition: shop
 version: 1.0.0
 kind: application
-problem: {ref: isa/tomatometer-email@3, compilation: sha256-6b1c0d6f1e9e4a8f0d2c3b4a5968778695a4b3c2d1e0f9e8d7c6b5a493827160}
+problem: {ref: lab-main/tomatometer-email@3, compilation: sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c}
 workflow: pick
 binding: {pick: {candidate: c_pick}}
 values: {}

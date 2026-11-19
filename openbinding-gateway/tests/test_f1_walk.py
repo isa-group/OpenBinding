@@ -54,13 +54,13 @@ workflow:
   seq: [login, {and: [dailySummary, export]}, quotes]
 binding:
   login: {local: true}
-  dailySummary: {candidate: email.brevo.business, from: {sphere: brevo/brevo, version: 665f1c2e9b1d4a0012ab34cd, plan: BUSINESS}}
+  dailySummary: {candidate: email.brevo.professional, from: {sphere: danruilop1/brevo, version: 6ade2d444b2b5b01c587d80d, plan: PROFESSIONAL}}
   export: {candidate: storage.dropbox.plus}
   quotes: {candidate: quotes.zenquotes.free}
 values:
   availability: 0.9985
-  cost: {value: 34.5, unit: EUR/month}
-offering: {sphere: isa/tomatometer, registry: onprem}
+  subscription: {value: 508.99, unit: USD/month}
+offering: {sphere: sphere/tomatometer, registry: onprem}
 """
 
 
@@ -179,7 +179,7 @@ async def test_problem_run_composition_version_evaluation_preset_and_run(
     assert declared.json()["version"]["values_status"] == "declared"
     assert codes_of(declared.json()["diagnostics"]) == [(codes.OFFERING_REGISTRY_UNKNOWN, "warning")]
     sketch = yaml.safe_load((await api_client.get(f"{compositions}/sketch/versions/1/content", headers=headers)).text)
-    assert sketch["offering"] == {"sphere": "isa/tomatometer", "registry": "onprem"}
+    assert sketch["offering"] == {"sphere": "sphere/tomatometer", "registry": "onprem"}
     assert sketch["evidence"] == {"evaluatedBy": "declared"}
 
     # Every version has exactly one evaluation by the installed toolchain, or exactly one declared one.
