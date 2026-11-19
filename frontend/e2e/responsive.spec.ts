@@ -2,6 +2,12 @@ import { expect, test, type Page } from '@playwright/test';
 import { installMockApi } from './helpers/mockApi';
 import { authConfig, signedIn } from './helpers/session';
 
+// The application draws nothing before `GET /v1/auth/config` answers; a test that mocks nothing else is a visitor of a
+// local-mode gateway (a later catch-all of the API origin answers it again).
+test.beforeEach(async ({ page }) => {
+  await authConfig(page);
+});
+
 // Public routes of the redesigned site. The footer holds the service-status chip; there is no /status page.
 const PUBLIC_ROUTES = [
   '/',
