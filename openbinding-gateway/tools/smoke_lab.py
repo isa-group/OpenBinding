@@ -453,6 +453,10 @@ class Lab:
             json={"username_or_email": name, "password": self.config.password if password is None else password},
             timeout=self.config.request_timeout_s,
         )
+        # The smoke is a script: it calls the API with bearer tokens only. A login also sets the browser session cookie,
+        # and a session cookie presented at the next login is revoked (``replaced``), which would end the token of the
+        # user signed in before; the client keeps no cookie.
+        self.client.cookies.clear()
         body = mapping(body_of(response))
         token = body.get("access_token")
         if response.status_code != 200 or not isinstance(token, str) or not token:

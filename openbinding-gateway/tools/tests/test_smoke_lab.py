@@ -45,6 +45,8 @@ class FakeLab:
         self.requests: list[tuple[str, str]] = []
         self.tokens: dict[str, str] = {}
         self.issued = 0
+        #: Logins that presented a session cookie a previous login had set (the gateway revokes it: ``replaced``).
+        self.presented_sessions = 0
         self.login_hits: Counter[str] = Counter()
         self.revisions: dict[str, str] = {"rev-1": "simple-seq"}
         if "sphere" in self.faults:
@@ -152,6 +154,8 @@ class FakeLab:
             return self.problem(413, "payload_too_large")
         body = json.loads(request.content)
         name = body["username_or_email"]
+        if "ob_session=" in request.headers.get("cookie", ""):
+            self.presented_sessions += 1
         self.login_hits[name] += 1
         if self.login_hits[name] > 10 and "no_throttle" not in self.faults:
             return self.problem(429, "rate_limit_exceeded", {"Retry-After": "287"})
@@ -161,7 +165,11 @@ class FakeLab:
         self.issued += 1
         access = f"access-token-{name}-{self.issued}"
         self.tokens[access] = name
-        return self.reply(200, {"access_token": access, "token_type": "bearer", "expires_in": 300})
+        return self.reply(
+            200,
+            {"access_token": access, "token_type": "bearer", "expires_in": 300},
+            {"set-cookie": f"ob_session=session-of-{self.issued}; Path=/; HttpOnly; SameSite=lax"},
+        )
 
     @staticmethod
     def digest(content: bytes) -> str:
@@ -462,6 +470,15 @@ def test_every_step_passes_against_a_healthy_lab():
     assert report["skipped"] == list(OPERATION_STEPS)
     assert report["blocked"] == 0 and report["blockedSteps"] == []
     assert not any(step["blockedByRemote"] for step in report["steps"])
+
+
+def test_no_login_presents_the_session_cookie_of_the_one_before():
+    # Local sign-in sets the browser session cookie and revokes one presented at the next sign-in, which would end the
+    # token of the user signed in before: the smoke keeps no cookie.
+    fake = FakeLab("sphere")
+    report = smoke(fake, with_space=True)
+    assert failing(report) == []
+    assert fake.issued > 1 and fake.presented_sessions == 0
 
 
 def test_jobs_and_study_engines_carry_the_mode_and_the_execution_optimization():
