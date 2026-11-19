@@ -76,7 +76,11 @@ export function checkRows(report: EnvironmentCheck): CheckRow[] {
           ? 'Declared values: there is no problem to check it against.'
           : `Not valid on the installed toolchain: ${binding.diagnostics.map(item => item.message).join(' ')}`,
     status:
-      binding.status === 'invalid' ? 'Invalid' : binding.status === 'valid' ? 'Valid' : 'Declared',
+      binding.status === 'invalid'
+        ? 'Invalid'
+        : binding.status === 'valid'
+          ? 'Valid'
+          : 'No problem',
     tone: binding.status === 'invalid' ? 'news' : binding.status === 'valid' ? 'ok' : 'muted',
   });
   return rows;
