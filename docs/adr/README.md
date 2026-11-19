@@ -41,3 +41,5 @@ and `tests/` and `tools/` without a prefix to `openbinding-gateway/`.
 | [0051](0051-problem-editor-on-the-shared-core.md) | F2 D9, D11, D15 | The BIM problem editor on the shared core (supersedes 0025) |
 | [0052](0052-study-front-export-and-presets-on-the-server.md) | F2 D14, D16, D18 | The study front, the export and study presets on the server |
 | [0053](0053-frontend-on-sphere-stack.md) | F2c PR-A | The frontend on SPHERE's stack, structure and conventions (supersedes the layers and reuse rule of 0050) |
+| [0054](0054-composition-environments-and-the-feed.md) | F4-A D2-D10, D19, D22 | Composition environments, adoption with a required `If-Match`, the pinned history, environment feed keys and the feed |
+| [0055](0055-margins-per-offering-plan.md) | F4-A D12 | Margins per offering plan: uniform apportionment, explicit users, exact six-place money, statuses |

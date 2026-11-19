@@ -42,6 +42,26 @@ malformed, and a malformed boundary denies everything.
 | `/pricing-snapshots/{snapshot}`, `/pricing-snapshots/{snapshot}/yaml` | a public snapshot: whoever reads the organization (a visitor too, when it publishes a composition); a registry one: signed-in readers; a private one: members of its organization only. Anything else is the same `404 pricing_snapshot_not_found` | — | `problems:read` |
 | `/connections`, `/connections/sphere` (the organization's SPHERE connection) | ADMIN (the list shows the SPHERE user, the key's scopes and the last four characters of the key; never the key) | ADMIN sets (`PUT`, validated by SPHERE, optional `If-Match`) and removes it (`DELETE`); the key is write-only and kept encrypted | `organizations:write` (reads too) |
 | `/compositions`, `/compositions/{composition}`, `/compositions/{composition}/versions/...`, `/compositions/{composition}/diff`, `/compositions/{composition}/fork`, `/compositions/{composition}/evaluate`, `/compositions/{composition}/neighborhood`, `/compositions/{composition}/derive`, `/compositions/{composition}/upstream` (a version's upstream pricings from stored snapshots; a visitor sees public snapshots only) | VIEWER (a non-member gets `404`; anybody reads a public composition, redacted, below); VIEWER also checks a document (`POST …/versions/check`), compares versions, evaluates another binding of a version (`POST …/evaluate`) and explores its neighbourhood | MEMBER creates, edits, seals, re-evaluates (`POST …/versions/{version}/evaluations`) and derives versions (`POST …/derive`, from a run of the organization or a binding of one of its problems); ADMIN deletes and changes `visibility`. A fork needs read on the source (member, or the source is public) and MEMBER on the target organization, which must be another one | `compositions:read` / `compositions:write` |
+| `/compositions/{composition}/environments`, `…/environments/{environment}`, `…/adoptions`, `…/keys`, `…/keys/{key}`, `…/check`, `/compositions/{composition}/versions/{version}/margins` (signed in only: no credential is `401` before any lookup) | VIEWER (a non-member gets the composition's `404`; on a public composition every environment route and margins are `404` for a non-member: members only); MEMBER checks an environment now | ADMIN creates, edits, deletes environments and mints and revokes feed keys; adopting needs the environment's `adoptRole` (ADMIN by default, MEMBER where set) and `If-Match` | `compositions:read` / `compositions:write`; adopting `compositions:adopt` alone; feed keys also `keys:write`; checking `compositions:read` |
+| `/compositions/{composition}/environments/{environment}/composition` (the feed) | the environment's feed key, or a member with `compositions:read` | — | `compositions:read` (a feed key has no permission list: it reads this feed only) |
+
+## Composition environments
+
+An environment's routes are for signed-in members ([ADR 0054](adr/0054-composition-environments-and-the-feed.md)).
+A caller without a role gets the composition's 404 parity: a private or missing composition is "Composition not
+found."; a public one answers every environment route, the list included, and its margins with "Environment not
+found." (or "Version not found."), the body a member gets for a missing one. A member whose role is too weak gets
+`403 organization_forbidden`. Margins are members only: cost per user is business data even for a public
+composition. The composition list's `?run=` filter (the versions derived from a run, and where each is in effect)
+answers a non-member as an unknown run, an empty list.
+
+The environment routes resolve to the key kind `compositions`, so a key bounded to `slugs: [tomatometer]` reaches
+that composition's environments and one bounded to another composition does not. **Feed keys** (`obe_…`) belong to
+an environment, not a person: they never enter the permission table, open nothing but their environment's feed
+(401 `environment_key_elsewhere` everywhere else; the stateless language and BIM routes answer them as nobody), and
+never count against anybody's `maxApiKeys`. The feed counts each credential against `FEED_RATE_PER_MINUTE` (60), in
+Redis, before anything is looked up. Creating an environment, adopting and minting a key do no compile, read or
+evaluate work; `check` and the margins are `read` work.
 
 ## Public compositions
 
@@ -222,10 +242,12 @@ shown). Uploading a file lints it once and does not check it against the problem
 ## API key permissions of compositions
 
 `compositions:read` and `compositions:write` are the composition pair, as `problems:*` and
-`studies:*` are for theirs. `compositions:read` reaches the stateless services above and,
+`studies:*` are for theirs; `compositions:adopt` (adopting a version in an environment) is a third that write does not
+imply. `compositions:read` reaches the stateless services above and,
 under `/v1/organizations/{org}/compositions`, every `GET` and the two operations that write
-nothing (`POST …/versions/check` and `POST …/evaluate`); every other method there needs
-`compositions:write`. The `organizations:*` permissions do not reach compositions, so a key
+nothing (`POST …/versions/check`, `POST …/evaluate` and `POST …/environments/{environment}/check`); every other
+method there needs `compositions:write`, adopting needs `compositions:adopt` alone, and an environment's feed keys
+also `keys:write`. The `organizations:*` permissions do not reach compositions, so a key
 that administers organizations gains no composition write. A key boundary names a composition
 by its kind (`composition`, `compositions`) and by its slug.
 
