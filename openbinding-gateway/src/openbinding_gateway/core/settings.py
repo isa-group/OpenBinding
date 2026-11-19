@@ -512,6 +512,10 @@ class Settings(BaseSettings):
     #: The SCORETech Identity ``sub`` of the first administrator (``BOOTSTRAP_ADMIN_SUB``): promoted at sign-in
     #: while no active administrator exists. ``scoretech`` mode only; at most 255 characters.
     bootstrap_admin_sub: Optional[str] = Field(default=None, max_length=255)
+    #: Days a personal API key (``obk_``) keeps working after its owner last signed in or renewed a session with
+    #: SCORETech Identity (``API_KEY_ORPHAN_DAYS``, ``scoretech`` mode): a person's machine keys stop when the
+    #: person stops proving they still hold an Identity account, and work again at their next sign-in.
+    api_key_orphan_days: int = Field(default=30, ge=1, le=365)
     #: Extra browser origins the sign-in routes accept in ``Origin`` besides ``FRONTEND_URL``'s
     #: (``AUTH_TRUSTED_ORIGINS``, comma separated, exact ``scheme://host[:port]``): every entry has
     #: ``FRONTEND_URL``'s scheme, and only https in production. The ordinary lab's walks browse

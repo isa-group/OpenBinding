@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta
 
 #: The longest ``returnTo`` kept; anything longer becomes ``/``.
 RETURN_TO_MAX = 512
@@ -43,3 +44,8 @@ def research_eligible(email: object, verified: object, domains: list[str] | tupl
         return False
     domain = email.rsplit("@", 1)[1].strip().lower()
     return domain != PLACEHOLDER_DOMAIN and domain in {item.lower() for item in domains}
+
+
+def key_owner_admitted(last_refresh: datetime | None, now: datetime, days: int) -> bool:
+    """Whether a person's API keys work: they refreshed with Identity within ``days`` (never: they do not)."""
+    return last_refresh is not None and now - last_refresh <= timedelta(days=days)

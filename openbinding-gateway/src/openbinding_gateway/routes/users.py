@@ -15,7 +15,7 @@ from ..db.models import (
     ApiKey, AuditEvent, AuthIdentity, IdentitySession, Notification, NotificationStreamTicket, OrganizationInvitationCode, OrganizationMembership,
     OrganizationRole, PasswordResetToken, RefreshToken, User, UserRole, utcnow,
 )
-from ..modules.identity.application import PSEUDONYM_PREFIX, end_all, institutional_email
+from ..modules.identity.application import PSEUDONYM_PREFIX, end_all, institutional_email, owner_may_use_keys
 from ..models.accounts import (
     ApiKeyList,
     ApiKeyBoundary,
@@ -110,6 +110,7 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
         cas_verified=cas_verified,
         email_verified=user.email_verified,
         institutional_email=institutional_email(user),
+        api_keys_suspended_at=owner_may_use_keys(user, settings=get_settings()).suspended_at,
     )
 
 

@@ -163,6 +163,13 @@ class UserProfile(BaseModel):
         default=False,
         description="Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.",
     )
+    api_keys_suspended_at: Optional[datetime] = Field(
+        default=None,
+        description=(
+            "SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person "
+            "signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode."
+        ),
+    )
 
 
 class PasswordResetRequest(BaseModel):

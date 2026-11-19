@@ -3326,6 +3326,11 @@ export interface components {
              */
             api_key_count: number;
             /**
+             * Api Keys Suspended At
+             * @description SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.
+             */
+            api_keys_suspended_at?: string | null;
+            /**
              * Cas Verified
              * @default false
              */
@@ -9457,6 +9462,11 @@ export interface components {
         };
         /** UserProfile */
         UserProfile: {
+            /**
+             * Api Keys Suspended At
+             * @description SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.
+             */
+            api_keys_suspended_at?: string | null;
             /**
              * Cas Verified
              * @default false

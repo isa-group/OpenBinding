@@ -77,6 +77,23 @@ def set_session_resolver(resolver: Optional[SessionResolver]) -> None:
     _session_resolver = resolver
 
 
+#: Decides whether a person's API keys work (``identity.application.owner_may_use_keys``), installed by the
+#: composition root like the session resolver. Without one, keys work only in ``local`` mode.
+KeyAdmissionRule = Callable[..., object]
+_key_admission: Optional[KeyAdmissionRule] = None
+
+
+def set_key_admission(rule: Optional[KeyAdmissionRule]) -> None:
+    global _key_admission
+    _key_admission = rule
+
+
+def _key_owner_admitted(user: User, settings: Settings) -> bool:
+    if _key_admission is None:
+        return settings.auth_provider == "local"
+    return bool(_key_admission(user, settings=settings).admitted)
+
+
 #: How stale ``last_used_at`` is allowed to get before it is worth a write.
 LAST_USED_RESOLUTION = timedelta(minutes=1)
 
@@ -179,11 +196,21 @@ async def _user_for_api_key(credential: str, session: AsyncSession) -> Optional[
     if not matches(credential, api_key.secret_hash):
         return None
 
+    user = await session.get(User, api_key.user_id)
+    if user is not None and user.is_active and not _key_owner_admitted(user, get_settings()):
+        # The person behind the key has not signed in with SCORETech Identity for API_KEY_ORPHAN_DAYS (or
+        # never did): the key is suspended, not revoked, and works again at their next sign-in.
+        raise api_error(
+            status.HTTP_401_UNAUTHORIZED,
+            "api_key_suspended",
+            "Sign in to OpenBinding with SCORETech Identity to reactivate your API keys.",
+            headers=_AUTHENTICATE_CHALLENGE,
+        )
+
     now = utcnow()
     if api_key.last_used_at is None or (now - _as_utc(api_key.last_used_at)) > LAST_USED_RESOLUTION:
         api_key.last_used_at = now
 
-    user = await session.get(User, api_key.user_id)
     if user is not None:
         # SQLAlchemy model instances may safely carry request-local, unmapped
         # attributes. This keeps the existing User-shaped dependency contract

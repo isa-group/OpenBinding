@@ -200,6 +200,19 @@
             "title": "Api Key Count",
             "type": "integer"
           },
+          "api_keys_suspended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.",
+            "title": "Api Keys Suspended At"
+          },
           "cas_verified": {
             "default": false,
             "title": "Cas Verified",
@@ -15978,6 +15991,19 @@
       },
       "UserProfile": {
         "properties": {
+          "api_keys_suspended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.",
+            "title": "Api Keys Suspended At"
+          },
           "cas_verified": {
             "default": false,
             "title": "Cas Verified",
