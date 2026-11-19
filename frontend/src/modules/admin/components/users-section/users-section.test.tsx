@@ -44,10 +44,10 @@ describe('admin-users · accounts', () => {
     expect(within(alex).getByText('you')).toBeInTheDocument();
     expect(within(alex).getByText('Admin')).toBeInTheDocument();
     expect(
-      within(row('maria.santos')).getByText('Institutional identity verified')
+      within(row('maria.santos')).getByText('Verified institutional e-mail')
     ).toBeInTheDocument();
     expect(
-      within(row('sam.okafor')).queryByText('Institutional identity verified')
+      within(row('sam.okafor')).queryByText('Verified institutional e-mail')
     ).not.toBeInTheDocument();
     expect(screen.getByText('Showing 1–6 of 6 accounts')).toBeInTheDocument();
   });

@@ -3,16 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { screens } from './router';
 
 // The screens of the application, exactly: one row per screen of `screens` (routes/router.tsx), with its address and layout.
-// The convergence on SPHERE ended at 38 screens (design §9). F5 replaces the CAS return /sso/callback by
-// /sso/identity/callback and /sso/identity/username (39: 21 public, 18 protected); F7 adds /orbit (40), F9 five collection
-// routes (45). A block that adds or removes a screen changes this list and the ceiling in the same commit.
+// The convergence on SPHERE ended at 38 screens (design §9). F5: −/sso/callback, +/sso/identity/callback,
+// +/sso/identity/username (39: 21 public, 18 protected); F7 adds /orbit (40), F9 five collection routes (45). A block that adds or removes a screen changes this list and the ceiling in the same commit.
 
 // prettier-ignore
 const SCREENS: Array<[string, string, string]> = [
   ['auth', '/authentication', 'public'],
   ['auth-forgot-password', '/forgot-password', 'public'],
   ['auth-reset-password', '/reset-password', 'public'],
-  ['auth-sso-callback', '/sso/callback', 'public'],
   ['auth-identity-callback', '/sso/identity/callback', 'public'],
   ['pub-home', '/', 'session'],
   ['org-explore', '/organizations', 'session'],
@@ -50,7 +48,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['problem-editor', '/problem-editor', 'standalone'],
 ];
 
-const CEILING = 39;
+const CEILING = 38;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {
@@ -65,8 +63,8 @@ describe('screen budget', () => {
     expect(screens).toHaveLength(CEILING);
   });
 
-  it('opens 21 screens to visitors (the public, session and editor layouts) and keeps 18 behind an account', () => {
-    expect(screens.filter(screen => screen.layout !== 'protected')).toHaveLength(21);
+  it('opens 20 screens to visitors (the public, session and editor layouts) and keeps 18 behind an account', () => {
+    expect(screens.filter(screen => screen.layout !== 'protected')).toHaveLength(20);
     expect(screens.filter(screen => screen.layout === 'protected')).toHaveLength(18);
   });
 

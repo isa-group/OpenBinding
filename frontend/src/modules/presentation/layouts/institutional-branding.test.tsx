@@ -33,9 +33,9 @@ const researchUser: UserProfile = {
   is_active: true,
   plan: 'RESEARCH',
   created_at: '2026-09-01T00:00:00Z',
-  cas_verified: true,
-  email_verified: false,
-  institutional_email: false,
+  cas_verified: false,
+  email_verified: true,
+  institutional_email: true,
 };
 
 const markName = { name: 'Universidad de Sevilla' };
@@ -66,8 +66,8 @@ describe('Universidad de Sevilla institutional branding', () => {
     expect(brandLink.textContent).toContain('OpenBinding');
   });
 
-  it('shows the mark for RESEARCH accounts', () => {
-    auth.user = { ...researchUser, plan: 'RESEARCH' };
+  it('shows the mark for a verified institutional e-mail', () => {
+    auth.user = { ...researchUser, institutional_email: true };
     render(
       <MemoryRouter>
         <Navigation />
@@ -77,8 +77,8 @@ describe('Universidad de Sevilla institutional branding', () => {
     expect(screen.getByRole('img', markName)).toBeInTheDocument();
   });
 
-  it('does not show any mark on another plan', () => {
-    auth.user = { ...researchUser, plan: 'LAB' };
+  it('does not show any mark without a verified institutional e-mail', () => {
+    auth.user = { ...researchUser, plan: 'LAB', institutional_email: false };
     render(
       <MemoryRouter>
         <Navigation />
@@ -93,7 +93,13 @@ describe('Universidad de Sevilla institutional branding', () => {
   });
 
   it('never infers institutional status from a @us.es address', () => {
-    auth.user = { ...researchUser, plan: 'FREE', email: 'someone@us.es' };
+    auth.user = {
+      ...researchUser,
+      plan: 'FREE',
+      email: 'someone@us.es',
+      email_verified: false,
+      institutional_email: false,
+    };
     render(
       <MemoryRouter>
         <Navigation />
@@ -149,7 +155,7 @@ describe('Universidad de Sevilla institutional branding', () => {
   });
 
   it('keeps the application header free of marks for ordinary accounts', () => {
-    auth.user = { ...researchUser, plan: 'LAB' };
+    auth.user = { ...researchUser, plan: 'LAB', institutional_email: false };
     render(
       <MemoryRouter initialEntries={['/app']}>
         <AppHeader />

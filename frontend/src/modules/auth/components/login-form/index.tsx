@@ -1,7 +1,7 @@
 // Adapted from SPHERE frontend/src/modules/auth/components/login-form/index.tsx (revision 73779a8a),
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
-// Changes: OpenBinding's sign-in (the university's CAS first, no Google), its field checks and refusal wording, the notice of a
+// Changes: OpenBinding's local sign-in (no SSO buttons: SCORETech Identity replaces this form in its mode), its field checks and refusal wording, the notice of a
 // session that ended, the "already signed in" state, and the return to the page that asked for the session; no e-mail
 // verification link (OpenBinding accounts are not verified by e-mail).
 
@@ -32,7 +32,6 @@ import {
 } from '../../utils/classes';
 import { AuthField, AuthSpinner } from '../auth-field';
 import { fadeUp } from '../auth-layout/variants';
-import UvusLoginButton from '../uvus-login-button';
 
 interface LoginState {
   from?: string;
@@ -41,7 +40,7 @@ interface LoginState {
 
 type Failure = 'rejected' | 'unavailable' | 'network' | 'invalid' | 'busy';
 
-/** Log in with a username or email and a password, or continue with the university's CAS. */
+/** Log in with a username or email and a password (local mode). */
 export default function LoginForm() {
   const { signIn, signOut, user, loading } = useAuth();
   const navigate = useNavigate();
@@ -179,15 +178,6 @@ export default function LoginForm() {
         </p>
       ) : (
         <>
-          {/* SSO first, local login below the divider */}
-          <UvusLoginButton returnTo={state?.from} />
-
-          <motion.div variants={fadeUp} className="my-5 flex items-center gap-3" aria-hidden="true">
-            <div className="h-px flex-1 bg-tp-input-border" />
-            <span className="text-xs text-tp-steel">or</span>
-            <div className="h-px flex-1 bg-tp-input-border" />
-          </motion.div>
-
           {/* Refusals */}
           <div aria-live="assertive" className="mb-4 flex flex-col gap-2 empty:hidden">
             {credentialsRefused && (

@@ -333,12 +333,14 @@ function DetailScreen({ param, tab }: { param: string; tab: AdminUserTab }) {
                   </dd>
                 </div>
                 <div>
-                  <dt>Institutional identity</dt>
+                  <dt>Institutional e-mail</dt>
                   <dd>
-                    {user.cas_verified ? (
-                      <Tag tone="success">Institutional identity verified</Tag>
+                    {user.institutional_email ? (
+                      <Tag tone="success">Verified institutional e-mail</Tag>
+                    ) : user.email_verified ? (
+                      'Verified, not institutional'
                     ) : (
-                      'None linked'
+                      'Not verified'
                     )}
                   </dd>
                 </div>

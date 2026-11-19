@@ -40,7 +40,6 @@ const HEADING: Record<string, RegExp> = {
   auth: /Welcome back/,
   'auth-forgot-password': /Forgot your password\?/,
   'auth-reset-password': /This reset link can’t be used/,
-  'auth-sso-callback': /no code to finish sign-in/,
   // Visited without a session: nothing came of a sign-in, so it says so on the (local) sign-in page.
   'auth-identity-callback': /Welcome back/,
   'org-join': /^Lab Other$/,

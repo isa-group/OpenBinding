@@ -249,12 +249,6 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
         const body = bodyOf(route);
         state.sent.subscription.push({ id: account.id, body, ifMatch });
         if (stale(ifMatch, account.id)) return precondition(account.id)(route);
-        if (body.plan === 'RESEARCH' && !account.cas_verified)
-          return detail(
-            409,
-            'research_requires_us_cas',
-            'RESEARCH requires a verified Universidad de Sevilla CAS identity.'
-          )(route);
         account.plan = String(body.plan);
         state.addOns[account.id] = body.add_ons as Record<string, number>;
         moved(account.id);
@@ -525,16 +519,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           .getByRole('row', { name: 'alex.rivera', exact: true })
           .getByText('you', { exact: true })
       ).toBeVisible();
-      // The institutional identity is real now: only the account that has one carries the chip.
+      // Only the account whose institutional e-mail SCORETech Identity verified carries the chip.
       await expect(
         main
           .getByRole('row', { name: 'maria.santos', exact: true })
-          .getByText('Institutional identity verified')
+          .getByText('Verified institutional e-mail')
       ).toBeVisible();
       await expect(
         main
           .getByRole('row', { name: 'sam.okafor', exact: true })
-          .getByText('Institutional identity verified')
+          .getByText('Verified institutional e-mail')
       ).toHaveCount(0);
       await expect(main.getByText('Showing 1–6 of 6 accounts')).toBeVisible();
       await capture(page, testInfo, `users-${name}-list`, { height: tall(1800) });
@@ -643,7 +637,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(
         main.getByText(/sam-okafor@example\.invalid · since Jun 15, 2026/)
       ).toBeVisible();
-      await expect(main.getByLabel('Account facts').getByText('None linked')).toBeVisible();
+      await expect(main.getByLabel('Account facts').getByText('Not verified')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-identity`, { height: tall(1400) });
       await tab('Usage');
       await expect(page).toHaveURL(new RegExp(`/admin/users/${SAM.id}\\?tab=usage$`));
@@ -697,18 +691,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('radio', { name: /^ADVANCED · current/ })).toBeChecked();
       await capture(page, testInfo, `detail-${name}-applied`, { height: tall(1400) });
 
-      // RESEARCH needs a CAS identity: the gateway says so in the review, and the form still says it after going back.
-      await plans.getByRole('radio', { name: /^RESEARCH/ }).click();
-      await main.getByRole('button', { name: 'Apply agreement', exact: true }).click();
-      await review.getByRole('button', { name: 'Apply agreement' }).click();
-      await expect(review.getByRole('alert')).toContainText(
-        'RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)'
-      );
-      await review.getByRole('button', { name: 'Back' }).click();
+      // An administrator may grant RESEARCH to anybody; the form says when the account has no verified institutional e-mail.
       await expect(
-        main.getByText('RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)')
+        plans.getByRole('radio', {
+          name: /^RESEARCH.*Granted by you: no verified institutional e-mail/,
+        })
       ).toBeVisible();
-      await capture(page, testInfo, `detail-${name}-409`, { height: tall(3300) });
       await plans.getByRole('radio', { name: /^PRO/ }).click();
       await main.getByRole('button', { name: 'Change plan only, keep add-ons' }).click();
       await review.getByRole('button', { name: 'Change plan' }).click();
@@ -791,7 +779,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(
         main.getByRole('heading', { level: 1, name: 'maria.santos', exact: true })
       ).toBeVisible();
-      await expect(main.getByText('Institutional identity verified')).toBeVisible();
+      await expect(main.getByText('Verified institutional e-mail')).toBeVisible();
       await page.goto('/admin/users/00000000-0000-4000-8000-0000000000ff');
       await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-404`, { height: tall(900) });
@@ -891,10 +879,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           { user_id: SAM.id, key: { id: 'key-1', name: 'ci pipeline', prefix: 'obk_ab12' } },
           { targetType: 'ApiKey', targetId: 'key-1' }
         ),
-        recorded(4, 'account.cas.linked', {
-          provider: 'us-cas',
-          plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false },
-        }),
+        recorded(4, 'account.research.granted', { basis: 'email' }),
       ];
       await page.goto('/admin/audit');
       await expect(main.getByText('The organization’s settings were updated.')).toBeVisible();
@@ -903,9 +888,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       ).toBeVisible();
       await expect(main.getByText('API key “ci pipeline” (obk_ab12…) was revoked.')).toBeVisible();
       await expect(
-        main.getByText(
-          'An institutional identity was linked and the plan went from BASIC to RESEARCH at no extra cost.'
-        )
+        main.getByText('RESEARCH was granted for a verified institutional e-mail.')
       ).toBeVisible();
       const timeline = main.getByRole('list', { name: 'Events, newest first' });
       await expect(

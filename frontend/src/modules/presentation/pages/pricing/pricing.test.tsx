@@ -199,13 +199,13 @@ describe('PricingPage', () => {
     expect(plans.getAllByText('Contact us')).toHaveLength(1 + 1);
     expect(plans.getAllByText('institutional agreement')).toHaveLength(1);
     expect(plans.getAllByText('Free')).toHaveLength(2);
-    expect(plans.getByText('with verified CAS')).toBeInTheDocument();
+    expect(plans.getByText('with a verified US e-mail')).toBeInTheDocument();
     expect(screen.getByText(/there’s no checkout/)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/[€$]\s?\d/);
     expect(screen.queryByRole('link', { name: /checkout|buy|subscribe/i })).not.toBeInTheDocument();
   });
 
-  it('sends a visitor to sign up or to log in with CAS', async () => {
+  it('sends a visitor to sign up or to sign in', async () => {
     renderPricing();
     await heading();
 
@@ -216,7 +216,7 @@ describe('PricingPage', () => {
       expect(link).toHaveAttribute('href', '/authentication?view=register');
     expect(
       screen
-        .getAllByRole('link', { name: 'Log in with CAS' })
+        .getAllByRole('link', { name: 'Sign in' })
         .every(link => link.getAttribute('href') === '/authentication')
     ).toBe(true);
     expect(screen.queryByText('Available to your account')).not.toBeInTheDocument();
@@ -377,26 +377,29 @@ describe('PricingPage', () => {
     expect(screen.queryByRole('list', { name: 'Plans' })).not.toBeInTheDocument();
   });
 
-  it('marks the current plan of a signed-in account and offers CAS linking to the others', async () => {
+  it('marks the current plan of a signed-in account and points RESEARCH at its plan settings', async () => {
     renderPricing(person('FREE'));
     await heading();
 
     expect(await screen.findByText('Your current plan')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Sign up' })).not.toBeInTheDocument();
-    for (const link of screen.getAllByRole('link', { name: 'Link CAS identity' }))
-      expect(link).toHaveAttribute('href', '/me/settings?section=integrations');
-    expect(screen.getByRole('link', { name: 'Manage identities' })).toHaveAttribute(
-      'href',
-      '/me/settings?section=integrations'
-    );
+    const links = screen.getAllByRole('link', { name: 'How to get RESEARCH' });
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) expect(link).toHaveAttribute('href', '/me/settings?section=plan');
+    expect(
+      screen.getByText(/verified e-mail at us\.es or alum\.us\.es, or granted by an administrator/)
+    ).toBeInTheDocument();
   });
 
-  it('offers no CAS link to an account that is on RESEARCH already', async () => {
+  it('offers nothing about RESEARCH in the plans of an account that is on it already', async () => {
     renderPricing(person('RESEARCH'));
     await heading();
 
     expect(await screen.findByText('Your current plan')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Link CAS identity' })).not.toBeInTheDocument();
+    const plans = screen.getByRole('list', { name: 'Plans' });
+    expect(
+      within(plans).queryByRole('link', { name: 'How to get RESEARCH' })
+    ).not.toBeInTheDocument();
   });
 
   it('evaluates the signed features as Enabled or Not enabled from the SPACE token', async () => {
@@ -475,7 +478,7 @@ describe('PricingPage', () => {
       Object.fromEntries(Object.entries(actions).map(([plan, slot]) => [plan, slot.textContent]))
     ).toEqual({
       FREE: 'Sign up',
-      RESEARCH: 'Log in with CAS',
+      RESEARCH: 'Sign in',
       LAB: 'Contact us',
     });
     expect(within(actions.FREE).getByRole('link', { name: 'Sign up' })).toHaveAttribute(
@@ -517,8 +520,8 @@ describe('PricingPage', () => {
     expect(renderer.props?.defaultSelection).toEqual(mine);
     expect(actions.LAB).toBeEmptyDOMElement();
     expect(
-      within(actions.RESEARCH).getByRole('link', { name: 'Link CAS identity' })
-    ).toHaveAttribute('href', '/me/settings?section=integrations');
+      within(actions.RESEARCH).getByRole('link', { name: 'How to get RESEARCH' })
+    ).toHaveAttribute('href', '/me/settings?section=plan');
     expect(actions.FREE).toBeEmptyDOMElement();
   });
 

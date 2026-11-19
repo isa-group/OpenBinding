@@ -1,5 +1,5 @@
-// Adapted from OpenBinding's settings/components/IntegrationsSection.tsx (itself adapted from SPHERE
-// frontend/src/modules/settings/components/IntegrationsSection.tsx, revision 73779a8a), https://github.com/SCORELabUS/SPHERE.
+// Adapted from SPHERE frontend/src/modules/settings/components/IntegrationsSection.tsx (revision 73779a8a), through
+// OpenBinding's own copy of it (removed with CAS in F5), https://github.com/SCORELabUS/SPHERE.
 // Copyright (c) 2024 Alejandro García Fernández. MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: one provider row for the organization's SPHERE key instead of the account's identities: not connected (a
 // write-only password field and Connect), connected as a SPHERE user with the key's scopes in words, its hint and when it was

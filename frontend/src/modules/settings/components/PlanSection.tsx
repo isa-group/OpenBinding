@@ -66,7 +66,9 @@ function priceLine(plan: string, view: PricingView | null): string | null {
   const column = view?.plans.find(item => item.id === plan);
   if (!column) return null;
   if (column.byAgreement) return 'Institutional agreement';
-  return column.unitLabel === 'with verified CAS' ? 'Free with verified CAS' : column.priceLabel;
+  return column.unitLabel === 'with a verified US e-mail'
+    ? 'Free for a verified e-mail at us.es or alum.us.es, or granted by an administrator'
+    : column.priceLabel;
 }
 
 function Card({ title, lede, children }: { title: string; lede?: ReactNode; children: ReactNode }) {

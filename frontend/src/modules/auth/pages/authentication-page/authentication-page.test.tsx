@@ -9,11 +9,9 @@ import { AuthContext } from '../../hooks/useAuth';
 import {
   clearSessionEnded,
   clearSignInNote,
-  forgetCasFlow,
   hasRecentSignIn,
   markSessionEnded,
   noteSignInStarted,
-  readCasFlow,
 } from '../../utils/authFlow';
 import { StaticAuthConfig } from '../../contexts/authConfig';
 import type { AuthConfig } from '../../contexts/authConfigContext';
@@ -57,7 +55,6 @@ describe('AuthenticationPage', () => {
     vi.clearAllMocks();
     clearSessionEnded();
     clearSignInNote();
-    forgetCasFlow();
   });
 
   function renderWithAuth(
@@ -112,13 +109,13 @@ describe('AuthenticationPage', () => {
   };
 
   describe('Login', () => {
-    it('shows the welcome heading, the CAS action and the form', () => {
+    it('shows the welcome heading and the form, with no single sign-on button', () => {
       renderWithAuth(<AuthenticationPage />, '/authentication');
 
       expect(screen.getByRole('heading', { level: 1, name: 'Welcome back' })).toBeInTheDocument();
-      const cas = screen.getByRole('link', { name: 'Continue with Universidad de Sevilla' });
-      expect(cas).toHaveAttribute('href', expect.stringContaining('/v1/auth/cas/start?mode=login'));
-      expect(cas.querySelector('img')).toHaveAttribute('src', '/brands/us-fama.png');
+      expect(
+        screen.queryByRole('link', { name: 'Continue with Universidad de Sevilla' })
+      ).not.toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Forgot password?' })).toHaveAttribute(
         'href',
         '/forgot-password'
@@ -133,21 +130,6 @@ describe('AuthenticationPage', () => {
       );
       expect(screen.getByLabelText('Password')).toHaveAttribute('autocomplete', 'current-password');
       expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/');
-    });
-
-    it('puts the university first, then the divider, then the password form', () => {
-      renderWithAuth(<AuthenticationPage />, '/authentication');
-
-      const cas = screen.getByRole('link', { name: 'Continue with Universidad de Sevilla' });
-      const divider = screen.getByText('or');
-      const identifier = screen.getByLabelText('Username or email');
-      expect(cas.compareDocumentPosition(divider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(
-        divider.compareDocumentPosition(identifier) & Node.DOCUMENT_POSITION_FOLLOWING
-      ).toBeTruthy();
-      expect(
-        screen.getByText(/A verified CAS identity can qualify for RESEARCH/)
-      ).toBeInTheDocument();
     });
 
     it('redirects to /app upon sign in by default', async () => {
@@ -436,19 +418,6 @@ describe('AuthenticationPage', () => {
       expect(
         screen.getByText('Password changed. Log in with the new password.')
       ).toBeInTheDocument();
-    });
-
-    it('remembers that the CAS flow is a login, and where the person was heading', () => {
-      renderWithAuth(<AuthenticationPage />, {
-        pathname: '/authentication',
-        state: { from: '/problems/org/project' },
-      });
-      const cas = screen.getByRole('link', { name: 'Continue with Universidad de Sevilla' });
-      cas.addEventListener('click', event => event.preventDefault());
-
-      fireEvent.click(cas);
-
-      expect(readCasFlow()).toEqual({ mode: 'login', returnTo: '/problems/org/project' });
     });
 
     it('waits for the stored session before offering anything', () => {

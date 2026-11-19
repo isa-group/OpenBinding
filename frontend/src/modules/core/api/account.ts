@@ -66,18 +66,6 @@ export type UserProfile = components['schemas']['UserProfile'];
 /** A short gateway token bound to the browser session (sign-in, or `POST /v1/auth/identity/session`); kept in memory only. */
 export type AccessGrant = components['schemas']['AccessGrant'];
 
-/** A plan the gateway changed as a side effect of signing in: linking CAS raises FREE to RESEARCH at no extra cost. */
-export interface PlanChange {
-  from: string;
-  to: string;
-  extra_cost: boolean;
-}
-
-/** `POST /v1/auth/cas/exchange`: the session, and the plan change linking CAS caused, if any (`null` otherwise). */
-export interface CasSession extends AccessGrant {
-  plan_changed?: PlanChange | null;
-}
-
 export interface ApiKeySummary {
   id: string;
   name: string;
@@ -136,13 +124,6 @@ export type ContractChangeReason =
   'new_feature' | 'administrative_decision' | 'institutional_agreement' | 'retirement_or_discount';
 
 export type AdminSubscriptionView = components['schemas']['AdminSubscriptionView'];
-
-export interface ExternalIdentity {
-  id: string;
-  provider: 'us-cas' | string;
-  subject: string;
-  verifiedAt: string;
-}
 
 export interface Notification {
   id: string;

@@ -3,7 +3,6 @@ import { HttpTransport } from '../../core/api/http';
 import { accountClientOf } from './accountClient';
 import { planClientOf } from '../../settings/api/planClient';
 import { HttpError } from '../../core/api/http';
-import { forgetCasFlow, readCasFlow } from '../utils/authFlow';
 
 /** The transport at a test gateway, with the client's operations on it (as the old ApiClient bundled them). */
 function clientAt(base: string) {
@@ -42,7 +41,6 @@ describe('authentication requests', () => {
   beforeEach(() => {
     localStorage.clear();
     client.transport.clearTokens();
-    forgetCasFlow();
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
   });
@@ -185,52 +183,5 @@ describe('authentication requests', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(ended).not.toHaveBeenCalled();
     window.removeEventListener('openbinding:session-ended', ended);
-  });
-
-  it('keeps the token a CAS exchange returns, and throws what it refuses', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ access_token: 'a', refresh_token: 'r', token_type: 'bearer', expires_in: 60 })
-    );
-    await expect(client.exchangeCasCode('x'.repeat(32))).resolves.toBeNull();
-    expect(client.transport.getAccessToken()).toBe('a');
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ code: 'x'.repeat(32) });
-
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ detail: { code: 'cas_code_invalid', error: 'used' } }, 401)
-    );
-    await expect(client.exchangeCasCode('y'.repeat(32))).rejects.toMatchObject({
-      status: 401,
-      code: 'cas_code_invalid',
-    });
-  });
-
-  it('hands back the plan change a CAS exchange caused, and null when the plan did not change', async () => {
-    const session = { access_token: 'a', refresh_token: 'r', token_type: 'bearer', expires_in: 60 };
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        ...session,
-        plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false },
-      })
-    );
-    await expect(client.exchangeCasCode('x'.repeat(32))).resolves.toEqual({
-      from: 'BASIC',
-      to: 'RESEARCH',
-      extra_cost: false,
-    });
-
-    fetchMock.mockResolvedValueOnce(jsonResponse({ ...session, plan_changed: null }));
-    await expect(client.exchangeCasCode('y'.repeat(32))).resolves.toBeNull();
-  });
-
-  it('remembers that a CAS link leaves the app, and builds the start URL for either mode', async () => {
-    expect(client.casStartUrl()).toBe('https://gateway.example/v1/auth/cas/start?mode=login');
-    expect(client.casStartUrl('link')).toBe('https://gateway.example/v1/auth/cas/start?mode=link');
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ url: '/api/v1/auth/cas/start?mode=link&intent=abc' })
-    );
-
-    await client.createCasLinkIntent();
-
-    expect(readCasFlow()?.mode).toBe('link');
   });
 });

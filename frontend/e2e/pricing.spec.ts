@@ -50,7 +50,9 @@ const account = (plan: string) => ({
   is_active: true,
   plan,
   created_at: '2026-03-02T00:00:00Z',
-  cas_verified: plan === 'RESEARCH',
+  cas_verified: false,
+  email_verified: plan === 'RESEARCH',
+  institutional_email: plan === 'RESEARCH',
 });
 
 interface Mocks {
@@ -160,7 +162,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         'href',
         '/authentication?view=register'
       );
-      await expect(main.getByRole('link', { name: 'Log in with CAS' }).first()).toHaveAttribute(
+      await expect(main.getByRole('link', { name: 'Sign in' }).first()).toHaveAttribute(
         'href',
         '/authentication'
       );
@@ -326,14 +328,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('main');
 
       await expect(main.getByText('Your current plan')).toHaveCount(1);
-      await expect(main.getByRole('link', { name: 'Link CAS identity' })).toHaveCount(0);
+      await expect(
+        main.getByRole('list', { name: 'Plans' }).getByRole('link', { name: 'How to get RESEARCH' })
+      ).toHaveCount(0);
       await expect(
         main.locator('pricing-renderer [data-pr-part="plan-card"][data-current="true"]')
       ).toHaveCount(1);
-      await expect(main.getByRole('link', { name: 'Manage identities' })).toHaveAttribute(
-        'href',
-        '/me/settings?section=integrations'
-      );
+      await expect(
+        main
+          .getByRole('region', { name: 'RESEARCH for Universidad de Sevilla' })
+          .getByRole('link', { name: 'How to get RESEARCH' })
+      ).toHaveAttribute('href', '/me/settings?section=plan');
       const mine = main.getByRole('region', { name: 'Available to your account' });
       await expect(mine).toBeVisible();
       await expect(
@@ -368,7 +373,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       );
       await expect(renderer.locator('[data-pr-slot="plan-cta"]')).toHaveText([
         'Sign up',
-        'Log in with CAS',
+        'Sign in',
         'Contact us',
       ]);
       await expect(renderer.locator('[data-pr-part="cta"]')).toHaveCount(0);
@@ -435,7 +440,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(renderer.locator('[data-pr-slot="plan-cta"]')).toHaveText([
         '',
         'Contact us',
-        'Link CAS identity',
+        'How to get RESEARCH',
         '',
       ]);
       await expect(renderer).not.toContainText(/Upgrade|Downgrade|Review change/);

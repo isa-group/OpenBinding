@@ -112,7 +112,7 @@ describe('a change decided on an outdated subscription', () => {
   });
 
   it('is no other refusal, not even another 409', () => {
-    expect(isOutdatedChange(failureOf(409, 'research_requires_us_cas'))).toBe(false);
+    expect(isOutdatedChange(failureOf(409, 'contract_changed_elsewhere'))).toBe(false);
     expect(isOutdatedChange(failureOf(409))).toBe(false);
     expect(isOutdatedChange(failureOf(422, 'invalid_subscription'))).toBe(false);
     expect(
@@ -203,7 +203,7 @@ describe('audit events in words', () => {
     expect(auditFamily('organization.sponsor.proposed')).toBe('organization');
     expect(auditFamily('admin.user.updated')).toBe('account');
     expect(auditFamily('admin.usage.resynced')).toBe('account');
-    expect(auditFamily('account.cas.linked')).toBe('account');
+    expect(auditFamily('account.research.granted')).toBe('account');
     expect(auditFamily('engine.published')).toBe('other');
   });
 
@@ -254,17 +254,21 @@ describe('audit events in words', () => {
     expect(
       describeAuditEvent({
         ...base,
-        action: 'account.cas.linked',
-        detail: { plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false } },
+        action: 'account.research.granted',
+        detail: { basis: 'email' },
       })
     ).toMatchObject({
-      before: 'BASIC',
+      text: 'RESEARCH was granted for a verified institutional e-mail.',
       after: 'RESEARCH',
-      facts: [['Plan', 'BASIC → RESEARCH · no extra cost']],
+      facts: [['Basis', 'Verified institutional e-mail']],
     });
-    expect(describeAuditEvent({ ...base, action: 'account.cas.linked', detail: {} }).text).toBe(
-      'An institutional identity was linked.'
-    );
+    expect(
+      describeAuditEvent({
+        ...base,
+        action: 'account.research.granted',
+        detail: { basis: 'admin' },
+      }).text
+    ).toBe('RESEARCH was granted by an administrator.');
   });
 
   it('describes an organization event', () => {

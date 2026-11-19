@@ -54,7 +54,6 @@ const ApiKeysPage = lazy(() => import('../modules/api-keys/pages/api-keys-page')
 const AuthenticationPage = lazy(() => import('../modules/auth/pages/authentication-page'));
 const ForgotPasswordPage = lazy(() => import('../modules/auth/pages/forgot-password'));
 const ResetPasswordPage = lazy(() => import('../modules/auth/pages/reset-password'));
-const SsoCallbackPage = lazy(() => import('../modules/auth/pages/sso-callback'));
 const CreateOrganizationPage = lazy(
   () => import('../modules/organization/pages/create-organization')
 );
@@ -100,7 +99,6 @@ export const screens: Screen[] = [
   { id: 'auth', path: '/authentication', layout: 'public', element: <AuthenticationPage /> },
   { id: 'auth-forgot-password', path: '/forgot-password', layout: 'public', element: <IdentityAwareLocalPage><ForgotPasswordPage /></IdentityAwareLocalPage> },
   { id: 'auth-reset-password', path: '/reset-password', layout: 'public', element: <IdentityAwareLocalPage><ResetPasswordPage /></IdentityAwareLocalPage> },
-  { id: 'auth-sso-callback', path: '/sso/callback', layout: 'public', element: <SsoCallbackPage /> },
   { id: 'auth-identity-callback', path: '/sso/identity/callback', layout: 'public', element: <IdentityCallback /> },
 
   // ═══════════════════════════════════════════════════════════

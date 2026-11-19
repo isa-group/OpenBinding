@@ -100,6 +100,7 @@ describe('route table', () => {
   it('no longer serves the legacy addresses that have no screen', () => {
     for (const path of [
       '/playground',
+      '/sso/callback',
       '/engines/new',
       '/funding',
       '/about',

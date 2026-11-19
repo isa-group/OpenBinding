@@ -34,7 +34,6 @@ export const accountLinks: readonly NavLinkItem[] = [
   { to: '/me/settings', label: 'Settings' },
   { to: '/me/settings?section=plan', label: 'Plan' },
   { to: '/me/api-keys', label: 'API keys' },
-  { to: '/me/settings?section=integrations', label: 'Sign-in & Security' },
   { to: '/me/settings?section=notifications', label: 'Notifications' },
   { to: '/me/settings?section=appearance', label: 'Appearance' },
 ];

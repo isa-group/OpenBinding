@@ -189,7 +189,6 @@ describe('buildCommands', () => {
       ['Settings', '/me/settings'],
       ['Plan', '/me/settings?section=plan'],
       ['API keys', '/me/api-keys'],
-      ['Sign-in & Security', '/me/settings?section=integrations'],
       ['Notifications', '/me/settings?section=notifications'],
       ['Appearance', '/me/settings?section=appearance'],
     ]);

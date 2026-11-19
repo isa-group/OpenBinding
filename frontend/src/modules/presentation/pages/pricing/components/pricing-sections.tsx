@@ -151,7 +151,7 @@ export function LimitOutcomes() {
   );
 }
 
-/** The RESEARCH plan for verified Universidad de Sevilla identities. */
+/** The RESEARCH plan: a verified Universidad de Sevilla e-mail, or an administrator's grant. */
 export function ResearchCard({ signedIn }: { signedIn: boolean }) {
   return (
     <section
@@ -167,16 +167,12 @@ export function ResearchCard({ signedIn }: { signedIn: boolean }) {
       <div className="min-w-[260px] flex-1">
         <strong className="text-tp-ink">RESEARCH for Universidad de Sevilla</strong>
         <p className="text-sm text-tp-slate">
-          Free for accounts with a verified CAS identity. It’s a plan, not a role: it doesn’t make
-          you an admin or change your organization roles. Unlinking the identity can move you back
-          to FREE.
+          Free for a verified e-mail at us.es or alum.us.es, or granted by an administrator. It’s a
+          plan, not a role: it doesn’t make you an admin or change your organization roles.
         </p>
       </div>
-      <Action
-        variant="primary"
-        to={signedIn ? '/me/settings?section=integrations' : '/authentication'}
-      >
-        {signedIn ? 'Manage identities' : 'Log in with CAS'}
+      <Action variant="primary" to={signedIn ? '/me/settings?section=plan' : '/authentication'}>
+        {signedIn ? 'How to get RESEARCH' : 'Sign in'}
       </Action>
     </section>
   );

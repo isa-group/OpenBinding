@@ -2,11 +2,11 @@
 
 ## Universidad de Sevilla mark
 
-The compact Universidad de Sevilla mark shown only for verified institutional
-accounts is reproduced unchanged from the SPHERE project asset. Universidad de
-Sevilla names and marks remain the property of Universidad de Sevilla; their
-presence identifies the account's CAS identity provider and does not by itself
-state sponsorship or endorsement. See the University's official visual identity
+The compact Universidad de Sevilla mark shown only for accounts with a verified
+institutional e-mail is reproduced unchanged from the SPHERE project asset.
+Universidad de Sevilla names and marks remain the property of Universidad de
+Sevilla; their presence identifies the account's institutional e-mail and does
+not by itself state sponsorship or endorsement. See the University's official visual identity
 guidance at https://www.us.es/laUS/imagen-corporativa.
 
 OpenBinding remains an independent project. The platform adapts product and implementation
@@ -160,11 +160,9 @@ Generated from the origin header of each file.
 | `frontend/src/modules/auth/components/auth-layout/variants.ts` | `frontend/src/modules/auth/components/auth-layout/index.tsx` | verbatim |
 | `frontend/src/modules/auth/components/login-form/index.tsx` | `frontend/src/modules/auth/components/login-form/index.tsx` | adapted |
 | `frontend/src/modules/auth/components/register-form/index.tsx` | `frontend/src/modules/auth/components/register-form/index.tsx` | adapted |
-| `frontend/src/modules/auth/components/uvus-login-button/index.tsx` | `frontend/src/modules/auth/components/uvus-login-button/index.tsx` | adapted |
 | `frontend/src/modules/auth/pages/authentication-page/index.tsx` | `frontend/src/modules/auth/pages/authentication-page/index.tsx` | adapted |
 | `frontend/src/modules/auth/pages/forgot-password/index.tsx` | `frontend/src/modules/auth/pages/forgot-password/index.tsx` | adapted |
 | `frontend/src/modules/auth/pages/reset-password/index.tsx` | `frontend/src/modules/auth/pages/reset-password/index.tsx` | adapted |
-| `frontend/src/modules/auth/pages/sso-callback/index.tsx` | `frontend/src/modules/auth/pages/sso-callback/index.tsx` | adapted |
 | `frontend/src/modules/beta/components/beta-badge/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | verbatim |
 | `frontend/src/modules/beta/components/beta-gate/index.tsx` | `frontend/src/modules/beta/components/beta-gate/index.tsx` | verbatim |
 | `frontend/src/modules/beta/config/betaFeatures.ts` | `frontend/src/modules/beta/config/betaFeatures.ts` | adapted |
@@ -428,7 +426,6 @@ Generated from the origin header of each file.
 | `frontend/src/modules/settings/components/AppearanceSection.tsx` | `frontend/src/modules/settings/components/NotificationsSection.tsx` | pattern-only |
 | `frontend/src/modules/settings/components/BetaFeaturesSection.tsx` | `frontend/src/modules/settings/components/BetaFeaturesSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/DangerZoneSection.tsx` | `frontend/src/modules/settings/components/DangerZoneSection.tsx` | adapted |
-| `frontend/src/modules/settings/components/IntegrationsSection.tsx` | `frontend/src/modules/settings/components/IntegrationsSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/NotificationsSection.tsx` | `frontend/src/modules/settings/components/NotificationsSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/PlanSection.tsx` | `frontend/src/modules/settings/components/PaymentsSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/SaveButton.tsx` | `frontend/src/modules/settings/components/AccountSection.tsx` | adapted (extracted) |

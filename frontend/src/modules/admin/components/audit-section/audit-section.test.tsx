@@ -26,7 +26,7 @@ const event = (
   ...over,
 });
 
-/** What B2 added to the log: account actions, the CAS link and the events recorded inside an organization. */
+/** What B2 added to the log: account actions, a RESEARCH grant and the events recorded inside an organization. */
 const RECENT: AdminAuditPage = {
   events: [
     event(
@@ -58,10 +58,7 @@ const RECENT: AdminAuditPage = {
       slots_in_flight: 1,
       corrected_by: -1,
     }),
-    event(5, 'account.cas.linked', {
-      provider: 'us-cas',
-      plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false },
-    }),
+    event(5, 'account.research.granted', { basis: 'email' }),
     event(
       6,
       'organization.member.upserted',
@@ -145,9 +142,7 @@ describe('admin-overview, audit section · the platform audit log', () => {
         screen.getByText('Run slots of sam.okafor were recounted (corrected by -1).')
       ).toBeInTheDocument();
       expect(
-        screen.getByText(
-          'An institutional identity was linked and the plan went from BASIC to RESEARCH at no extra cost.'
-        )
+        screen.getByText('RESEARCH was granted for a verified institutional e-mail.')
       ).toBeInTheDocument();
       expect(screen.getByText('Organization member upserted.')).toBeInTheDocument();
       expect(screen.getByText('Organization invitation created.')).toBeInTheDocument();
@@ -164,9 +159,9 @@ describe('admin-overview, audit section · the platform audit log', () => {
       expect(within(aside).getByText('key-1', { selector: 'dd' })).toBeInTheDocument();
       expect(within(aside).queryByText(/secret|hash/i)).not.toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: /account\.cas\.linked/ }));
-      expect(within(aside).getByText('BASIC → RESEARCH · no extra cost')).toBeInTheDocument();
-      expect(within(aside).getByLabelText('Before and after')).toHaveTextContent('BASIC');
+      fireEvent.click(screen.getByRole('button', { name: /account\.research\.granted/ }));
+      expect(within(aside).getByText('Verified institutional e-mail')).toBeInTheDocument();
+      expect(within(aside).getByLabelText('Before and after')).toHaveTextContent('RESEARCH');
     });
 
     it('names the organization of an event with a chip, and not for a platform event', async () => {

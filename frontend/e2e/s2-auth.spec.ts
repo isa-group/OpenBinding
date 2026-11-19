@@ -3,7 +3,7 @@ import { failureBody } from './helpers/problems';
 import { authConfig } from './helpers/session';
 
 // S2 · authentication and invitations, on SPHERE's split authentication layout:
-// auth (/authentication, its login and register views), auth-forgot-password, auth-reset-password, auth-sso-callback, org-join,
+// auth (/authentication, its login and register views), auth-forgot-password, auth-reset-password, org-join,
 // and in SCORETech mode the way to SCORETech Identity, its error pages and auth-identity-callback.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
@@ -26,7 +26,6 @@ const preview = {
   invited_by: { id: 'user-nora', username: 'nora', avatar: null },
 };
 const RESET_TOKEN = 'obr_k3j9d8f7_h2g1s0a9q8w7e6r5t4y3u2i1o0p9';
-const CAS_CODE = 'c'.repeat(43);
 
 const tokens = {
   access_token: 's2-access',
@@ -44,13 +43,6 @@ const person = (overrides: Record<string, unknown> = {}) => ({
   plan: 'FREE',
   created_at: '2026-09-01T00:00:00Z',
   ...overrides,
-});
-
-const researcher = person({
-  username: 'lucia',
-  email: 'lucia@example.org',
-  plan: 'RESEARCH',
-  cas_verified: true,
 });
 
 const isaDemo = {
@@ -81,7 +73,7 @@ interface Mocks {
 /**
  * Everything these screens read, answered; anything else on the API origin is an empty 404. The session is the gateway's
  * cookie: `POST /v1/auth/identity/session` answers a token while it lives (from the start with `account`, after a sign-in,
- * registration or CAS exchange) and 401 otherwise. `setSession` plants or ends it, as another tab would.
+ * or registration) and 401 otherwise. `setSession` plants or ends it, as another tab would.
  */
 async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/**`, route =>
@@ -89,7 +81,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   );
   await authConfig(page, mocks.provider);
   // Whoever signs in during a test becomes this account; /v1/users/me is only asked once a token exists.
-  let current = mocks.account ?? person();
+  const current = mocks.account ?? person();
   let cookie = Boolean(mocks.account);
   await page.route(`${API}/v1/auth/identity/session`, route =>
     cookie
@@ -133,11 +125,6 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/v1/auth/password-reset/complete`, route =>
     route.fulfill({ status: 204 })
   );
-  await page.route(`${API}/v1/auth/cas/exchange`, route => {
-    current = researcher;
-    cookie = true;
-    return route.fulfill({ json: tokens });
-  });
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   return {
     /** Plant or end the session cookie, as another tab signing in or out would. */
@@ -216,11 +203,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(page.locator('header.site-header')).toBeVisible();
       await expect(main.getByRole('heading', { level: 1, name: 'Welcome back' })).toBeVisible();
-      // The university first, then the divider, then the password form.
-      const cas = main.getByRole('link', { name: 'Continue with Universidad de Sevilla' });
-      await expect(cas).toHaveAttribute('href', `${API}/v1/auth/cas/start?mode=login`);
-      await expect(cas.locator('img')).toHaveAttribute('src', '/brands/us-fama.png');
-      await expect(main.getByText('or', { exact: true })).toBeVisible();
+      // Local mode: the password form, with no single sign-on button.
+      await expect(
+        main.getByRole('link', { name: 'Continue with Universidad de Sevilla' })
+      ).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'Forgot password?' })).toHaveAttribute(
         'href',
         '/forgot-password'
@@ -517,153 +503,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('link', { name: 'Continue to log in' }).click();
       await expect(page).toHaveURL(/\/authentication$/);
       await expect(main.getByText('Password changed. Log in with the new password.')).toBeVisible();
-      expect(critical).toEqual([]);
-    });
-
-    test('auth-sso-callback /sso/callback', async ({ page }, testInfo) => {
-      // It loads many pages through a development server that compiles on demand; a loaded machine needs longer than the default.
-      test.setTimeout(180_000);
-      const critical = watchCriticalErrors(page);
-      await mockApi(page);
-      const main = page.locator('main');
-
-      await page.goto('/sso/callback');
-      await expect(
-        main.getByRole('heading', { name: 'There’s no code to finish sign-in' })
-      ).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Back to log in' })).toHaveAttribute(
-        'href',
-        '/authentication'
-      );
-      await capture(page, testInfo, `cas-${name}-no-code`);
-
-      // Log in with CAS, heading for a protected page: the success card carries the institution's own mark.
-      await page.evaluate(() =>
-        sessionStorage.setItem(
-          'openbinding-cas-flow',
-          JSON.stringify({ mode: 'login', returnTo: '/me/orgs', at: Date.now() })
-        )
-      );
-      await page.goto(`/sso/callback?code=${CAS_CODE}`);
-      await expect(main.getByText('Universidad de Sevilla · CAS · log in')).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'You’re signed in' })).toBeVisible();
-      await expect(
-        main.getByText(/qualifies for RESEARCH under the current pricing/)
-      ).toBeVisible();
-      await expect(
-        main.getByTestId('institution-verified').locator('img[alt="Universidad de Sevilla"]')
-      ).toHaveAttribute('src', '/brands/us-fama.png');
-      await expect(main.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute(
-        'href',
-        '/me/orgs'
-      );
-      await expect(
-        main.getByRole('link', { name: 'Settings › Sign-in & Security', exact: true })
-      ).toHaveAttribute('href', '/me/settings?section=integrations');
-      await capture(page, testInfo, `cas-${name}-login-success`);
-
-      // Link an identity to the signed-in account: a different flow, back to Settings › Sign-in & Security.
-      await page.evaluate(() =>
-        sessionStorage.setItem(
-          'openbinding-cas-flow',
-          JSON.stringify({ mode: 'link', returnTo: null, at: Date.now() })
-        )
-      );
-      await page.goto(`/sso/callback?code=${CAS_CODE}`);
-      await expect(main.getByText('Universidad de Sevilla · CAS · link identity')).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'Identity linked' })).toBeVisible();
-      await expect(
-        main.getByRole('link', { name: 'Back to Settings › Sign-in & Security' })
-      ).toHaveAttribute('href', '/me/settings?section=integrations');
-      await capture(page, testInfo, `cas-${name}-link-success`);
-
-      await page.route(
-        `${API}/v1/auth/cas/exchange`,
-        detail(401, 'cas_code_invalid', 'CAS code was used, expired or is invalid.')
-      );
-      await page.goto(`/sso/callback?code=${CAS_CODE}`);
-      await expect(main.getByRole('alert')).toContainText('This code can’t be used.');
-      await capture(page, testInfo, `cas-${name}-code-invalid`);
-
-      await page.route(
-        `${API}/v1/auth/cas/exchange`,
-        detail(
-          503,
-          'institutional_pricing_invalid',
-          'The active iPricing must declare the CAS-only RESEARCH plan.'
-        )
-      );
-      await page.goto(`/sso/callback?code=${CAS_CODE}`);
-      await expect(main.getByRole('alert')).toContainText('503 · institutional_pricing_invalid');
-      await expect(main.getByText(/^Service status: /)).toBeVisible();
-      await capture(page, testInfo, `cas-${name}-503`);
-
-      await page.route(
-        `${API}/v1/auth/cas/exchange`,
-        detail(409, 'identity_in_use', 'That UVUS identity belongs to another account.')
-      );
-      await page.goto(`/sso/callback?code=${CAS_CODE}`);
-      await expect(
-        main.getByRole('heading', { name: 'This identity can’t be used here' })
-      ).toBeVisible();
-      await expect(
-        main.getByText('This identity is already linked to another account.')
-      ).toBeVisible();
-      await expect(
-        main.getByRole('link', { name: 'Go to Settings › Sign-in & Security' })
-      ).toHaveAttribute('href', '/me/settings?section=integrations');
-      await capture(page, testInfo, `cas-${name}-linked-elsewhere`);
-
-      // The gateway reports its own failures in the address, each with a message of its own and a way forward.
-      const reported: Array<[string, string]> = [
-        ['cas_unavailable', 'Institutional sign-in is unavailable right now (503).'],
-        ['cas_state_invalid', 'This sign-in attempt has expired (cas_state_invalid).'],
-        ['cas_ticket_invalid', 'The university didn’t accept this sign-in (cas_ticket_invalid).'],
-        ['account_inactive', 'This account is deactivated (account_inactive).'],
-        ['pricing_unavailable', 'The pricing service didn’t answer (503 · pricing_unavailable).'],
-        ['cas_error', 'The sign-in couldn’t be finished (cas_error).'],
-      ];
-      for (const [code, title] of reported) {
-        await page.goto(`/sso/callback?error=${code}`);
-        await expect(main.getByText(title)).toBeVisible();
-        await expect(main.getByRole('link', { name: 'Back to log in' })).toHaveAttribute(
-          'href',
-          '/authentication'
-        );
-      }
-      await page.goto('/sso/callback?error=cas_ticket_invalid');
-      await expect(main.getByRole('link', { name: 'Try again' })).toHaveAttribute(
-        'href',
-        `${API}/v1/auth/cas/start?mode=login`
-      );
-      await capture(page, testInfo, `cas-${name}-ticket-invalid`);
-      await page.goto('/sso/callback?error=account_inactive');
-      await expect(main.getByRole('link', { name: 'Try again' })).toHaveCount(0);
-
-      // Linking CAS raised the plan to RESEARCH at no cost: the exchange says so, and the screen the person lands on tells them once.
-      await page.route(
-        `${API}/v1/auth/cas/exchange`,
-        json({ ...tokens, plan_changed: { from: 'FREE', to: 'RESEARCH', extra_cost: false } })
-      );
-      await page.evaluate(() =>
-        sessionStorage.setItem(
-          'openbinding-cas-flow',
-          JSON.stringify({ mode: 'login', returnTo: '/', at: Date.now() })
-        )
-      );
-      await page.goto(`/sso/callback?code=${CAS_CODE}&plan_changed=RESEARCH`);
-      await expect(main.getByRole('heading', { name: 'You’re signed in' })).toBeVisible();
-      await main.getByRole('link', { name: 'Continue to your workspace' }).click();
-      const planNote = page.getByText(
-        'Your account is now on the RESEARCH plan. There is no extra cost.'
-      );
-      await expect(planNote).toBeVisible();
-      await capture(page, testInfo, `cas-${name}-plan-changed`);
-      await page.getByRole('button', { name: 'Dismiss' }).click();
-      await expect(planNote).toHaveCount(0);
-      await page.reload();
-      await expect(page.locator('main')).toBeVisible();
-      await expect(planNote).toHaveCount(0);
       expect(critical).toEqual([]);
     });
 

@@ -74,7 +74,8 @@ const alex = {
   is_active: true,
   plan: 'RESEARCH',
   created_at: '2026-03-02T00:00:00Z',
-  cas_verified: true,
+  email_verified: true,
+  institutional_email: true,
 };
 
 type Key =

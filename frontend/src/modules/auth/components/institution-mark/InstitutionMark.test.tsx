@@ -22,8 +22,13 @@ const base: UserProfile = {
 };
 
 describe('isInstitutionalAccount', () => {
-  it('grants the mark to RESEARCH accounts, from the plan alone', () => {
-    expect(isInstitutionalAccount({ ...base, plan: 'RESEARCH' })).toBe(true);
+  it('grants the mark to a verified institutional e-mail, whatever the plan', () => {
+    expect(isInstitutionalAccount({ ...base, institutional_email: true })).toBe(true);
+    expect(isInstitutionalAccount({ ...base, plan: 'LAB', institutional_email: true })).toBe(true);
+  });
+
+  it('does not grant it for RESEARCH alone (an administrator may grant RESEARCH to anybody)', () => {
+    expect(isInstitutionalAccount({ ...base, plan: 'RESEARCH' })).toBe(false);
   });
 
   it('does not grant the mark to ordinary accounts or guests', () => {
@@ -48,7 +53,7 @@ describe('useInstitutionalBranding', () => {
 
   it('applies the rule to the authenticated user', () => {
     expect(renderHook(() => useInstitutionalBranding()).result.current).toBe(false);
-    auth.user = { ...base, plan: 'RESEARCH' };
+    auth.user = { ...base, institutional_email: true };
     expect(renderHook(() => useInstitutionalBranding()).result.current).toBe(true);
     auth.user = { ...base, email: 'researcher@us.es' };
     expect(renderHook(() => useInstitutionalBranding()).result.current).toBe(false);
@@ -57,7 +62,7 @@ describe('useInstitutionalBranding', () => {
 
 describe('InstitutionMark', () => {
   beforeEach(() => {
-    auth.user = { ...base, plan: 'RESEARCH' };
+    auth.user = { ...base, institutional_email: true };
   });
 
   it('renders the compact co-brand as a plain mark with the institutional title', () => {

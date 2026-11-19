@@ -202,35 +202,6 @@ describe('/me/settings', () => {
     expect(window.localStorage.getItem(BRAND_STORAGE_KEY)).toBeNull();
   });
 
-  it('unlinks the CAS identity of a RESEARCH account only with the typed phrase', async () => {
-    const gateway = fakeGateway({
-      'GET /v1/users/me/identities': {
-        body: [
-          { id: 'i1', provider: 'us-cas', subject: 'arivera1', verifiedAt: '2026-09-01T00:00:00Z' },
-        ],
-      },
-      'DELETE /v1/users/me/identities/i1': { status: 204 },
-    });
-    renderSettings('/me/settings?section=integrations', gateway);
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Unlink Universidad de Sevilla · CAS' })
-    );
-    const dialog = await screen.findByRole('dialog', {
-      name: 'Unlink your Universidad de Sevilla identity?',
-    });
-    const unlink = within(dialog).getByRole('button', { name: 'Unlink' });
-    expect(unlink).toBeDisabled();
-    fireEvent.change(within(dialog).getByLabelText('Type DOWNGRADE RESEARCH to confirm'), {
-      target: { value: 'DOWNGRADE RESEARCH' },
-    });
-    fireEvent.click(unlink);
-    expect(await screen.findByText(/Identity unlinked\. Your plan is now/)).toBeInTheDocument();
-    expect(gateway).toHaveBeenCalledWith(
-      '/v1/users/me/identities/i1?confirmation=DOWNGRADE%20RESEARCH',
-      expect.objectContaining({ method: 'DELETE' })
-    );
-  });
-
   it('turns beta features on', async () => {
     const gateway = fakeGateway({
       'GET /v1/users/me/settings/beta-features': { body: { enabled: false } },

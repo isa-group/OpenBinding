@@ -324,8 +324,8 @@ export default function UsersSection() {
                         ) : (
                           <span className="text-tp-steel">—</span>
                         )}
-                        {account.cas_verified && (
-                          <Tag tone="success">Institutional identity verified</Tag>
+                        {account.institutional_email && (
+                          <Tag tone="success">Verified institutional e-mail</Tag>
                         )}
                       </span>
                     </td>

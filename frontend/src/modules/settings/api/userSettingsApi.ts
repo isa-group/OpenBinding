@@ -1,18 +1,13 @@
 // Adapted from SPHERE frontend/src/modules/settings/api/userSettingsApi.ts (revision 73779a8a),
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
-// Changes: OpenBinding's gateway routes and generated types (`PATCH /v1/users/me` for the email and the password, the CAS
-// identities, notification preferences per kind × channel, beta features, the plan); refusals throw the typed error
+// Changes: OpenBinding's gateway routes and generated types (`PATCH /v1/users/me` for the email and the password,
+// notification preferences per kind × channel, beta features, the plan); refusals throw the typed error
 // `readApiError` reads; the revisions (`ETag`) come back so a write can send `If-Match`. SPHERE's profile, social links,
 // avatar and Google identity calls are not ported.
 
 import { useCallback, useMemo } from 'react';
-import type {
-  ExternalIdentity,
-  PlansPricingView,
-  UsageView,
-  UserProfile,
-} from '../../core/api/account';
+import type { PlansPricingView, UsageView, UserProfile } from '../../core/api/account';
 import { readResponse } from '../../core/api/http';
 import type { components } from '../../core/api/openapi';
 import { useAuth } from '../../auth/hooks/useAuth';
@@ -23,7 +18,7 @@ export type UpdateProfileRequest = Schemas['UpdateProfileRequest'];
 export type NotificationPreferences = Schemas['NotificationPreferences'];
 export type KindChannels = Schemas['KindChannels'];
 export type BetaFeatures = Schemas['BetaFeatures'];
-export type { ExternalIdentity, UsageView };
+export type { UsageView };
 
 /** An answer with the revision it was read at, to send back as `If-Match`. */
 export interface Revised<T> {
@@ -32,7 +27,6 @@ export interface Revised<T> {
 }
 
 const ME = '/v1/users/me';
-const enc = encodeURIComponent;
 
 export function useUserSettingsApi() {
   const { fetchWithInterceptor } = useAuth();
@@ -66,18 +60,6 @@ export function useUserSettingsApi() {
         method: 'DELETE',
         body: JSON.stringify({ confirmation, current_password: currentPassword || null }),
       }),
-    [call]
-  );
-
-  const listIdentities = useCallback(() => call<ExternalIdentity[]>(`${ME}/identities`), [call]);
-
-  /** Unlink an identity; a RESEARCH account confirms the plan change with the typed phrase. */
-  const unlinkIdentity = useCallback(
-    (id: string, confirmation?: string) =>
-      call<void>(
-        `${ME}/identities/${enc(id)}${confirmation ? `?confirmation=${enc(confirmation)}` : ''}`,
-        { method: 'DELETE' }
-      ),
     [call]
   );
 
@@ -121,8 +103,6 @@ export function useUserSettingsApi() {
     () => ({
       updateProfile,
       deleteAccount,
-      listIdentities,
-      unlinkIdentity,
       getNotificationPreferences,
       updateNotificationPreferences,
       getBetaFeatures,
@@ -133,8 +113,6 @@ export function useUserSettingsApi() {
     [
       updateProfile,
       deleteAccount,
-      listIdentities,
-      unlinkIdentity,
       getNotificationPreferences,
       updateNotificationPreferences,
       getBetaFeatures,
