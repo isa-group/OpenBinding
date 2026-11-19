@@ -48,7 +48,8 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 196
+    # 196 with SCORETech Identity (F5), and the three composition template routes (F4).
+    assert len(ROUTES) == 199
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -206,13 +207,16 @@ def test_the_composition2yaml_services_need_compositions_read_and_the_schema_is_
 
     assert sorted(language) == [
         ("GET", "/v1/compositions/schema"),
+        ("GET", "/v1/compositions/templates"),
+        ("GET", "/v1/compositions/templates/{template}"),
         ("POST", "/v1/compositions/diff"),
         ("POST", "/v1/compositions/parse"),
         ("POST", "/v1/compositions/serialise"),
         ("POST", "/v1/compositions/validate"),
     ]
     for method, path in language:
-        expected = frozenset() if method == "GET" else frozenset({"compositions:read"})
+        # The template catalog is read like the public compositions: open to visitors, a composition read for a key.
+        expected = frozenset() if path == "/v1/compositions/schema" else frozenset({"compositions:read"})
         assert required_permissions(path, method) == expected, path
     assert is_open("GET", "/v1/compositions/schema")
     assert {"compositions:read", "compositions:write"} <= set(ALL_PERMISSIONS)
@@ -259,7 +263,10 @@ def test_the_compositions_of_an_organization_have_their_own_permissions():
 def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
     compositions = "/v1/organizations/{org}/compositions"
     # The environment routes have their own permissions (test_environment_*).
-    routes = sorted(route for route in ROUTES if route[1].startswith(compositions) and "/environments" not in route[1])
+    routes = sorted(
+        route for route in ROUTES
+        if route[1].startswith(compositions) and "/environments" not in route[1] and not route[1].endswith("/from-template")
+    )
 
     assert routes == [
         ("DELETE", f"{compositions}/{{composition}}"),
@@ -380,3 +387,23 @@ def test_checking_an_environment_is_a_composition_read():
     check = "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/check"
     assert ("POST", check) in ROUTES
     assert required_permissions(check, "POST") == frozenset({"compositions:read"})
+
+
+def test_from_template_writes_compositions_and_problems():
+    """Instantiating a template creates a problem and applies recipes too: both writes, and both kinds."""
+    path = "/v1/organizations/{org}/compositions/from-template"
+    assert ("POST", path) in ROUTES
+    assert required_permissions(path, "POST") == frozenset({"compositions:write", "problems:write"})
+    assert required_permissions("/v1/organizations/acme/compositions/from-template", "POST") == frozenset(
+        {"compositions:write", "problems:write"}
+    )
+    request = {"method": "POST", "path_params": {"org": "acme"}, "path": path}
+    assert not allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["compositions"]}}), **request)
+    assert not allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["problems"]}}), **request)
+    assert allows_request(
+        SimpleNamespace(grants={"boundary": {"resourceKinds": ["compositions", "problems"]}}), **request,
+    )
+    # A composition's own routes keep their single kind.
+    other = {"method": "POST", "path_params": {"org": "acme", "composition": "c"},
+             "path": "/v1/organizations/{org}/compositions/{composition}/derive"}
+    assert allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["compositions"]}}), **other)

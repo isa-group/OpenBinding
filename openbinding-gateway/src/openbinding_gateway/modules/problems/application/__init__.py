@@ -36,7 +36,10 @@ from .problems import (
     slug_from_name,
     store_compilation,
 )
-from .templates import TemplatePackage, TemplateProblem, template_package, template_paths
+from .sphere import apply as sphere_apply
+from .sphere import dump as dump_document
+from .sphere import expand as sphere_expand
+from .templates import TemplatePackage, TemplateProblem, examples_root, template_package, template_paths
 from .validate import validate_package
 
 __all__ = [
@@ -65,8 +68,10 @@ __all__ = [
     "compile_package",
     "compile_refusal",
     "create_problem",
+    "dump_document",
     "current_compilations",
     "delete_problem",
+    "examples_root",
     "ir_analysis",
     "is_digest",
     "latest_origin_is",
@@ -80,6 +85,8 @@ __all__ = [
     "revision_digest",
     "semantic_digest",
     "slug_from_name",
+    "sphere_apply",
+    "sphere_expand",
     "store_compilation",
     "template_package",
     "template_paths",

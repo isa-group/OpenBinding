@@ -1,0 +1,35 @@
+{
+  "templates": [
+    {
+      "available": true,
+      "hasOffering": false,
+      "id": "fms",
+      "kind": "system",
+      "summary": "A fleet management back end: cloud hosting, fleet telemetry and route distances in sequence, then either the classic routing path (80%) or a quantum optimiser (20%), then payment. Hand-made candidates with cost, execution time, availability, reliability and security; no offering, so no margins.",
+      "tasks": [
+        "T1",
+        "T2",
+        "T3",
+        "T5",
+        "T6"
+      ],
+      "title": "Fleet management system",
+      "unavailableReason": null
+    },
+    {
+      "available": true,
+      "hasOffering": true,
+      "id": "tomatometer",
+      "kind": "application",
+      "summary": "TomatoMeter's back end: sign in, send the daily summary e-mail and export the data in parallel, then fetch a quote. The e-mail and storage providers are real SPHERE plans; the offering is TomatoMeter's own pricing in SPHERE.",
+      "tasks": [
+        "login",
+        "dailySummary",
+        "export",
+        "quotes"
+      ],
+      "title": "TomatoMeter composite",
+      "unavailableReason": null
+    }
+  ]
+}

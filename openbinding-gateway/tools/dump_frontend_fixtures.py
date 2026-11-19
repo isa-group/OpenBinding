@@ -13,6 +13,8 @@ response **bodies** (never headers) of the routes the frontend reads:
 * ``<name>.diff.json``: ``diffCompositionVersions`` from that 1.0.0 to a 1.1.0 derived from the
   same binding with one task bound to another candidate;
 * ``plans-pricing.json``: ``getPlansPricing``, OpenBinding's published pricing 0.2.0 as the recorded SPHERE serves it;
+* ``templates.json`` and ``template.tomatometer.json``: ``listCompositionTemplates`` and
+  ``getCompositionTemplate`` of the TomatoMeter template, as a visitor reads them;
 * ``tomatometer-email.facts.json``: the facts of revision 2 of ``tomatometer-email``, which a SPHERE import
   generated (``sphere/apply``): value sources, properties and provenance;
 * ``tomatometer-email.version.json``: version 1.0.0 of a composition ``tomatometer`` derived from that revision,
@@ -297,6 +299,10 @@ async def _bodies(work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
                 bodies.update(imported_core)
                 sphere.update(imported_sphere)
                 bodies["plans-pricing.json"] = _ok(await client.get("/v1/plans/pricing"), 200).json()
+                # The composition template catalog, as a visitor reads it, and the TomatoMeter template.
+                bodies["templates.json"] = _ok(await client.get("/v1/compositions/templates"), 200).json()
+                bodies["template.tomatometer.json"] = _ok(
+                    await client.get("/v1/compositions/templates/tomatometer"), 200).json()
     finally:
         app.dependency_overrides.clear()
         space_client.set_gate(None)

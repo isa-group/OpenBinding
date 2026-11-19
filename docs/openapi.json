@@ -4184,6 +4184,63 @@
         "title": "CompositionFork",
         "type": "object"
       },
+      "CompositionFromTemplate": {
+        "additionalProperties": false,
+        "description": "Instantiate a template in an organization: its problem and its composition, under these slugs.",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The composition's name.",
+            "title": "Name"
+          },
+          "problemSlug": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The problem's slug; the template's by default.",
+            "title": "Problemslug"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The composition's slug; the template's by default.",
+            "title": "Slug"
+          },
+          "template": {
+            "description": "The template's id.",
+            "pattern": "^[a-z][a-z0-9-]{0,39}$",
+            "title": "Template",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template"
+        ],
+        "title": "CompositionFromTemplate",
+        "type": "object"
+      },
       "CompositionGraph": {
         "description": "The version graph of a composition, as SPHERE's pricing version graph: newest versions first.",
         "properties": {
@@ -4205,6 +4262,40 @@
           "truncated"
         ],
         "title": "CompositionGraph",
+        "type": "object"
+      },
+      "CompositionInstantiated": {
+        "description": "What instantiating a template made.",
+        "properties": {
+          "composition": {
+            "$ref": "#/components/schemas/CompositionView"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/EvaluationView"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/TemplateOperation"
+          },
+          "problem": {
+            "$ref": "#/components/schemas/InstantiatedProblem"
+          },
+          "template": {
+            "title": "Template",
+            "type": "string"
+          },
+          "version": {
+            "$ref": "#/components/schemas/CompositionVersionView"
+          }
+        },
+        "required": [
+          "template",
+          "composition",
+          "problem",
+          "version",
+          "evaluation",
+          "operation"
+        ],
+        "title": "CompositionInstantiated",
         "type": "object"
       },
       "CompositionList": {
@@ -4634,6 +4725,174 @@
           "end_column"
         ],
         "title": "CompositionSpan",
+        "type": "object"
+      },
+      "CompositionTemplateList": {
+        "properties": {
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionTemplateSummary"
+            },
+            "title": "Templates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "templates"
+        ],
+        "title": "CompositionTemplateList",
+        "type": "object"
+      },
+      "CompositionTemplateSummary": {
+        "description": "A template a member starts a composition from: a problem and a composition derived from it.",
+        "properties": {
+          "available": {
+            "description": "Whether this deployment can instantiate it now.",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "hasOffering": {
+            "description": "Whether the composition names an offering (margins are computed from it).",
+            "title": "Hasoffering",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "application",
+              "workflow",
+              "pipeline",
+              "system"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "tasks": {
+            "description": "The tasks the composition binds, in the manifest's order.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unavailableReason": {
+            "anyOf": [
+              {
+                "const": "sphere_disabled",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why it is not available: `sphere_disabled` for a template that reads SPHERE while SPHERE is off.",
+            "title": "Unavailablereason"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "kind",
+          "tasks",
+          "hasOffering",
+          "available",
+          "unavailableReason"
+        ],
+        "title": "CompositionTemplateSummary",
+        "type": "object"
+      },
+      "CompositionTemplateView": {
+        "description": "One template with the problem it makes and the composition it derives.",
+        "properties": {
+          "available": {
+            "description": "Whether this deployment can instantiate it now.",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "composition": {
+            "$ref": "#/components/schemas/TemplateCompositionView"
+          },
+          "hasOffering": {
+            "description": "Whether the composition names an offering (margins are computed from it).",
+            "title": "Hasoffering",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "application",
+              "workflow",
+              "pipeline",
+              "system"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/TemplateOperation"
+          },
+          "problem": {
+            "$ref": "#/components/schemas/TemplateProblemView"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "tasks": {
+            "description": "The tasks the composition binds, in the manifest's order.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unavailableReason": {
+            "anyOf": [
+              {
+                "const": "sphere_disabled",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why it is not available: `sphere_disabled` for a template that reads SPHERE while SPHERE is off.",
+            "title": "Unavailablereason"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "kind",
+          "tasks",
+          "hasOffering",
+          "available",
+          "unavailableReason",
+          "problem",
+          "composition",
+          "operation"
+        ],
+        "title": "CompositionTemplateView",
         "type": "object"
       },
       "CompositionUpdate": {
@@ -8827,6 +9086,26 @@
           "metadata",
           "spec"
         ],
+        "type": "object"
+      },
+      "InstantiatedProblem": {
+        "properties": {
+          "revision": {
+            "description": "The latest revision, which the first version links.",
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "revision"
+        ],
+        "title": "InstantiatedProblem",
         "type": "object"
       },
       "InvitationPreview": {
@@ -15621,6 +15900,61 @@
         "title": "StudyView",
         "type": "object"
       },
+      "TemplateCompositionView": {
+        "properties": {
+          "binding": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Task -> the candidate the first version binds.",
+            "title": "Binding",
+            "type": "object"
+          },
+          "label": {
+            "description": "The first version's label.",
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "offering": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The offering the first version names (`sphere` or `url`).",
+            "title": "Offering"
+          },
+          "slug": {
+            "description": "The composition's default slug.",
+            "title": "Slug",
+            "type": "string"
+          },
+          "workflow": {
+            "description": "The workflow the derived document writes, in Composition2Yaml's form.",
+            "title": "Workflow"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "label",
+          "workflow",
+          "binding",
+          "offering"
+        ],
+        "title": "TemplateCompositionView",
+        "type": "object"
+      },
       "TemplateList": {
         "additionalProperties": false,
         "properties": {
@@ -15634,6 +15968,50 @@
         "required": [
           "templates"
         ],
+        "type": "object"
+      },
+      "TemplateOperation": {
+        "properties": {
+          "expectedUsers": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A default for a later environment form; instantiating creates no environment.",
+            "title": "Expectedusers"
+          }
+        },
+        "title": "TemplateOperation",
+        "type": "object"
+      },
+      "TemplateProblemView": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revisions": {
+            "description": "The revisions instantiating makes: 1, then one per SPHERE recipe.",
+            "minimum": 1.0,
+            "title": "Revisions",
+            "type": "integer"
+          },
+          "slug": {
+            "description": "The problem's default slug.",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "revisions"
+        ],
+        "title": "TemplateProblemView",
         "type": "object"
       },
       "TokenPair": {
@@ -20890,6 +21268,201 @@
         ]
       }
     },
+    "/v1/compositions/templates": {
+      "get": {
+        "operationId": "listCompositionTemplates",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionTemplateList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "List the templates a composition can start from",
+        "tags": [
+          "Composition templates"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/compositions/templates/{template}": {
+      "get": {
+        "operationId": "getCompositionTemplate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template",
+            "required": true,
+            "schema": {
+              "title": "Template",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionTemplateView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such template."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "Read one composition template",
+        "tags": [
+          "Composition templates"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
     "/v1/compositions/validate": {
       "post": {
         "description": "Every diagnostic of the document, located in its text: 200 whether or not it is valid. The document is judged on its own and against this deployment's SPHERE registries; nothing is stored.",
@@ -25708,6 +26281,158 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/from-template": {
+      "post": {
+        "description": "Create the template's problem (revision 1, then one revision per SPHERE import recipe, previewed and applied as a member would) and a composition whose first version is derived from the template's binding of the latest revision, with its offering read when it is sealed. No environment is created: `operation` holds defaults for one. Needs the `repository` feature and room for a problem.",
+        "operationId": "createCompositionFromTemplate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionFromTemplate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionInstantiated"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or template, or the caller is not a member."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Nothing was written: the composition or problem slug is in use (`slug_conflict`, `field` names which), or the template reads SPHERE and SPHERE is off (`template_needs_sphere`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The template stopped after its problem was created (`template_incomplete`): the problem is kept, `problem` and `revision` name it, `cause` says what failed; no composition was made."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Start a composition from a template",
+        "tags": [
+          "Composition templates"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write",
+          "problems:write"
         ]
       }
     },

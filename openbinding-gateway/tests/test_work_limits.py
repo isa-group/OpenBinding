@@ -42,6 +42,8 @@ EVALUATE = "/v1/organizations/{org}/compositions/{composition}/evaluate"
 NEIGHBORHOOD = "/v1/organizations/{org}/compositions/{composition}/neighborhood"
 DERIVE = "/v1/organizations/{org}/compositions/{composition}/derive"
 CONNECTION = "/v1/organizations/{org}/connections/sphere"
+FROM_TEMPLATE = "/v1/organizations/{org}/compositions/from-template"
+NO_TEMPLATE = {"content": b'{"template": "nothing"}', "headers": {"content-type": "application/json"}}
 BAD_KEY = {"content": b'{"apiKey": "not-a-key"}', "headers": {"content-type": "application/json"}}
 NO_RECIPE = {"content": b'{"recipe": {}, "base": null}', "headers": {"content-type": "application/json"}}
 NO_RECIPE_APPLY = {
@@ -77,6 +79,8 @@ REQUESTS = {
     ("POST", EVALUATE): ("POST", "/v1/organizations/{org}/compositions/none/evaluate", EMPTY_JSON),
     ("GET", NEIGHBORHOOD): ("GET", "/v1/organizations/{org}/compositions/none/neighborhood", {}),
     ("POST", DERIVE): ("POST", "/v1/organizations/{org}/compositions/none/derive", EMPTY_JSON),
+    # Counted before the template is looked up: the first is a 404, the second a 429.
+    ("POST", FROM_TEMPLATE): ("POST", FROM_TEMPLATE, NO_TEMPLATE),
     # Counted before the key is checked: the first is a 422, the second a 429.
     ("PUT", CONNECTION): ("PUT", CONNECTION, BAD_KEY),
     # Counted before the composition is looked up: the first is a 404, the second a 429.
@@ -199,7 +203,8 @@ def test_a_route_added_under_the_compiling_prefixes_has_to_be_classified():
         (method, path) for method, path in routes()
         if (method == "POST" and path.startswith((
             "/v1/compositions/", "/v1/bim/", "/v1/organizations/{org}/problems",
-            "/v1/organizations/{org}/compositions/{composition}/",
+            # Any POST below an organization's compositions: a composition's routes and from-template.
+            "/v1/organizations/{org}/compositions/",
         )))
         or (method in {"PUT", "POST"} and path.startswith("/v1/organizations/{org}/connections"))
         or path.startswith("/v1/organizations/{org}/sphere")
@@ -557,6 +562,8 @@ ANONYMOUS_REQUESTS = {
     ("GET", "/v1/organizations/{org}/pricing-snapshots/{snapshot}/yaml"): (
         "/v1/organizations/{org}/pricing-snapshots/00000000-0000-0000-0000-000000000000/yaml", 404,
     ),
+    ("GET", "/v1/compositions/templates"): ("/v1/compositions/templates", 200),
+    ("GET", "/v1/compositions/templates/{template}"): ("/v1/compositions/templates/nothing", 404),
 }
 
 
@@ -589,9 +596,14 @@ async def test_every_anonymous_read_is_limited_in_the_platform_envelope(api_clie
 
     assert first.status_code == answered, first.text
     assert_refused(second)
-    assert second.headers["content-type"].split(";")[0] == "application/json"
-    assert second.json()["detail"]["code"] == "rate_limit_exceeded"
-    assert second.json()["detail"]["work_class"] == "read"
+    if route[1].startswith("/v1/compositions/"):
+        # The composition template catalog answers as the other `/v1/compositions/` routes: a problem document.
+        assert second.headers["content-type"].split(";")[0] == "application/problem+json"
+        assert second.json()["work_class"] == "read"
+    else:
+        assert second.headers["content-type"].split(";")[0] == "application/json"
+        assert second.json()["detail"]["code"] == "rate_limit_exceeded"
+        assert second.json()["detail"]["work_class"] == "read"
     # A member is never charged for reading.
     assert signed_in == [answered] * 3
 
@@ -603,7 +615,8 @@ def test_the_openapi_document_declares_the_anonymous_refusal(route):
     response = operation["responses"]["429"]
 
     assert response["headers"]["Retry-After"]["schema"]["type"] == "integer"
-    assert list(response["content"]) == ["application/json"]
+    expected = "application/problem+json" if path.startswith("/v1/compositions/") else "application/json"
+    assert list(response["content"]) == [expected]
     assert "`read`" in response["description"]
     # The credential is optional there.
     assert {} in operation["security"]

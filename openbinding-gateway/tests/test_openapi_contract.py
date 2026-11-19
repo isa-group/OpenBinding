@@ -184,6 +184,9 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/organizations/{org}/pricing-snapshots/{snapshot}/yaml", "get"),
         # A version's upstream pricings (F3): stored data only, for anybody who reads the composition.
         (f"{composition}/upstream", "get"),
+        # The composition template catalog (F4): repository files, for anybody.
+        ("/v1/compositions/templates", "get"),
+        ("/v1/compositions/templates/{template}", "get"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:

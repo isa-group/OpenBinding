@@ -431,6 +431,22 @@ for a missing environment).
 | `operator_not_member` | 422 | the operator named is not a member of the organization |
 | `feed_rate_limited` | 429 | `getEnvironmentFeed` read more than `FEED_RATE_PER_MINUTE` times (60) in a minute with one credential; `Retry-After` says when |
 
+## Composition templates
+
+The composition template catalog (`GET /v1/compositions/templates[/{template}]`, open to anybody) and
+`POST /v1/organizations/{org}/compositions/from-template` (`createCompositionFromTemplate`, MEMBER; a personal key
+needs `compositions:write` and `problems:write`, and a key bounded by `resourceKinds` must name both).
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `not_found` | 404 | no such template (an id outside the catalog, `..` included), or no such organization for the caller |
+| `slug_conflict` | 409 | the composition slug (`field: "slug"`) or the problem slug (`field: "problemSlug"`) is in use in the organization; nothing was written |
+| `template_needs_sphere` | 409 | the template reads SPHERE (its recipes or its offering) and SPHERE is not enabled on this deployment; nothing was written |
+| `template_incomplete` | 502 | the template stopped after its problem was created: the problem is kept (`problem`, `revision` name it), no composition was made, `cause` is the code of what failed (a SPHERE source that could not be read, a derivation refused) |
+| `feature_not_entitled` | 403 | the caller's plan has no `repository` feature |
+| `quota_exceeded` | 402 | the caller's plan has no room for another problem (`maxProblems`) |
+| `rate_limit_exceeded` | 429 | past the `compile` budget of the caller ([ACCESS_POLICY.md](ACCESS_POLICY.md)) |
+
 ## Organizations
 
 | `code` | Status | Meaning |

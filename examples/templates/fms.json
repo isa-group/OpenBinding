@@ -1,0 +1,28 @@
+{
+  "templateVersion": "1.0",
+  "id": "fms",
+  "title": "Fleet management system",
+  "summary": "A fleet management back end: cloud hosting, fleet telemetry and route distances in sequence, then either the classic routing path (80%) or a quantum optimiser (20%), then payment. Hand-made candidates with cost, execution time, availability, reliability and security; no offering, so no margins.",
+  "kind": "system",
+  "problem": {
+    "slug": "fms",
+    "name": "Fleet management system",
+    "description": "QoS-aware service composition for a fleet management system (examples/demo/13_fms).",
+    "package": "examples/demo/13_fms"
+  },
+  "composition": {
+    "slug": "fms",
+    "name": "Fleet management system",
+    "description": "The fleet management system bound to one eligible candidate per task, as the pinned toolchain evaluates it.",
+    "label": "1.0.0",
+    "workflow": {"seq": ["T1", "T2", "T3", {"xor": [{"flow": "node_classic_routing", "probability": 0.8}, {"flow": "T5", "probability": 0.2}]}, "T6"]},
+    "binding": {
+      "T1": "cand_t1_aws",
+      "T2": "cand_t2_radius_iot_network",
+      "T3": "cand_t3_distance_matrix_api",
+      "T5": "cand_t5_amazon_braket",
+      "T6": "cand_t6_paypal"
+    }
+  },
+  "requires": []
+}

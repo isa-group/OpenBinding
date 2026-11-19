@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openbinding.org/schemas/composition-templates/1.0/template.schema.json",
+  "title": "CompositionTemplate",
+  "description": "A composition template, version 1.0: the problem a member's organization gets (a JSON file map or a package directory under examples/, then the SPHERE import recipes applied in order) and the composition derived from a binding of its latest revision. Instantiating it is one human action through the platform's own services; nothing here is evaluated by hand.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["templateVersion", "id", "title", "summary", "kind", "problem", "composition", "requires"],
+  "properties": {
+    "templateVersion": {"const": "1.0"},
+    "id": {"$ref": "#/$defs/id", "description": "Also the manifest's file name (examples/templates/<id>.json)."},
+    "title": {"type": "string", "minLength": 1, "maxLength": 80},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 500},
+    "kind": {"enum": ["application", "workflow", "pipeline", "system"]},
+    "problem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "name"],
+      "properties": {
+        "slug": {"$ref": "#/$defs/slug"},
+        "name": {"type": "string", "minLength": 1, "maxLength": 160},
+        "description": {"type": "string", "maxLength": 2000},
+        "bundle": {"$ref": "#/$defs/path", "description": "A JSON file map ({\"<path>\": <JSON document>}) under examples/."},
+        "package": {"$ref": "#/$defs/path", "description": "A package directory under examples/ (it holds an instance.json)."},
+        "recipes": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {"$ref": "#/$defs/path"},
+          "description": "SPHERE import recipes previewed and applied in order, each on the latest revision."
+        }
+      },
+      "oneOf": [{"required": ["bundle"]}, {"required": ["package"]}]
+    },
+    "composition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "name", "label", "workflow", "binding"],
+      "properties": {
+        "slug": {"$ref": "#/$defs/slug"},
+        "name": {"type": "string", "minLength": 1, "maxLength": 160},
+        "description": {"type": "string", "maxLength": 2000},
+        "label": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+        "workflow": {"description": "The workflow the derived document writes, in Composition2Yaml's form (a test holds it to the derivation)."},
+        "binding": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 64,
+          "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+          "additionalProperties": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+          "description": "Task -> candidate id of the latest revision."
+        },
+        "offering": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sphere": {"type": "string", "pattern": "^[^/\\s]{1,64}/[^/\\s]{1,128}$"},
+            "url": {"type": "string", "format": "uri", "maxLength": 2048}
+          },
+          "minProperties": 1,
+          "maxProperties": 1
+        }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expectedUsers": {"type": "integer", "minimum": 1, "maximum": 1000000000}
+      },
+      "description": "Defaults for a later environment form; instantiating creates no environment."
+    },
+    "requires": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["sphere"]},
+      "description": "sphere: the template reads SPHERE (its recipes or its offering), so it is unavailable when SPHERE is off."
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,39}$"},
+    "slug": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"},
+    "path": {"type": "string", "pattern": "^examples/[A-Za-z0-9_./-]+$", "maxLength": 256}
+  }
+}

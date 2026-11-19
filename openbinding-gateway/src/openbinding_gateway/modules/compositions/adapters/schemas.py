@@ -1272,3 +1272,83 @@ class CompositionMargins(BaseModel):
 
 
 EvaluateResult.model_rebuild()
+
+
+# -- Composition templates (F4-B) ------------------------------------------------------------------------------
+
+_TEMPLATE_ID = r"^[a-z][a-z0-9-]{0,39}$"
+
+
+class CompositionTemplateSummary(BaseModel):
+    """A template a member starts a composition from: a problem and a composition derived from it."""
+
+    id: str
+    title: str
+    summary: str
+    kind: CompositionKindName
+    tasks: list[str] = Field(description="The tasks the composition binds, in the manifest's order.")
+    hasOffering: bool = Field(description="Whether the composition names an offering (margins are computed from it).")
+    available: bool = Field(description="Whether this deployment can instantiate it now.")
+    unavailableReason: Optional[Literal["sphere_disabled"]] = Field(
+        description="Why it is not available: `sphere_disabled` for a template that reads SPHERE while SPHERE is off.",
+    )
+
+
+class CompositionTemplateList(BaseModel):
+    templates: list[CompositionTemplateSummary]
+
+
+class TemplateProblemView(BaseModel):
+    slug: str = Field(description="The problem's default slug.")
+    name: str
+    revisions: int = Field(ge=1, description="The revisions instantiating makes: 1, then one per SPHERE recipe.")
+
+
+class TemplateCompositionView(BaseModel):
+    slug: str = Field(description="The composition's default slug.")
+    name: str
+    label: str = Field(description="The first version's label.")
+    workflow: Any = Field(description="The workflow the derived document writes, in Composition2Yaml's form.")
+    binding: dict[str, str] = Field(description="Task -> the candidate the first version binds.")
+    offering: Optional[dict[str, str]] = Field(description="The offering the first version names (`sphere` or `url`).")
+
+
+class TemplateOperation(BaseModel):
+    expectedUsers: Optional[int] = Field(
+        default=None, description="A default for a later environment form; instantiating creates no environment.",
+    )
+
+
+class CompositionTemplateView(CompositionTemplateSummary):
+    """One template with the problem it makes and the composition it derives."""
+
+    problem: TemplateProblemView
+    composition: TemplateCompositionView
+    operation: TemplateOperation
+
+
+class CompositionFromTemplate(BaseModel):
+    """Instantiate a template in an organization: its problem and its composition, under these slugs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    template: str = Field(pattern=_TEMPLATE_ID, description="The template's id.")
+    slug: Optional[str] = Field(default=None, pattern=SLUG, description="The composition's slug; the template's by default.")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=160, description="The composition's name.")
+    problemSlug: Optional[str] = Field(default=None, pattern=SLUG, description="The problem's slug; the template's by default.")
+
+
+class InstantiatedProblem(BaseModel):
+    slug: str
+    revision: int = Field(ge=1, description="The latest revision, which the first version links.")
+
+
+class CompositionInstantiated(BaseModel):
+    """What instantiating a template made."""
+
+    template: str
+    composition: CompositionView
+    problem: InstantiatedProblem
+    version: CompositionVersionView
+    evaluation: EvaluationView
+    operation: TemplateOperation
