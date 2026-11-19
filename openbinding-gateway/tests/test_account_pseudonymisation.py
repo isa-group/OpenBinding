@@ -112,7 +112,7 @@ async def test_deletion_pseudonymises_the_row_and_removes_what_was_the_accounts_
     db_session.add_all([
         engine, engine_registration, job,
         Notification(user_id=user_id, kind="test", subject="Hello", body="Hello"),
-        AuthIdentity(user_id=user_id, provider="us-cas", issuer="https://sso.us.es/CAS", subject="uvus-of-the-person", attributes={"mail": details["email"]}),
+        AuthIdentity(user_id=user_id, provider="scoretech", issuer="https://identity.test/identity/auth/realms/score", subject="sub-of-the-person", attributes={}),
         PasswordResetToken(user_id=user_id, token_prefix=uuid.uuid4().hex[:12], token_hash="0" * 64, expires_at=utcnow() + timedelta(hours=1)),
     ])
     await db_session.commit()

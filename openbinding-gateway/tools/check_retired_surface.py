@@ -3,13 +3,16 @@
 
 F0b removed projects, the raw BIM API (instances, snapshots, the old validators, profiles, dialects and
 examples), the artifact store and the library, the problem-authoring Composition2Yaml and the ``/v1/jobs``
-routes; F5 removed the refresh tokens and the local logout (one cookie session model). Nothing is in production, so none of them has an alias or a redirect; this tool fails when any of
+routes; F5 removed the refresh tokens, the local logout and US CAS (its routes, settings and ``cas_verified``).
+Nothing is in production, so none of them has an alias or a redirect; this tool fails when any of
 them comes back:
 
 * no route path of the gateway contains a retired fragment (``RETIRED_PATH_FRAGMENTS``); the BIM services
   live under ``/v1/bim`` only, so a bare ``/v1/validate`` or ``/v1/examples`` is retired too;
 * no table of ``Base.metadata`` is a retired one (``RETIRED_TABLES``, which the schema tests also check
   against the migrated database);
+* no setting of ``Settings`` is a retired one (``RETIRED_SETTINGS``), and no schema of the OpenAPI document has a
+  retired property (``RETIRED_SCHEMA_PROPERTIES``);
 * no entitlement id is spelled as a string literal outside ``modules/plans/domain/entitlement_map.py``
   (decision D15: the map is the only place the pricing ids are written).
 
@@ -53,7 +56,26 @@ RETIRED_PATH_FRAGMENTS = (
     # ended at /v1/auth/identity/logout; the refresh token and the local logout are gone.
     "/v1/auth/refresh",
     "/v1/auth/logout",
+    # F5-B: US CAS. SCORETech Identity is the only external sign-in; accounts link no identities by hand.
+    "/v1/auth/cas/",
+    "/v1/users/me/identities",
 )
+
+#: Settings of retired features (F5-B: US CAS). None may come back as a field of ``Settings``.
+RETIRED_SETTINGS = frozenset({
+    "cas_enabled",
+    "cas_environment",
+    "cas_base_url",
+    "cas_state_ttl_s",
+    "cas_exchange_ttl_s",
+    "cas_store_backend",
+})
+
+#: Properties of retired views. None may be a property of a schema of the OpenAPI document.
+RETIRED_SCHEMA_PROPERTIES = frozenset({
+    # F5-B: US CAS. RESEARCH rests on ``email_verified`` and ``institutional_email``.
+    "cas_verified",
+})
 
 #: Tables that features removed before or during F0b used to own. None may be modelled or migrated again.
 RETIRED_TABLES = frozenset({
@@ -122,6 +144,21 @@ def retired_tables(table_names: Iterable[str]) -> list[str]:
     return sorted(RETIRED_TABLES.intersection(table_names))
 
 
+def retired_settings(field_names: Iterable[str]) -> list[str]:
+    """The settings that are retired."""
+    return sorted(RETIRED_SETTINGS.intersection(field_names))
+
+
+def retired_properties(openapi: dict) -> list[str]:
+    """``Schema.property`` for every retired property of a schema of an OpenAPI document."""
+    found = []
+    for name, schema in sorted(openapi.get("components", {}).get("schemas", {}).items()):
+        for prop in schema.get("properties", {}) or {}:
+            if prop in RETIRED_SCHEMA_PROPERTIES:
+                found.append(f"{name}.{prop}")
+    return found
+
+
 def spelled_ids(path: Path, root: Path = SOURCE) -> list[str]:
     """``file:line`` of every string literal passed as an entitlement id in one source file."""
     found: list[str] = []
@@ -147,11 +184,14 @@ def ids_outside_the_map(source: Path = SOURCE, entitlement_map: Path = ENTITLEME
 def findings() -> list[str]:
     """One line per piece of retired surface that is back; empty when there is none."""
     from openbinding_gateway.db import models  # noqa: F401  (every table)
+    from openbinding_gateway.core.settings import Settings
     from openbinding_gateway.db.base import Base
     from openbinding_gateway.main import app
 
     lines = [f"retired route: {path}" for path in retired_routes(route_paths(app))]
     lines += [f"retired table: {name}" for name in retired_tables(Base.metadata.tables)]
+    lines += [f"retired setting: {name}" for name in retired_settings(Settings.model_fields)]
+    lines += [f"retired property: {name}" for name in retired_properties(app.openapi())]
     lines += [f"entitlement id outside the map: {hit}" for hit in ids_outside_the_map()]
     return lines
 
@@ -162,7 +202,7 @@ def main() -> int:
     for line in found:
         print(line)
     if not found:
-        print("check_retired_surface: no retired route, table or spelled entitlement id")
+        print("check_retired_surface: no retired route, table, setting, property or spelled entitlement id")
     return 1 if found else 0
 
 

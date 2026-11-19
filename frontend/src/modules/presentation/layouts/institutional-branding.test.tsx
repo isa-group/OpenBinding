@@ -33,7 +33,6 @@ const researchUser: UserProfile = {
   is_active: true,
   plan: 'RESEARCH',
   created_at: '2026-09-01T00:00:00Z',
-  cas_verified: false,
   email_verified: true,
   institutional_email: true,
 };

@@ -86,7 +86,7 @@ from ..space_client import (
 )
 from ..mailer import send_mail
 from ..modules.identity.application import end_all, institutional_email
-from .users import cas_verified_ids, usage_view_for
+from .users import usage_view_for
 
 router = APIRouter(
     prefix="/v1/admin",
@@ -233,7 +233,6 @@ async def list_users(
             )
         ).all()
     )
-    verified = await cas_verified_ids(session, [u.id for u in users])
     views = []
     for user in users:
         try:
@@ -251,7 +250,6 @@ async def list_users(
                 created_at=user.created_at,
                 contract_pending=user.contract_pending,
                 api_key_count=key_counts.get(user.id, 0),
-                cas_verified=user.id in verified,
                 email_verified=user.email_verified,
                 institutional_email=institutional_email(user),
             )
@@ -327,7 +325,6 @@ async def update_user(
         created_at=user.created_at,
         contract_pending=user.contract_pending,
         api_key_count=0,
-        cas_verified=user.id in await cas_verified_ids(session, [user.id]),
         email_verified=user.email_verified,
         institutional_email=institutional_email(user),
     )
@@ -384,11 +381,11 @@ async def change_plan(
     return result.user
 
 
-def _admin_user_view(user: User, plan: str, cas_verified: bool = False) -> AdminUserView:
+def _admin_user_view(user: User, plan: str) -> AdminUserView:
     return AdminUserView(
         id=user.id, username=user.username, email=user.email, role=user.role.value,
         is_active=user.is_active, plan=plan, created_at=user.created_at,
-        contract_pending=user.contract_pending, api_key_count=0, cas_verified=cas_verified,
+        contract_pending=user.contract_pending, api_key_count=0,
         email_verified=user.email_verified, institutional_email=institutional_email(user),
     )
 
@@ -491,7 +488,7 @@ async def _apply_subscription(
     await session.flush()
     _set_subscription_etag(response, user, after)
     return AdminSubscriptionView(
-        user=_admin_user_view(user, after.plan, user.id in await cas_verified_ids(session, [user.id])),
+        user=_admin_user_view(user, after.plan),
         subscription=_subscription_view(after),
         changed=configuration_changed,
     )
@@ -559,7 +556,7 @@ async def get_subscription(
         raise pricing_unavailable_error(error, where="admin subscription read") from error
     _set_subscription_etag(response, user, current)
     return AdminSubscriptionView(
-        user=_admin_user_view(user, current.plan, user.id in await cas_verified_ids(session, [user.id])),
+        user=_admin_user_view(user, current.plan),
         subscription=_subscription_view(current),
         changed=False,
     )

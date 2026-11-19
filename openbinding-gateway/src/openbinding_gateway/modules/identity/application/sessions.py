@@ -257,7 +257,7 @@ async def revoke(
 
 
 def placeholder_email(user_id: uuid.UUID) -> str:
-    """The address of an account whose email Identity has not verified (the CAS precedent)."""
+    """The address of an account whose email Identity has not verified (a reserved name, so never deliverable)."""
     return f"{user_id}@identity.openbinding.invalid"
 
 
@@ -291,7 +291,7 @@ async def release_reason(db: AsyncSession, holder: User, issuer: str) -> str | N
     """Why ``holder``'s copy of an email someone else verified may be released, or ``None`` if it may not.
 
     A holder with an Identity account of this issuer holds a stale copy (Identity forbids duplicate emails);
-    a holder whose own email is unverified (every local, seeded or CAS account) proves nothing. A holder whose
+    a holder whose own email is unverified (every local or seeded account) proves nothing. A holder whose
     email is verified and who has no identity of this issuer keeps it.
     """
     if await has_identity_of(db, holder.id, issuer):

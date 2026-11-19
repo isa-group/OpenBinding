@@ -88,7 +88,6 @@ from .modules.problems.adapters.bim_routes import router as bim_router
 from .modules.problems.adapters.routes import router as problems_router
 from .routes.admin import router as admin_router
 from .routes.auth import router as auth_router
-from .routes.cas import identity_router, router as cas_router
 from .routes.notifications import router as notifications_router
 from .routes.organizations import avatar_router, invitation_router, router as organizations_router
 from .routes.studies import router as studies_router
@@ -500,9 +499,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(v1_router)
     app.include_router(auth_router)
     app.include_router(identity_auth_router)
-    app.include_router(cas_router)
     app.include_router(users_router)
-    app.include_router(identity_router)
     app.include_router(admin_router)
     app.include_router(organizations_router)
     app.include_router(invitation_router)

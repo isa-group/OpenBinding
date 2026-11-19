@@ -24,7 +24,6 @@ export const ME: UserProfile = {
   is_active: true,
   plan: 'RESEARCH',
   created_at: '2026-01-10T00:00:00Z',
-  cas_verified: false,
   email_verified: false,
   institutional_email: false,
 };

@@ -133,8 +133,6 @@ services:
       # SCORETECH_IDENTITY_CLIENT_SECRET_FILE: /run/secrets/scoretech_identity_client_secret
       # BOOTSTRAP_ADMIN_SUB: <the Identity sub of the first administrator>
       # RESEARCH_EMAIL_DOMAINS: <the institutional domains; the gateway default is the university's two>
-      CAS_ENABLED: ${CAS_ENABLED:-false}
-      CAS_ENVIRONMENT: ${CAS_ENVIRONMENT:-production}
       IDENTITY_STORE_BACKEND: redis
       # Comma-separated Fernet keys for stored engine credentials: the first encrypts, all decrypt (rotation).
       SECRETS_FERNET_KEYS_FILE: /run/secrets/secrets_fernet_keys

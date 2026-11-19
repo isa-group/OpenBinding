@@ -45,10 +45,6 @@ EXPECTED = {
     ("POST", "/v1/auth/login"): ("local", False),
     ("POST", "/v1/auth/password-reset/request"): ("local", False),
     ("POST", "/v1/auth/password-reset/complete"): ("local", False),
-    ("GET", "/v1/auth/cas/start"): ("local", False),
-    ("POST", "/v1/auth/cas/link-intent"): ("local", False),
-    ("GET", "/v1/auth/cas/callback"): ("local", False),
-    ("POST", "/v1/auth/cas/exchange"): ("local", False),
 }
 
 
@@ -68,7 +64,6 @@ BODIES = {
     "/v1/auth/login": {"username_or_email": "someone", "password": "a-long-password-1"},
     "/v1/auth/password-reset/request": {"email": "someone@example.org"},
     "/v1/auth/password-reset/complete": {"token": "obr_" + "x" * 40, "new_password": "a-long-password-1"},
-    "/v1/auth/cas/exchange": {"code": "c" * 40},
 }
 
 

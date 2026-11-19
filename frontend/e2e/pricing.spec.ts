@@ -50,7 +50,6 @@ const account = (plan: string) => ({
   is_active: true,
   plan,
   created_at: '2026-03-02T00:00:00Z',
-  cas_verified: false,
   email_verified: plan === 'RESEARCH',
   institutional_email: plan === 'RESEARCH',
 });

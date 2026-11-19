@@ -192,9 +192,8 @@ GATE_LIFECYCLE_LEGACY = frozenset(
         "access/contracts.py",  # creates the contract an account was promised
         "job_dispatch.py",  # installs and closes the gate in the Dramatiq worker process
         "routes/admin.py",  # subscription reads and novations on behalf of an administrator
-        "routes/cas.py",  # creates the contract and upgrades the default plan on a CAS sign-in
         "routes/users.py",  # pricing token and contract removal on account deletion
-        # RESEARCH by verified email: the default-plan upgrade, moved here from routes/cas.py (F5)
+        # RESEARCH by verified email: the default-plan upgrade (F5)
         "modules/identity/application/research.py",
     }
 )

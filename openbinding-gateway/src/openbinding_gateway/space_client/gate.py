@@ -96,7 +96,7 @@ class SubscriptionRejected(PricingUnavailable):
 class ContractChanged(PricingUnavailable):
     """The contract changed after the read a novation was computed on; nothing was written.
 
-    Another administrator, a renewal or the account's own CAS link moved it in
+    Another administrator, a renewal or a RESEARCH grant moved it in
     between. Read the subscription again and decide again: applying the change
     anyway would silently undo whatever happened in between. It is still a
     ``PricingUnavailable`` for callers that do not tell the two apart, since the

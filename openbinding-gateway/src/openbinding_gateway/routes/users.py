@@ -70,35 +70,8 @@ async def _caps_for(user: User):
     )
 
 
-CAS_PROVIDER = "us-cas"
-
-
-async def cas_verified_ids(session: AsyncSession, user_ids) -> set[uuid.UUID]:
-    """Which of these accounts hold a verified Universidad de Sevilla CAS identity.
-
-    One query for any number of accounts, so a page of users costs the same as
-    one user. "Verified" is the identity model's own notion: the ``us-cas``
-    identity row exists (it is only ever written after a successful CAS ticket
-    validation) and carries its ``verified_at`` stamp.
-    """
-    ids = list(user_ids)
-    if not ids:
-        return set()
-    rows = await session.scalars(
-        select(AuthIdentity.user_id)
-        .where(
-            AuthIdentity.provider == CAS_PROVIDER,
-            AuthIdentity.verified_at.is_not(None),
-            AuthIdentity.user_id.in_(ids),
-        )
-        .distinct()
-    )
-    return set(rows.all())
-
-
 async def profile_of(session: AsyncSession, user: User) -> UserProfile:
     """The profile of ``user``, from the database alone: reading it never needs SPACE."""
-    cas_verified = user.id in await cas_verified_ids(session, [user.id])
     return UserProfile(
         id=user.id,
         username=user.username,
@@ -107,7 +80,6 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
         is_active=user.is_active,
         plan=user.plan_cache,
         created_at=user.created_at,
-        cas_verified=cas_verified,
         email_verified=user.email_verified,
         institutional_email=institutional_email(user),
         api_keys_suspended_at=owner_may_use_keys(user, settings=get_settings()).suspended_at,

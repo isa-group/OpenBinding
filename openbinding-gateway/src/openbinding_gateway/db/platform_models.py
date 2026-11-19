@@ -76,8 +76,7 @@ class RunState(str, enum.Enum):
 class AuthIdentity(Base):
     """An external login identity; ``(provider, issuer, subject)`` is the only identity key.
 
-    For SCORETech Identity the issuer is the realm's issuer and the subject its ``sub``; US CAS writes its
-    base URL as the issuer.
+    The only provider is SCORETech Identity: the issuer is the realm's issuer and the subject its ``sub``.
     """
 
     __tablename__ = "auth_identities"
