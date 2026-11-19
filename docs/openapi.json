@@ -19634,6 +19634,7 @@
     },
     "/v1/auth/login": {
       "post": {
+        "description": "The session cookie, and a token bound to that session (a SPA renews it from the cookie).",
         "operationId": "login",
         "requestBody": {
           "content": {
@@ -19665,6 +19666,16 @@
               }
             },
             "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Sent by a browser from another origin than the frontend's (`origin_refused`)."
           },
           "422": {
             "content": {
@@ -19918,6 +19929,7 @@
     },
     "/v1/auth/register": {
       "post": {
+        "description": "Create the account and sign it in: the answer sets the session cookie, as a sign-in does.",
         "operationId": "register",
         "requestBody": {
           "content": {
@@ -19939,6 +19951,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Sent by a browser from another origin than the frontend's (`origin_refused`)."
           },
           "409": {
             "content": {

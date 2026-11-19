@@ -485,7 +485,7 @@ Quotas are per account: there are no billing sponsors. Deleting an account pseud
 | `identity_already_provisioned` | 409 | this SCORETech account already has an OpenBinding account (completed from another browser); start signing in again |
 | `account_not_linked` | 409 | the verified email of the SCORETech account belongs to another OpenBinding account whose email is verified too; accounts are never linked by email |
 | `managed_by_identity` | 409 | `PATCH /v1/users/me` changing the email or the password while the gateway signs people in with SCORETech Identity: both are managed in the Identity account |
-| `origin_refused` | 403 | a sign-in route that reads the session cookie was called without an `Origin` from the frontend (`FRONTEND_URL`'s origin or `AUTH_TRUSTED_ORIGINS`) |
+| `origin_refused` | 403 | a sign-in route that reads the session cookie was called without an `Origin` from the frontend (`FRONTEND_URL`'s origin or `AUTH_TRUSTED_ORIGINS`), or a local sign-in or registration came with a foreign `Origin` (a script that sends none is let through) |
 
 ### Redirect codes
 

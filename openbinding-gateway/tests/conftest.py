@@ -483,7 +483,16 @@ async def api_client(db_session):
     app.dependency_overrides[session_dependency] = _session_override
     app.dependency_overrides[optional_session] = _session_override
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://gateway") as client:
+
+    # A script, not a browser: bearer tokens only, no cookie jar. Local sign-in also sets the session cookie,
+    # and a session cookie presented at the next sign-in is revoked (``replaced``), which would end the first
+    # account's token when one client signs several accounts in (tests/identity/test_local_session.py).
+    async def _forget_cookies(response):
+        client.cookies.clear()
+
+    async with AsyncClient(
+        transport=transport, base_url="http://gateway", event_hooks={"response": [_forget_cookies]}
+    ) as client:
         yield client
     app.dependency_overrides.clear()
 

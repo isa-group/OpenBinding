@@ -4,10 +4,12 @@ Registration is open: anyone may create an account, and it starts on the free
 plan. That is a product decision rather than an oversight, and it is the reason
 the quota work exists - an open door needs a meter behind it, not a lock.
 
-Sessions are a short-lived access token plus a refresh token that is rotated on
-every use. Rotation is what makes a stolen refresh token survivable: using it
-invalidates it, so the legitimate holder and the thief cannot both keep going,
-and the one who loses is forced to sign in again.
+A sign-in or a registration opens the same browser session SCORETech Identity
+sign-ins open (``identity_sessions``, provider ``local``): an HttpOnly cookie the
+SPA turns into short gateway tokens at ``POST /v1/auth/identity/session`` and ends
+at ``POST /v1/auth/identity/logout``. The token login returns is bound to that
+session (``sid``), so signing out ends it at once. A present ``Origin`` outside the
+frontend's must not sign anybody in (login CSRF); an absent one passes, for scripts.
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ import secrets
 from datetime import timedelta
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,13 +57,29 @@ from ..security.tokens import (
     read_refresh_token,
 )
 from .users import profile_of
-from ..modules.identity.application import end_all, requires_provider, username_reserved, username_unavailable
+from ..modules.identity.application import (
+    access_token_for,
+    end_all,
+    open_local,
+    presented_session,
+    refuse_foreign_origin,
+    remaining_seconds,
+    requires_provider,
+    set_session_cookie,
+    username_reserved,
+    username_unavailable,
+)
 
 #: Every route here serves ``AUTH_PROVIDER=local`` only: in ``scoretech`` mode each answers 409
 #: ``local_auth_disabled`` (SCORETech Identity is then the only way in).
 router = APIRouter(
     prefix="/v1/auth", tags=["Authentication"], dependencies=[Depends(requires_provider("local"))]
 )
+
+ORIGIN_REFUSED_RESPONSE = {
+    "model": ErrorResponse,
+    "description": "Sent by a browser from another origin than the frontend's (`origin_refused`).",
+}
 
 TOO_MANY_ATTEMPTS_RESPONSE = {
     "model": ErrorResponse,
@@ -89,10 +107,8 @@ def _read_refresh(settings: Settings, token: str):
     )
 
 
-async def _issue_session(
-    session: AsyncSession, user: User, settings: Settings
-) -> TokenPair:
-    """A fresh access token plus a refresh token recorded for later revocation."""
+def _token_pair(user: User, settings: Settings, session: AsyncSession) -> TokenPair:
+    """An access token without a session plus a refresh token recorded for later revocation (refresh only)."""
     secret = _signing_secret(settings)
     jti = uuid.uuid4()
 
@@ -124,21 +140,43 @@ async def _issue_session(
     )
 
 
+async def _open_session(
+    session: AsyncSession, user: User, settings: Settings, request: Request, response: Response
+) -> str:
+    """Open a ``local`` browser session for ``user``, set its cookie on ``response``; a token bound to it."""
+    secret = _signing_secret(settings)
+    row, value = await open_local(session, user, settings=settings, presented=presented_session(request, settings))
+    set_session_cookie(response, settings, value, remaining_seconds(row, utcnow()))
+    return access_token_for(settings, secret, row)
+
+
+async def _issue_session(
+    session: AsyncSession, user: User, settings: Settings, request: Request, response: Response
+) -> TokenPair:
+    """A local session (cookie) and a token bound to it, plus a refresh token until the SPA stops using it."""
+    pair = _token_pair(user, settings, session)
+    pair.access_token = await _open_session(session, user, settings, request, response)
+    return pair
+
+
 @router.post(
     "/register",
     response_model=UserProfile,
     status_code=status.HTTP_201_CREATED,
     operation_id="register",
     summary="Create an account",
-    responses={409: CONFLICT_RESPONSE, 422: {"description": "The password is not acceptable."},
+    responses={403: ORIGIN_REFUSED_RESPONSE, 409: CONFLICT_RESPONSE, 422: {"description": "The password is not acceptable."},
                429: TOO_MANY_ATTEMPTS_RESPONSE, 503: UNAVAILABLE_RESPONSE},
 )
 async def register(
     request: RegisterRequest,
     http_request: Request,
+    http_response: Response,
     session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> UserProfile:
+    """Create the account and sign it in: the answer sets the session cookie, as a sign-in does."""
+    refuse_foreign_origin(http_request, settings)
     await enforce_auth_rate_limit(http_request, "register", request.email, settings)
     complaint = password_complaint(request.password)
     if complaint:
@@ -193,6 +231,7 @@ async def register(
     # restarting would be a worse failure than a delayed contract.
     await create_contract_or_mark_pending(user, default_plan, settings)
 
+    await _open_session(session, user, settings, http_request, http_response)
     return await profile_of(session, user)
 
 
@@ -201,14 +240,17 @@ async def register(
     response_model=TokenPair,
     operation_id="login",
     summary="Start a session",
-    responses={401: UNAUTHORIZED_RESPONSE, 429: TOO_MANY_ATTEMPTS_RESPONSE, 503: UNAVAILABLE_RESPONSE},
+    responses={401: UNAUTHORIZED_RESPONSE, 403: ORIGIN_REFUSED_RESPONSE, 429: TOO_MANY_ATTEMPTS_RESPONSE, 503: UNAVAILABLE_RESPONSE},
 )
 async def login(
     request: LoginRequest,
     http_request: Request,
+    http_response: Response,
     session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> TokenPair:
+    """The session cookie, and a token bound to that session (a SPA renews it from the cookie)."""
+    refuse_foreign_origin(http_request, settings)
     # Before the password hash, which is the expensive part an attacker wants us to repeat.
     await enforce_auth_rate_limit(http_request, "login", request.username_or_email, settings)
     user = await get_user_by_identifier(session, request.username_or_email)
@@ -225,7 +267,7 @@ async def login(
             "Those credentials do not match an active account.",
         )
 
-    return await _issue_session(session, user, settings)
+    return await _issue_session(session, user, settings, http_request, http_response)
 
 
 @router.post(
@@ -293,7 +335,7 @@ async def refresh(
     # sees the new one, so it cannot be replayed.
     stored.revoked_at = utcnow()
 
-    return await _issue_session(session, user, settings)
+    return _token_pair(user, settings, session)
 
 
 @router.post(

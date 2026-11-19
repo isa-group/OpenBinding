@@ -41,7 +41,7 @@ async def test_back_and_forth_between_identity_and_local(browser, fake_issuer, d
     me = await browser.get("/v1/users/me", headers=local_bearer)
     assert me.status_code == 200 and me.json()["id"] == str(user.id)
     reasons = (await db_session.execute(select(IdentitySession.revoked_reason).where(IdentitySession.user_id == user.id))).scalars().all()
-    assert reasons == ["password_reset"]
+    assert sorted(reasons, key=str) == [None, "password_reset"]  # the reset ended Identity's; the login opened a local one
 
     monkeypatch.setattr(scoretech, "auth_provider", "scoretech")
     monkeypatch.setattr(scoretech, "expose_recovery_tokens", False)

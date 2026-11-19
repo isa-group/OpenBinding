@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.settings import Settings
 from ....db.models import SESSION_REVOKE_REASONS, AuditEvent, AuthIdentity, IdentitySession, User, utcnow
 from ....security.secrets import CredentialStore, SecretsUnavailable
+from ....security.tokens import issue_access_token
 from ..domain.claims import IdentityClaims, TokenSet
 
 logger = logging.getLogger(__name__)
@@ -129,6 +130,35 @@ async def create(
     db.add(row)
     await db.flush()
     return row, value
+
+
+async def open_local(
+    db: AsyncSession, user: User, *, settings: Settings, presented: str | None = None
+) -> tuple[IdentitySession, str]:
+    """A ``local`` session opened by a password sign-in or a registration, and its cookie value.
+
+    A session cookie the browser presented is revoked (``replaced``): a sign-in never keeps a session id that
+    existed before it (fixation). Local rows hold no refresh token and have the same limits as Identity's.
+    """
+    old = await find_by_cookie(db, presented)
+    if old is not None and old.revoked_at is None:
+        await revoke(db, old, "replaced")
+    row, value = await create(db, user, "local", settings=settings)
+    audit(db, "account.signed_in", actor=user.id, target=user.id, detail={"provider": "local"})
+    return row, value
+
+
+def access_token_for(settings: Settings, secret: str, row: IdentitySession) -> str:
+    """A short gateway token bound to ``row`` (``sid``, ``prv``), for the session's user."""
+    return issue_access_token(
+        secret,
+        user_id=row.user_id,
+        ttl_seconds=settings.access_token_ttl_s,
+        session_id=row.id,
+        provider=row.provider,
+        issuer=settings.gateway_jwt_issuer,
+        audience=settings.gateway_jwt_audience,
+    )
 
 
 def is_live(row: IdentitySession, now: datetime) -> bool:

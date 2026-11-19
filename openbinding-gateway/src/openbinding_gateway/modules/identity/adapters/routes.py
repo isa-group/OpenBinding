@@ -23,7 +23,6 @@ from ....core.ratelimit import enforce_auth_rate_limit
 from ....core.settings import Settings, get_settings
 from ....models.accounts import AccessGrant, AuthConfigView, SignOutRequest, CompletedSignUp, CompleteSignUpRequest, PendingSignUp
 from ....models.errors import CONFLICT_RESPONSE, ErrorResponse, NOT_FOUND_RESPONSE, api_error
-from ....security.tokens import issue_access_token
 from ....db.models import IdentitySession, User, utcnow
 from sqlalchemy import update
 from ..application import flows, provisioning, sessions
@@ -315,15 +314,7 @@ async def identity_session(
     secret = settings.gateway_jwt_secret
     if not secret:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "auth_unavailable", "This gateway has no signing secret configured.")
-    token = issue_access_token(
-        secret,
-        user_id=user.id,
-        ttl_seconds=settings.access_token_ttl_s,
-        session_id=row.id,
-        provider=row.provider,
-        issuer=settings.gateway_jwt_issuer,
-        audience=settings.gateway_jwt_audience,
-    )
+    token = sessions.access_token_for(settings, secret, row)
     response = JSONResponse(
         AccessGrant(access_token=token, expires_in=settings.access_token_ttl_s).model_dump()
     )

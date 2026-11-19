@@ -5,9 +5,10 @@ Code outside ``modules/identity`` reaches the module through this package only
 """
 
 from . import sessions
+from .cookies import presented_session, refuse_foreign_origin, set_session_cookie
 from .admission import KeyAdmission, owner_may_use_keys
 from .research import apply_plan_rule, institutional_email, upgrade_to_research
-from .sessions import active_for_token, end_all, session_still_valid
+from .sessions import access_token_for, active_for_token, end_all, open_local, remaining_seconds, session_still_valid
 from .config import auth_config_view, managed_by_identity, refuse_outside, requires_provider, startup_warnings
 from .provisioning import PSEUDONYM_PREFIX, username_reserved, username_unavailable
 from .ports import OidcClient, OneTimeStore, SessionLock
@@ -19,7 +20,13 @@ __all__ = [
     "apply_plan_rule",
     "institutional_email",
     "upgrade_to_research",
+    "access_token_for",
     "active_for_token",
+    "open_local",
+    "presented_session",
+    "refuse_foreign_origin",
+    "remaining_seconds",
+    "set_session_cookie",
     "end_all",
     "session_still_valid",
     "sessions",

@@ -9,7 +9,7 @@ from typing import Literal
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -323,6 +323,8 @@ async def _complete_callback(
 )
 async def exchange_cas_code(
     payload: CasExchange,
+    request: Request,
+    response: Response,
     session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> CasSession:
@@ -339,7 +341,7 @@ async def exchange_cas_code(
     user = await session.get(User, uuid.UUID(value["userId"]))
     if user is None or not user.is_active:
         raise api_error(status.HTTP_401_UNAUTHORIZED, "unauthorized", "That account is inactive.")
-    tokens = await _issue_session(session, user, settings)
+    tokens = await _issue_session(session, user, settings, request, response)
     planned = value.get("planChanged")
     return CasSession(
         **tokens.model_dump(),

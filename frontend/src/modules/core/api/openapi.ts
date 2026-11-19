@@ -593,7 +593,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start a session */
+        /**
+         * Start a session
+         * @description The session cookie, and a token bound to that session (a SPA renews it from the cookie).
+         */
         post: operations["login"];
         delete?: never;
         options?: never;
@@ -685,7 +688,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create an account */
+        /**
+         * Create an account
+         * @description Create the account and sign it in: the answer sets the session cookie, as a sign-in does.
+         */
         post: operations["register"];
         delete?: never;
         options?: never;
@@ -11851,6 +11857,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Sent by a browser from another origin than the frontend's (`origin_refused`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The request does not satisfy the contract; `diagnostics` says where. */
             422: {
                 headers: {
@@ -12084,6 +12099,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserProfile"];
+                };
+            };
+            /** @description Sent by a browser from another origin than the frontend's (`origin_refused`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description The request conflicts with something that already exists. */
