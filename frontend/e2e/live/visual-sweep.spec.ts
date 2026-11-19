@@ -160,7 +160,7 @@ async function stops(page: Page, token: string): Promise<Stop[]> {
     { id: 'sphere-wizard-mapping', path: `${wizard}?sphereStep=mapping&sphereUpdate=1` },
     { id: 'sphere-wizard-preview', path: `${wizard}?sphereStep=preview&sphereUpdate=1` },
     { id: 'sphere-wizard-generate', path: `${wizard}?sphereStep=generate&sphereUpdate=1` },
-    { id: 'sphere-composition-upstream', path: `/compositions/${ORG}/tomatometer` },
+    { id: 'sphere-composition-upstream', path: `/compositions/${ORG}/tomatometer?version=1.0.0` },
     {
       id: 'sphere-composition-compare',
       path: `/compositions/${ORG}/tomatometer/versions`,

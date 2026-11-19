@@ -549,7 +549,8 @@ function sphereStops(): Stop[] {
     wizard('preview', '&sphereUpdate=1'),
     {
       slug: 'sphere-composition',
-      path: `/compositions/${ORG}/tomatometer`,
+      // The seeded version: walk 14 seals later ones, derived from a run, which pin no upstream plan.
+      path: `/compositions/${ORG}/tomatometer?version=1.0.0`,
       ready: page =>
         page
           .locator('main')
