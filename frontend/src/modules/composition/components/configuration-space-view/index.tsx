@@ -320,7 +320,7 @@ export default function ConfigurationSpaceView({
         ))}
 
       {neighbourhood.state === 'ready' && (
-        <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
           {/* Explorer */}
           <motion.section
             initial={{ opacity: 0, x: -10 }}
@@ -543,7 +543,7 @@ export default function ConfigurationSpaceView({
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.2 }}
             aria-label="Quick browse"
-            className="rounded-xl border border-tp-hairline bg-tp-canvas p-3"
+            className="min-w-0 rounded-xl border border-tp-hairline bg-tp-canvas p-3"
           >
             <h3 className="text-xs font-medium text-tp-steel">Quick Browse</h3>
             <p className="mt-0.5 text-[11px] text-tp-steel">Scroll to load more configurations.</p>
