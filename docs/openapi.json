@@ -1,6 +1,31 @@
 {
   "components": {
     "schemas": {
+      "AccessGrant": {
+        "description": "A short gateway access token minted from the session cookie; kept in memory by the browser.",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "description": "Lifetime of the access token, in seconds.",
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "expires_in"
+        ],
+        "title": "AccessGrant",
+        "type": "object"
+      },
       "AccountDeleteRequest": {
         "properties": {
           "confirmation": {
@@ -230,7 +255,7 @@
             "type": "string"
           },
           "email": {
-            "format": "email",
+            "description": "The account's address as stored: what the person registered, the email SCORETech Identity verified, or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an `email` format).",
             "title": "Email",
             "type": "string"
           },
@@ -768,6 +793,61 @@
           "boundary"
         ],
         "title": "ApiKeySummary",
+        "type": "object"
+      },
+      "AuthConfigView": {
+        "description": "How this gateway signs people in, for the frontend to read before it draws anything.",
+        "properties": {
+          "account_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The person's SCORETech Identity account page; null in `local` mode.",
+            "title": "Account Url"
+          },
+          "login_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the browser starts a SCORETech sign-in (add `returnTo`); null in `local` mode.",
+            "title": "Login Url"
+          },
+          "provider": {
+            "description": "`scoretech`: SCORETech Identity through the gateway; `local`: OpenBinding's own accounts.",
+            "enum": [
+              "local",
+              "scoretech"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "register_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the browser starts a SCORETech registration; null in `local` mode.",
+            "title": "Register Url"
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "title": "AuthConfigView",
         "type": "object"
       },
       "AvatarSelection": {
@@ -3320,6 +3400,35 @@
           "analysis"
         ],
         "title": "CompilationView",
+        "type": "object"
+      },
+      "CompleteSignUpRequest": {
+        "properties": {
+          "username": {
+            "description": "Letters, digits, dot, underscore or hyphen; 3 to 64 characters. Public: it names your compositions, engines and organizations.",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{2,63}$",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "title": "CompleteSignUpRequest",
+        "type": "object"
+      },
+      "CompletedSignUp": {
+        "properties": {
+          "return_to": {
+            "description": "The frontend path to continue at.",
+            "title": "Return To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "return_to"
+        ],
+        "title": "CompletedSignUp",
         "type": "object"
       },
       "CompositionAdoptionList": {
@@ -9674,7 +9783,6 @@
           "email": {
             "anyOf": [
               {
-                "format": "email",
                 "type": "string"
               },
               {
@@ -10504,6 +10612,56 @@
           "email"
         ],
         "title": "PasswordResetRequest",
+        "type": "object"
+      },
+      "PendingSignUp": {
+        "description": "A first SCORETech Identity sign-in waiting for its username.",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The email Identity verified; null when it shared none or did not verify it.",
+            "title": "Email"
+          },
+          "email_verified": {
+            "title": "Email Verified",
+            "type": "boolean"
+          },
+          "expires_at": {
+            "description": "When this pending sign-up is discarded.",
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "suggested_username": {
+            "description": "A free username derived from the verified email or the display name; advisory.",
+            "title": "Suggested Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "suggested_username",
+          "email_verified",
+          "expires_at"
+        ],
+        "title": "PendingSignUp",
         "type": "object"
       },
       "PermanentLink": {
@@ -13261,6 +13419,22 @@
         "title": "SectionDiffView",
         "type": "object"
       },
+      "SignOutRequest": {
+        "properties": {
+          "scope": {
+            "default": "this",
+            "description": "`this` session, or `all` the sessions of the account.",
+            "enum": [
+              "this",
+              "all"
+            ],
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "title": "SignOutRequest",
+        "type": "object"
+      },
       "SphereAnalytics": {
         "properties": {
           "addOns": {
@@ -16015,7 +16189,7 @@
             "type": "string"
           },
           "email": {
-            "format": "email",
+            "description": "The account's address as stored: what the person registered, the email SCORETech Identity verified, or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an `email` format).",
             "title": "Email",
             "type": "string"
           },
@@ -18679,6 +18853,402 @@
           }
         },
         "summary": "Start Cas",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/v1/auth/config": {
+      "get": {
+        "description": "The provider and, in `scoretech` mode, where the browser signs in, registers and manages its account.\n\nPublic; it names no secret, client id or internal address.",
+        "operationId": "getAuthConfig",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthConfigView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "How this gateway signs people in",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/v1/auth/identity/callback": {
+      "get": {
+        "operationId": "completeIdentitySignIn",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8192,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          },
+          {
+            "in": "query",
+            "name": "iss",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Iss"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": "To `/sso/identity/callback?returnTo=` with a session cookie, to `/sso/identity/username?returnTo=` for a first sign-in, or to `/authentication?identity_error=<code>`, where code is one of: `signin_failed`, `account_not_linked`, `access_denied`, `unavailable`, `expired`, `account_disabled`. The destination comes from configuration only, never from the request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "description": "Too many callbacks from this address; see `Retry-After`."
+          }
+        },
+        "summary": "Finish a SCORETech Identity sign-in and return to the frontend",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/v1/auth/identity/complete": {
+      "post": {
+        "operationId": "completeIdentitySignUp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteSignUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletedSignUp"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not from the frontend's origin (`origin_refused`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No sign-up is waiting (`no_pending_signup`)."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`username_taken`, `username_unavailable`, `account_not_linked`, `pending_in_progress` or `identity_already_provisioned`."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "description": "Too many attempts; see `Retry-After`."
+          }
+        },
+        "summary": "Choose a username and create the account of a first SCORETech sign-in",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/v1/auth/identity/login": {
+      "get": {
+        "description": "Navigated to by the browser. `returnTo` is a frontend path, kept only when it is safe.",
+        "operationId": "startIdentitySignIn",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "screen",
+            "required": false,
+            "schema": {
+              "default": "login",
+              "enum": [
+                "login",
+                "register"
+              ],
+              "title": "Screen",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "returnTo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Returnto"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "To SCORETech Identity's sign-in (or registration) page, with a flow cookie."
+          },
+          "303": {
+            "description": "To `/authentication?identity_error=unavailable` when Identity cannot be used."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "description": "Too many sign-ins from this address; see `Retry-After`."
+          }
+        },
+        "summary": "Start signing in (or registering) with SCORETech Identity",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/v1/auth/identity/logout": {
+      "post": {
+        "description": "Always 204. A tokens minted from the session stop working at once; in `scoretech` mode the Identity\nsession behind it is ended too (so signing in again asks for a code), and so is a sign-up still waiting\nfor its username.",
+        "operationId": "signOut",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SignOutRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not from the frontend's origin (`origin_refused`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          }
+        },
+        "summary": "Sign out: end this session (or every session of the account) and the SCORETech SSO session",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/v1/auth/identity/pending": {
+      "get": {
+        "description": "Read with the pending cookie the callback set; the email is shown only when Identity verified it.",
+        "operationId": "getPendingIdentitySignUp",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingSignUp"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No sign-up is waiting (`no_pending_signup`)."
+          }
+        },
+        "summary": "The first SCORETech sign-in waiting for its username",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/v1/auth/identity/session": {
+      "post": {
+        "description": "The browser's only credential is the HttpOnly cookie; this turns it into a 5-minute bearer token.\n\nEach call also keeps the session from going idle. In `scoretech` mode the Identity access behind it is\nrenewed (once per expiry, whatever the number of tabs or workers).",
+        "operationId": "mintSessionAccessToken",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessGrant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`no_session` or `session_ended`; the cookie is cleared."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not from the frontend's origin (`origin_refused`)."
+          },
+          "429": {
+            "description": "Too many renewals; see `Retry-After`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`identity_unavailable`; see `Retry-After`. The session survives."
+          }
+        },
+        "summary": "Mint a short gateway token from the session cookie, renewing Identity when needed",
         "tags": [
           "Authentication"
         ]
