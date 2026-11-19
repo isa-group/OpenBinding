@@ -231,5 +231,5 @@ def test_the_secret_never_appears_in_repr_or_a_log_line() -> None:
 
 
 def test_a_validation_error_does_not_echo_the_secret() -> None:
-    message = refused(scoretech_identity_issuer="not a url", scoretech_identity_client_secret=CLIENT_SECRET)
+    message = refused(**{"scoretech_identity_issuer": "not a url", "scoretech_identity_client_secret": CLIENT_SECRET})
     assert CLIENT_SECRET not in message

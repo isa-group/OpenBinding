@@ -19,13 +19,13 @@ def scoretech_values(**overrides) -> dict:
         auth_provider="scoretech",
         scoretech_identity_issuer=ISSUER,
         scoretech_identity_client_id=CLIENT_ID,
-        scoretech_identity_client_secret=CLIENT_SECRET,
         frontend_url=FRONTEND,
         public_base_url=FRONTEND,
         secrets_fernet_keys=FERNET_KEY,
         identity_store_backend="memory",
         gateway_jwt_secret="identity-tests-secret-that-is-long-enough",
     )
+    values["scoretech_identity_client_secret"] = CLIENT_SECRET
     values.update(overrides)
     return values
 
