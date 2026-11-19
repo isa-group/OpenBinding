@@ -7,6 +7,16 @@ Code outside ``modules/plans`` reaches the module through this package only
 
 from ..domain import entitlement_map, pricing2yaml, quotas
 from ..domain.errors import PricingDiagnostic, PricingError, PricingInvalid
+from ..domain.money import (
+    MAX_AMOUNT,
+    AmountOutOfRange,
+    exact,
+    in_range,
+    money_context,
+    money_str,
+    quantize6,
+)
+from ..domain.pricing2yaml.units import month_factor
 from ..domain.refusal import Refusal
 from ..domain.sources import (
     DEFAULT_ENDPOINT,
@@ -58,6 +68,8 @@ from .pricing_source import (
 )
 
 __all__ = [
+    "MAX_AMOUNT",
+    "AmountOutOfRange",
     "DEFAULT_ENDPOINT",
     "SPHERE_ID",
     "Credential",
@@ -92,17 +104,23 @@ __all__ = [
     "credential_for",
     "discovery",
     "entitlement_map",
+    "exact",
+    "in_range",
     "get_pricing_source",
     "installed_pricing_source",
     "is_sphere_id",
     "latest_for",
     "mark_invalid",
+    "money_context",
+    "money_str",
+    "month_factor",
     "normalised",
     "own_pricing",
     "parse",
     "parse_sync",
     "pricing2yaml",
     "pricing_source_override",
+    "quantize6",
     "quotas",
     "read_snapshot",
     "read_version",

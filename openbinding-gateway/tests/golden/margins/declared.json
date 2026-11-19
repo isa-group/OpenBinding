@@ -1,0 +1,122 @@
+{
+  "cost": {
+    "name": "subscription",
+    "value": "35.000000",
+    "unit": "USD/month",
+    "monthly": "35.000000"
+  },
+  "users": 1000,
+  "billing": {
+    "id": "monthly",
+    "multiplier": "1.0"
+  },
+  "apportionment": "uniform",
+  "status": "ok",
+  "currency": "USD",
+  "costPerUser": "0.035000",
+  "rowsTruncated": false,
+  "rows": [
+    {
+      "plan": "basic",
+      "planName": "basic",
+      "addOns": [],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "0.000000",
+      "cost": "0.035000",
+      "margin": "-0.035000"
+    },
+    {
+      "plan": "basic",
+      "planName": "basic",
+      "addOns": [
+        "extraTimers"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "1.000000",
+      "cost": "0.035000",
+      "margin": "0.965000"
+    },
+    {
+      "plan": "advanced",
+      "planName": "advanced",
+      "addOns": [],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "3.990000",
+      "cost": "0.035000",
+      "margin": "3.955000"
+    },
+    {
+      "plan": "advanced",
+      "planName": "advanced",
+      "addOns": [
+        "extraTimers"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "4.990000",
+      "cost": "0.035000",
+      "margin": "4.955000"
+    },
+    {
+      "plan": "premium",
+      "planName": "premium",
+      "addOns": [],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "9.990000",
+      "cost": "0.035000",
+      "margin": "9.955000"
+    },
+    {
+      "plan": "premium",
+      "planName": "premium",
+      "addOns": [
+        "extraTimers"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "10.990000",
+      "cost": "0.035000",
+      "margin": "10.955000"
+    },
+    {
+      "plan": "premium",
+      "planName": "premium",
+      "addOns": [
+        "exportAsJson"
+      ],
+      "basis": "seat",
+      "private": false,
+      "requiresQuote": false,
+      "outOfRange": false,
+      "excludedParts": [],
+      "revenue": "11.990000",
+      "cost": "0.035000",
+      "margin": "11.955000"
+    }
+  ],
+  "warnings": [
+    "declared_values"
+  ]
+}

@@ -209,6 +209,20 @@ class CompositionView(BaseModel):
     created_by_id: Optional[uuid.UUID] = Field(description=_MEMBERS_ONLY)
     created_at: datetime
     updated_at: datetime
+    derivedVersions: Optional[list["DerivedVersion"]] = Field(
+        default=None,
+        description="With `run`: its versions derived from that run, and the environments each is in effect in; "
+        "null otherwise.",
+    )
+
+
+class DerivedVersion(BaseModel):
+    """A version derived from a run's solution, and where it is in effect."""
+
+    id: uuid.UUID
+    label: str
+    sealedAt: datetime
+    inEffect: list[str] = Field(description="The slugs of the environments that have it in effect.")
 
 
 class OwnerFacet(BaseModel):
@@ -673,6 +687,17 @@ class CompositionEvaluate(BaseModel):
             "the other tasks keep the version's binding."
         ),
     )
+    users: Optional[int] = Field(
+        default=None, ge=1, le=1_000_000_000,
+        description="The users the upstream cost is divided by: the answer then carries the margins per plan.",
+    )
+    revision: Optional[int] = Field(
+        default=None, ge=1, le=2**31 - 1,
+        description=(
+            "Evaluate against this revision of the linked problem instead (a demand variant), in memory: nothing is "
+            "stored and the version keeps its link."
+        ),
+    )
 
 
 class EvaluateResult(BaseModel):
@@ -685,6 +710,27 @@ class EvaluateResult(BaseModel):
     diagnostics: list[CompositionDiagnosticView] = Field(
         description="What the evaluation found; a finding about a task the request rebinds points at `/binding/<task>`.",
     )
+    revision: Optional["EvaluatedRevision"] = Field(
+        default=None, description="The problem revision evaluated, and the capacity demand its recipe states.",
+    )
+    margins: Optional["CompositionMargins"] = Field(
+        default=None,
+        description=(
+            "The margins per plan of these values, against the offering version the version's current evaluation "
+            "read; present when `users` is given or that evaluation read an offering."
+        ),
+    )
+
+
+class EvaluatedDemand(BaseModel):
+    name: str
+    value: Optional[float]
+    unit: str
+
+
+class EvaluatedRevision(BaseModel):
+    number: int
+    demand: list[EvaluatedDemand] = Field(description="Empty for a problem not generated from SPHERE.")
 
 
 class CompositionMove(CounterfactualMove):
@@ -901,3 +947,328 @@ class UpstreamView(BaseModel):
     entries: list[UpstreamEntry]
     values: dict[str, UpstreamValue]
     offering: Optional[UpstreamOffering] = Field(description="The offering version the current evaluation read.")
+
+
+# -- Composition environments ----------------------------------------------------------------------------
+
+#: Who may adopt in an environment: the weakest role.
+AdoptRoleName = Literal["MEMBER", "ADMIN"]
+_ENVIRONMENT_SLUG = r"^[a-z][a-z0-9-]{0,39}$"
+_USERS = {"ge": 1, "le": 1_000_000_000}
+
+
+class EnvironmentPerson(BaseModel):
+    """A person as an environment names one: never an email."""
+
+    username: str
+    displayName: str
+
+
+class EnvironmentOperator(EnvironmentPerson):
+    """The member answerable for an environment."""
+
+    member: bool = Field(description="False once they are no longer a member of the organization.")
+
+
+class EnvironmentVersion(BaseModel):
+    id: uuid.UUID
+    label: str
+    ordinal: int
+
+
+class EnvironmentEvaluation(BaseModel):
+    """The evaluation an adoption pinned: the environment's margins read it."""
+
+    id: uuid.UUID
+    basisKey: str
+    valuesStatus: Literal["verified", "declared"]
+    outcome: Literal["verified", "binding_invalid", "semantics_changed", "declared"]
+
+
+class EnvironmentOffering(BaseModel):
+    """The offering version the pinned evaluation read; names and dates, never a digest."""
+
+    status: Literal["read", "unreadable", "invalid_pricing", "registry_unknown"]
+    versionName: Optional[str]
+    createdAt: Optional[str]
+
+
+class EnvironmentBound(BaseModel):
+    candidate: str
+
+
+class EnvironmentInEffect(BaseModel):
+    """What an environment's feed serves: the version adopted last, and who adopted it."""
+
+    adoption: int = Field(description="The adoption's number in this environment (1, 2, 3 …).")
+    version: EnvironmentVersion
+    adoptedAt: datetime
+    adoptedBy: Optional[EnvironmentPerson]
+    note: str
+    evaluation: Optional[EnvironmentEvaluation]
+    offering: Optional[EnvironmentOffering]
+    binding: dict[str, EnvironmentBound] = Field(description="The candidate each bound task names, as the document binds it.")
+
+
+class EnvironmentFeed(BaseModel):
+    path: str = Field(description="The feed's address; it never changes.")
+    etag: Optional[str] = Field(description="The feed's current `ETag`, for API clients; null while nothing is adopted.")
+
+
+class EnvironmentKeyView(BaseModel):
+    """A feed key as its environment lists it: never its secret."""
+
+    id: uuid.UUID
+    hint: str = Field(description="The key's prefix, to recognise it: `obe_1a2b3c4d…`.")
+    label: str
+    createdAt: datetime
+    createdBy: Optional[str] = Field(description="The username of whoever created it.")
+    creatorIsMember: bool = Field(description="False once its creator is no longer a member: rotate it deliberately.")
+    lastUsedAt: Optional[datetime]
+    revokedAt: Optional[datetime]
+
+
+class CompositionEnvironmentView(BaseModel):
+    """A composition environment: where an application reads the version in effect."""
+
+    id: uuid.UUID
+    slug: str
+    name: str
+    description: str
+    operator: Optional[EnvironmentOperator]
+    adoptRole: AdoptRoleName
+    expectedUsers: Optional[int]
+    inEffect: Optional[EnvironmentInEffect] = Field(description="Null while nothing is adopted.")
+    feed: EnvironmentFeed
+    keys: Optional[list[EnvironmentKeyView]] = Field(
+        description="Live feed keys and the five most recently revoked; ADMIN only (null for others).",
+    )
+    keyCount: int = Field(description="How many live feed keys the environment has.")
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class CompositionEnvironmentList(BaseModel):
+    environments: list[CompositionEnvironmentView]
+
+
+class CompositionEnvironmentCreate(BaseModel):
+    """A new environment; its slug is part of its feed's address and never changes."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    slug: str = Field(pattern=_ENVIRONMENT_SLUG, description="1 to 40 lowercase letters, digits and hyphens, a letter first.")
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=500)
+    operator: Optional[str] = Field(default=None, min_length=1, max_length=64, description="A member's username.")
+    adoptRole: AdoptRoleName = Field(default="ADMIN", description="The weakest role that may adopt in it.")
+    expectedUsers: Optional[int] = Field(default=None, **_USERS, description="The users its margins assume.")
+
+
+class CompositionEnvironmentUpdate(BaseModel):
+    """What may change of an environment; its slug never does. A field left out stays as it is."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    description: Optional[str] = Field(default=None, max_length=500)
+    operator: Optional[str] = Field(default=None, min_length=1, max_length=64, description="A member's username; null for none.")
+    adoptRole: Optional[AdoptRoleName] = None
+    expectedUsers: Optional[int] = Field(default=None, **_USERS, description="Null for none.")
+
+
+class EnvironmentAdopt(BaseModel):
+    """The version to adopt in an environment, and why."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    version: str = Field(min_length=1, max_length=64, description="The version's id, label or ordinal.")
+    note: str = Field(default="", max_length=500, description="Why it is adopted; kept in the history.")
+
+
+class AdoptionEvaluation(BaseModel):
+    id: uuid.UUID
+    basisKey: str
+    valuesStatus: Literal["verified", "declared"]
+
+
+class AdoptionOffering(BaseModel):
+    versionName: Optional[str]
+    createdAt: Optional[str]
+
+
+class CompositionAdoptionView(BaseModel):
+    """One adoption of an environment's history: insert only."""
+
+    ordinal: int = Field(description="The adoption's number in its environment (1, 2, 3 …).")
+    version: VersionName
+    previousVersion: Optional[VersionName] = Field(description="The version in effect before; null for the first.")
+    adoptedAt: datetime
+    adoptedBy: Optional[EnvironmentPerson]
+    note: str
+    evaluation: Optional[AdoptionEvaluation] = Field(description="The evaluation the adoption pinned.")
+    offering: Optional[AdoptionOffering] = Field(description="The offering version that evaluation read.")
+    feedEtag: str = Field(description="The feed's `ETag` after this adoption: the version's content digest, quoted.")
+
+
+class CompositionAdoptionList(BaseModel):
+    adoptions: list[CompositionAdoptionView] = Field(description="Newest first.")
+    nextBefore: Optional[int] = Field(description="Send as `before` for the next page; null on the last one.")
+
+
+class EnvironmentAdoptResult(BaseModel):
+    """The environment with its new version in effect, and the adoption that put it there."""
+
+    environment: CompositionEnvironmentView
+    adoption: CompositionAdoptionView
+
+
+class FeedKeyCreate(BaseModel):
+    """A new feed key of an environment."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = Field(default="", max_length=80, description="What reads with it, to recognise it later.")
+
+
+class FeedKeyCreated(BaseModel):
+    """A new feed key: its secret is shown here once and never again."""
+
+    key: EnvironmentKeyView
+    secret: str = Field(description="The whole key (`obe_…`): configure the application with it now.")
+
+
+class CheckVersion(BaseModel):
+    id: uuid.UUID
+    label: str
+
+
+class CheckBinding(BaseModel):
+    status: Literal["valid", "invalid", "declared"] = Field(
+        description="The stored content assessed on the installed toolchain, as `versions/check` assesses a document.",
+    )
+    toolchain: Optional[str] = Field(description="The installed toolchain's digest; null for a declared version.")
+    diagnostics: list[CompositionDiagnosticView]
+
+
+class CheckPinned(BaseModel):
+    versionId: Optional[str]
+    name: Optional[str]
+    createdAt: Optional[str]
+
+
+class CheckUpstream(BaseModel):
+    """One bound task's upstream pricing: the version it pins against the one its source calls latest now."""
+
+    task: str
+    sphere: Optional[str]
+    plan: Optional[str]
+    pinned: Optional[CheckPinned]
+    latest: Optional[CheckPinned]
+    status: Literal["current", "newer", "unavailable", "not_snapshotted"]
+
+
+class CheckOfferingVersion(BaseModel):
+    versionName: Optional[str]
+    createdAt: Optional[str]
+
+
+class CheckOffering(BaseModel):
+    source: Optional[dict[str, str]]
+    pinned: Optional[CheckOfferingVersion] = Field(description="The version the adoption's evaluation read.")
+    latest: Optional[CheckOfferingVersion]
+    status: Literal["current", "newer", "unavailable", "none"]
+
+
+class EnvironmentCheck(BaseModel):
+    """What the composition in effect pins against what its sources publish now; nothing was written."""
+
+    checkedAt: datetime
+    version: CheckVersion
+    binding: CheckBinding
+    upstream: list[CheckUpstream]
+    offering: CheckOffering
+
+
+# -- Margins ---------------------------------------------------------------------------------------------
+
+MarginsStatus = Literal[
+    "ok", "users_required", "no_offering", "offering_unreadable", "offering_invalid", "offering_registry_unknown",
+    "no_cost_value", "ambiguous_cost", "currency_mismatch", "binding_invalid", "semantics_changed",
+    "amount_out_of_range",
+]
+_AMOUNT = "A fixed six-place decimal string."
+
+
+class MarginsEvaluation(BaseModel):
+    id: uuid.UUID
+    basisKey: str
+    valuesStatus: Literal["verified", "declared"]
+    outcome: Literal["verified", "binding_invalid", "semantics_changed", "declared"]
+
+
+class MarginsOffering(BaseModel):
+    source: Optional[dict[str, str]]
+    status: Optional[Literal["read", "unreadable", "invalid_pricing", "registry_unknown"]]
+    versionName: Optional[str]
+    createdAt: Optional[str]
+    snapshot: Optional[uuid.UUID] = Field(description="The pricing snapshot read (`…/pricing-snapshots/{snapshot}`).")
+    currency: Optional[str]
+
+
+class MarginsCost(BaseModel):
+    """The global value taken as the composition's upstream cost, and its monthly amount."""
+
+    name: str
+    value: Optional[str] = Field(description=_AMOUNT + " Null when it is out of range.")
+    unit: str
+    monthly: Optional[str] = Field(description=_AMOUNT)
+
+
+class MarginsBilling(BaseModel):
+    id: str
+    multiplier: str
+
+
+class MarginRow(BaseModel):
+    """One plan of the offering, alone or with one add-on: its revenue per subscription and month, and margin."""
+
+    plan: str
+    planName: str
+    addOns: list[str]
+    basis: Literal["subscription", "seat"] = Field(description="`seat`: a per-seat price counted for one seat.")
+    private: bool
+    requiresQuote: bool = Field(description="A price that is a label or an expression that failed: no revenue.")
+    outOfRange: bool = Field(description="An amount beyond 10^12 or not finite: no revenue or margin.")
+    excludedParts: list[str] = Field(description="Parts without a period (one-off or metered), left out of the revenue.")
+    revenue: Optional[str] = Field(description=_AMOUNT)
+    cost: Optional[str] = Field(description="The cost per user. " + _AMOUNT)
+    margin: Optional[str] = Field(description="`revenue - cost`. " + _AMOUNT)
+
+
+class CompositionMargins(BaseModel):
+    """Margin per offering plan: revenue minus the upstream cost per user, apportioned uniformly.
+
+    Every amount is a six-place decimal string in `currency` per month. `status` is `ok` only when every margin
+    could be computed; otherwise the rows carry their revenue and null margins (or there are no rows when the
+    offering could not be read).
+    """
+
+    version: VersionName
+    evaluation: Optional[MarginsEvaluation] = Field(
+        description="The stored evaluation read; null for the margins of a what-if binding (`evaluateComposition`).",
+    )
+    offering: Optional[MarginsOffering]
+    cost: Optional[MarginsCost]
+    users: Optional[int]
+    billing: Optional[MarginsBilling]
+    apportionment: Literal["uniform"]
+    status: MarginsStatus
+    currency: Optional[str]
+    costPerUser: Optional[str] = Field(description=_AMOUNT)
+    rowsTruncated: bool = Field(description="More than 200 rows: the first 200, in declared order.")
+    rows: list[MarginRow]
+    warnings: list[Literal["declared_values", "rows_truncated", "amount_out_of_range"]]
+
+
+EvaluateResult.model_rebuild()

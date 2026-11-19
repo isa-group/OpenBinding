@@ -1,8 +1,9 @@
 """Fixed-window throttling, and the throttling of authentication built on it.
 
 ``RateLimiter`` is the counting and its failure mode. Counters live in Redis
-(``INCR`` + ``EXPIRE``) so that every replica of the gateway shares them. Two
-limiters are built on it: ``AuthRateLimiter`` here, and the one in
+(``INCR`` + ``EXPIRE``) so that every replica of the gateway shares them. Three
+limiters are built on it: ``AuthRateLimiter`` and ``FeedRateLimiter`` (the reads
+of a composition environment's feed, per credential) here, and the one in
 ``access/work_limits.py`` for the CPU-heavy routes open to anybody.
 
 Authentication (login, registration and token refresh) is counted per
@@ -228,6 +229,46 @@ def set_auth_limiter(limiter: Optional[AuthRateLimiter]) -> None:
     """Install (or, with ``None``, forget) the limiter; tests inject theirs here."""
     global _limiter
     _limiter = limiter
+
+
+@dataclass
+class FeedRateLimiter(RateLimiter):
+    """Counts the reads of composition environment feeds, per credential (a feed key, or a member)."""
+
+    label: ClassVar[str] = "feed rate limiter"
+
+    async def check(self, bucket: str, *, per_minute: int) -> None:
+        """Count one read of ``bucket``; raise ``RateLimited`` past ``per_minute`` (0 switches it off)."""
+        if per_minute <= 0:
+            return
+        count, ttl = await self._hit(f"feedrl:{bucket}", 60)
+        if count > per_minute:
+            raise RateLimited(ttl)
+
+
+_feed_limiter: Optional[FeedRateLimiter] = None
+
+
+def build_feed_limiter(settings: Settings) -> FeedRateLimiter:
+    """The feed limiter over Redis, with the per-process fallback the authentication limiter has."""
+    return FeedRateLimiter(
+        primary=RedisBackend.from_url(settings.redis_url),
+        retry_after_failure_s=settings.auth_rate_limit_redis_retry_s,
+    )
+
+
+def get_feed_limiter() -> FeedRateLimiter:
+    """The process's feed limiter, built on first use from the settings."""
+    global _feed_limiter
+    if _feed_limiter is None:
+        _feed_limiter = build_feed_limiter(get_settings())
+    return _feed_limiter
+
+
+def set_feed_limiter(limiter: Optional[FeedRateLimiter]) -> None:
+    """Install (or, with ``None``, forget) the feed limiter; tests inject theirs here."""
+    global _feed_limiter
+    _feed_limiter = limiter
 
 
 def client_address(request: Request) -> str:

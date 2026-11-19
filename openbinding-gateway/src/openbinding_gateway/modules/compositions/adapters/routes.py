@@ -48,6 +48,7 @@ from ....core import revision as etags
 from ....db.models import (
     Composition,
     CompositionDerivation,
+    CompositionEnvironment,
     CompositionEvaluation,
     CompositionKind,
     CompositionVersion,
@@ -66,12 +67,15 @@ from ....models.errors import (
 )
 from ....security.apikeys import authenticated_api_key, boundary_of
 from ..application import compositions, derive, evaluate, graph, language, listing, offering, seal, upstream, versions
+from ..application import margins as margins_module
 from ..application.fork import NameTaken, fork_composition
 from ..application.language import decode, diagnostic_view
 from ..domain.records import values_json
 from .list_query import BY_NAME, ListQuery, facets_view
 from .language_routes import MAX_DOCUMENT_BYTES, YAML_BODY, YAML_MEDIA_TYPES, document_body
 from .schemas import (
+    CompositionMargins,
+    DerivedVersion,
     UpstreamView,
     EvaluationOffering,
     CheckResult,
@@ -199,6 +203,11 @@ async def list_compositions(
         description="Only compositions with a version linking a revision of this problem (slug or id); none for an "
         "unknown one.",
     ),
+    run: str | None = Query(
+        default=None, max_length=64,
+        description="Only compositions with a version derived from this run (its id), each with `derivedVersions`. "
+        "Members only: anybody else, and an unknown run, get an empty list.",
+    ),
     query: ListQuery = Depends(BY_NAME),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
@@ -225,11 +234,19 @@ async def list_compositions(
         problem_id = await compositions.problem_id_of(session, organization.id, problem)
         if problem_id is None:
             return CompositionList(compositions=[], total=0, limit=limit, offset=offset)
+    derived: dict[uuid.UUID, list[DerivedVersion]] | None = None
+    if run is not None:
+        # Members only: the public version view names the run, so an environment slug must not leak through it.
+        derived = {} if reader.public else await _derived_from(session, organization, run)
+        if not derived:
+            return CompositionList(compositions=[], total=0, limit=limit, offset=offset)
     kinds = (query.kinds or set()) | ({CompositionKind(kind)} if kind else set())
     rows = await compositions.matching(
         session, organization_ids=[organization.id], public_only=reader.public, kinds=kinds or None, q=q,
         archived=archived, problem_id=problem_id,
     )
+    if derived is not None:
+        rows = [(composition, owner) for composition, owner in rows if composition.id in derived]
     listed = listing.arrange(
         await listing.gather(session, rows), owners=query.owners, bounds=query.bounds, sort=query.sort,
         order=query.order, limit=limit, offset=offset,
@@ -238,9 +255,44 @@ async def list_compositions(
     views = [entry_view(entry) for entry in listed.entries]
     if reader.public:
         views = [view.model_copy(update={"created_by_id": None}) for view in views]
+    if derived is not None:
+        views = [view.model_copy(update={"derivedVersions": derived[view.id]}) for view in views]
     return CompositionList(
         compositions=views, total=listed.total, limit=limit, offset=offset, facets=facets_view(listed.facets),
     )
+
+
+async def _derived_from(
+    session: AsyncSession, organization: Organization, run: str,
+) -> dict[uuid.UUID, list[DerivedVersion]]:
+    """The organization's versions derived from ``run``, by composition, with the environments each is in effect in;
+    empty for an id that is not one or a run of another organization."""
+    try:
+        run_id = uuid.UUID(run)
+    except ValueError:
+        return {}
+    rows = (await session.execute(
+        select(CompositionVersion)
+        .join(CompositionDerivation, CompositionDerivation.version_id == CompositionVersion.id)
+        .join(Composition, Composition.id == CompositionVersion.composition_id)
+        .where(CompositionDerivation.job_id == run_id, Composition.organization_id == organization.id)
+        .order_by(CompositionVersion.composition_id, CompositionVersion.ordinal)
+    )).scalars().all()
+    if not rows:
+        return {}
+    effect: dict[uuid.UUID, list[str]] = {}
+    for version_id, slug in (await session.execute(
+        select(CompositionEnvironment.adopted_version_id, CompositionEnvironment.slug)
+        .where(CompositionEnvironment.adopted_version_id.in_([row.id for row in rows]))
+        .order_by(CompositionEnvironment.slug)
+    )).all():
+        effect.setdefault(version_id, []).append(slug)
+    found: dict[uuid.UUID, list[DerivedVersion]] = {}
+    for row in rows:
+        found.setdefault(row.composition_id, []).append(DerivedVersion(
+            id=row.id, label=row.label, sealedAt=row.created_at, inEffect=effect.get(row.id, []),
+        ))
+    return found
 
 
 @router.post(
@@ -783,6 +835,53 @@ async def get_composition_version_content(
     return Response(content=row.content.encode("utf-8"), media_type="application/yaml; charset=utf-8", headers=headers)
 
 
+# -- Margins ---------------------------------------------------------------------------------------------
+
+
+@router.get(
+    "/{composition}/versions/{version}/margins",
+    response_model=CompositionMargins,
+    operation_id="getCompositionVersionMargins",
+    summary="Margin per offering plan of a version",
+    description=(
+        "Revenue of each plan of the version's offering (alone and with each single add-on) minus the composition's "
+        "upstream cost per user, apportioned uniformly, from a stored evaluation and the offering version it read: "
+        "nothing is evaluated or fetched. `evaluation` pins one of the version's evaluations (an environment passes "
+        "its adoption's); `users` divides the monthly cost. Members only; counted as a `read`."
+    ),
+    dependencies=[Depends(limit_work)],
+    responses={
+        401: {"model": ErrorResponse, "description": "No credential, or one that is not valid (`unauthorized`)."},
+        404: {
+            **NOT_FOUND_RESPONSE,
+            "description": (
+                "No such composition or version, or the caller is not a member (`not_found`); an `evaluation` that "
+                "is not the version's (`evaluation_not_found`)."
+            ),
+        },
+        422: {"description": "An unknown `billing` period (`unknown_billing`) or `cost` value (`unknown_cost`)."},
+    },
+)
+async def get_composition_version_margins(
+    org: str,
+    composition: str,
+    version: str,
+    users: int | None = Query(default=None, ge=1, le=1_000_000_000, description="The users the cost is divided by."),
+    evaluation: uuid.UUID | None = Query(default=None, description="One of the version's evaluations; the current one by default."),
+    billing: str | None = Query(default=None, min_length=1, max_length=64, description="A billing period of the offering."),
+    cost: str | None = Query(default=None, min_length=1, max_length=64, description="The global value taken as the cost."),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> CompositionMargins:
+    """The margins of one version: cost per user is business data, so members only."""
+    _, found, reader = await compositions.readable_composition(session, org, composition, user)
+    if reader.public:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Version not found.")
+    row = await versions.required_version(session, found, version)
+    answer = await margins_module.margins(session, row, evaluation=evaluation, users=users, billing=billing, cost=cost)
+    return CompositionMargins.model_validate(answer)
+
+
 # -- Diff and fork ---------------------------------------------------------------------------------------
 
 
@@ -981,7 +1080,8 @@ async def reevaluate_composition_version(
         "Have the installed toolchain evaluate the binding of a version (the latest by default) with the "
         "tasks `binding` names bound to those candidates, the others as the version binds them. Nothing is "
         "stored. A binding the toolchain evaluated answers 200, `valid` false when it reports a hard "
-        "violation; one it could not evaluate is 422 `evaluation_invalid`."
+        "violation; one it could not evaluate is 422 `evaluation_invalid`. `revision` evaluates it against another "
+        "revision of the linked problem (a demand variant), and `users` adds the margins per plan of the values."
     ),
     dependencies=[Depends(limit_work)],
     responses={
@@ -993,6 +1093,7 @@ async def reevaluate_composition_version(
                 f"at `/binding/<task>`), or {_NOT_LINKED}."
             ),
         },
+        404: {**NOT_FOUND_RESPONSE, "description": "No such composition or version, or `revision_not_found`."},
         **_BUSY,
         **_TOOLCHAIN_DOWN,
     },
@@ -1008,13 +1109,20 @@ async def evaluate_composition(
     found = await compositions.required_composition(session, organization, composition)
     evaluated = await evaluate.evaluate_binding(
         session, organization, found, version_ref=payload.version, binding=payload.binding, caller=user,
+        revision=payload.revision,
     )
+    margins = await margins_module.what_if(session, evaluated.version, evaluated.values, evaluated.valid, payload.users)
+    revision = None
+    if evaluated.revision is not None:
+        revision = {"number": evaluated.revision.revision, "demand": evaluate.demand_of(evaluated.revision)}
     return EvaluateResult(
         version=VersionName(**_name(evaluated.version)),
         valid=evaluated.valid,
         values=_values(dict(evaluated.values)),
         violations=evaluated.violations,
         diagnostics=[diagnostic_view(item) for item in evaluated.diagnostics],
+        revision=revision,
+        margins=margins,
     )
 
 

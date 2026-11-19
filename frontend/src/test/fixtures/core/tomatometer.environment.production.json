@@ -1,0 +1,71 @@
+{
+  "adoptRole": "ADMIN",
+  "createdAt": "2026-01-01T00:00:18Z",
+  "description": "What TomatoMeter reads in production.",
+  "expectedUsers": 1000,
+  "feed": {
+    "etag": "\"sha256-7974798d9e27731cb07f50f9fb0139ea06136554d1c1ee77a74f17ff04cd95ce\"",
+    "path": "/v1/organizations/fixtures/compositions/tomatometer/environments/production/composition"
+  },
+  "id": "00000000-0000-4000-8000-000000000039",
+  "inEffect": {
+    "adoptedAt": "2026-01-01T00:00:12Z",
+    "adoptedBy": {
+      "displayName": "fixtures",
+      "username": "fixtures"
+    },
+    "adoption": 3,
+    "binding": {
+      "dailySummary": {
+        "candidate": "email.mailgun.foundation"
+      },
+      "export": {
+        "candidate": "storage.local.disk"
+      },
+      "login": {
+        "candidate": "auth.builtin.local"
+      },
+      "quotes": {
+        "candidate": "quotes.zenquotes.free"
+      }
+    },
+    "evaluation": {
+      "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+      "id": "00000000-0000-4000-8000-000000000032",
+      "outcome": "verified",
+      "valuesStatus": "verified"
+    },
+    "note": "Back to Mailgun",
+    "offering": {
+      "createdAt": "2026-01-01T00:00:09Z",
+      "status": "read",
+      "versionName": "1.0.0"
+    },
+    "version": {
+      "id": "00000000-0000-4000-8000-000000000035",
+      "label": "1.0.0",
+      "ordinal": 1
+    }
+  },
+  "keyCount": 1,
+  "keys": [
+    {
+      "createdAt": "2026-01-01T00:00:19Z",
+      "createdBy": "fixtures",
+      "creatorIsMember": true,
+      "hint": "obe_f1c7a5e0…",
+      "id": "00000000-0000-4000-8000-000000000040",
+      "label": "TomatoMeter production",
+      "lastUsedAt": null,
+      "revokedAt": null
+    }
+  ],
+  "name": "Production",
+  "operator": {
+    "displayName": "fixtures",
+    "member": true,
+    "username": "fixtures"
+  },
+  "slug": "production",
+  "updatedAt": "2026-01-01T00:00:20Z"
+}

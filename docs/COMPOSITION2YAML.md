@@ -19,7 +19,7 @@ Contents: [1 Identity and versioning](#1-identity-and-versioning) · [2 An examp
 [6 Provenance (`from`)](#6-provenance-from) · [7 Offering](#7-offering) · [8 Values and units](#8-values-and-units) ·
 [9 Evidence](#9-evidence) · [10 Numbers](#10-numbers) · [11 Canonical form](#11-canonical-form) ·
 [12 YAML 1.1 surprises](#12-yaml-11-surprises) · [13 Against a problem](#13-against-a-problem) ·
-[14 Diagnostics](#14-diagnostics) · [15 Routes](#15-routes) · [16 What is not in the language](#16-what-is-not-in-the-language)
+[14 Diagnostics](#14-diagnostics) · [15 Routes](#15-routes) · [16 The feed](#16-the-feed) · [17 What is not in the language](#17-what-is-not-in-the-language)
 
 ## 1. Identity and versioning
 
@@ -184,7 +184,7 @@ A document is one YAML mapping (JSON's data model in YAML's syntax, §12) of at 
 | `evidence` | no | how the values were obtained (§9) |
 
 Any other root key is `c2y_unknown_key`, located at the key itself; `presentation:` (renderer hints, which live in the
-renderer: §16) is one of them. A key that holds a problem's content (`tasks`, `properties`, `candidates`,
+renderer: §17) is one of them. A key that holds a problem's content (`tasks`, `properties`, `candidates`,
 `alternatives`, `constraints`, `rules`, `objectives`, `goals`, `services`, `scenarios`, `providers`, `placement`,
 `demand`, `weights`, `scalarization`) is `c2y_problem_content`: it belongs in the BIM problem (or, for weights and
 scalarization, in a run preset). A required key that is absent is `c2y_missing_key` at the key's own path, underlined
@@ -573,8 +573,9 @@ values: {}
 
 ## 7. Offering
 
-`offering` is **optional**. It names the composition's own pricing, the one F4's margins per plan come from (plan
-revenue minus upstream cost). It is a **reference only**: the plans, prices and limits live outside the document, in
+`offering` is **optional**. It names the composition's own pricing, the one the margins per plan come from (plan
+revenue minus upstream cost per user: `GET …/versions/{version}/margins`, computed on the gateway from a stored
+evaluation and the offering version it read; [ADR 0055](adr/0055-margins-per-offering-plan.md)). It is a **reference only**: the plans, prices and limits live outside the document, in
 SPHERE or in a Pricing2Yaml file. A composition without an offering is complete and valid, and gets no diagnostic for
 it; a derivation never adds one unless the request gives it.
 
@@ -878,7 +879,9 @@ it.
 submitted (author comments and layout are not kept; drafts belong to the editor). So a derivation is
 byte-idempotent (the same binding gives the same bytes, and deriving again answers the version that has them), a
 seal deduplicates by meaning (a re-formatted copy of a sealed document answers 200 with the version that has it), and
-the content digest and the F4 feed's ETag change only when the composition does. `POST /v1/compositions/serialise`
+the content digest changes only when the composition does. An environment's feed serves the adopted version's
+bytes with that digest as its `ETag` (§16, [ADR 0054](adr/0054-composition-environments-and-the-feed.md)), so it
+changes only on adopt. `POST /v1/compositions/serialise`
 writes the canonical form of any document.
 
 ## 12. YAML 1.1 surprises
@@ -1136,7 +1139,9 @@ answers `404`, exactly as a missing one; who may do what is in [ACCESS_POLICY.md
 | `GET …/{composition}/versions`, `GET …/versions/{version}`, `GET …/versions/{version}/content` | versions by id, label or ordinal and their stored bytes. A list row is light (`current_evaluation`) unless `?include=evaluations`; `?include=analytics` adds the stored counts, and `created_after`, `created_before` and `order=oldest` page them by date. `?include=document` on one version adds its document, read from the stored bytes in stored mode |
 | `POST …/versions/{version}/evaluations` | re-evaluate a version with the installed toolchain (one evaluation per toolchain; 200 when it has one) |
 | `GET …/{composition}/diff?from=&to=` | compare two versions |
-| `POST …/{composition}/evaluate` | evaluate another binding of a version (`{version?, binding: {task: candidate}}`), storing nothing |
+| `POST …/{composition}/evaluate` | evaluate another binding of a version (`{version?, binding: {task: candidate}, users?, revision?}`), storing nothing; `users` adds the margins per plan of the values, `revision` evaluates against another revision of the linked problem (a demand variant) |
+| `GET …/versions/{version}/margins` | the margins per offering plan of a stored evaluation (`?users`, `evaluation`, `billing`, `cost`) |
+| `…/{composition}/environments/...` | composition environments: create, edit, delete, adopt, adoptions, feed keys, check and the feed (§16) |
 | `GET …/{composition}/neighborhood` | the toolchain's one-task alternatives of a version's binding (`?version`, `task`, `limit` ≤ 128) |
 | `POST …/{composition}/derive` | derive a version from a binding of a problem (below) |
 | `POST …/{composition}/fork` | copy a version into **another** organization as a new composition (below) |
@@ -1171,7 +1176,41 @@ and compilation); otherwise the `values` section is empty.
 forked only with `dropProblem: true`, which removes `problem` and `evidence` and seals the copy with its values
 declared; it is never done silently.
 
-## 16. What is not in the language
+## 16. The feed
+
+An application reads the composition in effect in one of its composition's environments at a fixed address:
+
+```
+GET /v1/organizations/{org}/compositions/{composition}/environments/{environment}/composition
+X-API-Key: obe_…            (or Authorization: Bearer obe_…)
+If-None-Match: "sha256-…"   (the ETag it holds, if any)
+```
+
+The body is the adopted version's canonical bytes, unchanged (`application/yaml; charset=utf-8`). Its `ETag` is that
+version's content digest, quoted (the version content route's tag): it changes on every adoption and never otherwise,
+and an `If-None-Match` naming it is answered 304. `OpenBinding-Adoption` (the adoption's number) and
+`OpenBinding-Composition-Version` (its label) are informative. The credential is the environment's feed key, which
+reads nothing else, or a member's own.
+
+| # | Condition | Answer |
+|---|---|---|
+| 1 | no credential | 401 `unauthorized` |
+| 2 | a malformed, unknown or revoked credential, or an inactive member | 401 `unauthorized` |
+| 2b | a member's personal key without `compositions:read`, or whose boundary excludes the feed | 403 |
+| 3 | more than `FEED_RATE_PER_MINUTE` (60) reads a minute with this credential | 429 `feed_rate_limited`, `Retry-After` |
+| 4 | a feed key of another environment | 404 `not_found` |
+| 5–6 | a member credential: the composition's 404 parity, or a missing environment | 404 `not_found` |
+| 7 | nothing adopted yet | 404 `nothing_adopted` |
+| 8 | `If-None-Match` names the current `ETag`, or `*` | 304 |
+| 9 | otherwise | 200 |
+
+**What a consumer reads**: `binding.<task>.candidate`, nothing else; it evaluates nothing. For an e-mail task the
+provider is the second dot segment of the candidate (`email.<provider>.<plan>`). A consumer keeps its last good
+state on any answer other than 200 and 304, keeps its provider when a 200 brings the same candidate, honours
+`Retry-After`, never logs the key, and polls about every 30 seconds. Margins, evaluations and offering versions are
+not in the feed: they would move it.
+
+## 17. What is not in the language
 
 - **The alternatives.** Candidates to choose from, constraints, objectives, demand and scenarios are the BIM
   problem's. A different demand is a different problem revision.

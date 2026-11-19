@@ -93,6 +93,10 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
     ("GET", "/v1/organizations/{org}/sphere/pricings"): "read",
     ("GET", "/v1/organizations/{org}/sphere/pricings/{pricing_id}"): "read",
     ("GET", "/v1/organizations/{org}/sphere/pricings/{pricing_id}/versions/{version_id}"): "read",
+    # A version's margins: a stored offering normalised and up to 200 rows; a document can make each costly.
+    ("GET", "/v1/organizations/{org}/compositions/{composition}/versions/{version}/margins"): "read",
+    # Checking a composition environment now: an assessment and up to eight manifest reads.
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/check"): "read",
 }
 
 #: The routes a visitor may read public compositions through (``get_reader``): the list of every organization's,
@@ -122,6 +126,13 @@ ANONYMOUS_READ_ROUTES: frozenset[tuple[str, str]] = frozenset({
     # A stored upstream pricing of an organization, and its bytes: public ones for anybody who reads it.
     ("GET", "/v1/organizations/{org}/pricing-snapshots/{snapshot}"),
     ("GET", "/v1/organizations/{org}/pricing-snapshots/{snapshot}/yaml"),
+})
+
+#: The routes that count against a limiter of their own instead of a work class: a composition environment's
+#: feed, read by an application with a feed key (no user budget to charge), counted per credential
+#: (``core.ratelimit.FeedRateLimiter``, ``FEED_RATE_PER_MINUTE``).
+OWN_LIMITER_ROUTES: frozenset[tuple[str, str]] = frozenset({
+    ("GET", "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/composition"),
 })
 
 #: The setting that holds each class's budget.

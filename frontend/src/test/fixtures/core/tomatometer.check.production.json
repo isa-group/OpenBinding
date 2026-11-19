@@ -1,0 +1,44 @@
+{
+  "binding": {
+    "diagnostics": [],
+    "status": "valid",
+    "toolchain": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4"
+  },
+  "checkedAt": "2026-01-01T00:00:15Z",
+  "offering": {
+    "latest": {
+      "createdAt": "2026-01-01T00:00:09Z",
+      "versionName": "1.0.0"
+    },
+    "pinned": {
+      "createdAt": "2026-01-01T00:00:09Z",
+      "versionName": "1.0.0"
+    },
+    "source": {
+      "sphere": "sphere/tomatometer"
+    },
+    "status": "current"
+  },
+  "upstream": [
+    {
+      "latest": {
+        "createdAt": "2026-01-01T00:00:08Z",
+        "name": "2026-10",
+        "versionId": "6ade36454b2b5b01c587db3d"
+      },
+      "pinned": {
+        "createdAt": "2026-01-01T00:00:08Z",
+        "name": "2026-10",
+        "versionId": "6ade36454b2b5b01c587db3d"
+      },
+      "plan": "FOUNDATION",
+      "sphere": "danruilop1/mailgun",
+      "status": "current",
+      "task": "dailySummary"
+    }
+  ],
+  "version": {
+    "id": "00000000-0000-4000-8000-000000000035",
+    "label": "1.0.0"
+  }
+}

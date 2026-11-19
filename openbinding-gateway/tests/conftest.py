@@ -187,6 +187,19 @@ def isolated_auth_rate_limiter():
 
 
 @pytest.fixture(autouse=True)
+def isolated_feed_rate_limiter():
+    """The feed limiter counted in this test's own memory, never in Redis."""
+    if not GATEWAY_INSTALLED:
+        yield
+        return
+    from openbinding_gateway.core.ratelimit import FeedRateLimiter, set_feed_limiter
+
+    set_feed_limiter(FeedRateLimiter(primary=None))
+    yield
+    set_feed_limiter(None)
+
+
+@pytest.fixture(autouse=True)
 def isolated_work_rate_limiter(monkeypatch):
     """The per-client work budget switched off, and counted in this test's own memory.
 

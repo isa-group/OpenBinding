@@ -35,16 +35,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....composition import diagnostics as codes
 from ....composition import ids, text
 from ....composition.diagnostics import Diagnostic, Path, at
-from ....composition.document import Document, Entry
+from ....composition.document import Document, Entry, ProblemLink, ProblemRef
 from ....composition.problem import against, written_candidate
 from ....composition.workflow import tasks
-from ....db.models import Composition, CompositionEvaluation, CompositionVersion, Organization, User
+from ....db.models import (
+    BindingCase,
+    BindingCaseRevision,
+    Composition,
+    CompositionEvaluation,
+    CompositionVersion,
+    Organization,
+    User,
+)
 from ....integrations import bim
 from ....models.errors import api_error
 from ...shared.application import audit
 from ..domain.records import DECLARED
 from .offering import with_offering
-from .assess import Assessment, StoredLink, assess, resolve_link
+from .assess import Assessment, StoredLink, assess, installed_compilation, resolve_link
 from .compositions import TARGET
 from .language import diagnostic_view
 from .seal import insert_evaluation
@@ -72,6 +80,8 @@ class Evaluated:
     values: Mapping[str, Mapping[str, Any]]
     violations: list[dict[str, Any]]
     diagnostics: tuple[Diagnostic, ...]
+    #: The problem revision evaluated: the linked one, or the demand variant asked for.
+    revision: BindingCaseRevision | None = None
 
 
 # --------------------------------------------------------------------------- shared steps
@@ -245,9 +255,14 @@ async def evaluate_binding(
     version_ref: str | None,
     binding: Mapping[str, str] | None,
     caller: User,
+    revision: int | None = None,
 ) -> Evaluated:
     """The version ``version_ref`` names (the latest by default), with the tasks ``binding`` names bound to
     those candidates, evaluated by the installed toolchain. Nothing is stored.
+
+    ``revision`` evaluates the binding against another revision of the linked problem (a demand variant: demand
+    is a literal of each revision): the document is linked to it in memory only, on the installed toolchain's
+    compilation of it, and its values dropped. 404 ``revision_not_found`` when the problem has no such revision.
 
     A binding the toolchain evaluated answers, valid or not (a hard violation). One it could not (an
     unknown candidate, the toolchain's refusal, a problem read differently) is 422 ``evaluation_invalid``.
@@ -255,8 +270,11 @@ async def evaluate_binding(
     version, link = await _linked_version(session, composition, version_ref)
     document = await _stored(version)
     rebound = _rebound(document, binding or {})
-    if rebound:
-        # The version's values are its own binding's: compared with another binding's, every one would differ.
+    evaluated_revision = await session.get(BindingCaseRevision, link.revision_id)
+    if revision is not None:
+        document, link, evaluated_revision = await _variant(session, organization, document, link, revision)
+    if rebound or revision is not None:
+        # The version's values are its own binding's (and demand's): compared with another, every one would differ.
         document = replace(document, values=())
     assessment: Assessment = await assess(
         session, organization, document,
@@ -272,7 +290,45 @@ async def evaluate_binding(
         values=draft.values,
         violations=[dict(item) for item in draft.result.get("violations") or ()],
         diagnostics=found,
+        revision=evaluated_revision,
     )
+
+
+async def _variant(
+    session: AsyncSession, organization: Organization, document: Document, link: StoredLink, number: int,
+) -> tuple[Document, StoredLink, BindingCaseRevision]:
+    """The document linked, in memory only, to revision ``number`` of the problem the version links (a demand
+    variant), on the installed toolchain's compilation of it; 404 ``revision_not_found`` when there is none."""
+    linked = await session.get(BindingCaseRevision, link.revision_id)
+    problem = None if linked is None else await session.get(BindingCase, linked.binding_case_id)
+    target = None if problem is None else await session.scalar(select(BindingCaseRevision).where(
+        BindingCaseRevision.binding_case_id == problem.id, BindingCaseRevision.revision == number,
+    ))
+    if target is None or problem is None:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, "revision_not_found",
+            f"The problem this version links has no revision {number}.",
+        )
+    compiled, refusal = await installed_compilation(session, target)
+    if compiled is None:
+        raise _not_evaluable((refusal,) if refusal is not None else (), "The installed toolchain cannot compile that revision.")
+    assert document.problem is not None  # a linked version's document links its problem
+    ref = ProblemRef(organization.slug, problem.slug, str(target.revision))
+    moved = replace(document, problem=ProblemLink(ref=ref, compilation=compiled.compilation_digest))
+    return moved, StoredLink(target.id, compiled.id), target
+
+
+def demand_of(revision: BindingCaseRevision | None) -> list[dict[str, Any]]:
+    """The capacity demand the revision's pinned SPHERE recipe states (empty for a problem not generated from
+    SPHERE): ``[{name, value, unit}]`` in the recipe's order."""
+    recipe = (revision.provenance or {}).get("recipe") if revision is not None else None
+    demand = recipe.get("demand") if isinstance(recipe, Mapping) else None
+    if not isinstance(demand, Mapping):
+        return []
+    return [
+        {"name": name, "value": item.get("value"), "unit": item.get("unit", "")}
+        for name, item in demand.items() if isinstance(item, Mapping)
+    ]
 
 
 # --------------------------------------------------------------------------- the neighbourhood

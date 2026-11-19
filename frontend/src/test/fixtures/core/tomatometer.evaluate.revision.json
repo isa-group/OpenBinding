@@ -1,0 +1,182 @@
+{
+  "diagnostics": [
+    {
+      "code": "c2y_provenance_missing",
+      "message": "email.brevo.professional was generated from danruilop1/brevo (plan PROFESSIONAL, version 6ade2d444b2b5b01c587d80d); without from, this version pins no upstream version of its own",
+      "path": "binding.dailySummary",
+      "pointer": "/binding/dailySummary",
+      "severity": "warning",
+      "span": null
+    }
+  ],
+  "margins": {
+    "apportionment": "uniform",
+    "billing": {
+      "id": "monthly",
+      "multiplier": "1.0"
+    },
+    "cost": {
+      "monthly": "499.000000",
+      "name": "subscription",
+      "unit": "USD/month",
+      "value": "499.000000"
+    },
+    "costPerUser": "0.499000",
+    "currency": "USD",
+    "evaluation": null,
+    "offering": {
+      "createdAt": "2026-01-01T00:00:09Z",
+      "currency": "USD",
+      "snapshot": "00000000-0000-4000-8000-000000000031",
+      "source": {
+        "sphere": "sphere/tomatometer"
+      },
+      "status": "read",
+      "versionName": "1.0.0"
+    },
+    "rows": [
+      {
+        "addOns": [],
+        "basis": "seat",
+        "cost": "0.499000",
+        "excludedParts": [],
+        "margin": "-0.499000",
+        "outOfRange": false,
+        "plan": "basic",
+        "planName": "basic",
+        "private": false,
+        "requiresQuote": false,
+        "revenue": "0.000000"
+      },
+      {
+        "addOns": [
+          "extraTimers"
+        ],
+        "basis": "seat",
+        "cost": "0.499000",
+        "excludedParts": [],
+        "margin": "0.501000",
+        "outOfRange": false,
+        "plan": "basic",
+        "planName": "basic",
+        "private": false,
+        "requiresQuote": false,
+        "revenue": "1.000000"
+      },
+      {
+        "addOns": [],
+        "basis": "seat",
+        "cost": "0.499000",
+        "excludedParts": [],
+        "margin": "3.491000",
+        "outOfRange": false,
+        "plan": "advanced",
+        "planName": "advanced",
+        "private": false,
+        "requiresQuote": false,
+        "revenue": "3.990000"
+      },
+      {
+        "addOns": [
+          "extraTimers"
+        ],
+        "basis": "seat",
+        "cost": "0.499000",
+        "excludedParts": [],
+        "margin": "4.491000",
+        "outOfRange": false,
+        "plan": "advanced",
+        "planName": "advanced",
+        "private": false,
+        "requiresQuote": false,
+        "revenue": "4.990000"
+      },
+      {
+        "addOns": [],
+        "basis": "seat",
+        "cost": "0.499000",
+        "excludedParts": [],
+        "margin": "9.491000",
+        "outOfRange": false,
+        "plan": "premium",
+        "planName": "premium",
+        "private": false,
+        "requiresQuote": false,
+        "revenue": "9.990000"
+      },
+      {
+        "addOns": [
+          "extraTimers"
+        ],
+        "basis": "seat",
+        "cost": "0.499000",
+        "excludedParts": [],
+        "margin": "10.491000",
+        "outOfRange": false,
+        "plan": "premium",
+        "planName": "premium",
+        "private": false,
+        "requiresQuote": false,
+        "revenue": "10.990000"
+      },
+      {
+        "addOns": [
+          "exportAsJson"
+        ],
+        "basis": "seat",
+        "cost": "0.499000",
+        "excludedParts": [],
+        "margin": "11.491000",
+        "outOfRange": false,
+        "plan": "premium",
+        "planName": "premium",
+        "private": false,
+        "requiresQuote": false,
+        "revenue": "11.990000"
+      }
+    ],
+    "rowsTruncated": false,
+    "status": "ok",
+    "users": 1000,
+    "version": {
+      "id": "00000000-0000-4000-8000-000000000037",
+      "label": "1.1.0"
+    },
+    "warnings": []
+  },
+  "revision": {
+    "demand": [
+      {
+        "name": "dailyEmails",
+        "unit": "email/day",
+        "value": 2000.0
+      },
+      {
+        "name": "monthlyEmails",
+        "unit": "email/month",
+        "value": 60000.0
+      }
+    ],
+    "number": 3
+  },
+  "valid": true,
+  "values": {
+    "availability": {
+      "unit": "1",
+      "value": 0.9643836509999999
+    },
+    "latency": {
+      "unit": "ms",
+      "value": 475.0
+    },
+    "subscription": {
+      "unit": "USD/month",
+      "value": 499.0
+    }
+  },
+  "version": {
+    "id": "00000000-0000-4000-8000-000000000037",
+    "label": "1.1.0"
+  },
+  "violations": []
+}

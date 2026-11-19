@@ -275,3 +275,113 @@ async def test_a_re_evaluation_asks_the_toolchain_once(api_client, registration,
     assert (first.status_code, second.status_code) == (201, 200)
     assert asked == 1 and port.calls["evaluate"] == 1
     assert port.calls["compile"] == 1  # the installed release's compilation of the revision, once
+
+
+# --------------------------------------------------------------------------- margins and demand variants (F4 A9)
+
+
+async def _tomatometer(api_client, registration, db_session, gate):  # noqa: F811
+    """``tomatometer-email`` revisions 1 and 2, a third (the e-mail recipe with twice the demand), and 1.0.0
+    derived from revision 2 (Mailgun FOUNDATION) with the offering ``sphere/tomatometer``."""
+    import copy
+
+    from compositions._sphere import BINDING, EMAIL, compositions, generated_problem
+
+    headers, org = await generated_problem(api_client, registration, db_session, gate)
+    url = f"/v1/organizations/{org}/problems/tomatometer-email/sphere"
+    doubled = copy.deepcopy(EMAIL)
+    doubled["demand"]["monthlyEmails"]["value"] = 60000
+    doubled["demand"]["dailyEmails"]["value"] = 2000
+    preview = await api_client.post(f"{url}/expand", json={"recipe": doubled, "base": {"revision": 2}}, headers=headers)
+    assert preview.status_code == 200 and preview.json()["valid"], preview.text
+    applied = await api_client.post(
+        f"{url}/apply", headers=headers,
+        json={"recipe": doubled, "base": {"revision": 2}, "expect": {"packageDigest": preview.json()["packageDigest"]}},
+    )
+    assert applied.status_code == 201, applied.text
+    base = compositions(org)
+    derived = await api_client.post(
+        f"{base}/derive", headers=headers,
+        json={"revision": "tomatometer-email@2", "binding": BINDING, "version": "1.0.0",
+              "offering": {"sphere": "sphere/tomatometer"}},
+    )
+    assert derived.status_code == 201, derived.text
+    return headers, base
+
+
+async def _rows(db_session) -> dict[str, int]:
+    from openbinding_gateway.db.base import Base
+
+    # Every table but the error telemetry, which records a refusal's status.
+    return {
+        table.name: int(await db_session.scalar(select(func.count()).select_from(table)) or 0)
+        for table in Base.metadata.sorted_tables if table.name != "api_error_events"
+    }
+
+
+async def test_margins_of_a_what_if_binding(api_client, registration, db_session, gate, sphere):  # noqa: F811
+    headers, base = await _tomatometer(api_client, registration, db_session, gate)
+    before = await _rows(db_session)
+
+    with_users = await api_client.post(f"{base}/evaluate", headers=headers, json={"users": 1000})
+    again = await api_client.post(f"{base}/evaluate", headers=headers, json={"users": 1000})
+    without = await api_client.post(f"{base}/evaluate", headers=headers, json={})
+
+    assert with_users.status_code == 200, with_users.text
+    assert with_users.content == again.content
+    body = with_users.json()
+    margins = body["margins"]
+    assert margins["evaluation"] is None and margins["users"] == 1000 and margins["apportionment"] == "uniform"
+    assert margins["offering"]["versionName"] == "1.0.0"
+    monthly = margins["cost"]["monthly"]
+    assert margins["status"] == "ok" and margins["costPerUser"] is not None and float(monthly) > 0
+    assert body["values"]["subscription"]["value"] == float(monthly)
+    assert without.json()["margins"]["status"] == "users_required"
+    assert body["revision"] == {
+        "number": 2,
+        # In the stored recipe's (canonical) order.
+        "demand": [{"name": "dailyEmails", "value": 1000, "unit": "email/day"},
+                   {"name": "monthlyEmails", "value": 30000, "unit": "email/month"}],
+    }
+    assert await _rows(db_session) == before
+
+
+async def test_a_demand_variant_is_another_revision_evaluated_in_memory(api_client, registration, db_session, gate, sphere):  # noqa: F811
+    headers, base = await _tomatometer(api_client, registration, db_session, gate)
+    before = await _rows(db_session)
+
+    # Twice the demand leaves Mailgun FOUNDATION out: the version's own binding is not one revision 3 has.
+    lacking = await api_client.post(f"{base}/evaluate", headers=headers, json={"revision": 3})
+    assert lacking.status_code == 422 and lacking.json()["code"] == "evaluation_invalid"
+    codes_found = {item["code"] for item in lacking.json()["diagnostics"]}
+    assert "c2y_candidate_not_allowed" in codes_found
+    variant = await api_client.post(
+        f"{base}/evaluate", headers=headers,
+        json={"revision": 3, "users": 1000, "binding": {"dailySummary": "email.brevo.professional"}},
+    )
+
+    assert variant.status_code == 200, variant.text
+    body = variant.json()
+    assert body["revision"]["number"] == 3
+    assert {item["name"]: item["value"] for item in body["revision"]["demand"]} == {
+        "monthlyEmails": 60000, "dailyEmails": 2000,
+    }
+    assert body["margins"] is not None and body["values"]["subscription"]["value"] > 0
+    unknown = await api_client.post(f"{base}/evaluate", headers=headers, json={"revision": 9})
+    assert unknown.status_code == 404 and unknown.json()["detail"]["code"] == "revision_not_found"
+    assert await _rows(db_session) == before
+
+
+async def test_a_declared_version_has_no_demand_variant(api_client, registration, db_session, gate):  # noqa: F811
+    _, headers = await make_account(api_client, registration, db_session, gate)
+    user = await db_session.get(User, uuid.UUID((await api_client.get("/v1/users/me", headers=headers)).json()["id"]))
+    linked = await linked_problem(db_session, user)
+    await db_session.commit()
+    base = f"/v1/organizations/{linked.organization.slug}/compositions"
+    assert (await api_client.post(base, headers=headers, json={"slug": "shop", "name": "Shop"})).status_code == 201
+    sealed = await api_client.post(f"{base}/shop/versions", content=DECLARED.encode(), headers={**headers, **YAML})
+    assert sealed.status_code == 201
+
+    refused = await api_client.post(f"{base}/shop/evaluate", headers=headers, json={"revision": 1})
+
+    assert refused.status_code == 422 and refused.json()["code"] == "composition_not_linked"

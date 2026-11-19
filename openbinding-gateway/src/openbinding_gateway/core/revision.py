@@ -124,6 +124,35 @@ def parse_if_match(value: str | None) -> list[str] | None:
     return _TAG.findall(value)
 
 
+#: The 428 of a write that requires ``If-Match`` with an entity-tag (``require_if_match``).
+PRECONDITION_REQUIRED_RESPONSE: dict[int | str, dict[str, Any]] = {
+    428: {
+        "model": ErrorResponse,
+        "description": (
+            "`If-Match` is absent or `*` (code `precondition_required`): this write needs the ETag the caller "
+            "last read. Nothing was applied."
+        ),
+    },
+}
+
+
+def require_if_match(value: str | None) -> list[str]:
+    """The entity-tags of a required ``If-Match``: 428 ``precondition_required`` when absent or ``*``.
+
+    For the writes that change what a running application reads (an adoption), where the wildcard would let a
+    stale view through. A malformed header stays 400 ``invalid_if_match``.
+    """
+
+    tags = parse_if_match(value)
+    if not names(tags):
+        raise api_error(
+            status.HTTP_428_PRECONDITION_REQUIRED,
+            "precondition_required",
+            "Send If-Match with the environment's ETag.",
+        )
+    return tags  # type: ignore[return-value]
+
+
 def precondition(row: Any, if_match: str | None) -> None:
     """Refuse a stale ``If-Match`` with 412 and the current ETag; absent header passes."""
 

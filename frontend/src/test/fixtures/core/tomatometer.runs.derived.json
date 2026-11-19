@@ -1,0 +1,155 @@
+{
+  "compositions": [
+    {
+      "archived": false,
+      "created_at": "2026-01-01T00:00:23Z",
+      "created_by_id": "00000000-0000-4000-8000-000000000003",
+      "derivedVersions": [
+        {
+          "id": "00000000-0000-4000-8000-000000000042",
+          "inEffect": [],
+          "label": "2.0.0",
+          "sealedAt": "2026-01-01T00:00:24Z"
+        }
+      ],
+      "description": "",
+      "id": "00000000-0000-4000-8000-000000000043",
+      "kind": "application",
+      "latest_version": {
+        "created_at": "2026-01-01T00:00:24Z",
+        "figures": {
+          "cost": null,
+          "cost_unit": null,
+          "providers": 3,
+          "tasks": 3
+        },
+        "id": "00000000-0000-4000-8000-000000000042",
+        "label": "2.0.0",
+        "ordinal": 3,
+        "values_status": "verified",
+        "verified": true
+      },
+      "name": "simple-seq",
+      "organization": {
+        "id": "00000000-0000-4000-8000-000000000044",
+        "name": "Fixtures",
+        "slug": "fixtures"
+      },
+      "slug": "simple-seq",
+      "updated_at": "2026-01-01T00:00:25Z",
+      "version_count": 3,
+      "visibility": "private"
+    }
+  ],
+  "facets": {
+    "owners": [
+      {
+        "count": 1,
+        "name": "Fixtures",
+        "slug": "fixtures"
+      }
+    ],
+    "ranges": {
+      "cost": {
+        "data": [],
+        "max": null,
+        "min": null
+      },
+      "providers": {
+        "data": [
+          {
+            "count": 0,
+            "value": "0-0.33"
+          },
+          {
+            "count": 0,
+            "value": "0.33-0.67"
+          },
+          {
+            "count": 0,
+            "value": "0.67-1"
+          },
+          {
+            "count": 0,
+            "value": "1-1.33"
+          },
+          {
+            "count": 0,
+            "value": "1.33-1.67"
+          },
+          {
+            "count": 0,
+            "value": "1.67-2"
+          },
+          {
+            "count": 0,
+            "value": "2-2.33"
+          },
+          {
+            "count": 0,
+            "value": "2.33-2.67"
+          },
+          {
+            "count": 0,
+            "value": "2.67-3"
+          },
+          {
+            "count": 1,
+            "value": "3+"
+          }
+        ],
+        "max": 3.0,
+        "min": 3.0
+      },
+      "tasks": {
+        "data": [
+          {
+            "count": 0,
+            "value": "0-0.33"
+          },
+          {
+            "count": 0,
+            "value": "0.33-0.67"
+          },
+          {
+            "count": 0,
+            "value": "0.67-1"
+          },
+          {
+            "count": 0,
+            "value": "1-1.33"
+          },
+          {
+            "count": 0,
+            "value": "1.33-1.67"
+          },
+          {
+            "count": 0,
+            "value": "1.67-2"
+          },
+          {
+            "count": 0,
+            "value": "2-2.33"
+          },
+          {
+            "count": 0,
+            "value": "2.33-2.67"
+          },
+          {
+            "count": 0,
+            "value": "2.67-3"
+          },
+          {
+            "count": 1,
+            "value": "3+"
+          }
+        ],
+        "max": 3.0,
+        "min": 3.0
+      }
+    }
+  },
+  "limit": 50,
+  "offset": 0,
+  "total": 1
+}

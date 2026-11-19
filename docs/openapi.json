@@ -256,6 +256,66 @@
         "title": "AdminUserView",
         "type": "object"
       },
+      "AdoptionEvaluation": {
+        "properties": {
+          "basisKey": {
+            "title": "Basiskey",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "valuesStatus": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Valuesstatus",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "basisKey",
+          "valuesStatus"
+        ],
+        "title": "AdoptionEvaluation",
+        "type": "object"
+      },
+      "AdoptionOffering": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "versionName",
+          "createdAt"
+        ],
+        "title": "AdoptionOffering",
+        "type": "object"
+      },
       "AnalysisResult": {
         "additionalProperties": false,
         "properties": {
@@ -606,6 +666,7 @@
           "studies:write",
           "compositions:read",
           "compositions:write",
+          "compositions:adopt",
           "notifications:read",
           "admin:accounts:read",
           "admin:accounts:write"
@@ -2629,6 +2690,179 @@
         "title": "ChangeSubscriptionRequest",
         "type": "object"
       },
+      "CheckBinding": {
+        "properties": {
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "status": {
+            "description": "The stored content assessed on the installed toolchain, as `versions/check` assesses a document.",
+            "enum": [
+              "valid",
+              "invalid",
+              "declared"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "toolchain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The installed toolchain's digest; null for a declared version.",
+            "title": "Toolchain"
+          }
+        },
+        "required": [
+          "status",
+          "toolchain",
+          "diagnostics"
+        ],
+        "title": "CheckBinding",
+        "type": "object"
+      },
+      "CheckOffering": {
+        "properties": {
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckOfferingVersion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pinned": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckOfferingVersion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version the adoption's evaluation read."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "status": {
+            "enum": [
+              "current",
+              "newer",
+              "unavailable",
+              "none"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "pinned",
+          "latest",
+          "status"
+        ],
+        "title": "CheckOffering",
+        "type": "object"
+      },
+      "CheckOfferingVersion": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "versionName",
+          "createdAt"
+        ],
+        "title": "CheckOfferingVersion",
+        "type": "object"
+      },
+      "CheckPinned": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "versionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionid"
+          }
+        },
+        "required": [
+          "versionId",
+          "name",
+          "createdAt"
+        ],
+        "title": "CheckPinned",
+        "type": "object"
+      },
       "CheckResult": {
         "description": "The lint of a document against its problem: 200 whether or not it is valid; nothing is stored.",
         "properties": {
@@ -2696,6 +2930,96 @@
           "diagnostics"
         ],
         "title": "CheckResult",
+        "type": "object"
+      },
+      "CheckUpstream": {
+        "description": "One bound task's upstream pricing: the version it pins against the one its source calls latest now.",
+        "properties": {
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckPinned"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pinned": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckPinned"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          },
+          "sphere": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sphere"
+          },
+          "status": {
+            "enum": [
+              "current",
+              "newer",
+              "unavailable",
+              "not_snapshotted"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task",
+          "sphere",
+          "plan",
+          "pinned",
+          "latest",
+          "status"
+        ],
+        "title": "CheckUpstream",
+        "type": "object"
+      },
+      "CheckVersion": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "CheckVersion",
         "type": "object"
       },
       "CodeInvitationCreate": {
@@ -2973,6 +3297,119 @@
         "title": "CompilationView",
         "type": "object"
       },
+      "CompositionAdoptionList": {
+        "properties": {
+          "adoptions": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/CompositionAdoptionView"
+            },
+            "title": "Adoptions",
+            "type": "array"
+          },
+          "nextBefore": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Send as `before` for the next page; null on the last one.",
+            "title": "Nextbefore"
+          }
+        },
+        "required": [
+          "adoptions",
+          "nextBefore"
+        ],
+        "title": "CompositionAdoptionList",
+        "type": "object"
+      },
+      "CompositionAdoptionView": {
+        "description": "One adoption of an environment's history: insert only.",
+        "properties": {
+          "adoptedAt": {
+            "format": "date-time",
+            "title": "Adoptedat",
+            "type": "string"
+          },
+          "adoptedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnvironmentPerson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdoptionEvaluation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The evaluation the adoption pinned."
+          },
+          "feedEtag": {
+            "description": "The feed's `ETag` after this adoption: the version's content digest, quoted.",
+            "title": "Feedetag",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "offering": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdoptionOffering"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The offering version that evaluation read."
+          },
+          "ordinal": {
+            "description": "The adoption's number in its environment (1, 2, 3 …).",
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "previousVersion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VersionName"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version in effect before; null for the first."
+          },
+          "version": {
+            "$ref": "#/components/schemas/VersionName"
+          }
+        },
+        "required": [
+          "ordinal",
+          "version",
+          "previousVersion",
+          "adoptedAt",
+          "adoptedBy",
+          "note",
+          "evaluation",
+          "offering",
+          "feedEtag"
+        ],
+        "title": "CompositionAdoptionView",
+        "type": "object"
+      },
       "CompositionCreate": {
         "additionalProperties": false,
         "description": "A new, empty composition.",
@@ -3182,6 +3619,278 @@
         "title": "CompositionDiagnosticView",
         "type": "object"
       },
+      "CompositionEnvironmentCreate": {
+        "additionalProperties": false,
+        "description": "A new environment; its slug is part of its feed's address and never changes.",
+        "properties": {
+          "adoptRole": {
+            "default": "ADMIN",
+            "description": "The weakest role that may adopt in it.",
+            "enum": [
+              "MEMBER",
+              "ADMIN"
+            ],
+            "title": "Adoptrole",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "expectedUsers": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The users its margins assume.",
+            "title": "Expectedusers"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A member's username.",
+            "title": "Operator"
+          },
+          "slug": {
+            "description": "1 to 40 lowercase letters, digits and hyphens, a letter first.",
+            "pattern": "^[a-z][a-z0-9-]{0,39}$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "CompositionEnvironmentCreate",
+        "type": "object"
+      },
+      "CompositionEnvironmentList": {
+        "properties": {
+          "environments": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionEnvironmentView"
+            },
+            "title": "Environments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "environments"
+        ],
+        "title": "CompositionEnvironmentList",
+        "type": "object"
+      },
+      "CompositionEnvironmentUpdate": {
+        "additionalProperties": false,
+        "description": "What may change of an environment; its slug never does. A field left out stays as it is.",
+        "properties": {
+          "adoptRole": {
+            "anyOf": [
+              {
+                "enum": [
+                  "MEMBER",
+                  "ADMIN"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adoptrole"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "expectedUsers": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for none.",
+            "title": "Expectedusers"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A member's username; null for none.",
+            "title": "Operator"
+          }
+        },
+        "title": "CompositionEnvironmentUpdate",
+        "type": "object"
+      },
+      "CompositionEnvironmentView": {
+        "description": "A composition environment: where an application reads the version in effect.",
+        "properties": {
+          "adoptRole": {
+            "enum": [
+              "MEMBER",
+              "ADMIN"
+            ],
+            "title": "Adoptrole",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "expectedUsers": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expectedusers"
+          },
+          "feed": {
+            "$ref": "#/components/schemas/EnvironmentFeed"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "inEffect": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnvironmentInEffect"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null while nothing is adopted."
+          },
+          "keyCount": {
+            "description": "How many live feed keys the environment has.",
+            "title": "Keycount",
+            "type": "integer"
+          },
+          "keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EnvironmentKeyView"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Live feed keys and the five most recently revoked; ADMIN only (null for others).",
+            "title": "Keys"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnvironmentOperator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "operator",
+          "adoptRole",
+          "expectedUsers",
+          "inEffect",
+          "feed",
+          "keys",
+          "keyCount",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "CompositionEnvironmentView",
+        "type": "object"
+      },
       "CompositionEvaluate": {
         "additionalProperties": false,
         "description": "A version of a composition to evaluate, with some of its tasks bound otherwise.",
@@ -3201,6 +3910,34 @@
             ],
             "description": "Tasks to bind otherwise, each to a candidate as a document names it (its id, or `<resource>/<id>`); the other tasks keep the version's binding.",
             "title": "Binding"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Evaluate against this revision of the linked problem instead (a demand variant), in memory: nothing is stored and the version keeps its link.",
+            "title": "Revision"
+          },
+          "users": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The users the upstream cost is divided by: the answer then carries the margins per plan.",
+            "title": "Users"
           },
           "version": {
             "anyOf": [
@@ -3376,6 +4113,153 @@
           "offset"
         ],
         "title": "CompositionList",
+        "type": "object"
+      },
+      "CompositionMargins": {
+        "description": "Margin per offering plan: revenue minus the upstream cost per user, apportioned uniformly.\n\nEvery amount is a six-place decimal string in `currency` per month. `status` is `ok` only when every margin\ncould be computed; otherwise the rows carry their revenue and null margins (or there are no rows when the\noffering could not be read).",
+        "properties": {
+          "apportionment": {
+            "const": "uniform",
+            "title": "Apportionment",
+            "type": "string"
+          },
+          "billing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarginsBilling"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarginsCost"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "costPerUser": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A fixed six-place decimal string.",
+            "title": "Costperuser"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarginsEvaluation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The stored evaluation read; null for the margins of a what-if binding (`evaluateComposition`)."
+          },
+          "offering": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarginsOffering"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/MarginRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "rowsTruncated": {
+            "description": "More than 200 rows: the first 200, in declared order.",
+            "title": "Rowstruncated",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "users_required",
+              "no_offering",
+              "offering_unreadable",
+              "offering_invalid",
+              "offering_registry_unknown",
+              "no_cost_value",
+              "ambiguous_cost",
+              "currency_mismatch",
+              "binding_invalid",
+              "semantics_changed",
+              "amount_out_of_range"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "users": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Users"
+          },
+          "version": {
+            "$ref": "#/components/schemas/VersionName"
+          },
+          "warnings": {
+            "items": {
+              "enum": [
+                "declared_values",
+                "rows_truncated",
+                "amount_out_of_range"
+              ],
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "version",
+          "evaluation",
+          "offering",
+          "cost",
+          "users",
+          "billing",
+          "apportionment",
+          "status",
+          "currency",
+          "costPerUser",
+          "rowsTruncated",
+          "rows",
+          "warnings"
+        ],
+        "title": "CompositionMargins",
         "type": "object"
       },
       "CompositionMove": {
@@ -4073,6 +4957,21 @@
             "description": "Null for a reader who is not a member of the organization (a public composition's reader).",
             "title": "Created By Id"
           },
+          "derivedVersions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DerivedVersion"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With `run`: its versions derived from that run, and the environments each is in effect in; null otherwise.",
+            "title": "Derivedversions"
+          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -4693,6 +5592,41 @@
           "diagnostics"
         ],
         "title": "DeriveResult",
+        "type": "object"
+      },
+      "DerivedVersion": {
+        "description": "A version derived from a run's solution, and where it is in effect.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "inEffect": {
+            "description": "The slugs of the environments that have it in effect.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Ineffect",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "sealedAt": {
+            "format": "date-time",
+            "title": "Sealedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "sealedAt",
+          "inEffect"
+        ],
+        "title": "DerivedVersion",
         "type": "object"
       },
       "Diagnostic": {
@@ -5974,6 +6908,424 @@
         "title": "EntryDiffView",
         "type": "object"
       },
+      "EnvironmentAdopt": {
+        "additionalProperties": false,
+        "description": "The version to adopt in an environment, and why.",
+        "properties": {
+          "note": {
+            "default": "",
+            "description": "Why it is adopted; kept in the history.",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "version": {
+            "description": "The version's id, label or ordinal.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "EnvironmentAdopt",
+        "type": "object"
+      },
+      "EnvironmentAdoptResult": {
+        "description": "The environment with its new version in effect, and the adoption that put it there.",
+        "properties": {
+          "adoption": {
+            "$ref": "#/components/schemas/CompositionAdoptionView"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/CompositionEnvironmentView"
+          }
+        },
+        "required": [
+          "environment",
+          "adoption"
+        ],
+        "title": "EnvironmentAdoptResult",
+        "type": "object"
+      },
+      "EnvironmentBound": {
+        "properties": {
+          "candidate": {
+            "title": "Candidate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidate"
+        ],
+        "title": "EnvironmentBound",
+        "type": "object"
+      },
+      "EnvironmentCheck": {
+        "description": "What the composition in effect pins against what its sources publish now; nothing was written.",
+        "properties": {
+          "binding": {
+            "$ref": "#/components/schemas/CheckBinding"
+          },
+          "checkedAt": {
+            "format": "date-time",
+            "title": "Checkedat",
+            "type": "string"
+          },
+          "offering": {
+            "$ref": "#/components/schemas/CheckOffering"
+          },
+          "upstream": {
+            "items": {
+              "$ref": "#/components/schemas/CheckUpstream"
+            },
+            "title": "Upstream",
+            "type": "array"
+          },
+          "version": {
+            "$ref": "#/components/schemas/CheckVersion"
+          }
+        },
+        "required": [
+          "checkedAt",
+          "version",
+          "binding",
+          "upstream",
+          "offering"
+        ],
+        "title": "EnvironmentCheck",
+        "type": "object"
+      },
+      "EnvironmentEvaluation": {
+        "description": "The evaluation an adoption pinned: the environment's margins read it.",
+        "properties": {
+          "basisKey": {
+            "title": "Basiskey",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "verified",
+              "binding_invalid",
+              "semantics_changed",
+              "declared"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "valuesStatus": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Valuesstatus",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "basisKey",
+          "valuesStatus",
+          "outcome"
+        ],
+        "title": "EnvironmentEvaluation",
+        "type": "object"
+      },
+      "EnvironmentFeed": {
+        "properties": {
+          "etag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The feed's current `ETag`, for API clients; null while nothing is adopted.",
+            "title": "Etag"
+          },
+          "path": {
+            "description": "The feed's address; it never changes.",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "etag"
+        ],
+        "title": "EnvironmentFeed",
+        "type": "object"
+      },
+      "EnvironmentInEffect": {
+        "description": "What an environment's feed serves: the version adopted last, and who adopted it.",
+        "properties": {
+          "adoptedAt": {
+            "format": "date-time",
+            "title": "Adoptedat",
+            "type": "string"
+          },
+          "adoptedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnvironmentPerson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "adoption": {
+            "description": "The adoption's number in this environment (1, 2, 3 …).",
+            "title": "Adoption",
+            "type": "integer"
+          },
+          "binding": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EnvironmentBound"
+            },
+            "description": "The candidate each bound task names, as the document binds it.",
+            "title": "Binding",
+            "type": "object"
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnvironmentEvaluation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "offering": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnvironmentOffering"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/EnvironmentVersion"
+          }
+        },
+        "required": [
+          "adoption",
+          "version",
+          "adoptedAt",
+          "adoptedBy",
+          "note",
+          "evaluation",
+          "offering",
+          "binding"
+        ],
+        "title": "EnvironmentInEffect",
+        "type": "object"
+      },
+      "EnvironmentKeyView": {
+        "description": "A feed key as its environment lists it: never its secret.",
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "createdBy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The username of whoever created it.",
+            "title": "Createdby"
+          },
+          "creatorIsMember": {
+            "description": "False once its creator is no longer a member: rotate it deliberately.",
+            "title": "Creatorismember",
+            "type": "boolean"
+          },
+          "hint": {
+            "description": "The key's prefix, to recognise it: `obe_1a2b3c4d…`.",
+            "title": "Hint",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastusedat"
+          },
+          "revokedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revokedat"
+          }
+        },
+        "required": [
+          "id",
+          "hint",
+          "label",
+          "createdAt",
+          "createdBy",
+          "creatorIsMember",
+          "lastUsedAt",
+          "revokedAt"
+        ],
+        "title": "EnvironmentKeyView",
+        "type": "object"
+      },
+      "EnvironmentOffering": {
+        "description": "The offering version the pinned evaluation read; names and dates, never a digest.",
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "status": {
+            "enum": [
+              "read",
+              "unreadable",
+              "invalid_pricing",
+              "registry_unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "status",
+          "versionName",
+          "createdAt"
+        ],
+        "title": "EnvironmentOffering",
+        "type": "object"
+      },
+      "EnvironmentOperator": {
+        "description": "The member answerable for an environment.",
+        "properties": {
+          "displayName": {
+            "title": "Displayname",
+            "type": "string"
+          },
+          "member": {
+            "description": "False once they are no longer a member of the organization.",
+            "title": "Member",
+            "type": "boolean"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "displayName",
+          "member"
+        ],
+        "title": "EnvironmentOperator",
+        "type": "object"
+      },
+      "EnvironmentPerson": {
+        "description": "A person as an environment names one: never an email.",
+        "properties": {
+          "displayName": {
+            "title": "Displayname",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "displayName"
+        ],
+        "title": "EnvironmentPerson",
+        "type": "object"
+      },
+      "EnvironmentVersion": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "ordinal"
+        ],
+        "title": "EnvironmentVersion",
+        "type": "object"
+      },
       "ErrorBody": {
         "description": "The payload under ``detail``.",
         "properties": {
@@ -6067,6 +7419,28 @@
             "title": "Diagnostics",
             "type": "array"
           },
+          "margins": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompositionMargins"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The margins per plan of these values, against the offering version the version's current evaluation read; present when `users` is given or that evaluation read an offering."
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluatedRevision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The problem revision evaluated, and the capacity demand its recipe states."
+          },
           "valid": {
             "description": "Whether the binding holds: the toolchain reports no hard violation.",
             "title": "Valid",
@@ -6101,6 +7475,58 @@
           "diagnostics"
         ],
         "title": "EvaluateResult",
+        "type": "object"
+      },
+      "EvaluatedDemand": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "unit"
+        ],
+        "title": "EvaluatedDemand",
+        "type": "object"
+      },
+      "EvaluatedRevision": {
+        "properties": {
+          "demand": {
+            "description": "Empty for a problem not generated from SPHERE.",
+            "items": {
+              "$ref": "#/components/schemas/EvaluatedDemand"
+            },
+            "title": "Demand",
+            "type": "array"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "demand"
+        ],
+        "title": "EvaluatedRevision",
         "type": "object"
       },
       "EvaluationCompilation": {
@@ -6478,6 +7904,40 @@
           }
         },
         "title": "Facets",
+        "type": "object"
+      },
+      "FeedKeyCreate": {
+        "additionalProperties": false,
+        "description": "A new feed key of an environment.",
+        "properties": {
+          "label": {
+            "default": "",
+            "description": "What reads with it, to recognise it later.",
+            "maxLength": 80,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "title": "FeedKeyCreate",
+        "type": "object"
+      },
+      "FeedKeyCreated": {
+        "description": "A new feed key: its secret is shown here once and never again.",
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/EnvironmentKeyView"
+          },
+          "secret": {
+            "description": "The whole key (`obe_…`): configure the application with it now.",
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "secret"
+        ],
+        "title": "FeedKeyCreated",
         "type": "object"
       },
       "FieldChangeView": {
@@ -7805,6 +9265,301 @@
           "confirmation"
         ],
         "title": "MaintenancePurgeRequest",
+        "type": "object"
+      },
+      "MarginRow": {
+        "description": "One plan of the offering, alone or with one add-on: its revenue per subscription and month, and margin.",
+        "properties": {
+          "addOns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Addons",
+            "type": "array"
+          },
+          "basis": {
+            "description": "`seat`: a per-seat price counted for one seat.",
+            "enum": [
+              "subscription",
+              "seat"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The cost per user. A fixed six-place decimal string.",
+            "title": "Cost"
+          },
+          "excludedParts": {
+            "description": "Parts without a period (one-off or metered), left out of the revenue.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Excludedparts",
+            "type": "array"
+          },
+          "margin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`revenue - cost`. A fixed six-place decimal string.",
+            "title": "Margin"
+          },
+          "outOfRange": {
+            "description": "An amount beyond 10^12 or not finite: no revenue or margin.",
+            "title": "Outofrange",
+            "type": "boolean"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "planName": {
+            "title": "Planname",
+            "type": "string"
+          },
+          "private": {
+            "title": "Private",
+            "type": "boolean"
+          },
+          "requiresQuote": {
+            "description": "A price that is a label or an expression that failed: no revenue.",
+            "title": "Requiresquote",
+            "type": "boolean"
+          },
+          "revenue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A fixed six-place decimal string.",
+            "title": "Revenue"
+          }
+        },
+        "required": [
+          "plan",
+          "planName",
+          "addOns",
+          "basis",
+          "private",
+          "requiresQuote",
+          "outOfRange",
+          "excludedParts",
+          "revenue",
+          "cost",
+          "margin"
+        ],
+        "title": "MarginRow",
+        "type": "object"
+      },
+      "MarginsBilling": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "multiplier": {
+            "title": "Multiplier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "multiplier"
+        ],
+        "title": "MarginsBilling",
+        "type": "object"
+      },
+      "MarginsCost": {
+        "description": "The global value taken as the composition's upstream cost, and its monthly amount.",
+        "properties": {
+          "monthly": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A fixed six-place decimal string.",
+            "title": "Monthly"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A fixed six-place decimal string. Null when it is out of range.",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "unit",
+          "monthly"
+        ],
+        "title": "MarginsCost",
+        "type": "object"
+      },
+      "MarginsEvaluation": {
+        "properties": {
+          "basisKey": {
+            "title": "Basiskey",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "verified",
+              "binding_invalid",
+              "semantics_changed",
+              "declared"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "valuesStatus": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Valuesstatus",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "basisKey",
+          "valuesStatus",
+          "outcome"
+        ],
+        "title": "MarginsEvaluation",
+        "type": "object"
+      },
+      "MarginsOffering": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The pricing snapshot read (`…/pricing-snapshots/{snapshot}`).",
+            "title": "Snapshot"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "read",
+                  "unreadable",
+                  "invalid_pricing",
+                  "registry_unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "source",
+          "status",
+          "versionName",
+          "createdAt",
+          "snapshot",
+          "currency"
+        ],
+        "title": "MarginsOffering",
         "type": "object"
       },
       "MemberBatchChange": {
@@ -20671,7 +22426,8 @@
                     "System",
                     "CompositionUpdated",
                     "RunFinished",
-                    "RunFailed"
+                    "RunFailed",
+                    "CompositionAdopted"
                   ],
                   "type": "string"
                 },
@@ -22876,6 +24632,25 @@
             }
           },
           {
+            "description": "Only compositions with a version derived from this run (its id), each with `derivedVersions`. Members only: anybody else, and an unknown run, get an empty list.",
+            "in": "query",
+            "name": "run",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only compositions with a version derived from this run (its id), each with `derivedVersions`. Members only: anybody else, and an unknown run, get an empty list.",
+              "title": "Run"
+            }
+          },
+          {
             "in": "query",
             "name": "limit",
             "required": false,
@@ -24143,9 +25918,1625 @@
         ]
       }
     },
+    "/v1/organizations/{org}/compositions/{composition}/environments": {
+      "get": {
+        "description": "The composition's environments, by slug (members only).",
+        "operationId": "listCompositionEnvironments",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionEnvironmentList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Composition Environments",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      },
+      "post": {
+        "description": "Create an environment with nothing adopted yet (ADMIN).",
+        "operationId": "createCompositionEnvironment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionEnvironmentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionEnvironmentView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role is too weak (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The slug is in use in this composition (`slug_conflict`), or the composition has as many environments as it may (`environment_limit`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The operator is not a member (`operator_not_member`)."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create Composition Environment",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}": {
+      "delete": {
+        "description": "Delete an environment with its feed keys and its adoption history (ADMIN); its feed stops answering.",
+        "operationId": "deleteCompositionEnvironment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role is too weak (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Delete Composition Environment",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
+        ]
+      },
+      "get": {
+        "description": "One environment, by slug or id (members only).",
+        "operationId": "getCompositionEnvironment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionEnvironmentView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Composition Environment",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      },
+      "patch": {
+        "description": "Rename or describe an environment, or change its operator, who may adopt or its expected users (ADMIN).",
+        "operationId": "updateCompositionEnvironment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionEnvironmentUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionEnvironmentView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role is too weak (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The operator is not a member (`operator_not_member`)."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Update Composition Environment",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/adopt": {
+      "post": {
+        "description": "Makes the version the one the environment's feed serves. `If-Match` with the environment's `ETag` is required. The caller's role must reach the environment's `adoptRole`; a personal API key also needs `compositions:adopt`.",
+        "operationId": "adoptCompositionVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnvironmentAdopt"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvironmentAdoptResult"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role is too weak (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`already_in_effect`, `composition_archived`, `evaluation_stale` (re-evaluate the version first), `binding_invalid` or `evaluation_semantics_changed` (derive it again)."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is absent or `*` (code `precondition_required`): this write needs the ETag the caller last read. Nothing was applied."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Adopt a sealed version in an environment",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:adopt"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/adoptions": {
+      "get": {
+        "description": "An environment's adoption history, newest first (members only).",
+        "operationId": "listCompositionAdoptions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Only adoptions numbered below this one.",
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only adoptions numbered below this one.",
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionAdoptionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Composition Adoptions",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/check": {
+      "post": {
+        "description": "Assesses the version in effect on the installed toolchain and compares the upstream pricings and the offering it pins with what their sources publish now. Writes nothing: no snapshot, row, event or notification, and the feed is unchanged. A source that cannot be read now is `unavailable`. MEMBER; counted as a `read`.",
+        "operationId": "checkCompositionEnvironment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvironmentCheck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role is too weak (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Nothing is adopted in this environment yet (`nothing_adopted`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Check the composition in effect against its sources now",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/composition": {
+      "get": {
+        "description": "The adopted version's Composition2Yaml bytes, unchanged. Read with the environment's feed key (`obe_…`, as `X-API-Key` or a Bearer token) or a member's credential with `compositions:read`. The `ETag` is the version's content digest and moves only on adopt: send it as `If-None-Match` and a 304 says nothing changed. Consumers read `binding.<task>.candidate`, keep their last good state on any other answer, honour `Retry-After`, and poll about every 30 seconds.",
+        "operationId": "getEnvironmentFeed",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-None-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-None-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/yaml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The composition in effect.",
+            "headers": {
+              "Cache-Control": {
+                "description": "`private, no-cache`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "The adopted version's content digest, quoted: it changes only on adopt.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "OpenBinding-Adoption": {
+                "description": "The adoption's number in the environment (informative).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "OpenBinding-Composition-Version": {
+                "description": "The adopted version's label (informative).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "`Authorization, X-API-Key`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The caller's copy (`If-None-Match`) is the composition in effect.",
+            "headers": {
+              "Cache-Control": {
+                "description": "`private, no-cache`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "The adopted version's content digest, quoted: it changes only on adopt.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "OpenBinding-Adoption": {
+                "description": "The adoption's number in the environment (informative).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "OpenBinding-Composition-Version": {
+                "description": "The adopted version's label (informative).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "`Authorization, X-API-Key`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A member's personal key lacks `compositions:read` or its boundary excludes this feed."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`not_found` (no such environment for this credential, or the composition's parity for a member) or `nothing_adopted` (nothing is adopted yet)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many reads with this credential (`feed_rate_limited`); `Retry-After` says when.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Read the composition in effect in an environment",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/keys": {
+      "post": {
+        "description": "The key reads this environment's feed and nothing else. Its secret is in this answer only. An environment holds at most two live keys, so a key is rotated by minting the second and revoking the first. ADMIN; a personal API key also needs `keys:write`.",
+        "operationId": "createEnvironmentFeedKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedKeyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedKeyCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role is too weak (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Two live keys already (`feed_key_limit`): revoke one first."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Mint a feed key of an environment",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write",
+          "keys:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/keys/{key}": {
+      "delete": {
+        "description": "Revoke a feed key (ADMIN): it stops authenticating on the next request, for good.",
+        "operationId": "revokeEnvironmentFeedKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role is too weak (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Revoke Environment Feed Key",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write",
+          "keys:write"
+        ]
+      }
+    },
     "/v1/organizations/{org}/compositions/{composition}/evaluate": {
       "post": {
-        "description": "Have the installed toolchain evaluate the binding of a version (the latest by default) with the tasks `binding` names bound to those candidates, the others as the version binds them. Nothing is stored. A binding the toolchain evaluated answers 200, `valid` false when it reports a hard violation; one it could not evaluate is 422 `evaluation_invalid`.",
+        "description": "Have the installed toolchain evaluate the binding of a version (the latest by default) with the tasks `binding` names bound to those candidates, the others as the version binds them. Nothing is stored. A binding the toolchain evaluated answers 200, `valid` false when it reports a hard violation; one it could not evaluate is 422 `evaluation_invalid`. `revision` evaluates it against another revision of the linked problem (a demand variant), and `users` adds the margins per plan of the values.",
         "operationId": "evaluateComposition",
         "parameters": [
           {
@@ -24216,7 +27607,7 @@
                 }
               }
             },
-            "description": "No such organization or composition, or the caller cannot read it."
+            "description": "No such composition or version, or `revision_not_found`."
           },
           "409": {
             "content": {
@@ -25925,6 +29316,216 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/versions/{version}/margins": {
+      "get": {
+        "description": "Revenue of each plan of the version's offering (alone and with each single add-on) minus the composition's upstream cost per user, apportioned uniformly, from a stored evaluation and the offering version it read: nothing is evaluated or fetched. `evaluation` pins one of the version's evaluations (an environment passes its adoption's); `users` divides the monthly cost. Members only; counted as a `read`.",
+        "operationId": "getCompositionVersionMargins",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The users the cost is divided by.",
+            "in": "query",
+            "name": "users",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The users the cost is divided by.",
+              "title": "Users"
+            }
+          },
+          {
+            "description": "One of the version's evaluations; the current one by default.",
+            "in": "query",
+            "name": "evaluation",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One of the version's evaluations; the current one by default.",
+              "title": "Evaluation"
+            }
+          },
+          {
+            "description": "A billing period of the offering.",
+            "in": "query",
+            "name": "billing",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A billing period of the offering.",
+              "title": "Billing"
+            }
+          },
+          {
+            "description": "The global value taken as the cost.",
+            "in": "query",
+            "name": "cost",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The global value taken as the cost.",
+              "title": "Cost"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionMargins"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such composition or version, or the caller is not a member (`not_found`); an `evaluation` that is not the version's (`evaluation_not_found`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "An unknown `billing` period (`unknown_billing`) or `cost` value (`unknown_cost`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Margin per offering plan of a version",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
         ]
       }
     },
@@ -35496,6 +39097,7 @@
     "studies:write",
     "compositions:read",
     "compositions:write",
+    "compositions:adopt",
     "notifications:read",
     "admin:accounts:read",
     "admin:accounts:write"

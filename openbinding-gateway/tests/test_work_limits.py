@@ -13,6 +13,7 @@ from _ratelimit_fakes import DownBackend, FakeRedis
 from openbinding_gateway.access.dependencies import get_reader
 from openbinding_gateway.access.work_limits import (
     ANONYMOUS_READ_ROUTES,
+    OWN_LIMITER_ROUTES,
     WORK_ROUTES,
     WorkRateLimiter,
     get_work_limiter,
@@ -78,6 +79,13 @@ REQUESTS = {
     ("POST", DERIVE): ("POST", "/v1/organizations/{org}/compositions/none/derive", EMPTY_JSON),
     # Counted before the key is checked: the first is a 422, the second a 429.
     ("PUT", CONNECTION): ("PUT", CONNECTION, BAD_KEY),
+    # Counted before the composition is looked up: the first is a 404, the second a 429.
+    ("GET", "/v1/organizations/{org}/compositions/{composition}/versions/{version}/margins"): (
+        "GET", "/v1/organizations/{org}/compositions/none/versions/1/margins", {},
+    ),
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/check"): (
+        "POST", "/v1/organizations/{org}/compositions/none/environments/production/check", EMPTY_JSON,
+    ),
     # Answered from the recorded SPHERE.
     ("GET", "/v1/organizations/{org}/sphere/pricings"): ("GET", "/v1/organizations/{org}/sphere/pricings?q=Mailgun", {}),
     ("GET", "/v1/organizations/{org}/sphere/pricings/{pricing_id}"): (
@@ -92,8 +100,20 @@ REQUESTS = {
 LANGUAGE_ROUTES = {route for route in REQUESTS if route[1].startswith(LANGUAGE)}
 #: The routes that read SPHERE on the caller's behalf (``read`` class).
 SPHERE_ROUTES = {route for route in REQUESTS if route[1].startswith(("/v1/organizations/{org}/connections",
-                                                                      "/v1/organizations/{org}/sphere"))}
+                                                                      "/v1/organizations/{org}/sphere"))
+                 or route[1].endswith("/environments/{environment}/check")}
+#: Reads computed from stored data that a document can still make costly: a GET is outside the deny-by-default
+#: POST rule, so they are listed (a version's margins).
+COMPUTED_READS = {("GET", "/v1/organizations/{org}/compositions/{composition}/versions/{version}/margins")}
 BIM_ROUTES = {("POST", PROBE)} | LANGUAGE_ROUTES
+ENVIRONMENTS = "/v1/organizations/{org}/compositions/{composition}/environments"
+#: Writes under a composition that compile, read and evaluate nothing: an environment, its adoptions and its
+#: feed keys (F4). Outside the compiling-prefix rule, and asserted exactly, so the walk stays exhaustive.
+OPERATION_WRITES = {
+    ("POST", ENVIRONMENTS),
+    ("POST", f"{ENVIRONMENTS}/{{environment}}/adopt"),
+    ("POST", f"{ENVIRONMENTS}/{{environment}}/keys"),
+}
 
 
 @pytest.fixture
@@ -186,7 +206,22 @@ def test_a_route_added_under_the_compiling_prefixes_has_to_be_classified():
         or path.endswith("/compilation")
         or (path.startswith("/v1/organizations/{org}/compositions/{composition}/") and path.endswith("/neighborhood"))
     }
-    assert found == set(WORK_ROUTES)
+    assert (found - OPERATION_WRITES) | COMPUTED_READS == set(WORK_ROUTES)
+    assert OPERATION_WRITES <= found
+
+
+def test_the_routes_with_a_limiter_of_their_own():
+    """The feed is counted per credential by its own limiter, never in a work class or as an anonymous read."""
+    assert OWN_LIMITER_ROUTES == {(
+        "GET", "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/composition",
+    )}
+    assert OWN_LIMITER_ROUTES <= routes()
+    assert not OWN_LIMITER_ROUTES & (set(WORK_ROUTES) | set(ANONYMOUS_READ_ROUTES))
+
+
+def test_the_operation_writes_are_not_counted():
+    """Creating an environment, adopting and minting a feed key do no compile, read or evaluate work."""
+    assert not OPERATION_WRITES & set(WORK_ROUTES)
 
 
 def test_every_counted_route_is_exercised_below():
@@ -196,7 +231,9 @@ def test_every_counted_route_is_exercised_below():
 
 def test_compile_read_and_evaluate_are_the_classes_the_policy_states():
     assert set(WORK_ROUTES.values()) == {"compile", "read", "evaluate"}
-    assert {route for route, work_class in WORK_ROUTES.items() if work_class == "read"} == LANGUAGE_ROUTES | SPHERE_ROUTES
+    assert {route for route, work_class in WORK_ROUTES.items() if work_class == "read"} == (
+        LANGUAGE_ROUTES | SPHERE_ROUTES | COMPUTED_READS
+    )
     assert {route for route, work_class in WORK_ROUTES.items() if work_class == "evaluate"} == {
         ("POST", VERSIONS), ("POST", f"{VERSIONS}/check"), ("POST", FORK),
         ("POST", REEVALUATE), ("POST", EVALUATE), ("GET", NEIGHBORHOOD), ("POST", DERIVE),

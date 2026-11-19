@@ -5,7 +5,7 @@ language is in [`BIM_V1.md`](BIM_V1.md) and [`BIM_CORE.md`](BIM_CORE.md).
 
 Contents: 1 Principles · 2 System context · 3 Containers · 4 Backend · 5 Frontend · 6 Domain model · 7 Key flows ·
 8 Language extensibility · 9 Plans (SPACE and SPHERE) · 10 Storage and retention · 11 Quality and gates ·
-12 Environments and previews · 13 Repository layout · 14 Decisions
+12 Stages and previews · 13 Repository layout · 14 Decisions
 
 ## 1. Principles that shape the architecture
 
@@ -25,7 +25,7 @@ Contents: 1 Principles · 2 System context · 3 Containers · 4 Backend · 5 Fro
    rewrite.
 7. **Small surface.** Every module, endpoint and screen serves a user journey; what none needs is
    retired before anything is moved or polished.
-8. **One way to deploy.** Docker Compose runs every environment, production included.
+8. **One way to deploy.** Docker Compose runs every stage, production included.
 
 ## 2. System context
 
@@ -52,10 +52,10 @@ flowchart LR
   G -- bim-engine/v1 --> FED
 ```
 
-SPHERE and SPACE are separate deployments of the group. The OpenBinding pricing is written and versioned in SPHERE
+SPHERE and SPACE are separate services of the group. The OpenBinding pricing is written and versioned in SPHERE
 at `sphere.score.us.es`, under the permanent link `https://sphere.score.us.es/p/6ab0a323697330667ccce891`, and
-every environment reads it there through SPHERE's public API. SPACE follows that permanent link and operates
-subscriptions. OpenBinding uses the remote SPACE at `https://space.score.us.es` in every environment; no SPACE runs
+every stage reads it there through SPHERE's public API. SPACE follows that permanent link and operates
+subscriptions. OpenBinding uses the remote SPACE at `https://space.score.us.es` in every stage; no SPACE runs
 inside any stack (§9.4). OpenBinding never writes to SPHERE and never re-implements SPACE (§9).
 
 ## 3. Containers
@@ -110,7 +110,7 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 | `problems` | problems of an organization, their sealed revisions (the uploaded `.bim.zip` and its digests) and compilations (one per revision and toolchain, insert-only), the stateless BIM services (`/v1/bim/validate`, `/v1/bim/templates`) | `BimPort`, `BlobStore` | `modules/problems` (domain, application, adapters; F0b); `integrations/bim*.py`, the engine protocol document in `services/engines.py` |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
 | `execution` | runs of an organization: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood; run presets (F1) | `EngineTransport`, `BimPort`, `PlanPort` | `modules/execution` (the run request and the runs API `/v1/organizations/{org}/runs`; F0b); `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py` |
-| `compositions` | compositions of an organization, their sealed versions (canonical Composition2Yaml bytes), their evaluations (one per toolchain, or one declared) and derivations, forks into another organization, and the stateless language services (`/v1/compositions/validate`, `parse`, `serialise`, `diff`, `schema`). The language itself is the pure library `openbinding_gateway/composition` (contract `composition-library-pure`) | `BimPort`; `problems` and `execution` application APIs | `modules/compositions` (F1) |
+| `compositions` | compositions of an organization, their sealed versions (canonical Composition2Yaml bytes), their evaluations (one per toolchain, or one declared) and derivations, forks into another organization, composition environments with their adoption history, feed keys and feed, margins per offering plan (F4), and the stateless language services (`/v1/compositions/validate`, `parse`, `serialise`, `diff`, `schema`). The language itself is the pure library `openbinding_gateway/composition` (contract `composition-library-pure`) | `BimPort`; `problems` and `execution` application APIs | `modules/compositions` (F1) |
 | `laboratory` | studies of an organization (the editable matrix inline), study runs that freeze their definition and pin each revision's compilation, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py` (`/v1/organizations/{org}/studies`; F0b); the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
 | `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `problems` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
 | `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `modules/plans` (entitlement map, per-account quotas, the package copy of the pricing; F0b); `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`. Local metering and billing sponsorship were removed in F0b |
@@ -420,6 +420,17 @@ problem link:
 | `composition_derivations` | the edge a derived version keeps: source (`run` or `binding`), revision, compilation, binding and its digest, run and point, provenance | insert-only; deleted with its version |
 | `run_presets` | an organization's named run settings: engine, registration, mode, options, optimisation | mutable (ETag); deleted by `deleteRunPreset` or with its organization |
 
+**As built after F4-A.** Three tables arrived with composition environments
+([ADR 0054](adr/0054-composition-environments-and-the-feed.md)):
+
+| Table | What it holds | Mutability and deletion |
+|---|---|---|
+| `composition_environments` | an environment of a composition: slug (its feed's address), name, description, operator, `adopt_role`, `expected_users`, the version in effect and the adoption ordinal; composite keys keep it within its composition's organization and its version within its composition | mutable (ETag `updated_at`), but organization, composition, slug and creation are `protect`ed; the version in effect changes only on adopt; deleted by `deleteCompositionEnvironment` or with its organization |
+| `composition_adoptions` | each adoption, numbered per environment: the version, the previous one, the pinned evaluation (composite key into its version) and the version's content digest (the feed's ETag after it), the actor and a note | insert-only (`immutable`, no UPDATE); deleted only with its environment or organization |
+| `composition_environment_keys` | an environment's feed keys (`obe_…`): prefix, SHA-256 of the key, label, creator, last use, revocation | secret, prefix, owner and creation `protect`ed; a revoked key stays revoked; deleted with its environment |
+
+A composition with environments is not deleted (`409 composition_in_operation`).
+
 Versions, evaluations and derivations name problem compilations (and runs) through `RESTRICT` foreign keys, so a
 problem a composition links answers `409 problem_has_compositions` on delete, and the admin purge keeps the terminal
 runs a version or derivation names. Deleting an organization locks its compositions before its problems and deletes
@@ -511,6 +522,32 @@ composition is created when the preview is asked for, so an abandoned derivation
 whose visual form rebinds a task and whose live check (`…/versions/check`) states the values before the next seal →
 Versions, comparing the two entry by entry and line by line. A public composition is read at its showcase and
 forked from there into another organization ([ADR 0047](adr/0047-public-compositions.md)).
+
+#### Composition environments (F4-A)
+
+A composition **environment** is where an application reads the version of a composition in effect. A person adopts a
+sealed version in it (`POST …/environments/{environment}/adopt`, with the environment's ETag in `If-Match`); the
+adoption pins the evaluation the version was judged on, and the environment's **feed**
+(`GET …/environments/{environment}/composition`) serves that version's sealed bytes with its content digest as a
+strong ETag, so it moves only on adopt. An application reads it with an environment-owned feed key (`obe_…`),
+which opens nothing else ([ADR 0054](adr/0054-composition-environments-and-the-feed.md)). The feed's answers, in
+order:
+
+| # | Condition | Answer |
+|---|---|---|
+| 1 | no credential | 401 `unauthorized` |
+| 2 | a malformed, unknown or revoked credential, or an inactive member | 401 `unauthorized` |
+| 2b | a member's personal key without `compositions:read`, or whose boundary excludes the feed | 403 |
+| 3 | the credential's feed budget spent (`FEED_RATE_PER_MINUTE`) | 429 `feed_rate_limited`, `Retry-After` |
+| 4 | a feed key whose environment is not the path's | 404 `not_found` |
+| 5–6 | a member credential: the composition's 404 parity, or a missing environment | 404 `not_found` |
+| 7 | nothing adopted yet | 404 `nothing_adopted` |
+| 8 | `If-None-Match` names the current ETag, or `*` | 304 |
+| 9 | otherwise | 200, the adopted version's bytes, `application/yaml` |
+
+Margins per offering plan (`GET …/versions/{version}/margins`, and `users` on `evaluate`) are computed once, on the
+gateway, from a stored evaluation and the offering snapshot it read ([ADR 0055](adr/0055-margins-per-offering-plan.md)).
+`check` reports the version in effect against what its sources publish now and writes nothing.
 
 ### 7.4 Study
 
@@ -636,7 +673,7 @@ flowchart LR
 | SPACE | contracts, feature evaluation, the solver-hours and generated-instances usage levels, contract migration when the pricing changes, events |
 | OpenBinding | enforcement points and its own counts for the other limits, contract creation (registration, CAS link), plan changes for FREE and RESEARCH and by administrators, pricing display, token issuance to the browser |
 
-| Environment | SPHERE | SPACE |
+| Stage | SPHERE | SPACE |
 |---|---|---|
 | Unit tests and CI | a recorded copy of the pricing in `tests/fixtures`; no network | a fake `PlanPort` or `OpenGate` |
 | Lab, develop preview | `sphere.score.us.es`, read only | `space.score.us.es` |
@@ -686,7 +723,7 @@ flowchart LR
   a network socket (`OPENBINDING_FORBID_NETWORK=1` in the CI unit shards).
 - **Organization connections (F3).** An organization ADMIN connects the organization to SPHERE with an API key
   (`org_connections`, `PUT /v1/organizations/{org}/connections/sphere`). The key is checked with SPHERE's
-  `/users/me`, encrypted with the deployment's Fernet keys (`security/secrets.CredentialStore`, the store that
+  `/users/me`, encrypted with the gateway's Fernet keys (`security/secrets.CredentialStore`, the store that
   already holds engine credentials: one key store and one rotation, rather than a second AES-256-GCM cipher),
   decrypted only for one call and never returned or logged; of `/users/me` only the user id, username, the key's
   scopes and expiry are kept. SPHERE decides what a key reads: a MANAGEMENT or ALL key of an organization ADMIN or
@@ -791,18 +828,20 @@ database"). `tests/test_schema_baseline.py` keeps the baseline, the models and t
 | Unit and property | pytest, Hypothesis, Vitest | per package |
 | Contract | OpenAPI snapshot, JSON Schemas, BIM and engine consumer contracts; SPHERE against a recorded pricing in CI and `sphere.score.us.es` in the lab | CI and lab |
 | Static | ruff, mypy (ratcheted), ESLint, import-linter, boundaries | CI |
-| Preview | lab deployment, Playwright flows, screenshots (desktop and mobile) | NiPoGi lab |
+| Preview | lab stack, Playwright flows, screenshots (desktop and mobile) | NiPoGi lab |
 
-## 12. Environments and previews
+## 12. Stages and previews
 
-| Environment | Where | Compose files | Data | Purpose |
+OpenBinding's own stages (in these documents "environment" means only a composition environment, §7.3).
+
+| Stage | Where | Compose files | Data | Purpose |
 |---|---|---|---|---|
 | Development | developer machine | `docker-compose.yml` (profile `dev`) | synthetic | build and unit tests |
 | Lab | NiPoGi rootless lab Docker | `compose.lab*.json` profiles | synthetic seed | integration, e2e |
 | Develop preview | NiPoGi lab, follows `develop`; `https://openbinding.home.javiercavlop.com` | the lab files | synthetic seed | the owner reviews `develop` from the Mac or the iPhone |
 | Production | Universidad de Sevilla servers (`openbinding.score.us.es`) | `deploy/compose/production` overlay | real | only on the owner's order |
 
-Docker Compose is the only deployment tool: one base definition and an overlay per environment, images
+Docker Compose is the only way OpenBinding runs: one base definition and an overlay per stage, images
 pinned by digest, secrets mounted as files, health checks on every service, PostgreSQL backups by a scheduled
 `pg_dump` service and volume snapshots. There are no Kubernetes manifests.
 

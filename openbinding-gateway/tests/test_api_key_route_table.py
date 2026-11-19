@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 177
+    assert len(ROUTES) == 189
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -258,7 +258,8 @@ def test_the_compositions_of_an_organization_have_their_own_permissions():
 
 def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
     compositions = "/v1/organizations/{org}/compositions"
-    routes = sorted(route for route in ROUTES if route[1].startswith(compositions))
+    # The environment routes have their own permissions (test_environment_*).
+    routes = sorted(route for route in ROUTES if route[1].startswith(compositions) and "/environments" not in route[1])
 
     assert routes == [
         ("DELETE", f"{compositions}/{{composition}}"),
@@ -272,6 +273,7 @@ def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
         ("GET", f"{compositions}/{{composition}}/versions"),
         ("GET", f"{compositions}/{{composition}}/versions/{{version}}"),
         ("GET", f"{compositions}/{{composition}}/versions/{{version}}/content"),
+        ("GET", f"{compositions}/{{composition}}/versions/{{version}}/margins"),
         ("PATCH", f"{compositions}/{{composition}}"),
         ("POST", compositions),
         ("POST", f"{compositions}/{{composition}}/derive"),
@@ -317,3 +319,64 @@ def test_the_run_presets_of_an_organization_are_jobs_reads_and_engine_executions
     assert not allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["run"]}}), **request)
     assert allows_request(SimpleNamespace(grants={"boundary": {"slugs": ["quick"]}}), **request)
     assert not allows_request(SimpleNamespace(grants={"boundary": {"slugs": ["other"]}}), **request)
+
+
+ENVIRONMENT_ROUTES = [route for route in ROUTES if "/environments" in route[1]]
+
+
+def test_environment_routes_are_composition_routes():
+    """No new resource kind: a key bounded to a composition reaches its environments, and no other's."""
+    assert ENVIRONMENT_ROUTES
+    params = {"org": "acme", "composition": "tomato", "environment": "production", "key": "k"}
+    compositions_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["compositions"]}})
+    problems_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["problems"]}})
+    this_one = SimpleNamespace(grants={"boundary": {"slugs": ["tomato"]}})
+    another = SimpleNamespace(grants={"boundary": {"slugs": ["other"]}})
+    for method, path in ENVIRONMENT_ROUTES:
+        request = {"method": method, "path_params": params, "path": path}
+        assert allows_request(compositions_only, **request), path
+        assert not allows_request(problems_only, **request), path
+        assert allows_request(this_one, **request), path
+        assert not allows_request(another, **request), path
+
+
+def test_environment_crud_permissions():
+    base = "/v1/organizations/{org}/compositions/{composition}/environments"
+    assert required_permissions(base, "GET") == frozenset({"compositions:read"})
+    assert required_permissions(base, "POST") == frozenset({"compositions:write"})
+    for method in ("PATCH", "DELETE"):
+        assert required_permissions(f"{base}/{{environment}}", method) == frozenset({"compositions:write"})
+    assert required_permissions(f"{base}/{{environment}}", "GET") == frozenset({"compositions:read"})
+
+
+def test_adopting_needs_its_own_permission():
+    """Adopting changes what an application runs: ``compositions:write`` does not imply it."""
+    adopt = "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/adopt"
+    assert ("POST", adopt) in ROUTES
+    assert required_permissions(adopt, "POST") == frozenset({"compositions:adopt"})
+    assert required_permissions("/v1/organizations/acme/compositions/tomato/environments/production/adopt", "POST") == (
+        frozenset({"compositions:adopt"})
+    )
+    assert "compositions:adopt" not in apikeys.ADMIN_PERMISSIONS
+    history = "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/adoptions"
+    assert required_permissions(history, "GET") == frozenset({"compositions:read"})
+
+
+def test_feed_keys_are_administered_with_keys_write():
+    keys = "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/keys"
+    expected = frozenset({"compositions:write", "keys:write"})
+    assert required_permissions(keys, "POST") == expected
+    assert required_permissions(f"{keys}/{{key}}", "DELETE") == expected
+    assert required_permissions("/v1/organizations/a/compositions/b/environments/c/keys/d", "DELETE") == expected
+
+
+def test_the_feed_is_a_composition_read():
+    feed = "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/composition"
+    assert ("GET", feed) in ROUTES
+    assert required_permissions(feed, "GET") == frozenset({"compositions:read"})
+
+
+def test_checking_an_environment_is_a_composition_read():
+    check = "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/check"
+    assert ("POST", check) in ROUTES
+    assert required_permissions(check, "POST") == frozenset({"compositions:read"})

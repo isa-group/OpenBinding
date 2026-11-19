@@ -79,8 +79,12 @@ async def test_a_kind_turned_off_is_not_stored(api_client, registration, db_sess
     user_id, headers = await signed_in(api_client, registration)
 
     read = await api_client.get("/v1/notifications/preferences", headers=headers)
-    assert set(read.json()["kinds"]) == {"OrganizationInvitation", "System", "CompositionUpdated", "RunFinished", "RunFailed"}
+    assert set(read.json()["kinds"]) == {
+        "OrganizationInvitation", "System", "CompositionUpdated", "RunFinished", "RunFailed", "CompositionAdopted",
+    }
     assert read.json()["kinds"]["System"] == {"inbox": True, "email": True}
+    # An adoption reaches the inbox by default, never the email until chosen.
+    assert read.json()["kinds"]["CompositionAdopted"] == {"inbox": True, "email": False}
     turned = await api_client.put(
         "/v1/notifications/preferences", headers=headers, json={"kinds": {"System": {"inbox": False, "email": True}}},
     )

@@ -16,6 +16,7 @@ const PREFERENCES = {
     CompositionUpdated: { inbox: true, email: true },
     RunFinished: { inbox: true, email: false },
     RunFailed: { inbox: true, email: true },
+    CompositionAdopted: { inbox: true, email: false },
   },
 };
 

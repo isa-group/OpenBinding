@@ -33,7 +33,10 @@ from ..db.models import (
     BindingCase,
     BindingCaseRevision,
     Composition,
+    CompositionAdoption,
     CompositionDerivation,
+    CompositionEnvironment,
+    CompositionEnvironmentKey,
     CompositionEvaluation,
     CompositionFollow,
     CompositionVersion,
@@ -679,6 +682,15 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
         # Run presets: no run or history refers to one, a run copies the settings it expands.
         await session.execute(delete(RunPreset).where(RunPreset.organization_id == oid))
         held = select(Composition.id).where(Composition.organization_id == oid)
+        # Composition environments first: their keys and adoptions, which reference versions and evaluations.
+        environments = select(CompositionEnvironment.id).where(CompositionEnvironment.organization_id == oid)
+        await session.execute(
+            delete(CompositionEnvironmentKey).where(CompositionEnvironmentKey.environment_id.in_(environments))
+        )
+        await session.execute(
+            delete(CompositionAdoption).where(CompositionAdoption.environment_id.in_(environments))
+        )
+        await session.execute(delete(CompositionEnvironment).where(CompositionEnvironment.organization_id == oid))
         await session.execute(delete(CompositionFollow).where(CompositionFollow.composition_id.in_(held)))
         versions = select(CompositionVersion.id).where(CompositionVersion.composition_id.in_(held))
         await session.execute(delete(CompositionDerivation).where(CompositionDerivation.version_id.in_(versions)))

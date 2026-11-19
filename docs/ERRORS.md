@@ -388,6 +388,10 @@ credential that names nobody is `401 unauthorized` there too. A member whose rol
 | `composition_empty` | 409 | `evaluateComposition`, `getCompositionNeighborhood` without `version`: the composition has no version yet |
 | `composition_not_linked` | 422 | `evaluateComposition`, `getCompositionNeighborhood`: the version links no problem, so its values are declared and the toolchain has nothing to evaluate. `reevaluateCompositionVersion` of such a version answers its declared evaluation |
 | `evaluation_invalid` | 422 | `evaluateComposition`: the toolchain could not evaluate the binding (an unknown candidate, its refusal, a problem it reads differently); `diagnostics` lists the `c2y_*` findings, and one about a task the request rebinds points at `/binding/<task>`. A binding it evaluated answers 200, `valid` false on a hard violation. `reevaluateCompositionVersion`: the installed toolchain could not evaluate the version (its package no longer compiles, the evaluation failed); nothing is stored |
+| `revision_not_found` | 404 | `evaluateComposition` with a `revision` the linked problem does not have (a demand variant is another revision of it) |
+| `evaluation_not_found` | 404 | `getCompositionVersionMargins` with an `evaluation` that is not one of the version's |
+| `unknown_billing` | 422 | `getCompositionVersionMargins`: the offering has no billing period by that id |
+| `unknown_cost` | 422 | `getCompositionVersionMargins`: the version has no global value by that name, or it is not an amount per period (`CUR/month`, `/year`, `/week`) |
 | `analysis_invalid` | 422 | `getCompositionNeighborhood`: the toolchain cannot analyse the version's binding or the task named |
 | `c2y_compilation_semantics_changed` | 422 | `getCompositionNeighborhood`: the installed toolchain reads the linked revision differently from the compilation the version names; derive the composition again |
 | `derivation_invalid` | 422 | `deriveComposition`: the binding cannot be derived; `diagnostics` lists the `c2y_*` findings. Those about the request point into it: `/point` (`c2y_run_point_invalid`: a run that did not complete, a point out of range, a solution that is not a binding), `/binding/<task>` (an unknown task or candidate, a task left unbound, the toolchain's refusal) and `/offering/...` (an offering that is not one). The others point into the derived document: `c2y_constraint_violated` (a binding with a hard violation is not derivable), `c2y_compilation_semantics_changed` (the run solved a compilation the installed toolchain reads differently: run the problem again) |
@@ -395,6 +399,37 @@ credential that names nobody is `401 unauthorized` there too. A member whose rol
 | `unsupported_media_type` | 415 | a document not sent as `application/yaml`, `text/yaml` or `application/x-yaml` |
 | `rate_limit_exceeded` | 429 | past the `evaluate` budget of the caller ([ACCESS_POLICY.md](ACCESS_POLICY.md)) |
 | `bim_unavailable` | 503 | the toolchain does not answer |
+
+## Composition environments and the feed
+
+The environments of a composition (`…/compositions/{composition}/environments`), their adoptions, feed keys and feed
+([ADR 0054](adr/0054-composition-environments-and-the-feed.md)). Every route needs a credential (401 before any
+lookup); a caller without a role gets the composition's 404 parity: `Composition not found.` for a private or
+missing composition, `Environment not found.` for every environment route of a public one (the body a member gets
+for a missing environment).
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `unauthorized` | 401 | no credential, or one that names nobody (an expired token, a revoked key or feed key, an inactive member) |
+| `environment_key_elsewhere` | 401 | an environment feed key (`obe_…`) sent to any route but its environment's feed: it opens nothing else. The stateless language and BIM routes answer it as they answer no credential |
+| `not_found` | 404 | no such composition, environment, version or feed key, or the caller cannot read them (the parity above); a feed key sent to another environment's feed |
+| `nothing_adopted` | 404 | `getEnvironmentFeed`: nothing is adopted in the environment yet |
+| `organization_forbidden` | 403 | a member whose role is too weak: VIEWER reads, ADMIN creates, edits, deletes and manages feed keys, MEMBER checks, and adopting needs the environment's `adoptRole` |
+| `insufficient_api_key_permission` | 403 | a personal key without the route's permission: `compositions:adopt` to adopt (write does not imply it), `compositions:write` and `keys:write` for feed keys, `compositions:read` for the feed |
+| `api_key_boundary` | 403 | a personal key whose boundary excludes the composition, organization, method or kind (the feed too, even with a matching `If-None-Match`) |
+| `precondition_required` | 428 | `adoptCompositionVersion` without `If-Match`, or with `*`: adopting needs the environment's `ETag`. Nothing was applied |
+| `precondition_failed` | 412 | a stale `If-Match` on an environment edit, delete or adopt; the current `ETag` is in the header |
+| `already_in_effect` | 409 | `adoptCompositionVersion`: that version is already in effect in the environment |
+| `composition_archived` | 409 | `adoptCompositionVersion` in an archived composition: restore it first (its feeds keep serving) |
+| `evaluation_stale` | 409 | `adoptCompositionVersion` of a linked version with no evaluation by the installed toolchain: re-evaluate it first |
+| `binding_invalid` | 409 | `adoptCompositionVersion` of a version whose binding the installed toolchain finds invalid; `diagnostics` says why |
+| `evaluation_semantics_changed` | 409 | `adoptCompositionVersion`: the installed toolchain reads the version's problem differently; derive it again and adopt the new version |
+| `composition_in_operation` | 409 | `deleteComposition` of a composition that has environments; `environments` names them. Delete them first |
+| `environment_limit` | 409 | `createCompositionEnvironment` past `COMPOSITION_ENVIRONMENTS_MAX` environments (5 by default; `limit` says it) |
+| `slug_conflict` | 409 | `createCompositionEnvironment` with a slug in use in the composition |
+| `feed_key_limit` | 409 | `createEnvironmentFeedKey` with two live keys already: revoke one first |
+| `operator_not_member` | 422 | the operator named is not a member of the organization |
+| `feed_rate_limited` | 429 | `getEnvironmentFeed` read more than `FEED_RATE_PER_MINUTE` times (60) in a minute with one credential; `Retry-After` says when |
 
 ## Organizations
 
@@ -425,6 +460,7 @@ These operations take an optional `If-Match` header:
 - `PATCH …/studies/{study}`
 - `PATCH …/compositions/{composition}`
 - `PATCH …/presets/{preset}`
+- `PATCH` and `DELETE …/environments/{environment}`
 - `PATCH /v1/users/me`
 - `PUT /v1/notifications/preferences`
 - `PUT /v1/engine-registrations/{name}/credential`
@@ -446,6 +482,7 @@ revision, `409 contract_changed` otherwise. Nothing was written either way
 | `code` | Status | Meaning |
 |---|---|---|
 | `precondition_failed` | 412 | `If-Match` did not match the resource's current `ETag`: somebody changed it since you read it, or (for `*` or a tag) it has no current state yet, such as an engine credential never set. The response carries the **current** `ETag` header (none when the resource has no current state). **Nothing in the request was applied**: no field, no audit event, no side effect (no registration reset). Re-read the resource, merge, and retry with the new tag |
+| `precondition_required` | 428 | `POST …/environments/{environment}/adopt` only: there `If-Match` is required and must name an entity-tag (absent or `*` is refused); nothing was applied |
 | `invalid_if_match` | 400 | `If-Match` is present but is neither `*` nor a comma-separated list of quoted entity tags (`"abc"`, `W/"abc"`), or it is longer than 2048 characters. Examples: an unquoted value, `*` mixed with tags, a missing comma, an empty value. Nothing was applied. Of repeated `If-Match` header fields only the first is read |
 
 Weak tags (`W/"…"`) are well-formed but never match, because `If-Match` uses strong comparison (RFC 9110 §13.1.1).

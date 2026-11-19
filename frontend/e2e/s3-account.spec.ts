@@ -259,6 +259,7 @@ async function mockApi(
         CompositionUpdated: { inbox: true, email: true },
         RunFinished: { inbox: true, email: false },
         RunFailed: { inbox: true, email: true },
+        CompositionAdopted: { inbox: true, email: false },
       },
     },
     beta: false,
@@ -637,7 +638,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expectSettingsNav(page, isMobile, 'Notifications');
       const runsByEmail = main.getByRole('switch', { name: 'Runs finished: Email' });
       await expect(runsByEmail).toHaveAttribute('aria-checked', 'false');
-      await expect(main.getByRole('switch')).toHaveCount(10);
+      await expect(main.getByRole('switch')).toHaveCount(12);
+      await expect(main.getByRole('switch', { name: 'Adoptions: Email' })).toHaveAttribute(
+        'aria-checked',
+        'false'
+      );
       await expect(main.getByRole('link', { name: 'inbox' })).toHaveAttribute(
         'href',
         '/notifications'

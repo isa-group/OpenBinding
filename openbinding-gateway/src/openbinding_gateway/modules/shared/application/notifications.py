@@ -24,9 +24,18 @@ SYSTEM = "System"
 COMPOSITION_UPDATED = "CompositionUpdated"
 RUN_FINISHED = "RunFinished"
 RUN_FAILED = "RunFailed"
-KINDS = (ORGANIZATION_INVITATION, SYSTEM, COMPOSITION_UPDATED, RUN_FINISHED, RUN_FAILED)
+#: A version was adopted in a composition environment (F4): told to its operator and the composition's followers.
+COMPOSITION_ADOPTED = "CompositionAdopted"
+KINDS = (ORGANIZATION_INVITATION, SYSTEM, COMPOSITION_UPDATED, RUN_FINISHED, RUN_FAILED, COMPOSITION_ADOPTED)
 #: The channels a user chooses per kind.
 CHANNELS = ("inbox", "email")
+#: The channels a kind starts with when the user chose nothing for it: both on, unless listed here.
+DEFAULT_CHANNELS: dict[str, dict[str, bool]] = {COMPOSITION_ADOPTED: {"inbox": True, "email": False}}
+
+
+def default_channels(kind: str) -> dict[str, bool]:
+    """What ``kind`` reaches before the user chooses: inbox and email on, except where ``DEFAULT_CHANNELS`` says."""
+    return {"inbox": True, "email": True, **DEFAULT_CHANNELS.get(kind, {})}
 
 #: How long the inbox keeps a notification.
 RETENTION_DAYS = 7
@@ -37,9 +46,10 @@ def channels(preferences: dict[str, Any] | None, kind: str) -> dict[str, bool]:
     and the inbox off altogether when the account's ``inbox`` preference is off."""
     preferences = preferences or {}
     chosen = (preferences.get("kinds") or {}).get(kind) or {}
+    default = default_channels(kind)
     return {
-        "inbox": preferences.get("inbox", True) is not False and chosen.get("inbox", True) is not False,
-        "email": chosen.get("email", True) is not False,
+        "inbox": preferences.get("inbox", True) is not False and chosen.get("inbox", default["inbox"]) is not False,
+        "email": chosen.get("email", default["email"]) is not False,
     }
 
 

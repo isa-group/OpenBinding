@@ -48,6 +48,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { id: 'compositions:read', description: 'Read compositions and check documents' },
       { id: 'compositions:write', description: 'Create, seal and derive compositions' },
+      { id: 'compositions:adopt', description: 'Adopt composition versions in environments' },
     ],
   },
   {
@@ -90,6 +91,7 @@ const CATALOGUED: Record<ApiKeyPermission, true> = {
   'problems:write': true,
   'compositions:read': true,
   'compositions:write': true,
+  'compositions:adopt': true,
   'jobs:read': true,
   'engines:read': true,
   'engines:execute': true,
