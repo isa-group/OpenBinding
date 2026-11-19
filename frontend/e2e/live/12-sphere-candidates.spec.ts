@@ -166,7 +166,7 @@ test.describe('live · F3 SPHERE candidates', () => {
     ).document.binding;
     const pinned = Object.values(binding).flatMap(entry => (entry.from ? [entry.from] : []));
     expect(pinned.length).toBeGreaterThan(0);
-    await page.goto(`/compositions/${ORG}/tomatometer`);
+    await page.goto(`/compositions/${ORG}/tomatometer?version=1.0.0`);
     const plans = page.locator('main').getByRole('region', { name: 'Upstream plans', exact: true });
     for (const from of pinned) {
       const card = plans.getByRole('article', { name: `Plan ${from.plan}` });
