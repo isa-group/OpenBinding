@@ -48,6 +48,7 @@ from ....core import revision as etags
 from ....db.models import (
     Composition,
     CompositionDerivation,
+    CompositionEnvironment,
     CompositionEvaluation,
     CompositionKind,
     CompositionVersion,
@@ -74,6 +75,7 @@ from .list_query import BY_NAME, ListQuery, facets_view
 from .language_routes import MAX_DOCUMENT_BYTES, YAML_BODY, YAML_MEDIA_TYPES, document_body
 from .schemas import (
     CompositionMargins,
+    DerivedVersion,
     UpstreamView,
     EvaluationOffering,
     CheckResult,
@@ -201,6 +203,11 @@ async def list_compositions(
         description="Only compositions with a version linking a revision of this problem (slug or id); none for an "
         "unknown one.",
     ),
+    run: str | None = Query(
+        default=None, max_length=64,
+        description="Only compositions with a version derived from this run (its id), each with `derivedVersions`. "
+        "Members only: anybody else, and an unknown run, get an empty list.",
+    ),
     query: ListQuery = Depends(BY_NAME),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
@@ -227,11 +234,19 @@ async def list_compositions(
         problem_id = await compositions.problem_id_of(session, organization.id, problem)
         if problem_id is None:
             return CompositionList(compositions=[], total=0, limit=limit, offset=offset)
+    derived: dict[uuid.UUID, list[DerivedVersion]] | None = None
+    if run is not None:
+        # Members only: the public version view names the run, so an environment slug must not leak through it.
+        derived = {} if reader.public else await _derived_from(session, organization, run)
+        if not derived:
+            return CompositionList(compositions=[], total=0, limit=limit, offset=offset)
     kinds = (query.kinds or set()) | ({CompositionKind(kind)} if kind else set())
     rows = await compositions.matching(
         session, organization_ids=[organization.id], public_only=reader.public, kinds=kinds or None, q=q,
         archived=archived, problem_id=problem_id,
     )
+    if derived is not None:
+        rows = [(composition, owner) for composition, owner in rows if composition.id in derived]
     listed = listing.arrange(
         await listing.gather(session, rows), owners=query.owners, bounds=query.bounds, sort=query.sort,
         order=query.order, limit=limit, offset=offset,
@@ -240,9 +255,44 @@ async def list_compositions(
     views = [entry_view(entry) for entry in listed.entries]
     if reader.public:
         views = [view.model_copy(update={"created_by_id": None}) for view in views]
+    if derived is not None:
+        views = [view.model_copy(update={"derivedVersions": derived[view.id]}) for view in views]
     return CompositionList(
         compositions=views, total=listed.total, limit=limit, offset=offset, facets=facets_view(listed.facets),
     )
+
+
+async def _derived_from(
+    session: AsyncSession, organization: Organization, run: str,
+) -> dict[uuid.UUID, list[DerivedVersion]]:
+    """The organization's versions derived from ``run``, by composition, with the environments each is in effect in;
+    empty for an id that is not one or a run of another organization."""
+    try:
+        run_id = uuid.UUID(run)
+    except ValueError:
+        return {}
+    rows = (await session.execute(
+        select(CompositionVersion)
+        .join(CompositionDerivation, CompositionDerivation.version_id == CompositionVersion.id)
+        .join(Composition, Composition.id == CompositionVersion.composition_id)
+        .where(CompositionDerivation.job_id == run_id, Composition.organization_id == organization.id)
+        .order_by(CompositionVersion.composition_id, CompositionVersion.ordinal)
+    )).scalars().all()
+    if not rows:
+        return {}
+    effect: dict[uuid.UUID, list[str]] = {}
+    for version_id, slug in (await session.execute(
+        select(CompositionEnvironment.adopted_version_id, CompositionEnvironment.slug)
+        .where(CompositionEnvironment.adopted_version_id.in_([row.id for row in rows]))
+        .order_by(CompositionEnvironment.slug)
+    )).all():
+        effect.setdefault(version_id, []).append(slug)
+    found: dict[uuid.UUID, list[DerivedVersion]] = {}
+    for row in rows:
+        found.setdefault(row.composition_id, []).append(DerivedVersion(
+            id=row.id, label=row.label, sealedAt=row.created_at, inEffect=effect.get(row.id, []),
+        ))
+    return found
 
 
 @router.post(

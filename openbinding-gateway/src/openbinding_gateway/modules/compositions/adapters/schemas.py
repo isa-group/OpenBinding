@@ -209,6 +209,20 @@ class CompositionView(BaseModel):
     created_by_id: Optional[uuid.UUID] = Field(description=_MEMBERS_ONLY)
     created_at: datetime
     updated_at: datetime
+    derivedVersions: Optional[list["DerivedVersion"]] = Field(
+        default=None,
+        description="With `run`: its versions derived from that run, and the environments each is in effect in; "
+        "null otherwise.",
+    )
+
+
+class DerivedVersion(BaseModel):
+    """A version derived from a run's solution, and where it is in effect."""
+
+    id: uuid.UUID
+    label: str
+    sealedAt: datetime
+    inEffect: list[str] = Field(description="The slugs of the environments that have it in effect.")
 
 
 class OwnerFacet(BaseModel):

@@ -5022,6 +5022,11 @@ export interface components {
              * @description Null for a reader who is not a member of the organization (a public composition's reader).
              */
             created_by_id: string | null;
+            /**
+             * Derivedversions
+             * @description With `run`: its versions derived from that run, and the environments each is in effect in; null otherwise.
+             */
+            derivedVersions?: components["schemas"]["DerivedVersion"][] | null;
             /** Description */
             description: string;
             /**
@@ -5333,6 +5338,29 @@ export interface components {
             diagnostics: components["schemas"]["CompositionDiagnosticView"][];
             evaluation: components["schemas"]["EvaluationView"];
             version: components["schemas"]["CompositionVersionView"];
+        };
+        /**
+         * DerivedVersion
+         * @description A version derived from a run's solution, and where it is in effect.
+         */
+        DerivedVersion: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Ineffect
+             * @description The slugs of the environments that have it in effect.
+             */
+            inEffect: string[];
+            /** Label */
+            label: string;
+            /**
+             * Sealedat
+             * Format: date-time
+             */
+            sealedAt: string;
         };
         /** @description One thing wrong with the request, with where and (when known) how to fix it. */
         Diagnostic: {
@@ -14707,6 +14735,8 @@ export interface operations {
                 archived?: boolean | null;
                 /** @description Only compositions with a version linking a revision of this problem (slug or id); none for an unknown one. */
                 problem?: string | null;
+                /** @description Only compositions with a version derived from this run (its id), each with `derivedVersions`. Members only: anybody else, and an unknown run, get an empty list. */
+                run?: string | null;
                 limit?: number;
                 offset?: number;
                 /** @description Only these organizations (comma-separated slugs). */

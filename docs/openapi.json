@@ -4957,6 +4957,21 @@
             "description": "Null for a reader who is not a member of the organization (a public composition's reader).",
             "title": "Created By Id"
           },
+          "derivedVersions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DerivedVersion"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With `run`: its versions derived from that run, and the environments each is in effect in; null otherwise.",
+            "title": "Derivedversions"
+          },
           "description": {
             "title": "Description",
             "type": "string"
@@ -5577,6 +5592,41 @@
           "diagnostics"
         ],
         "title": "DeriveResult",
+        "type": "object"
+      },
+      "DerivedVersion": {
+        "description": "A version derived from a run's solution, and where it is in effect.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "inEffect": {
+            "description": "The slugs of the environments that have it in effect.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Ineffect",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "sealedAt": {
+            "format": "date-time",
+            "title": "Sealedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "sealedAt",
+          "inEffect"
+        ],
+        "title": "DerivedVersion",
         "type": "object"
       },
       "Diagnostic": {
@@ -24579,6 +24629,25 @@
               ],
               "description": "Only compositions with a version linking a revision of this problem (slug or id); none for an unknown one.",
               "title": "Problem"
+            }
+          },
+          {
+            "description": "Only compositions with a version derived from this run (its id), each with `derivedVersions`. Members only: anybody else, and an unknown run, get an empty list.",
+            "in": "query",
+            "name": "run",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only compositions with a version derived from this run (its id), each with `derivedVersions`. Members only: anybody else, and an unknown run, get an empty list.",
+              "title": "Run"
             }
           },
           {
