@@ -54,7 +54,13 @@ import {
 import { presetPage } from '../../src/test/fixtures/presets';
 import { compositionStore, type CompositionSeed, type CompositionStore } from './mockCompositions';
 import type { OperationStore } from './operationMock';
-import { snapshotRoutes, sphereProblemRoutes, sphereRoutes, tomatometerListed } from './sphereMock';
+import {
+  fixture,
+  snapshotRoutes,
+  sphereProblemRoutes,
+  sphereRoutes,
+  tomatometerListed,
+} from './sphereMock';
 import { authConfigBody } from './session';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
@@ -1250,6 +1256,13 @@ function route(request: Request): Reply | null {
         });
       return null;
     case 'compositions':
+      // The composition templates (F4): the gateway's catalog fixtures; anybody reads them.
+      if (second === 'templates')
+        return parts[3]
+          ? parts[3] === 'tomatometer'
+            ? ok(fixture('core', 'template.tomatometer.json'))
+            : notFound('Composition template not found.')
+          : ok(fixture('core', 'templates.json'));
       return second
         ? request.compositions.language(request)
         : request.compositions.publicList(request);

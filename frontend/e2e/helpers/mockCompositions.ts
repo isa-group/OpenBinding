@@ -1748,6 +1748,56 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     });
   };
 
+  /**
+   * `POST …/compositions/from-template` (F4 J5): TomatoMeter's template makes a composition like the seeded TomatoMeter, under
+   * the address asked, with its first version; FMS's, a copy of an FMS composition. A taken address is 409 `slug_taken`.
+   */
+  const fromTemplate = (request: CompositionRequest, pool: Entry[]): CompositionReply => {
+    const sent = request.body() as {
+      template?: string;
+      slug?: string;
+      name?: string;
+      problemSlug?: string;
+    };
+    const slug = String(sent.slug ?? '');
+    if (pool.some(entry => entry.view.slug === slug))
+      return {
+        status: 409,
+        json: { detail: { code: 'slug_taken', error: 'That address is taken.', field: 'slug' } },
+      };
+    const source =
+      sent.template === 'tomatometer'
+        ? tomatometerEntry()
+        : (seed().find(entry => entry.versions.length) ?? null);
+    if (!source) return missing();
+    const first = {
+      ...structuredClone(source.versions[0]),
+      id: uuid(0xe400 + pool.length),
+      label: '1.0.0',
+      ordinal: 1,
+    };
+    const view = composition(
+      0x40 + pool.length,
+      slug,
+      String(sent.name || source.view.name),
+      { visibility: 'private' },
+      [first]
+    );
+    pool.push({ view, versions: [first] });
+    texts.set(first.id, `${JSON.stringify(first.document, null, 2)}\n`);
+    return ok(
+      {
+        template: sent.template,
+        composition: view,
+        version: first,
+        evaluation: first.evaluations[0] ?? null,
+        problem: { slug: sent.problemSlug, name: 'TomatoMeter e-mail', revision: 3 },
+        operation: { expectedUsers: 1000 },
+      },
+      201
+    );
+  };
+
   /** The answer to a member of `org`. */
   const answer = (
     request: CompositionRequest,
@@ -1756,6 +1806,8 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
   ): CompositionReply => {
     const [, , , , slug, section, ref, tail] = request.parts;
     const pool = poolOf(org);
+    if (slug === 'from-template' && request.method === 'POST' && org === COMPOSITIONS_ORG)
+      return fromTemplate(request, pool);
     if (!slug)
       return request.method === 'POST' && org === COMPOSITIONS_ORG
         ? create(request)

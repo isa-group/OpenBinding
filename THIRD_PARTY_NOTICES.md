@@ -208,6 +208,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/composition/components/operation-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/CollectionsTab.tsx` (at `fc776b4d`) | adapted |
 | `frontend/src/modules/composition/components/pricing-link-modal/index.tsx` | `frontend/src/modules/pricing/components/pricing-link-modal/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/stats/index.tsx` | `frontend/src/modules/pricing/components/stats/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/template-card/index.tsx` | `frontend/src/modules/pricing/components/collection-card/index.tsx` (at `fc776b4d`) | adapted |
 | `frontend/src/modules/composition/components/version-diff/file-diff-view.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/file-diff-view.tsx` | adapted |
 | `frontend/src/modules/composition/components/version-diff/index.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/version-graph/change-summary-card.tsx` | `frontend/src/modules/pricing/components/pricing-version-graph/change-summary-card.tsx` | adapted |
