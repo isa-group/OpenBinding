@@ -26116,7 +26116,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },
@@ -26559,7 +26559,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },
@@ -29476,11 +29476,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },
-            "description": "An unknown `billing` period or `cost` value."
+            "description": "An unknown `billing` period (`unknown_billing`) or `cost` value (`unknown_cost`)."
           },
           "429": {
             "content": {

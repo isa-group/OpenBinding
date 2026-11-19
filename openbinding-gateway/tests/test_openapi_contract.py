@@ -24,6 +24,7 @@ from _paths import GATEWAY_ROOT
 from _repo import REPO_ROOT
 from openbinding_gateway.access.dependencies import (
     get_current_user,
+    get_feed_reader,
     get_reader,
     require_admin,
     require_platform_admin,
@@ -246,7 +247,8 @@ def test_documented_security_matches_the_runtime_dependency_graph(document):
             if isinstance(route, APIRoute):
                 for method in route.methods - {"HEAD", "OPTIONS"}:
                     routes[(route.path_format, method.lower())] = route
-    auth_guards = {get_current_user, get_reader, solve_caller, require_admin}
+    # The feed reader authenticates too: an environment's feed key, or a member's credential.
+    auth_guards = {get_current_user, get_reader, solve_caller, require_admin, get_feed_reader}
     for path, method, operation in operations(document):
         route = routes[(path, method)]
         dependencies = calls(route.dependant)

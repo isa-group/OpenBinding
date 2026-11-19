@@ -859,7 +859,7 @@ async def get_composition_version_content(
                 "is not the version's (`evaluation_not_found`)."
             ),
         },
-        422: {"model": ErrorResponse, "description": "An unknown `billing` period or `cost` value."},
+        422: {"description": "An unknown `billing` period (`unknown_billing`) or `cost` value (`unknown_cost`)."},
     },
 )
 async def get_composition_version_margins(

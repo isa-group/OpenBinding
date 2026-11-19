@@ -15560,7 +15560,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Account authentication is not configured on this deployment. */
@@ -15819,7 +15819,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Account authentication is not configured on this deployment. */
@@ -17466,13 +17466,13 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description An unknown `billing` period or `cost` value. */
+            /** @description An unknown `billing` period (`unknown_billing`) or `cost` value (`unknown_cost`). */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`. */

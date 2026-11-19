@@ -196,7 +196,7 @@ async def list_composition_environments(
             "description": "The slug is in use in this composition (`slug_conflict`), or the composition has as "
                            "many environments as it may (`environment_limit`).",
         },
-        422: {"model": ErrorResponse, "description": "The operator is not a member (`operator_not_member`)."},
+        422: {"description": "The operator is not a member (`operator_not_member`)."},
     },
 )
 async def create_composition_environment(
@@ -248,7 +248,7 @@ async def get_composition_environment(
         **etags.EDIT_RESPONSES,
         **UNREADABLE,
         **FORBIDDEN,
-        422: {"model": ErrorResponse, "description": "The operator is not a member (`operator_not_member`)."},
+        422: {"description": "The operator is not a member (`operator_not_member`)."},
     },
 )
 async def update_composition_environment(
