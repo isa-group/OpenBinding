@@ -17,6 +17,8 @@ const account = (n: number, username: string, role: 'user' | 'admin', plan: stri
   plan,
   created_at: '2026-03-02T00:00:00Z',
   cas_verified: false,
+  email_verified: false,
+  institutional_email: false,
   contract_pending: false,
   api_key_count: 1,
   ...extra,

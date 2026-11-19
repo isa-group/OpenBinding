@@ -161,8 +161,7 @@ class FakeLab:
         self.issued += 1
         access = f"access-token-{name}-{self.issued}"
         self.tokens[access] = name
-        return self.reply(200, {"access_token": access, "refresh_token": f"refresh-token-{name}-{self.issued}",
-                                "token_type": "bearer", "expires_in": 900})
+        return self.reply(200, {"access_token": access, "token_type": "bearer", "expires_in": 300})
 
     @staticmethod
     def digest(content: bytes) -> str:

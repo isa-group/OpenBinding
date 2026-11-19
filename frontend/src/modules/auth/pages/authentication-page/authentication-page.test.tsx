@@ -25,6 +25,9 @@ const sampleUser: UserProfile = {
   plan: 'FREE',
   is_active: true,
   created_at: '2026-01-01T00:00:00Z',
+  cas_verified: false,
+  email_verified: false,
+  institutional_email: false,
 };
 
 function problem(status: number, code?: string, message = 'refused') {

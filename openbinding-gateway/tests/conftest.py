@@ -498,6 +498,36 @@ async def api_client(db_session):
 
 
 @pytest.fixture
+def session_token(db_session):
+    """``await session_token(user_id, **claims)``: a gateway token bound to a fresh ``local`` session of the user.
+
+    Every gateway token names its session (``sid``), which the gateway checks on every request; a test that needs a
+    token with particular claims (an expired one, another audience) mints it here, as login would, over a real row.
+    """
+    from openbinding_gateway.core.settings import get_settings
+    from openbinding_gateway.db.models import User
+    from openbinding_gateway.modules.identity.application import sessions
+    from openbinding_gateway.security.tokens import issue_access_token
+
+    async def _make(user_id, *, ttl_seconds: int = 60, issuer=None, audience=None) -> str:
+        settings = get_settings()
+        user = await db_session.get(User, user_id)
+        row, _ = await sessions.create(db_session, user, "local", settings=settings)
+        await db_session.commit()
+        return issue_access_token(
+            settings.gateway_jwt_secret,
+            user_id=user_id,
+            ttl_seconds=ttl_seconds,
+            session_id=row.id,
+            provider="local",
+            issuer=issuer if issuer is not None else settings.gateway_jwt_issuer,
+            audience=audience if audience is not None else settings.gateway_jwt_audience,
+        )
+
+    return _make
+
+
+@pytest.fixture
 def registration():
     """Details for an account nobody else in the suite will collide with."""
 

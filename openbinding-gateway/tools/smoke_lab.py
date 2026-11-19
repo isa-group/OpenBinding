@@ -459,7 +459,6 @@ class Lab:
             self.login_failures[user] = f"login of {name} failed: {describe(response)}"
             raise StepError(self.login_failures[user])
         self.redact.add(token)
-        self.redact.add(body.get("refresh_token") if isinstance(body.get("refresh_token"), str) else None)
         self.tokens[user] = token
         return token
 

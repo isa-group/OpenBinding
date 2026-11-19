@@ -16,6 +16,9 @@ export const lucia: UserProfile = {
   is_active: true,
   plan: 'RESEARCH',
   created_at: '2026-03-01T00:00:00Z',
+  cas_verified: false,
+  email_verified: false,
+  institutional_email: false,
 };
 
 export function org(slug: string, over: Partial<Organization> = {}): Organization {

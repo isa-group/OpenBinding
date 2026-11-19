@@ -87,7 +87,7 @@ async def test_a_short_password_is_refused(api_client, registration):
     assert response.json()["detail"]
 
 
-async def test_signing_in_returns_a_usable_pair(api_client, registration):
+async def test_signing_in_returns_a_short_session_bound_token(api_client, registration):
     details = registration()
     await register(api_client, details)
 
@@ -95,8 +95,9 @@ async def test_signing_in_returns_a_usable_pair(api_client, registration):
 
     assert tokens["token_type"] == "bearer"
     assert tokens["expires_in"] > 0
-    assert tokens["access_token"] and tokens["refresh_token"]
-    assert tokens["access_token"] != tokens["refresh_token"]
+    assert tokens["access_token"]
+    # One session model: the session is the HttpOnly cookie, never a long-lived token in the body.
+    assert set(tokens) == {"access_token", "token_type", "expires_in"}
 
 
 async def test_signing_in_by_email_works_too(api_client, registration):
@@ -155,98 +156,6 @@ async def test_the_profile_needs_a_credential(api_client):
     assert response.status_code == 401
     assert response.json()["detail"]["code"] == "unauthorized"
     assert "bearer" in response.headers.get("www-authenticate", "").lower()
-
-
-async def test_a_refresh_token_is_not_an_access_token(api_client, registration):
-    # The long-lived token must not open the doors the short-lived one opens,
-    # which is the entire reason they are separate kinds.
-    details = registration()
-    await register(api_client, details)
-    tokens = await login(api_client, details)
-
-    response = await api_client.get(
-        "/v1/users/me", headers={"Authorization": f"Bearer {tokens['refresh_token']}"}
-    )
-
-    assert response.status_code == 401
-
-
-async def test_refreshing_returns_a_new_pair(api_client, registration):
-    details = registration()
-    await register(api_client, details)
-    tokens = await login(api_client, details)
-
-    response = await api_client.post(
-        "/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
-    )
-
-    assert response.status_code == 200
-    assert response.json()["refresh_token"] != tokens["refresh_token"]
-
-
-async def test_a_refresh_token_cannot_be_used_twice(api_client, registration):
-    # Rotation is what makes a stolen refresh token survivable: whoever uses it
-    # second is locked out and has to sign in again.
-    details = registration()
-    await register(api_client, details)
-    tokens = await login(api_client, details)
-    await api_client.post("/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
-
-    response = await api_client.post(
-        "/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
-    )
-
-    assert response.status_code == 401
-    assert response.json()["detail"]["code"] == "token_reused"
-
-
-async def test_reusing_a_refresh_token_ends_every_session_of_the_user(api_client, registration):
-    # The concurrent case (two simultaneous refreshes of one token) depends on
-    # SELECT ... FOR UPDATE and can only be exercised against PostgreSQL.
-    details = registration()
-    await register(api_client, details)
-    first = await login(api_client, details)
-    other_session = await login(api_client, details)
-    rotated = await api_client.post("/v1/auth/refresh", json={"refresh_token": first["refresh_token"]})
-    assert rotated.status_code == 200
-
-    replay = await api_client.post("/v1/auth/refresh", json={"refresh_token": first["refresh_token"]})
-
-    assert replay.status_code == 401
-    assert replay.json()["detail"]["code"] == "token_reused"
-    for token in (rotated.json()["refresh_token"], other_session["refresh_token"]):
-        response = await api_client.post("/v1/auth/refresh", json={"refresh_token": token})
-        assert response.status_code == 401
-        assert response.json()["detail"]["code"] == "token_reused"
-
-
-async def test_a_made_up_refresh_token_is_refused(api_client):
-    response = await api_client.post("/v1/auth/refresh", json={"refresh_token": "not.a.token"})
-
-    assert response.status_code == 401
-
-
-async def test_signing_out_ends_the_session(api_client, registration):
-    details = registration()
-    await register(api_client, details)
-    tokens = await login(api_client, details)
-
-    logout = await api_client.post(
-        "/v1/auth/logout", json={"refresh_token": tokens["refresh_token"]}
-    )
-    reuse = await api_client.post(
-        "/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
-    )
-
-    assert logout.status_code == 204
-    assert reuse.status_code == 401
-
-
-async def test_signing_out_with_rubbish_still_answers_the_same(api_client):
-    # Otherwise logging out becomes a way to ask whether a token was real.
-    response = await api_client.post("/v1/auth/logout", json={"refresh_token": "not.a.token"})
-
-    assert response.status_code == 204
 
 
 async def test_a_deactivated_account_stops_being_able_to_call(api_client, registration, db_session):

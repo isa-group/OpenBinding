@@ -14,7 +14,6 @@ frontend's must not sign anybody in (login CSRF); an absent one passes, for scri
 
 from __future__ import annotations
 
-import uuid
 import hashlib
 import secrets
 from datetime import timedelta
@@ -30,16 +29,14 @@ from ..access.contracts import create_contract_or_mark_pending
 from ..access.dependencies import get_user_by_identifier, session_dependency
 from ..core.ratelimit import enforce_auth_rate_limit
 from ..core.settings import Settings, get_settings
-from ..db.models import ApiKey, AuditEvent, Notification, PasswordResetToken, RefreshToken, User, UserRole, utcnow
+from ..db.models import ApiKey, AuditEvent, Notification, PasswordResetToken, User, UserRole, utcnow
 from ..mailer import send_mail
 from ..models.accounts import (
+    AccessGrant,
     LoginRequest,
-    LogoutRequest,
-    RefreshRequest,
     RegisterRequest,
     PasswordResetComplete,
     PasswordResetRequest,
-    TokenPair,
     UserProfile,
 )
 from ..models.errors import (
@@ -50,12 +47,6 @@ from ..models.errors import (
     api_error,
 )
 from ..security.passwords import hash_password, password_complaint, verify_password
-from ..security.tokens import (
-    TokenError,
-    issue_access_token,
-    issue_refresh_token,
-    read_refresh_token,
-)
 from .users import profile_of
 from ..modules.identity.application import (
     access_token_for,
@@ -98,48 +89,6 @@ def _signing_secret(settings: Settings) -> str:
     return secret
 
 
-def _read_refresh(settings: Settings, token: str):
-    return read_refresh_token(
-        _signing_secret(settings),
-        token,
-        issuer=settings.gateway_jwt_issuer,
-        audience=settings.gateway_jwt_audience,
-    )
-
-
-def _token_pair(user: User, settings: Settings, session: AsyncSession) -> TokenPair:
-    """An access token without a session plus a refresh token recorded for later revocation (refresh only)."""
-    secret = _signing_secret(settings)
-    jti = uuid.uuid4()
-
-    session.add(
-        RefreshToken(
-            jti=jti,
-            user_id=user.id,
-            expires_at=utcnow() + timedelta(seconds=settings.refresh_token_ttl_s),
-        )
-    )
-
-    return TokenPair(
-        access_token=issue_access_token(
-            secret,
-            user_id=user.id,
-            ttl_seconds=settings.access_token_ttl_s,
-            issuer=settings.gateway_jwt_issuer,
-            audience=settings.gateway_jwt_audience,
-        ),
-        refresh_token=issue_refresh_token(
-            secret,
-            user_id=user.id,
-            jti=jti,
-            ttl_seconds=settings.refresh_token_ttl_s,
-            issuer=settings.gateway_jwt_issuer,
-            audience=settings.gateway_jwt_audience,
-        ),
-        expires_in=settings.access_token_ttl_s,
-    )
-
-
 async def _open_session(
     session: AsyncSession, user: User, settings: Settings, request: Request, response: Response
 ) -> str:
@@ -152,11 +101,10 @@ async def _open_session(
 
 async def _issue_session(
     session: AsyncSession, user: User, settings: Settings, request: Request, response: Response
-) -> TokenPair:
-    """A local session (cookie) and a token bound to it, plus a refresh token until the SPA stops using it."""
-    pair = _token_pair(user, settings, session)
-    pair.access_token = await _open_session(session, user, settings, request, response)
-    return pair
+) -> AccessGrant:
+    """A local session (cookie) and a short token bound to it."""
+    token = await _open_session(session, user, settings, request, response)
+    return AccessGrant(access_token=token, expires_in=settings.access_token_ttl_s)
 
 
 @router.post(
@@ -237,7 +185,7 @@ async def register(
 
 @router.post(
     "/login",
-    response_model=TokenPair,
+    response_model=AccessGrant,
     operation_id="login",
     summary="Start a session",
     responses={401: UNAUTHORIZED_RESPONSE, 403: ORIGIN_REFUSED_RESPONSE, 429: TOO_MANY_ATTEMPTS_RESPONSE, 503: UNAVAILABLE_RESPONSE},
@@ -248,7 +196,7 @@ async def login(
     http_response: Response,
     session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
-) -> TokenPair:
+) -> AccessGrant:
     """The session cookie, and a token bound to that session (a SPA renews it from the cookie)."""
     refuse_foreign_origin(http_request, settings)
     # Before the password hash, which is the expensive part an attacker wants us to repeat.
@@ -268,103 +216,6 @@ async def login(
         )
 
     return await _issue_session(session, user, settings, http_request, http_response)
-
-
-@router.post(
-    "/refresh",
-    response_model=TokenPair,
-    operation_id="refreshSession",
-    summary="Exchange a refresh token for a new pair",
-    responses={401: UNAUTHORIZED_RESPONSE, 429: TOO_MANY_ATTEMPTS_RESPONSE, 503: UNAVAILABLE_RESPONSE},
-)
-async def refresh(
-    request: RefreshRequest,
-    http_request: Request,
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-    settings: Settings = Depends(get_settings),
-) -> TokenPair:
-    # By client address only: the token is not trusted enough to name a bucket.
-    await enforce_auth_rate_limit(http_request, "refresh", None, settings)
-    try:
-        claims = _read_refresh(settings, request.refresh_token)
-    except TokenError as error:
-        raise api_error(status.HTTP_401_UNAUTHORIZED, "invalid_token", str(error)) from error
-
-    # Locked so two concurrent refreshes of one token serialize: the second
-    # sees it revoked and is treated as a replay (row locks need PostgreSQL).
-    stored = (
-        await session.execute(
-            select(RefreshToken)
-            .where(RefreshToken.jti == claims.jti)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-    ).scalars().first()
-    if stored is not None and stored.user_id == claims.user_id and stored.revoked_at is not None:
-        # A spent token coming back means two parties hold the session, and
-        # there is no telling which is the thief: end every session of the user.
-        # Committed here because the error below rolls the request back.
-        now = utcnow()
-        live = await session.execute(
-            select(RefreshToken).where(
-                RefreshToken.user_id == stored.user_id, RefreshToken.revoked_at.is_(None)
-            ).with_for_update()
-        )
-        for token in live.scalars():
-            token.revoked_at = now
-        await session.commit()
-        raise api_error(
-            status.HTTP_401_UNAUTHORIZED,
-            "token_reused",
-            "That refresh token was already used; every session of the account has been ended.",
-        )
-    if stored is None or not stored.is_usable or stored.user_id != claims.user_id:
-        raise api_error(
-            status.HTTP_401_UNAUTHORIZED,
-            "invalid_token",
-            "That refresh token is spent, revoked or expired.",
-        )
-
-    user = await session.get(User, claims.user_id)
-    if user is None or not user.is_active:
-        raise api_error(
-            status.HTTP_401_UNAUTHORIZED, "invalid_token", "That account is not active."
-        )
-
-    # Rotation: the presented token is spent whether or not the caller ever
-    # sees the new one, so it cannot be replayed.
-    stored.revoked_at = utcnow()
-
-    return _token_pair(user, settings, session)
-
-
-@router.post(
-    "/logout",
-    status_code=status.HTTP_204_NO_CONTENT,
-    operation_id="logout",
-    summary="End a session",
-    responses={503: UNAVAILABLE_RESPONSE},
-)
-async def logout(
-    request: LogoutRequest,
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-    settings: Settings = Depends(get_settings),
-) -> None:
-    """Revoke a refresh token.
-
-    Answers the same way whatever the token turns out to be. Signing out is not
-    an operation anybody should be able to use to find out whether a token was
-    real, and the caller's intent is satisfied either way.
-    """
-    try:
-        claims = _read_refresh(settings, request.refresh_token)
-    except TokenError:
-        return None
-
-    stored = await session.get(RefreshToken, claims.jti)
-    if stored is not None and stored.revoked_at is None:
-        stored.revoked_at = utcnow()
-    return None
 
 
 #: An argon2 hash of nothing in particular, used to spend the same time on a
@@ -449,9 +300,6 @@ async def complete_password_reset(
     user.password_hash = hash_password(payload.new_password)
     user.password_enabled = True
     stored.used_at = utcnow()
-    await session.execute(RefreshToken.__table__.update().where(
-        RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None)
-    ).values(revoked_at=utcnow()))
     await session.execute(ApiKey.__table__.update().where(
         ApiKey.user_id == user.id, ApiKey.revoked_at.is_(None)
     ).values(revoked_at=utcnow()))

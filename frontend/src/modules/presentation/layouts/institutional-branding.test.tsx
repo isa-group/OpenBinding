@@ -34,6 +34,8 @@ const researchUser: UserProfile = {
   plan: 'RESEARCH',
   created_at: '2026-09-01T00:00:00Z',
   cas_verified: true,
+  email_verified: false,
+  institutional_email: false,
 };
 
 const markName = { name: 'Universidad de Sevilla' };

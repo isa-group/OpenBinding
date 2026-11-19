@@ -13,7 +13,7 @@ from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import AuthIdentity, IdentitySession, User, utcnow
 from openbinding_gateway.modules.identity.application import sessions
 from openbinding_gateway.modules.identity.domain.claims import TokenSet
-from openbinding_gateway.security.tokens import issue_access_token, read_access_token
+from openbinding_gateway.security.tokens import TokenError, issue_access_token, read_access_token
 
 from ._settings import ISSUER, scoretech_settings
 
@@ -149,5 +149,11 @@ def test_gateway_tokens_carry_sid_and_prv_and_no_role() -> None:
     assert body["sid"] == str(sid) and body["prv"] == "scoretech" and "role" not in body
     claims = read_access_token(secret, token)
     assert claims.session_id == sid and claims.provider == "scoretech"
-    bare = read_access_token(secret, issue_access_token(secret, user_id=user, ttl_seconds=60))
-    assert bare.session_id is None and bare.provider is None
+    bare = jwt.encode(
+        {"sub": str(user), "kind": "access", "iss": "openbinding-gateway", "aud": "openbinding-gateway", "iat": 1,
+         "exp": 4_000_000_000},
+        secret,
+        algorithm="HS256",
+    )
+    with pytest.raises(TokenError):
+        read_access_token(secret, bare)

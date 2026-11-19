@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
     ApiKey, AuditEvent, AuthIdentity, IdentitySession, Notification, NotificationStreamTicket, OrganizationInvitationCode, OrganizationMembership,
-    OrganizationRole, PasswordResetToken, RefreshToken, User, UserRole, utcnow,
+    OrganizationRole, PasswordResetToken, User, UserRole, utcnow,
 )
 from ..modules.identity.application import PSEUDONYM_PREFIX, end_all, institutional_email, managed_by_identity, owner_may_use_keys
 from ..models.accounts import (
@@ -667,7 +667,6 @@ async def pseudonymise(session: AsyncSession, user: User) -> None:
 
     for model, column in (
         (ApiKey, ApiKey.user_id),
-        (RefreshToken, RefreshToken.user_id),
         (PasswordResetToken, PasswordResetToken.user_id),
         (NotificationStreamTicket, NotificationStreamTicket.user_id),
         (IdentitySession, IdentitySession.user_id),
@@ -689,4 +688,4 @@ async def pseudonymise(session: AsyncSession, user: User) -> None:
     ))
     await session.flush()
     # The bulk deletes bypassed the session; forget the collections it may hold.
-    session.expire(user, ["api_keys", "refresh_tokens"])
+    session.expire(user, ["api_keys"])

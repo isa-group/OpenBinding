@@ -39,21 +39,6 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class RefreshRequest(BaseModel):
-    refresh_token: str
-
-
-class LogoutRequest(BaseModel):
-    refresh_token: str = Field(..., description="The token to revoke, ending that session.")
-
-
-class TokenPair(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = Field(default="bearer")
-    expires_in: int = Field(..., description="Lifetime of the access token, in seconds.")
-
-
 class AuthConfigView(BaseModel):
     """How this gateway signs people in, for the frontend to read before it draws anything."""
 
@@ -72,7 +57,10 @@ class AuthConfigView(BaseModel):
 
 
 class AccessGrant(BaseModel):
-    """A short gateway access token minted from the session cookie; kept in memory by the browser."""
+    """A short gateway access token bound to a browser session (sign-in, or minted from the session cookie).
+
+    The browser keeps it in memory only; the session itself is the HttpOnly cookie.
+    """
 
     access_token: str
     token_type: str = Field(default="bearer")
@@ -120,7 +108,7 @@ class PlanChange(BaseModel):
     )
 
 
-class CasSession(TokenPair):
+class CasSession(AccessGrant):
     """The CAS code exchange: a session, and the plan change linking CAS caused, if any."""
 
     plan_changed: Optional[PlanChange] = Field(

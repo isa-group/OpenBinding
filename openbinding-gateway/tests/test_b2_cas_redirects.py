@@ -450,7 +450,7 @@ async def test_linking_from_the_default_plan_reports_plan_changed_everywhere(
 
     assert query["plan_changed"] == "RESEARCH"
     assert session["plan_changed"] == {"from": DEFAULT_PLAN, "to": "RESEARCH", "extra_cost": False}
-    assert session["token_type"] == "bearer" and session["access_token"] and session["refresh_token"]
+    assert session["token_type"] == "bearer" and session["access_token"] and "refresh_token" not in session
     assert me.json()["plan"] == "RESEARCH"
     assert me.json()["cas_verified"] is True
     linked = await audit(db_session, "account.cas.linked")

@@ -1,14 +1,10 @@
-"""Issuing and reading the gateway's own session tokens.
+"""Issuing and reading the gateway's own access tokens.
 
-Two kinds, with different lifetimes and different amounts of trust. An access
-token is short-lived, carries the claims an endpoint needs, and is never stored:
-it is believed because it is signed and has not expired yet. A refresh token is
-long-lived and therefore worth being able to take back, so it carries a ``jti``
-that names a row in ``refresh_tokens``; revoking that row ends the session.
-
-Every token says which kind it is, and the readers below refuse the other kind.
-Without that, a refresh token - the long-lived one - would be accepted wherever
-an access token is, which is the whole point of separating them.
+An access token is short-lived (``ACCESS_TOKEN_TTL_S``) and is never stored. It
+names the browser session it was minted from (``sid``, a row of
+``identity_sessions``, and its provider ``prv``); the gateway checks that row on
+every request, so ending the session ends the token at once. What keeps a person
+signed in is the session's HttpOnly cookie, never a long-lived token.
 """
 
 from __future__ import annotations
@@ -23,7 +19,7 @@ import jwt
 from ..core.settings import get_settings
 
 ALGORITHM = "HS256"
-TokenKind = Literal["access", "refresh"]
+TokenKind = Literal["access"]
 
 
 class TokenError(Exception):
@@ -34,15 +30,9 @@ class TokenError(Exception):
 class AccessClaims:
     user_id: uuid.UUID
     #: The browser session the token was minted from (``identity_sessions.id``), checked on every request.
-    session_id: Optional[uuid.UUID] = None
+    session_id: uuid.UUID
     #: The provider of that session (``local`` or ``scoretech``), which must be the gateway's mode.
-    provider: Optional[str] = None
-
-
-@dataclass(frozen=True)
-class RefreshClaims:
-    user_id: uuid.UUID
-    jti: uuid.UUID
+    provider: str
 
 
 def _identity(issuer: Optional[str], audience: Optional[str]) -> tuple[str, str]:
@@ -116,40 +106,19 @@ def issue_access_token(
     *,
     user_id: uuid.UUID,
     ttl_seconds: int,
-    session_id: Optional[uuid.UUID] = None,
-    provider: Optional[str] = None,
+    session_id: uuid.UUID,
+    provider: str,
     issuer: Optional[str] = None,
     audience: Optional[str] = None,
 ) -> str:
-    """An access token; ``session_id`` and ``provider`` (``sid``, ``prv``) bind it to a browser session.
+    """An access token bound to a browser session (``sid``, ``prv``).
 
     The token carries no role: the account's role is read from the database on every request.
     """
-    payload: dict = {"sub": str(user_id), "kind": "access"}
-    if session_id is not None:
-        payload["sid"] = str(session_id)
-        payload["prv"] = provider
+    payload: dict = {"sub": str(user_id), "kind": "access", "sid": str(session_id), "prv": provider}
     return _encode(
         secret,
         payload,
-        ttl_seconds,
-        issuer=issuer,
-        audience=audience,
-    )
-
-
-def issue_refresh_token(
-    secret: str,
-    *,
-    user_id: uuid.UUID,
-    jti: uuid.UUID,
-    ttl_seconds: int,
-    issuer: Optional[str] = None,
-    audience: Optional[str] = None,
-) -> str:
-    return _encode(
-        secret,
-        {"sub": str(user_id), "jti": str(jti), "kind": "refresh"},
         ttl_seconds,
         issuer=issuer,
         audience=audience,
@@ -166,27 +135,14 @@ def read_access_token(
     claims = _decode(secret, token, "access", issuer=issuer, audience=audience)
     try:
         user_id = uuid.UUID(claims["sub"])
-        session_id = uuid.UUID(claims["sid"]) if claims.get("sid") is not None else None
+        session_id = uuid.UUID(claims["sid"])
     except (KeyError, ValueError, TypeError, AttributeError) as error:
-        raise TokenError("Token is missing a usable subject.") from error
+        # A token that names no session is no session at all: every token is minted from one.
+        raise TokenError("Token is missing a usable subject or session.") from error
     provider = claims.get("prv")
-    if session_id is not None and provider not in ("local", "scoretech"):
+    if provider not in ("local", "scoretech"):
         raise TokenError("Token names a session without its provider.")
     return AccessClaims(user_id=user_id, session_id=session_id, provider=provider)
-
-
-def read_refresh_token(
-    secret: str,
-    token: str,
-    *,
-    issuer: Optional[str] = None,
-    audience: Optional[str] = None,
-) -> RefreshClaims:
-    claims = _decode(secret, token, "refresh", issuer=issuer, audience=audience)
-    try:
-        return RefreshClaims(user_id=uuid.UUID(claims["sub"]), jti=uuid.UUID(claims["jti"]))
-    except (KeyError, ValueError) as error:
-        raise TokenError("Token is missing a usable subject or identifier.") from error
 
 
 def bearer_token(authorization_header: Optional[str]) -> Optional[str]:

@@ -17,7 +17,6 @@ from _composition_helpers import bim_binding, finished_run, linked_problem
 from _problem_helpers import make_org
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import User
-from openbinding_gateway.security.tokens import issue_access_token
 
 LIST = "/v1/compositions"
 YAML = {"content-type": "application/yaml"}
@@ -177,7 +176,7 @@ async def test_the_list_filters_pages_and_puts_the_latest_change_first(
 
 
 async def test_anybody_reads_the_list_and_a_credential_that_names_nobody_is_refused(
-    api_client, registration, db_session, gate,  # noqa: F811
+    api_client, registration, db_session, gate, session_token,  # noqa: F811
 ):
     account, owner = await make_account(api_client, registration, db_session, gate)
     org = await make_org(api_client, owner)
@@ -198,11 +197,7 @@ async def test_anybody_reads_the_list_and_a_credential_that_names_nobody_is_refu
     assert refused_key.status_code == 403, refused_key.text
 
     user = await db_session.get(User, uuid.UUID(account["id"]))
-    settings = get_settings()
-    expired = issue_access_token(
-        settings.gateway_jwt_secret, user_id=user.id, ttl_seconds=-60,
-        issuer=settings.gateway_jwt_issuer, audience=settings.gateway_jwt_audience,
-    )
+    expired = await session_token(user.id, ttl_seconds=-60)
     for credential in ({"Authorization": f"Bearer {expired}"}, {"Authorization": "Bearer not-a-token"}):
         refused = await api_client.get(LIST, headers=credential)
         assert refused.status_code == 401, refused.text

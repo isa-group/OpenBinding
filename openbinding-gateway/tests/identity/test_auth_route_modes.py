@@ -43,8 +43,6 @@ EXPECTED = {
     ("POST", "/v1/auth/identity/logout"): ("any", False),
     ("POST", "/v1/auth/register"): ("local", False),
     ("POST", "/v1/auth/login"): ("local", False),
-    ("POST", "/v1/auth/refresh"): ("local", False),
-    ("POST", "/v1/auth/logout"): ("local", False),
     ("POST", "/v1/auth/password-reset/request"): ("local", False),
     ("POST", "/v1/auth/password-reset/complete"): ("local", False),
     ("GET", "/v1/auth/cas/start"): ("local", False),
@@ -68,8 +66,6 @@ SCORETECH_JSON = [key for key, (mode, browser) in EXPECTED.items() if mode == "s
 BODIES = {
     "/v1/auth/register": {"username": "someone", "email": "someone@example.org", "password": "a-long-password-1"},
     "/v1/auth/login": {"username_or_email": "someone", "password": "a-long-password-1"},
-    "/v1/auth/refresh": {"refresh_token": "x"},
-    "/v1/auth/logout": {"refresh_token": "x"},
     "/v1/auth/password-reset/request": {"email": "someone@example.org"},
     "/v1/auth/password-reset/complete": {"token": "obr_" + "x" * 40, "new_password": "a-long-password-1"},
     "/v1/auth/cas/exchange": {"code": "c" * 40},

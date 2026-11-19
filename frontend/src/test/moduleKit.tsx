@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components -- a test kit, never hot-reloaded */
 import type { ReactElement, ReactNode } from 'react';
 import { render } from '@testing-library/react';
 import { HelmetProvider } from 'react-helmet-async';
@@ -26,7 +25,9 @@ export const ME: UserProfile = {
   plan: 'RESEARCH',
   created_at: '2026-01-10T00:00:00Z',
   cas_verified: false,
-} as UserProfile;
+  email_verified: false,
+  institutional_email: false,
+};
 
 /** One answer of the fake gateway: a body (JSON) with a status, or a function of the request. */
 export type Answer =

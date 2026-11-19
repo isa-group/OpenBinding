@@ -4,7 +4,7 @@
 // cookie the transport renews the token from.
 
 import { HttpTransport, apiClient } from '../../core/api/http';
-import type { CasSession, PlanChange, TokenPair, UserProfile } from '../../core/api/account';
+import type { AccessGrant, CasSession, PlanChange, UserProfile } from '../../core/api/account';
 import { rememberCasFlow } from '../utils/authFlow';
 import { identityApiOf, type SignOutScope } from './identityApi';
 
@@ -30,8 +30,8 @@ export function accountClientOf(transport: HttpTransport) {
       );
     },
 
-    async login(usernameOrEmail: string, password: string): Promise<TokenPair> {
-      const tokens = await transport.request<TokenPair>(
+    async login(usernameOrEmail: string, password: string): Promise<AccessGrant> {
+      const tokens = await transport.request<AccessGrant>(
         '/v1/auth/login',
         {
           method: 'POST',

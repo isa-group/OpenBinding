@@ -177,10 +177,8 @@ NO_CREDENTIAL_ROUTES = {
     ("POST", "/v1/auth/identity/logout"),
     ("POST", "/v1/auth/identity/session"),
     ("POST", "/v1/auth/login"),
-    ("POST", "/v1/auth/logout"),
     ("POST", "/v1/auth/password-reset/complete"),
     ("POST", "/v1/auth/password-reset/request"),
-    ("POST", "/v1/auth/refresh"),
     ("POST", "/v1/auth/register"),
 }
 #: The only route that accepts an environment key: its feed.

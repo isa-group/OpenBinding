@@ -125,8 +125,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/health/ready", "get"),
         ("/v1/auth/register", "post"),
         ("/v1/auth/login", "post"),
-        ("/v1/auth/refresh", "post"),
-        ("/v1/auth/logout", "post"),
         ("/v1/auth/password-reset/request", "post"),
         ("/v1/auth/password-reset/complete", "post"),
         ("/v1/auth/cas/start", "get"),

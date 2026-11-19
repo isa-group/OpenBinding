@@ -116,9 +116,6 @@ class User(Base):
     api_keys: Mapped[List["ApiKey"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan"
-    )
 
     @property
     def is_admin(self) -> bool:
@@ -289,38 +286,6 @@ class Job(Base):
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now(), index=True
     )
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-
-
-class RefreshToken(Base):
-    """One issued refresh token, so that it can be rotated and revoked.
-
-    Access tokens are short-lived and never stored; refresh tokens are the ones
-    worth being able to take back, which is why only these have a row.
-    """
-
-    __tablename__ = "refresh_tokens"
-
-    jti: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-
-    user: Mapped[User] = relationship(back_populates="refresh_tokens")
-
-    @property
-    def is_usable(self) -> bool:
-        if self.revoked_at is not None:
-            return False
-        expires_at = self.expires_at
-        if expires_at.tzinfo is None:
-            # SQLite hands back naive datetimes; the value is UTC either way.
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        return expires_at > utcnow()
 
 
 class EngineRevision(Base):

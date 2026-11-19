@@ -3,7 +3,7 @@
 
 F0b removed projects, the raw BIM API (instances, snapshots, the old validators, profiles, dialects and
 examples), the artifact store and the library, the problem-authoring Composition2Yaml and the ``/v1/jobs``
-routes. Nothing is in production, so none of them has an alias or a redirect; this tool fails when any of
+routes; F5 removed the refresh tokens and the local logout (one cookie session model). Nothing is in production, so none of them has an alias or a redirect; this tool fails when any of
 them comes back:
 
 * no route path of the gateway contains a retired fragment (``RETIRED_PATH_FRAGMENTS``); the BIM services
@@ -49,6 +49,10 @@ RETIRED_PATH_FRAGMENTS = (
     "/v1/jobs",
     # F3: the keyed SPHERE proxy; OpenBinding's pricing is /v1/plans/pricing (the fragment does not match it).
     "/v1/pricing/",
+    # F5-B: one session model. The browser's session is the HttpOnly cookie, renewed at /v1/auth/identity/session and
+    # ended at /v1/auth/identity/logout; the refresh token and the local logout are gone.
+    "/v1/auth/refresh",
+    "/v1/auth/logout",
 )
 
 #: Tables that features removed before or during F0b used to own. None may be modelled or migrated again.
@@ -86,6 +90,8 @@ RETIRED_TABLES = frozenset({
     "project_resources",
     # F0b B8: projects go; the organization is the only container.
     "projects",
+    # F5-B: one session model (identity_sessions) replaces the rotated refresh tokens.
+    "refresh_tokens",
 })
 
 #: The calls that take an entitlement id, and which positional argument it is.

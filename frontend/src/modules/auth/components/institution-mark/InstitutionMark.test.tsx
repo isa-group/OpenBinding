@@ -16,6 +16,9 @@ const base: UserProfile = {
   is_active: true,
   plan: 'LAB',
   created_at: '2026-09-01T00:00:00Z',
+  cas_verified: false,
+  email_verified: false,
+  institutional_email: false,
 };
 
 describe('isInstitutionalAccount', () => {
