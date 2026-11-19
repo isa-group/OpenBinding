@@ -6,6 +6,7 @@ import { HttpError } from '../../../core/api/http';
 import { StaticAuthConfig } from '../../contexts/authConfig';
 import type { AuthConfig } from '../../contexts/authConfigContext';
 import { AuthContext } from '../../hooks/useAuth';
+import type { UserProfile } from '../../../core/api/account';
 import IdentityUsernamePage from '.';
 
 const api = vi.hoisted(() => ({ identityPending: vi.fn(), identityComplete: vi.fn() }));
@@ -44,14 +45,15 @@ const SCORETECH: AuthConfig = {
 
 function draw(
   entry = '/sso/identity/username?returnTo=%2Fme%2Forgs',
-  config: AuthConfig = SCORETECH
+  config: AuthConfig = SCORETECH,
+  user: UserProfile | null = null
 ) {
   return render(
     <HelmetProvider>
       <StaticAuthConfig value={config}>
         <AuthContext.Provider
           value={{
-            user: null,
+            user,
             loading: false,
             signIn: vi.fn(),
             register: vi.fn(),
@@ -164,6 +166,23 @@ describe('IdentityUsernamePage', () => {
   it('sends a local-mode visitor to the sign-in form: there is no first SCORETech sign-in to finish', async () => {
     draw('/sso/identity/username', { provider: 'local' });
     await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/authentication'));
+    expect(api.identityPending).not.toHaveBeenCalled();
+  });
+
+  it('goes on to returnTo once signed in, without asking for the sign-up its completion consumed', async () => {
+    const signedIn = {
+      id: 'u1',
+      username: 'lucia.vega',
+      email: 'lucia@example.test',
+      role: 'user',
+      plan: 'FREE',
+      is_active: true,
+      created_at: '2026-01-01T00:00:00Z',
+      email_verified: true,
+      institutional_email: false,
+    } satisfies UserProfile;
+    draw(undefined, SCORETECH, signedIn);
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/me\/orgs$/));
     expect(api.identityPending).not.toHaveBeenCalled();
   });
 

@@ -42,8 +42,13 @@ function complaintFor(username: string): string | null {
 
 /** `/sso/identity/username`: the first SCORETech sign-in chooses the public name of its OpenBinding account. */
 export default function IdentityUsernamePage() {
+  const { user } = useAuth();
+  const [params] = useSearchParams();
   // A gateway that signs people in locally has no first SCORETech sign-in to finish: its sign-in page is the form.
   if (useAuthConfig().provider !== 'scoretech') return <Navigate to="/authentication" replace />;
+  // Signed in: the sign-up is done (completing it signs the account in, and the interface below the account provider is
+  // mounted again when the account changes, so this screen may be drawn once more before it has navigated on).
+  if (user) return <Navigate to={safeReturnPath(params.get('returnTo')) ?? '/'} replace />;
   return <ChooseUsername />;
 }
 
