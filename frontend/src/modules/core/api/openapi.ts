@@ -507,7 +507,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Start signing in (or registering) with SCORETech Identity
+         * Start signing in (or signing up) with SCORETech Identity
          * @description Navigated to by the browser. `returnTo` is a frontend path, kept only when it is safe.
          */
         get: operations["startIdentitySignIn"];
@@ -3782,7 +3782,7 @@ export interface components {
             account_url?: string | null;
             /**
              * Login Url
-             * @description Where the browser starts a SCORETech sign-in (add `returnTo`); null in `local` mode.
+             * @description Where the browser starts a SCORETech sign-in, or a sign-up (Identity registers an unknown email from its sign-in page); add `returnTo`. Null in `local` mode.
              */
             login_url?: string | null;
             /**
@@ -3791,11 +3791,6 @@ export interface components {
              * @enum {string}
              */
             provider: "local" | "scoretech";
-            /**
-             * Register Url
-             * @description Where the browser starts a SCORETech registration; null in `local` mode.
-             */
-            register_url?: string | null;
         };
         /**
          * AvatarSelection
@@ -11662,7 +11657,6 @@ export interface operations {
     startIdentitySignIn: {
         parameters: {
             query?: {
-                screen?: "login" | "register";
                 returnTo?: string | null;
             };
             header?: never;
@@ -11671,7 +11665,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description To SCORETech Identity's sign-in (or registration) page, with a flow cookie. */
+            /** @description To SCORETech Identity's sign-in page (which also registers), with a flow cookie. */
             302: {
                 headers: {
                     [name: string]: unknown;

@@ -15,6 +15,8 @@ import {
   noteSignInStarted,
   readCasFlow,
 } from '../../utils/authFlow';
+import { StaticAuthConfig } from '../../contexts/authConfig';
+import type { AuthConfig } from '../../contexts/authConfigContext';
 import AuthenticationPage from '.';
 
 const sampleUser: UserProfile = {
@@ -62,37 +64,43 @@ describe('AuthenticationPage', () => {
     ui: React.ReactElement,
     initialPath: string | { pathname: string; search?: string; state?: unknown },
     user: UserProfile | null = null,
-    loading = false
+    loading = false,
+    config: AuthConfig = { provider: 'local' }
   ) {
     return render(
       <HelmetProvider>
-        <MemoryRouter initialEntries={[initialPath]}>
-          <AuthContext.Provider
-            value={{
-              user,
-              loading,
-              signIn: signInMock,
-              register: registerMock,
-              signOut: signOutMock,
-              refresh: vi.fn(),
-              isAdmin: false,
-              fetchWithInterceptor: vi.fn(),
-            }}
-          >
-            <Routes>
-              <Route path="/authentication" element={ui} />
-              <Route path="/" element={<h1>Platform Dashboard</h1>} />
-              <Route path="/problems/org/project" element={<h1>Project Workspace</h1>} />
-              <Route path="/orgs/join/:code" element={<h1>Invitation page</h1>} />
-              <Route path="/compositions/:org/:composition" element={<h1>Public composition</h1>} />
-              <Route path="/account" element={<h1>Legacy Account</h1>} />
-              <Route path="/me/settings" element={<h1>Account Settings</h1>} />
-              <Route path="/pricing" element={<h1>Public Pricing</h1>} />
-              <Route path="/forgot-password" element={<h1>Reset page</h1>} />
-            </Routes>
-            <Where />
-          </AuthContext.Provider>
-        </MemoryRouter>
+        <StaticAuthConfig value={config}>
+          <MemoryRouter initialEntries={[initialPath]}>
+            <AuthContext.Provider
+              value={{
+                user,
+                loading,
+                signIn: signInMock,
+                register: registerMock,
+                signOut: signOutMock,
+                refresh: vi.fn(),
+                isAdmin: false,
+                fetchWithInterceptor: vi.fn(),
+              }}
+            >
+              <Routes>
+                <Route path="/authentication" element={ui} />
+                <Route path="/" element={<h1>Platform Dashboard</h1>} />
+                <Route path="/problems/org/project" element={<h1>Project Workspace</h1>} />
+                <Route path="/orgs/join/:code" element={<h1>Invitation page</h1>} />
+                <Route
+                  path="/compositions/:org/:composition"
+                  element={<h1>Public composition</h1>}
+                />
+                <Route path="/account" element={<h1>Legacy Account</h1>} />
+                <Route path="/me/settings" element={<h1>Account Settings</h1>} />
+                <Route path="/pricing" element={<h1>Public Pricing</h1>} />
+                <Route path="/forgot-password" element={<h1>Reset page</h1>} />
+              </Routes>
+              <Where />
+            </AuthContext.Provider>
+          </MemoryRouter>
+        </StaticAuthConfig>
       </HelmetProvider>
     );
   }
@@ -264,25 +272,27 @@ describe('AuthenticationPage', () => {
       // The context now has a user, as it does while the profile loads, but the sign-in has not returned.
       view.rerender(
         <HelmetProvider>
-          <MemoryRouter initialEntries={['/authentication']}>
-            <AuthContext.Provider
-              value={{
-                user: sampleUser,
-                loading: false,
-                signIn: signInMock,
-                register: registerMock,
-                signOut: signOutMock,
-                refresh: vi.fn(),
-                isAdmin: false,
-                fetchWithInterceptor: vi.fn(),
-              }}
-            >
-              <Routes>
-                <Route path="/authentication" element={<AuthenticationPage />} />
-                <Route path="/" element={<h1>Platform Dashboard</h1>} />
-              </Routes>
-            </AuthContext.Provider>
-          </MemoryRouter>
+          <StaticAuthConfig value={{ provider: 'local' }}>
+            <MemoryRouter initialEntries={['/authentication']}>
+              <AuthContext.Provider
+                value={{
+                  user: sampleUser,
+                  loading: false,
+                  signIn: signInMock,
+                  register: registerMock,
+                  signOut: signOutMock,
+                  refresh: vi.fn(),
+                  isAdmin: false,
+                  fetchWithInterceptor: vi.fn(),
+                }}
+              >
+                <Routes>
+                  <Route path="/authentication" element={<AuthenticationPage />} />
+                  <Route path="/" element={<h1>Platform Dashboard</h1>} />
+                </Routes>
+              </AuthContext.Provider>
+            </MemoryRouter>
+          </StaticAuthConfig>
         </HelmetProvider>
       );
       expect(
@@ -676,6 +686,33 @@ describe('AuthenticationPage', () => {
         'href',
         '/pricing'
       );
+    });
+  });
+  describe('in SCORETech mode', () => {
+    const identity: AuthConfig = {
+      provider: 'scoretech',
+      login_url: 'https://openbinding.test/api/v1/auth/identity/login',
+      account_url: null,
+    };
+    it('shows no form and sends the browser to SCORETech Identity, for logging in and for signing up', () => {
+      const replace = vi.fn();
+      vi.stubGlobal('location', {
+        ...window.location,
+        origin: 'https://openbinding.test',
+        replace,
+      });
+      for (const path of ['/authentication', '/authentication?view=register']) {
+        const { unmount } = renderWithAuth(<AuthenticationPage />, path, null, false, identity);
+        expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+          'Opening SCORETech Identity'
+        );
+        unmount();
+      }
+      expect(replace).toHaveBeenCalledTimes(2);
+      for (const [href] of replace.mock.calls)
+        expect(href).toBe('https://openbinding.test/api/v1/auth/identity/login?returnTo=%2F');
+      vi.unstubAllGlobals();
     });
   });
 });

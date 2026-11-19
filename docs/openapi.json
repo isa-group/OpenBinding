@@ -819,7 +819,7 @@
                 "type": "null"
               }
             ],
-            "description": "Where the browser starts a SCORETech sign-in (add `returnTo`); null in `local` mode.",
+            "description": "Where the browser starts a SCORETech sign-in, or a sign-up (Identity registers an unknown email from its sign-in page); add `returnTo`. Null in `local` mode.",
             "title": "Login Url"
           },
           "provider": {
@@ -830,18 +830,6 @@
             ],
             "title": "Provider",
             "type": "string"
-          },
-          "register_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Where the browser starts a SCORETech registration; null in `local` mode.",
-            "title": "Register Url"
           }
         },
         "required": [
@@ -19436,20 +19424,6 @@
         "parameters": [
           {
             "in": "query",
-            "name": "screen",
-            "required": false,
-            "schema": {
-              "default": "login",
-              "enum": [
-                "login",
-                "register"
-              ],
-              "title": "Screen",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
             "name": "returnTo",
             "required": false,
             "schema": {
@@ -19468,7 +19442,7 @@
         ],
         "responses": {
           "302": {
-            "description": "To SCORETech Identity's sign-in (or registration) page, with a flow cookie."
+            "description": "To SCORETech Identity's sign-in page (which also registers), with a flow cookie."
           },
           "303": {
             "description": "To `/authentication?identity_error=unavailable` when Identity cannot be used."
@@ -19487,7 +19461,7 @@
             "description": "Too many sign-ins from this address; see `Retry-After`."
           }
         },
-        "summary": "Start signing in (or registering) with SCORETech Identity",
+        "summary": "Start signing in (or signing up) with SCORETech Identity",
         "tags": [
           "Authentication"
         ]

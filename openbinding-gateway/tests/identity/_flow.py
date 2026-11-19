@@ -25,12 +25,10 @@ async def known_user(db, fake, **values) -> tuple[User, AuthIdentity, object]:
     return user, identity, person
 
 
-async def start(browser, *, return_to: str | None = "/compositions", screen: str | None = None):
+async def start(browser, *, return_to: str | None = "/compositions"):
     params = {}
     if return_to is not None:
         params["returnTo"] = return_to
-    if screen:
-        params["screen"] = screen
     return await browser.get("/v1/auth/identity/login", params=params)
 
 

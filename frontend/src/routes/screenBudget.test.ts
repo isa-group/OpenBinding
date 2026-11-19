@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { screens } from './router';
 
 // The screens of the application, exactly: one row per screen of `screens` (routes/router.tsx), with its address and layout.
-// The convergence on SPHERE ends here at 38 screens (design §9): 20 public, 18 protected. F5 adds /sso/identity/callback (39),
-// F7 /orbit (40), F9 five collection routes (45); a block that adds or removes a screen changes this list and the ceiling in
-// the same commit.
+// The convergence on SPHERE ended at 38 screens (design §9). F5 replaces the CAS return /sso/callback by
+// /sso/identity/callback and /sso/identity/username (39: 21 public, 18 protected); F7 adds /orbit (40), F9 five collection
+// routes (45). A block that adds or removes a screen changes this list and the ceiling in the same commit.
 
 // prettier-ignore
 const SCREENS: Array<[string, string, string]> = [
@@ -13,6 +13,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['auth-forgot-password', '/forgot-password', 'public'],
   ['auth-reset-password', '/reset-password', 'public'],
   ['auth-sso-callback', '/sso/callback', 'public'],
+  ['auth-identity-callback', '/sso/identity/callback', 'public'],
   ['pub-home', '/', 'session'],
   ['org-explore', '/organizations', 'session'],
   ['org-detail', '/orgs/:org/:tab?', 'session'],
@@ -49,7 +50,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['problem-editor', '/problem-editor', 'standalone'],
 ];
 
-const CEILING = 38;
+const CEILING = 39;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {
@@ -64,8 +65,8 @@ describe('screen budget', () => {
     expect(screens).toHaveLength(CEILING);
   });
 
-  it('opens 20 screens to visitors (the public, session and editor layouts) and keeps 18 behind an account', () => {
-    expect(screens.filter(screen => screen.layout !== 'protected')).toHaveLength(20);
+  it('opens 21 screens to visitors (the public, session and editor layouts) and keeps 18 behind an account', () => {
+    expect(screens.filter(screen => screen.layout !== 'protected')).toHaveLength(21);
     expect(screens.filter(screen => screen.layout === 'protected')).toHaveLength(18);
   });
 

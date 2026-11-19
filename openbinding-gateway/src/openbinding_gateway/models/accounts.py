@@ -46,10 +46,11 @@ class AuthConfigView(BaseModel):
         ..., description="`scoretech`: SCORETech Identity through the gateway; `local`: OpenBinding's own accounts."
     )
     login_url: Optional[str] = Field(
-        default=None, description="Where the browser starts a SCORETech sign-in (add `returnTo`); null in `local` mode."
-    )
-    register_url: Optional[str] = Field(
-        default=None, description="Where the browser starts a SCORETech registration; null in `local` mode."
+        default=None,
+        description=(
+            "Where the browser starts a SCORETech sign-in, or a sign-up (Identity registers an unknown email from "
+            "its sign-in page); add `returnTo`. Null in `local` mode."
+        ),
     )
     account_url: Optional[str] = Field(
         default=None, description="The person's SCORETech Identity account page; null in `local` mode."

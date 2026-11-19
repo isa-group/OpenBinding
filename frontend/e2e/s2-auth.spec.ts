@@ -3,7 +3,8 @@ import { failureBody } from './helpers/problems';
 import { authConfig } from './helpers/session';
 
 // S2 · authentication and invitations, on SPHERE's split authentication layout:
-// auth (/authentication, its login and register views), auth-forgot-password, auth-reset-password, auth-sso-callback, org-join.
+// auth (/authentication, its login and register views), auth-forgot-password, auth-reset-password, auth-sso-callback, org-join,
+// and in SCORETech mode the way to SCORETech Identity, its error pages and auth-identity-callback.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: each walks the states of its screen in order, on one page.
@@ -69,6 +70,8 @@ const detail = (status: number, code: string, error: string, extra: Record<strin
   json(failureBody(status, code, error, extra), status);
 
 interface Mocks {
+  /** What `GET /v1/auth/config` says: the local form (default) or SCORETech Identity. */
+  provider?: 'local' | 'scoretech';
   /** Signed in as this account from the first request. */
   account?: ReturnType<typeof person>;
   /** What GET /v1/organizations answers; a function lets the answer change once something happened. */
@@ -84,7 +87,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
-  await authConfig(page);
+  await authConfig(page, mocks.provider);
   // Whoever signs in during a test becomes this account; /v1/users/me is only asked once a token exists.
   let current = mocks.account ?? person();
   let cookie = Boolean(mocks.account);
@@ -707,6 +710,109 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       ).toBeVisible();
       await capture(page, testInfo, `join-${name}-invalid`);
       expect(critical).toEqual([]);
+    });
+  });
+}
+
+/** Where the browser was sent: the gateway's SCORETech sign-in route, answered by a stand-in page. */
+async function interceptIdentity(page: Page): Promise<URL[]> {
+  const visits: URL[] = [];
+  await page.route(`${API}/v1/auth/identity/login**`, route => {
+    visits.push(new URL(route.request().url()));
+    return route.fulfill({
+      contentType: 'text/html',
+      body: '<!doctype html><title>SCORETech Identity</title><h1>SCORETech Identity</h1>',
+    });
+  });
+  return visits;
+}
+
+const IDENTITY_ERRORS: Array<[string, string]> = [
+  ['signin_failed', 'Sign-in could not be completed'],
+  ['account_not_linked', 'This email belongs to another account'],
+  ['access_denied', 'Your SCORETech account can’t use OpenBinding yet'],
+  ['unavailable', 'SCORETech Identity is unavailable'],
+  ['expired', 'Your sign-in expired'],
+  ['account_disabled', 'This account is disabled'],
+];
+
+for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
+  test.describe(`${name} · S2 in SCORETech mode`, () => {
+    test.use({ viewport, isMobile, deviceScaleFactor });
+
+    test('auth /authentication sends logging in and signing up to SCORETech Identity, with a safe returnTo', async ({
+      page,
+    }) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(page, { provider: 'scoretech' });
+      const visits = await interceptIdentity(page);
+
+      await page.goto('/authentication');
+      await expect(page.getByRole('heading', { name: 'SCORETech Identity' })).toBeVisible();
+      await page.goto('/authentication?view=register');
+      await expect(page.getByRole('heading', { name: 'SCORETech Identity' })).toBeVisible();
+      // A visitor sent here by a protected page comes back to it.
+      await page.goto('/me/orgs');
+      await expect(page.getByRole('heading', { name: 'SCORETech Identity' })).toBeVisible();
+      expect(visits.map(url => url.searchParams.get('returnTo'))).toEqual(['/', '/', '/me/orgs']);
+      expect(visits.every(url => url.pathname === '/v1/auth/identity/login')).toBe(true);
+      // Identity manages passwords: the reset screens go to sign-in too.
+      await page.goto('/forgot-password');
+      await expect(page.getByRole('heading', { name: 'SCORETech Identity' })).toBeVisible();
+      await page.goto('/reset-password?token=obr_x_y');
+      await expect(page.getByRole('heading', { name: 'SCORETech Identity' })).toBeVisible();
+      expect(visits).toHaveLength(5);
+      expect(critical).toEqual([]);
+    });
+
+    test('auth ?identity_error= names each refusal, offers Try again and never loops', async ({
+      page,
+    }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(page, { provider: 'scoretech' });
+      const visits = await interceptIdentity(page);
+      const main = page.locator('main');
+      for (const [code, title] of IDENTITY_ERRORS) {
+        await page.goto(`/authentication?identity_error=${code}`);
+        await expect(main.getByRole('heading', { level: 1, name: title })).toBeVisible();
+        await expect(main.getByRole('link', { name: 'Try again' })).toHaveAttribute(
+          'href',
+          /\/v1\/auth\/identity\/login\?returnTo=%2F$/
+        );
+        await capture(page, testInfo, `identity-error-${code}-${name}`);
+      }
+      expect(visits).toHaveLength(0);
+      await main.getByRole('link', { name: 'Try again' }).click();
+      await expect(page.getByRole('heading', { name: 'SCORETech Identity' })).toBeVisible();
+      expect(visits).toHaveLength(1);
+      expect(critical).toEqual([]);
+    });
+
+    test('auth-identity-callback /sso/identity/callback goes where the person was going, once signed in', async ({
+      page,
+    }) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(page, { provider: 'scoretech', account: person() });
+      await page.goto('/sso/identity/callback?returnTo=%2Fme%2Forgs');
+      await expect(page).toHaveURL(/\/me\/orgs$/);
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'Your organizations' })
+      ).toBeVisible();
+      await page.goto('/sso/identity/callback?returnTo=%2F%2Fevil.example');
+      await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+      expect(critical).toEqual([]);
+    });
+
+    test('auth-identity-callback without a session says the sign-in failed', async ({ page }) => {
+      await mockApi(page, { provider: 'scoretech' });
+      await interceptIdentity(page);
+      await page.goto('/sso/identity/callback?returnTo=%2Fme%2Forgs');
+      await expect(page).toHaveURL(/\/authentication\?identity_error=signin_failed$/);
+      await expect(
+        page
+          .locator('main')
+          .getByRole('heading', { level: 1, name: 'Sign-in could not be completed' })
+      ).toBeVisible();
     });
   });
 }

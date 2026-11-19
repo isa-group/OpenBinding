@@ -72,8 +72,8 @@ class Begun:
     binding: str
 
 
-async def begin(settings: Settings, return_to: object, *, register: bool = False) -> Begun:
-    """Store a new flow and answer where the browser goes (Identity's authorization or registration page)."""
+async def begin(settings: Settings, return_to: object) -> Begun:
+    """Store a new flow and answer where the browser goes (Identity's sign-in page, which also registers)."""
     oidc = get_oidc()
     state = secrets.token_hex(32)
     binding = secrets.token_hex(32)
@@ -91,8 +91,7 @@ async def begin(settings: Settings, return_to: object, *, register: bool = False
             "code_challenge": challenge,
             "code_challenge_method": "S256",
             "ui_locales": "en",
-        },
-        register=register,
+        }
     )
     await get_store().put(
         FLOW_NAMESPACE,
