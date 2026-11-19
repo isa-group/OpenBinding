@@ -365,7 +365,7 @@ async def test_research_requires_verified_us_cas_and_never_accepts_add_ons(
         },
     )
     db_session.add(AuthIdentity(
-        user_id=uuid.UUID(profile["id"]), provider="us-cas", subject="verified-uvus",
+        user_id=uuid.UUID(profile["id"]), provider="us-cas", issuer="https://sso.us.es/CAS", subject="verified-uvus",
         attributes={},
     ))
     await db_session.flush()

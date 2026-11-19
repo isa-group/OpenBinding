@@ -79,8 +79,19 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     username: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
-    #: Stored lower-cased, so that logging in is not a guessing game about case.
+    #: Stored lower-cased, so that logging in is not a guessing game about case. For a SCORETech Identity
+    #: account it is the verified email Identity shares, or ``<user-id>@identity.openbinding.invalid``; it is
+    #: never used to find an Identity account (docs/IDENTITY.md, "never by email").
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
+    #: Whether ``email`` was verified by SCORETech Identity (``email_verified`` true in an ID token). Local and
+    #: seeded accounts never verify theirs.
+    email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    #: The last time Identity confirmed this account (a sign-in or a session renewal): personal API keys stop
+    #: when it is older than ``API_KEY_ORPHAN_DAYS`` (``scoretech`` mode).
+    last_identity_refresh_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: The display name and avatar descriptor Identity shares (``scoretech_display_name``, ``scoretech_avatar``).
+    display_name: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    avatar: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     password_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     preferences: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
@@ -112,6 +123,10 @@ class User(Base):
     @property
     def is_admin(self) -> bool:
         return self.role is UserRole.ADMIN
+
+
+#: Usernames are unique whatever their case: ``ix_users_username`` alone would admit ``Alice`` beside ``alice``.
+Index("uq_users_username_lower", func.lower(User.username), unique=True)
 
 
 class ApiKey(Base):
@@ -460,6 +475,7 @@ from .platform_models import (  # noqa: E402,F401
     CompositionDerivation,
     CompositionEnvironment,
     CompositionEnvironmentKey,
+    IdentitySession,
     CompositionEvaluation,
     CompositionFollow,
     CompositionKind,
@@ -481,6 +497,7 @@ from .platform_models import (  # noqa: E402,F401
     StudyRun,
     StudyState,
     PasswordResetToken,
+    SESSION_REVOKE_REASONS,
     ProblemCompilation,
     ProblemValueOrigin,
     ValuesStatus,

@@ -193,7 +193,7 @@ async def test_an_expired_or_malformed_credential_is_refused_and_never_read_as_a
     await set_visibility(api_client, owner.headers, shown, "public")
     settings = get_settings()
     expired = issue_access_token(
-        settings.gateway_jwt_secret, user_id=owner.user.id, role=owner.user.role.value, ttl_seconds=-60,
+        settings.gateway_jwt_secret, user_id=owner.user.id, ttl_seconds=-60,
         issuer=settings.gateway_jwt_issuer, audience=settings.gateway_jwt_audience,
     )
 

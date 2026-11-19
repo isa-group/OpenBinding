@@ -74,16 +74,23 @@ class RunState(str, enum.Enum):
 
 
 class AuthIdentity(Base):
-    """An external login identity; provider + subject is the only identity key."""
+    """An external login identity; ``(provider, issuer, subject)`` is the only identity key.
+
+    For SCORETech Identity the issuer is the realm's issuer and the subject its ``sub``; US CAS writes its
+    base URL as the issuer.
+    """
 
     __tablename__ = "auth_identities"
-    __table_args__ = (UniqueConstraint("provider", "subject", name="uq_identity_provider_subject"),)
+    __table_args__ = (
+        UniqueConstraint("provider", "issuer", "subject", name="uq_identity_provider_issuer_subject"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     provider: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    issuer: Mapped[str] = mapped_column(String(512), nullable=False)
     subject: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
     attributes: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     verified_at: Mapped[datetime] = mapped_column(
@@ -92,6 +99,66 @@ class AuthIdentity(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
     )
+
+
+#: Why a browser session ended (``identity_sessions.revoked_reason``).
+SESSION_REVOKE_REASONS = (
+    "logout",
+    "logout_all",
+    "replaced",
+    "identity_ended",
+    "admin",
+    "deactivated",
+    "password_reset",
+    "deleted",
+    "provider_changed",
+)
+
+
+class IdentitySession(Base):
+    """A browser session: the opaque cookie (kept as its sha256) and, for Identity, the sealed refresh token.
+
+    PostgreSQL is the authority on sessions (Redis holds only the sign-in flow, pending sign-ups and the
+    refresh lock). Every gateway token names its row (``sid``) and is checked against it on every request,
+    so revoking the row ends the session at once. ``refresh_generation`` is the compare-and-swap that keeps
+    two workers from storing two different rotated refresh tokens.
+    """
+
+    __tablename__ = "identity_sessions"
+    __table_args__ = (
+        CheckConstraint("provider IN ('local', 'scoretech')", name="identity_session_provider"),
+        CheckConstraint(
+            "provider <> 'scoretech' OR identity_id IS NOT NULL", name="identity_session_scoretech_identity"
+        ),
+        CheckConstraint(
+            "revoked_reason IS NULL OR revoked_reason IN ("
+            + ", ".join(f"'{reason}'" for reason in SESSION_REVOKE_REASONS)
+            + ")",
+            name="identity_session_revoked_reason",
+        ),
+        Index("ix_identity_sessions_user_revoked", "user_id", "revoked_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    provider: Mapped[str] = mapped_column(String(16), nullable=False)
+    identity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("auth_identities.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    #: Fernet over ``{"sid", "rt", "gen"}``: a ciphertext copied to another row or generation does not open.
+    refresh_ciphertext: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    refresh_generation: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    access_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    refresh_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    idle_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    last_renewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_reason: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
 
 class PasswordResetToken(Base):
@@ -1062,6 +1129,10 @@ class NotificationStreamTicket(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     ticket_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    #: The browser session that bought the ticket (null for an API key): the stream ends with that session.
+    session_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("identity_sessions.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()

@@ -79,10 +79,10 @@ async def test_cas_verified_reflects_the_linked_identity_in_the_listing(
     other_provider, _ = await account(api_client, registration)
     _, admin = await account(api_client, registration, db_session, admin=True)
     db_session.add(AuthIdentity(
-        user_id=uuid.UUID(linked["id"]), provider="us-cas", subject="uvus-1", attributes={}
+        user_id=uuid.UUID(linked["id"]), provider="us-cas", issuer="https://sso.us.es/CAS", subject="uvus-1", attributes={}
     ))
     db_session.add(AuthIdentity(
-        user_id=uuid.UUID(other_provider["id"]), provider="somewhere-else", subject="x", attributes={}
+        user_id=uuid.UUID(other_provider["id"]), provider="somewhere-else", issuer="https://elsewhere.example", subject="x", attributes={}
     ))
     await db_session.flush()
 
@@ -102,7 +102,7 @@ async def test_cas_verified_is_loaded_in_one_query_for_the_whole_page(
     for _ in range(5):
         profile, _ = await account(api_client, registration)
         db_session.add(AuthIdentity(
-            user_id=uuid.UUID(profile["id"]), provider="us-cas", subject=f"s-{profile['id']}", attributes={}
+            user_id=uuid.UUID(profile["id"]), provider="us-cas", issuer="https://sso.us.es/CAS", subject=f"s-{profile['id']}", attributes={}
         ))
     _, admin = await account(api_client, registration, db_session, admin=True)
     await db_session.flush()
@@ -133,7 +133,7 @@ async def test_cas_verified_is_real_in_the_other_admin_views(
     linked, _ = await account(api_client, registration)
     _, admin = await account(api_client, registration, db_session, admin=True)
     db_session.add(AuthIdentity(
-        user_id=uuid.UUID(linked["id"]), provider="us-cas", subject="uvus-2", attributes={}
+        user_id=uuid.UUID(linked["id"]), provider="us-cas", issuer="https://sso.us.es/CAS", subject="uvus-2", attributes={}
     ))
     await db_session.flush()
 

@@ -280,7 +280,9 @@ async def _complete_callback(
         raise api_error(status.HTTP_401_UNAUTHORIZED, "cas_ticket_invalid", "The CAS ticket is missing.")
     principal = await _validated_principal(settings, state, ticket)
     identity = (await session.execute(select(AuthIdentity).where(
-        AuthIdentity.provider == "us-cas", AuthIdentity.subject == principal.subject
+        AuthIdentity.provider == "us-cas",
+        AuthIdentity.issuer == settings.effective_cas_base_url,
+        AuthIdentity.subject == principal.subject,
     ))).scalars().first()
     mode = stored.get("mode")
     plan_changed: PlanChange | None = None
@@ -293,7 +295,7 @@ async def _complete_callback(
         plan_changed = await _upgrade_to_research(user, session)
         if identity is None:
             identity = AuthIdentity(
-                user_id=user.id, provider="us-cas", subject=principal.subject,
+                user_id=user.id, provider="us-cas", issuer=settings.effective_cas_base_url, subject=principal.subject,
                 attributes=principal.attributes,
             )
             session.add(identity)
@@ -351,7 +353,7 @@ async def _complete_callback(
         except space_client.PricingUnavailable:
             user.contract_pending = True
         session.add(AuthIdentity(
-            user_id=user.id, provider="us-cas", subject=principal.subject,
+            user_id=user.id, provider="us-cas", issuer=settings.effective_cas_base_url, subject=principal.subject,
             attributes=principal.attributes,
         ))
     await session.flush()

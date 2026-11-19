@@ -19,9 +19,10 @@ What it does:
    ``jobs`` <-> ``study_cells`` cycle) with ``op.create_foreign_key`` after
    every table on PostgreSQL; SQLite keeps them inline, since it accepts a
    forward reference in ``CREATE TABLE`` and has no ``ADD CONSTRAINT``;
-4. freezes the trigger DDL of ``db/triggers.py`` as literal per-dialect
+4. renders the indexes on expressions (``lower(username)``), which autogenerate skips on SQLite;
+5. freezes the trigger DDL of ``db/triggers.py`` as literal per-dialect
    strings, so the migration never imports application code;
-5. writes a real ``downgrade()``: the ``use_alter`` foreign keys, the tables in
+6. writes a real ``downgrade()``: the ``use_alter`` foreign keys, the tables in
    reverse order, then the PostgreSQL trigger functions.
 
 Each regeneration takes a fresh random revision id, so a database built from an
@@ -125,6 +126,31 @@ def _dialect_where_clauses(code: str, metadata) -> str:
     return code
 
 
+def _expression_indexes(metadata) -> list[str]:
+    """``op.create_index`` lines for the indexes on expressions (``lower(username)``), which autogenerate skips.
+
+    SQLite cannot reflect them, so Alembic's autogenerate leaves them out of the comparison and of the
+    rendered upgrade; they are rendered here, after every table. Dropping the table drops them.
+    """
+    from sqlalchemy import Column
+    from sqlalchemy.dialects import sqlite
+
+    lines = []
+    for table in metadata.sorted_tables:
+        for index in sorted(table.indexes, key=lambda item: item.name):
+            if all(isinstance(expression, Column) for expression in index.expressions):
+                continue
+            rendered = [
+                str(expression.compile(dialect=sqlite.dialect(), compile_kwargs={"include_table": False, "literal_binds": True}))
+                for expression in index.expressions
+            ]
+            lines.append(
+                f"    op.create_index({index.name!r}, {table.name!r}, "
+                f"[{', '.join(f'sa.text({text!r})' for text in rendered)}], unique={bool(index.unique)})\n"
+            )
+    return lines
+
+
 def _use_alter_foreign_keys(metadata) -> list:
     return sorted(
         (
@@ -171,6 +197,10 @@ def build(revision: str) -> str:
     parts.append("\n\ndef upgrade() -> None:\n")
     parts.append("    dialect = op.get_bind().dialect.name\n")
     parts.append(upgrade + "\n")
+    expression_indexes = _expression_indexes(metadata)
+    if expression_indexes:
+        parts.append("    # Indexes on expressions, which autogenerate cannot compare on SQLite.\n")
+        parts.extend(expression_indexes)
     if late:
         parts.append("    # Foreign keys that close a cycle: inline on SQLite, added once both tables exist elsewhere.\n")
         parts.append("    if dialect != 'sqlite':\n" + add_late)

@@ -129,7 +129,6 @@ async def _issue_session(
         access_token=issue_access_token(
             secret,
             user_id=user.id,
-            role=user.role.value,
             ttl_seconds=settings.access_token_ttl_s,
             issuer=settings.gateway_jwt_issuer,
             audience=settings.gateway_jwt_audience,

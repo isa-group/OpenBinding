@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
-    ApiKey, AuditEvent, AuthIdentity, Notification, OrganizationInvitationCode, OrganizationMembership,
+    ApiKey, AuditEvent, AuthIdentity, IdentitySession, Notification, OrganizationInvitationCode, OrganizationMembership,
     OrganizationRole, PasswordResetToken, RefreshToken, User, UserRole, utcnow,
 )
 from ..models.accounts import (
@@ -648,6 +648,10 @@ async def pseudonymise(session: AsyncSession, user: User) -> None:
     user.password_hash = hash_password(secrets.token_urlsafe(48))
     user.password_enabled = False
     user.preferences = {}
+    user.email_verified = False
+    user.display_name = None
+    user.avatar = None
+    user.last_identity_refresh_at = None
     user.plan_cache = ""
     user.contract_pending = False
     user.is_active = False
@@ -659,6 +663,7 @@ async def pseudonymise(session: AsyncSession, user: User) -> None:
         (ApiKey, ApiKey.user_id),
         (RefreshToken, RefreshToken.user_id),
         (PasswordResetToken, PasswordResetToken.user_id),
+        (IdentitySession, IdentitySession.user_id),
         (AuthIdentity, AuthIdentity.user_id),
         (Notification, Notification.user_id),
         (OrganizationMembership, OrganizationMembership.user_id),
