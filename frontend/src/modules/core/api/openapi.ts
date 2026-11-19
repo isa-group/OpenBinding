@@ -1569,6 +1569,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/compositions/{composition}/environments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Composition Environments
+         * @description The composition's environments, by slug (members only).
+         */
+        get: operations["listCompositionEnvironments"];
+        put?: never;
+        /**
+         * Create Composition Environment
+         * @description Create an environment with nothing adopted yet (ADMIN).
+         */
+        post: operations["createCompositionEnvironment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Composition Environment
+         * @description One environment, by slug or id (members only).
+         */
+        get: operations["getCompositionEnvironment"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Composition Environment
+         * @description Delete an environment with its feed keys and its adoption history (ADMIN); its feed stops answering.
+         */
+        delete: operations["deleteCompositionEnvironment"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Composition Environment
+         * @description Rename or describe an environment, or change its operator, who may adopt or its expected users (ADMIN).
+         */
+        patch: operations["updateCompositionEnvironment"];
+        trace?: never;
+    };
     "/v1/organizations/{org}/compositions/{composition}/evaluate": {
         parameters: {
             query?: never;
@@ -4096,6 +4148,116 @@ export interface components {
             span: components["schemas"]["CompositionSpan"] | null;
         };
         /**
+         * CompositionEnvironmentCreate
+         * @description A new environment; its slug is part of its feed's address and never changes.
+         */
+        CompositionEnvironmentCreate: {
+            /**
+             * Adoptrole
+             * @description The weakest role that may adopt in it.
+             * @default ADMIN
+             * @enum {string}
+             */
+            adoptRole: "MEMBER" | "ADMIN";
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Expectedusers
+             * @description The users its margins assume.
+             */
+            expectedUsers?: number | null;
+            /** Name */
+            name: string;
+            /**
+             * Operator
+             * @description A member's username.
+             */
+            operator?: string | null;
+            /**
+             * Slug
+             * @description 1 to 40 lowercase letters, digits and hyphens, a letter first.
+             */
+            slug: string;
+        };
+        /** CompositionEnvironmentList */
+        CompositionEnvironmentList: {
+            /** Environments */
+            environments: components["schemas"]["CompositionEnvironmentView"][];
+        };
+        /**
+         * CompositionEnvironmentUpdate
+         * @description What may change of an environment; its slug never does. A field left out stays as it is.
+         */
+        CompositionEnvironmentUpdate: {
+            /** Adoptrole */
+            adoptRole?: ("MEMBER" | "ADMIN") | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Expectedusers
+             * @description Null for none.
+             */
+            expectedUsers?: number | null;
+            /** Name */
+            name?: string | null;
+            /**
+             * Operator
+             * @description A member's username; null for none.
+             */
+            operator?: string | null;
+        };
+        /**
+         * CompositionEnvironmentView
+         * @description A composition environment: where an application reads the version in effect.
+         */
+        CompositionEnvironmentView: {
+            /**
+             * Adoptrole
+             * @enum {string}
+             */
+            adoptRole: "MEMBER" | "ADMIN";
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /** Description */
+            description: string;
+            /** Expectedusers */
+            expectedUsers: number | null;
+            feed: components["schemas"]["EnvironmentFeed"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** @description Null while nothing is adopted. */
+            inEffect: components["schemas"]["EnvironmentInEffect"] | null;
+            /**
+             * Keycount
+             * @description How many live feed keys the environment has.
+             */
+            keyCount: number;
+            /**
+             * Keys
+             * @description Live feed keys and the five most recently revoked; ADMIN only (null for others).
+             */
+            keys: components["schemas"]["EnvironmentKeyView"][] | null;
+            /** Name */
+            name: string;
+            operator: components["schemas"]["EnvironmentOperator"] | null;
+            /** Slug */
+            slug: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+        };
+        /**
          * CompositionEvaluate
          * @description A version of a composition to evaluate, with some of its tasks bound otherwise.
          */
@@ -5199,6 +5361,165 @@ export interface components {
             kind: "added" | "removed" | "changed";
             /** Name */
             name: string;
+        };
+        /** EnvironmentBound */
+        EnvironmentBound: {
+            /** Candidate */
+            candidate: string;
+        };
+        /**
+         * EnvironmentEvaluation
+         * @description The evaluation an adoption pinned: the environment's margins read it.
+         */
+        EnvironmentEvaluation: {
+            /** Basiskey */
+            basisKey: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "verified" | "binding_invalid" | "semantics_changed" | "declared";
+            /**
+             * Valuesstatus
+             * @enum {string}
+             */
+            valuesStatus: "verified" | "declared";
+        };
+        /** EnvironmentFeed */
+        EnvironmentFeed: {
+            /**
+             * Etag
+             * @description The feed's current `ETag`, for API clients; null while nothing is adopted.
+             */
+            etag: string | null;
+            /**
+             * Path
+             * @description The feed's address; it never changes.
+             */
+            path: string;
+        };
+        /**
+         * EnvironmentInEffect
+         * @description What an environment's feed serves: the version adopted last, and who adopted it.
+         */
+        EnvironmentInEffect: {
+            /**
+             * Adoptedat
+             * Format: date-time
+             */
+            adoptedAt: string;
+            adoptedBy: components["schemas"]["EnvironmentPerson"] | null;
+            /**
+             * Adoption
+             * @description The adoption's number in this environment (1, 2, 3 …).
+             */
+            adoption: number;
+            /**
+             * Binding
+             * @description The candidate each bound task names, as the document binds it.
+             */
+            binding: {
+                [key: string]: components["schemas"]["EnvironmentBound"];
+            };
+            evaluation: components["schemas"]["EnvironmentEvaluation"] | null;
+            /** Note */
+            note: string;
+            offering: components["schemas"]["EnvironmentOffering"] | null;
+            version: components["schemas"]["EnvironmentVersion"];
+        };
+        /**
+         * EnvironmentKeyView
+         * @description A feed key as its environment lists it: never its secret.
+         */
+        EnvironmentKeyView: {
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Createdby
+             * @description The username of whoever created it.
+             */
+            createdBy: string | null;
+            /**
+             * Creatorismember
+             * @description False once its creator is no longer a member: rotate it deliberately.
+             */
+            creatorIsMember: boolean;
+            /**
+             * Hint
+             * @description The key's prefix, to recognise it: `obe_1a2b3c4d…`.
+             */
+            hint: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Lastusedat */
+            lastUsedAt: string | null;
+            /** Revokedat */
+            revokedAt: string | null;
+        };
+        /**
+         * EnvironmentOffering
+         * @description The offering version the pinned evaluation read; names and dates, never a digest.
+         */
+        EnvironmentOffering: {
+            /** Createdat */
+            createdAt: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "read" | "unreadable" | "invalid_pricing" | "registry_unknown";
+            /** Versionname */
+            versionName: string | null;
+        };
+        /**
+         * EnvironmentOperator
+         * @description The member answerable for an environment.
+         */
+        EnvironmentOperator: {
+            /** Displayname */
+            displayName: string;
+            /**
+             * Member
+             * @description False once they are no longer a member of the organization.
+             */
+            member: boolean;
+            /** Username */
+            username: string;
+        };
+        /**
+         * EnvironmentPerson
+         * @description A person as an environment names one: never an email.
+         */
+        EnvironmentPerson: {
+            /** Displayname */
+            displayName: string;
+            /** Username */
+            username: string;
+        };
+        /** EnvironmentVersion */
+        EnvironmentVersion: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Ordinal */
+            ordinal: number;
         };
         /**
          * ErrorBody
@@ -14514,6 +14835,416 @@ export interface operations {
                 headers: {
                     /** @description Seconds until the budget is available again. */
                     "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listCompositionEnvironments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompositionEnvironmentList"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createCompositionEnvironment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompositionEnvironmentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompositionEnvironmentView"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller's role is too weak (`organization_forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The slug is in use in this composition (`slug_conflict`), or the composition has as many environments as it may (`environment_limit`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The operator is not a member (`operator_not_member`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getCompositionEnvironment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+                environment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompositionEnvironmentView"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteCompositionEnvironment: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match. */
+                "If-Match"?: string | null;
+            };
+            path: {
+                org: string;
+                composition: string;
+                environment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller's role is too weak (`organization_forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision. */
+            412: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateCompositionEnvironment: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match. */
+                "If-Match"?: string | null;
+            };
+            path: {
+                org: string;
+                composition: string;
+                environment: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompositionEnvironmentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompositionEnvironmentView"];
+                };
+            };
+            /** @description `If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller's role is too weak (`organization_forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision. */
+            412: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The operator is not a member (`operator_not_member`). */
+            422: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {

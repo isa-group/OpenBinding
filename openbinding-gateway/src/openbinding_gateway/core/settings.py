@@ -307,6 +307,11 @@ class Settings(BaseSettings):
     #: How many times that budget a signed-in caller gets.
     work_rate_limit_signed_in_multiplier: int = Field(default=5, ge=1)
 
+    # -- Composition environments ---------------------------------------
+    #: How many environments a composition may have (``COMPOSITION_ENVIRONMENTS_MAX``). Pricing 0.2.0 has no
+    #: limit for them; ``maxEnvironments`` replaces this setting with pricing 0.3.0.
+    composition_environments_max: int = Field(default=5, ge=1)
+
     # -- The first administrator -----------------------------------------
     #: Registration is open and produces ordinary users, so a fresh deployment
     #: has no administrator and no way to acquire one - promoting an account is

@@ -60,6 +60,7 @@ from .modules.compositions.adapters.link_routes import permalink_router as compo
 from .modules.compositions.adapters.public_routes import me_router as own_compositions_router
 from .modules.compositions.adapters.public_routes import router as public_compositions_router
 from .modules.compositions.adapters.routes import router as compositions_router
+from .modules.compositions.adapters.environment_routes import router as composition_environments_router
 from .modules.execution.adapters.preset_routes import router as run_presets_router
 from .modules.plans.adapters.routes import public_router as plans_public_router
 from .modules.plans.adapters.routes import router as plans_router
@@ -448,6 +449,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(studies_router)
     app.include_router(problems_router)
     app.include_router(compositions_router)
+    app.include_router(composition_environments_router)
     app.include_router(bim_router)
     app.include_router(composition_language_router)
     app.include_router(public_compositions_router)

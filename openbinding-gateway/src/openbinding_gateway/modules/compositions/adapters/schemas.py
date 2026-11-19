@@ -901,3 +901,131 @@ class UpstreamView(BaseModel):
     entries: list[UpstreamEntry]
     values: dict[str, UpstreamValue]
     offering: Optional[UpstreamOffering] = Field(description="The offering version the current evaluation read.")
+
+
+# -- Composition environments ----------------------------------------------------------------------------
+
+#: Who may adopt in an environment: the weakest role.
+AdoptRoleName = Literal["MEMBER", "ADMIN"]
+_ENVIRONMENT_SLUG = r"^[a-z][a-z0-9-]{0,39}$"
+_USERS = {"ge": 1, "le": 1_000_000_000}
+
+
+class EnvironmentPerson(BaseModel):
+    """A person as an environment names one: never an email."""
+
+    username: str
+    displayName: str
+
+
+class EnvironmentOperator(EnvironmentPerson):
+    """The member answerable for an environment."""
+
+    member: bool = Field(description="False once they are no longer a member of the organization.")
+
+
+class EnvironmentVersion(BaseModel):
+    id: uuid.UUID
+    label: str
+    ordinal: int
+
+
+class EnvironmentEvaluation(BaseModel):
+    """The evaluation an adoption pinned: the environment's margins read it."""
+
+    id: uuid.UUID
+    basisKey: str
+    valuesStatus: Literal["verified", "declared"]
+    outcome: Literal["verified", "binding_invalid", "semantics_changed", "declared"]
+
+
+class EnvironmentOffering(BaseModel):
+    """The offering version the pinned evaluation read; names and dates, never a digest."""
+
+    status: Literal["read", "unreadable", "invalid_pricing", "registry_unknown"]
+    versionName: Optional[str]
+    createdAt: Optional[str]
+
+
+class EnvironmentBound(BaseModel):
+    candidate: str
+
+
+class EnvironmentInEffect(BaseModel):
+    """What an environment's feed serves: the version adopted last, and who adopted it."""
+
+    adoption: int = Field(description="The adoption's number in this environment (1, 2, 3 …).")
+    version: EnvironmentVersion
+    adoptedAt: datetime
+    adoptedBy: Optional[EnvironmentPerson]
+    note: str
+    evaluation: Optional[EnvironmentEvaluation]
+    offering: Optional[EnvironmentOffering]
+    binding: dict[str, EnvironmentBound] = Field(description="The candidate each bound task names, as the document binds it.")
+
+
+class EnvironmentFeed(BaseModel):
+    path: str = Field(description="The feed's address; it never changes.")
+    etag: Optional[str] = Field(description="The feed's current `ETag`, for API clients; null while nothing is adopted.")
+
+
+class EnvironmentKeyView(BaseModel):
+    """A feed key as its environment lists it: never its secret."""
+
+    id: uuid.UUID
+    hint: str = Field(description="The key's prefix, to recognise it: `obe_1a2b3c4d…`.")
+    label: str
+    createdAt: datetime
+    createdBy: Optional[str] = Field(description="The username of whoever created it.")
+    creatorIsMember: bool = Field(description="False once its creator is no longer a member: rotate it deliberately.")
+    lastUsedAt: Optional[datetime]
+    revokedAt: Optional[datetime]
+
+
+class CompositionEnvironmentView(BaseModel):
+    """A composition environment: where an application reads the version in effect."""
+
+    id: uuid.UUID
+    slug: str
+    name: str
+    description: str
+    operator: Optional[EnvironmentOperator]
+    adoptRole: AdoptRoleName
+    expectedUsers: Optional[int]
+    inEffect: Optional[EnvironmentInEffect] = Field(description="Null while nothing is adopted.")
+    feed: EnvironmentFeed
+    keys: Optional[list[EnvironmentKeyView]] = Field(
+        description="Live feed keys and the five most recently revoked; ADMIN only (null for others).",
+    )
+    keyCount: int = Field(description="How many live feed keys the environment has.")
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class CompositionEnvironmentList(BaseModel):
+    environments: list[CompositionEnvironmentView]
+
+
+class CompositionEnvironmentCreate(BaseModel):
+    """A new environment; its slug is part of its feed's address and never changes."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    slug: str = Field(pattern=_ENVIRONMENT_SLUG, description="1 to 40 lowercase letters, digits and hyphens, a letter first.")
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=500)
+    operator: Optional[str] = Field(default=None, min_length=1, max_length=64, description="A member's username.")
+    adoptRole: AdoptRoleName = Field(default="ADMIN", description="The weakest role that may adopt in it.")
+    expectedUsers: Optional[int] = Field(default=None, **_USERS, description="The users its margins assume.")
+
+
+class CompositionEnvironmentUpdate(BaseModel):
+    """What may change of an environment; its slug never does. A field left out stays as it is."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    description: Optional[str] = Field(default=None, max_length=500)
+    operator: Optional[str] = Field(default=None, min_length=1, max_length=64, description="A member's username; null for none.")
+    adoptRole: Optional[AdoptRoleName] = None
+    expectedUsers: Optional[int] = Field(default=None, **_USERS, description="Null for none.")

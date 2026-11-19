@@ -94,6 +94,12 @@ LANGUAGE_ROUTES = {route for route in REQUESTS if route[1].startswith(LANGUAGE)}
 SPHERE_ROUTES = {route for route in REQUESTS if route[1].startswith(("/v1/organizations/{org}/connections",
                                                                       "/v1/organizations/{org}/sphere"))}
 BIM_ROUTES = {("POST", PROBE)} | LANGUAGE_ROUTES
+ENVIRONMENTS = "/v1/organizations/{org}/compositions/{composition}/environments"
+#: Writes under a composition that compile, read and evaluate nothing: an environment, its adoptions and its
+#: feed keys (F4). Outside the compiling-prefix rule, and asserted exactly, so the walk stays exhaustive.
+OPERATION_WRITES = {
+    ("POST", ENVIRONMENTS),
+}
 
 
 @pytest.fixture
@@ -186,7 +192,13 @@ def test_a_route_added_under_the_compiling_prefixes_has_to_be_classified():
         or path.endswith("/compilation")
         or (path.startswith("/v1/organizations/{org}/compositions/{composition}/") and path.endswith("/neighborhood"))
     }
-    assert found == set(WORK_ROUTES)
+    assert found - OPERATION_WRITES == set(WORK_ROUTES)
+    assert OPERATION_WRITES <= found
+
+
+def test_the_operation_writes_are_not_counted():
+    """Creating an environment, adopting and minting a feed key do no compile, read or evaluate work."""
+    assert not OPERATION_WRITES & set(WORK_ROUTES)
 
 
 def test_every_counted_route_is_exercised_below():
