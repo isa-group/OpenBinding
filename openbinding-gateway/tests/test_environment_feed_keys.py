@@ -22,7 +22,7 @@ from openbinding_gateway.access import dependencies
 from openbinding_gateway.core.logging import JsonFormatter, redact
 from openbinding_gateway.db.models import AuditEvent, CompositionEnvironment, CompositionEnvironmentKey, User
 from openbinding_gateway.main import app
-from openbinding_gateway.modules.compositions.application import feed_keys
+from openbinding_gateway.access.dependencies import environment_for_feed_key
 from openbinding_gateway.security import feed_keys as keys
 
 pytestmark = pytest.mark.asyncio
@@ -80,8 +80,8 @@ async def test_two_live_keys_at_most_and_revocation(api_client, registration, db
     assert (await api_client.delete(f"{t.environments}/production/keys/nope", headers=t.admin)).status_code == 404
     assert (await mint(api_client, t)).status_code == 201
 
-    assert await feed_keys.environment_for_feed_key(db_session, first["secret"]) is None
-    found = await feed_keys.environment_for_feed_key(db_session, second.json()["secret"])
+    assert await environment_for_feed_key(db_session, first["secret"]) is None
+    found = await environment_for_feed_key(db_session, second.json()["secret"])
     assert found is not None and found.slug == "production"
     view = (await api_client.get(f"{t.environments}/production", headers=t.owner)).json()
     assert view["keyCount"] == 2
@@ -121,7 +121,7 @@ async def test_a_key_outlives_its_creator(api_client, registration, db_session, 
     user.is_active = False
     await db_session.commit()
 
-    found = await feed_keys.environment_for_feed_key(db_session, created["secret"])
+    found = await environment_for_feed_key(db_session, created["secret"])
 
     assert isinstance(found, CompositionEnvironment)
     view = (await api_client.get(f"{t.environments}/production", headers=t.owner)).json()
@@ -131,9 +131,9 @@ async def test_a_key_outlives_its_creator(api_client, registration, db_session, 
 async def test_a_personal_key_is_never_a_feed_key(api_client, registration, db_session, gate):  # noqa: F811
     t = await team(api_client, registration, db_session, gate, versions=False)
     personal = (await make_key(api_client, t.owner, ["compositions:read"]))["X-API-Key"]
-    assert await feed_keys.environment_for_feed_key(db_session, personal) is None
-    assert await feed_keys.environment_for_feed_key(db_session, "obe_00000000_nothing") is None
-    assert await feed_keys.environment_for_feed_key(db_session, "obe_") is None
+    assert await environment_for_feed_key(db_session, personal) is None
+    assert await environment_for_feed_key(db_session, "obe_00000000_nothing") is None
+    assert await environment_for_feed_key(db_session, "obe_") is None
 
 
 def test_logs_redact_both_kinds_of_key():
@@ -176,8 +176,8 @@ NO_CREDENTIAL_ROUTES = {
     ("POST", "/v1/auth/refresh"),
     ("POST", "/v1/auth/register"),
 }
-#: The only routes that accept an environment key (A6 adds the feed).
-FEED_ROUTES: set[tuple[str, str]] = set()
+#: The only route that accepts an environment key: its feed.
+FEED_ROUTES = {("GET", "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/composition")}
 RESOLVING = (dependencies.get_current_user, dependencies.get_reader, dependencies.get_optional_user, dependencies.solve_caller)
 
 
@@ -186,20 +186,21 @@ def depends_on(dependant, call) -> bool:
 
 
 def classified() -> dict[str, set[tuple[str, str]]]:
-    found: dict[str, set[tuple[str, str]]] = {"resolving": set(), "counted": set(), "none": set()}
+    found: dict[str, set[tuple[str, str]]] = {"resolving": set(), "counted": set(), "none": set(), "feed": set()}
     for included in app.routes:
         original = getattr(included, "original_router", None)
         for route in original.routes if original is not None else [included]:
             if not isinstance(route, APIRoute):
                 continue
-            if any(depends_on(route.dependant, call) for call in RESOLVING):
+            if depends_on(route.dependant, dependencies.get_feed_reader):
+                kind = "feed"
+            elif any(depends_on(route.dependant, call) for call in RESOLVING):
                 kind = "resolving"
             elif depends_on(route.dependant, dependencies.counted_caller):
                 kind = "counted"
             else:
                 kind = "none"
             found[kind].update((method, route.path) for method in route.methods - {"HEAD", "OPTIONS"})
-    found["resolving"] -= FEED_ROUTES
     return found
 
 
@@ -212,6 +213,7 @@ def concrete(path: str) -> str:
 
 
 def test_every_route_is_classified():
+    assert ROUTES["feed"] == FEED_ROUTES
     assert ROUTES["none"] == NO_CREDENTIAL_ROUTES
     assert ROUTES["counted"] == {
         ("POST", "/v1/bim/validate"), ("POST", "/v1/compositions/diff"), ("POST", "/v1/compositions/parse"),

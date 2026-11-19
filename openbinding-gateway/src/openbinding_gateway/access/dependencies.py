@@ -17,17 +17,19 @@ request to count.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Optional
+from typing import Annotated, Any, Literal, Optional
 
 from fastapi import Depends, HTTPException, Request, Security, status
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..core.ratelimit import RateLimited, get_feed_limiter
 from ..core.settings import Settings, get_settings
 from ..db import base as db_base
-from ..db.models import ApiKey, User, utcnow
+from ..db.models import ApiKey, CompositionEnvironment, CompositionEnvironmentKey, User, utcnow
 from ..models.errors import api_error
 from ..security.apikeys import (
     ApiKeyPermission,
@@ -39,7 +41,7 @@ from ..security.apikeys import (
     prefix_of,
     required_permissions,
 )
-from ..security.feed_keys import looks_like_feed_key
+from ..security import feed_keys
 from ..security.tokens import TokenError, bearer_token, read_access_token
 from .contracts import settle_pending_contract
 
@@ -191,7 +193,7 @@ async def _user_for_credential(
     environment feed key (``obe_``) is refused here with 401
     ``environment_key_elsewhere``: it names no user.
     """
-    if looks_like_feed_key(credential):
+    if feed_keys.looks_like_feed_key(credential):
         # An environment's feed key names no user: it reads that environment's feed (``get_feed_reader``) and
         # nothing else, and says so instead of being tried as a token.
         raise environment_key_elsewhere()
@@ -462,6 +464,90 @@ async def solve_caller(
     _authorize_api_key(request, user)
     await settle_pending_contract(user, session)
     return user
+
+
+async def environment_for_feed_key(session: AsyncSession, credential: str) -> Optional[CompositionEnvironment]:
+    """The composition environment a live feed key belongs to, or ``None``.
+
+    Looked up by prefix and compared in constant time, as a personal key is. A revoked key never resolves.
+    ``last_used_at`` is touched at most once a minute: a hint for the environment's ADMIN, and a feed is polled.
+    Here rather than in ``modules.compositions``, whose keys these are, because the access layer sits below every
+    module (``importlinter-modules.ini``).
+    """
+    prefix = feed_keys.prefix_of(credential)
+    if prefix is None:
+        return None
+    row = await session.scalar(select(CompositionEnvironmentKey).where(CompositionEnvironmentKey.prefix == prefix))
+    if row is None or row.revoked_at is not None or not feed_keys.matches(credential, row.secret_hash):
+        return None
+    now = utcnow()
+    if row.last_used_at is None or (now - _as_utc(row.last_used_at)) > LAST_USED_RESOLUTION:
+        row.last_used_at = now
+    return await session.get(CompositionEnvironment, row.environment_id)
+
+
+@dataclass(frozen=True)
+class FeedReader:
+    """Who reads a composition environment's feed: a feed key (its environment) or a member (the user)."""
+
+    kind: Literal["key", "member"]
+    #: The environment the key belongs to (``kind == "key"``).
+    environment: Any = None
+    #: The member (``kind == "member"``).
+    user: Optional[User] = None
+
+
+async def get_feed_reader(
+    request: Request,
+    bearer: Annotated[HTTPAuthorizationCredentials | None, Security(_BEARER_AUTH)],
+    api_key: Annotated[str | None, Security(_API_KEY_AUTH)],
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+    settings: Settings = Depends(get_settings),
+) -> FeedReader:
+    """The reader of an environment's feed: the only dependency that accepts an environment feed key.
+
+    Answers, before anything about the feed is looked up: no credential is 401; a malformed, unknown or revoked
+    credential, or an inactive member, is 401 ``unauthorized``; a member's personal key is authorised as on every
+    route (its permissions and boundary: 403); a credential past ``FEED_RATE_PER_MINUTE`` is 429
+    ``feed_rate_limited``. A member's credential resolves exactly as ``get_reader`` resolves it.
+    """
+    _record_caller(request, None)
+    credential = _credential(request, bearer, api_key)
+    if not credential:
+        raise api_error(
+            status.HTTP_401_UNAUTHORIZED,
+            "unauthorized",
+            "This feed needs an environment key or an account. Send it as X-API-Key or a Bearer token.",
+            headers=_AUTHENTICATE_CHALLENGE,
+        )
+    invalid = api_error(
+        status.HTTP_401_UNAUTHORIZED, "unauthorized", "That credential is not valid.", headers=_AUTHENTICATE_CHALLENGE,
+    )
+    if feed_keys.looks_like_feed_key(credential):
+        environment = await environment_for_feed_key(session, credential)
+        if environment is None:
+            raise invalid
+        reader = FeedReader("key", environment=environment)
+        bucket = f"key:{feed_keys.prefix_of(credential)}"
+    else:
+        user = await _user_for_credential(credential, session, settings)
+        if user is None or not user.is_active:
+            raise invalid
+        _record_caller(request, user)
+        _authorize_api_key(request, user)
+        reader = FeedReader("member", user=user)
+        bucket = f"user:{user.id}"
+    try:
+        await get_feed_limiter().check(bucket, per_minute=settings.feed_rate_per_minute)
+    except RateLimited as limited:
+        raise api_error(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "feed_rate_limited",
+            "Too many reads of this feed with this credential; poll less often.",
+            headers={"Retry-After": str(limited.retry_after)},
+            retry_after_seconds=limited.retry_after,
+        ) from limited
+    return reader
 
 
 async def require_admin(user: User = Depends(get_current_user)) -> User:

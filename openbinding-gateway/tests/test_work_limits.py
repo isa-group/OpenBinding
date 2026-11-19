@@ -13,6 +13,7 @@ from _ratelimit_fakes import DownBackend, FakeRedis
 from openbinding_gateway.access.dependencies import get_reader
 from openbinding_gateway.access.work_limits import (
     ANONYMOUS_READ_ROUTES,
+    OWN_LIMITER_ROUTES,
     WORK_ROUTES,
     WorkRateLimiter,
     get_work_limiter,
@@ -196,6 +197,15 @@ def test_a_route_added_under_the_compiling_prefixes_has_to_be_classified():
     }
     assert found - OPERATION_WRITES == set(WORK_ROUTES)
     assert OPERATION_WRITES <= found
+
+
+def test_the_routes_with_a_limiter_of_their_own():
+    """The feed is counted per credential by its own limiter, never in a work class or as an anonymous read."""
+    assert OWN_LIMITER_ROUTES == {(
+        "GET", "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/composition",
+    )}
+    assert OWN_LIMITER_ROUTES <= routes()
+    assert not OWN_LIMITER_ROUTES & (set(WORK_ROUTES) | set(ANONYMOUS_READ_ROUTES))
 
 
 def test_the_operation_writes_are_not_counted():

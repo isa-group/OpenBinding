@@ -1661,6 +1661,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/composition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the composition in effect in an environment
+         * @description The adopted version's Composition2Yaml bytes, unchanged. Read with the environment's feed key (`obe_…`, as `X-API-Key` or a Bearer token) or a member's credential with `compositions:read`. The `ETag` is the version's content digest and moves only on adopt: send it as `If-None-Match` and a 304 says nothing changed. Consumers read `binding.<task>.candidate`, keep their last good state on any other answer, honour `Retry-After`, and poll about every 30 seconds.
+         */
+        get: operations["getEnvironmentFeed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/keys": {
         parameters: {
             query?: never;
@@ -15633,6 +15653,115 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getEnvironmentFeed: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-None-Match"?: string | null;
+            };
+            path: {
+                org: string;
+                composition: string;
+                environment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The composition in effect. */
+            200: {
+                headers: {
+                    /** @description `private, no-cache`. */
+                    "Cache-Control"?: string;
+                    /** @description The adopted version's content digest, quoted: it changes only on adopt. */
+                    ETag?: string;
+                    /** @description The adoption's number in the environment (informative). */
+                    "OpenBinding-Adoption"?: string;
+                    /** @description The adopted version's label (informative). */
+                    "OpenBinding-Composition-Version"?: string;
+                    /** @description `Authorization, X-API-Key`. */
+                    Vary?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/yaml": string;
+                };
+            };
+            /** @description The caller's copy (`If-None-Match`) is the composition in effect. */
+            304: {
+                headers: {
+                    /** @description `private, no-cache`. */
+                    "Cache-Control"?: string;
+                    /** @description The adopted version's content digest, quoted: it changes only on adopt. */
+                    ETag?: string;
+                    /** @description The adoption's number in the environment (informative). */
+                    "OpenBinding-Adoption"?: string;
+                    /** @description The adopted version's label (informative). */
+                    "OpenBinding-Composition-Version"?: string;
+                    /** @description `Authorization, X-API-Key`. */
+                    Vary?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A member's personal key lacks `compositions:read` or its boundary excludes this feed. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `not_found` (no such environment for this credential, or the composition's parity for a member) or `nothing_adopted` (nothing is adopted yet). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many reads with this credential (`feed_rate_limited`); `Retry-After` says when. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Account authentication is not configured on this deployment. */

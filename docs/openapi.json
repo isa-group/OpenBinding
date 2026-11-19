@@ -26021,6 +26021,219 @@
         ]
       }
     },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/composition": {
+      "get": {
+        "description": "The adopted version's Composition2Yaml bytes, unchanged. Read with the environment's feed key (`obe_…`, as `X-API-Key` or a Bearer token) or a member's credential with `compositions:read`. The `ETag` is the version's content digest and moves only on adopt: send it as `If-None-Match` and a 304 says nothing changed. Consumers read `binding.<task>.candidate`, keep their last good state on any other answer, honour `Retry-After`, and poll about every 30 seconds.",
+        "operationId": "getEnvironmentFeed",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-None-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-None-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/yaml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The composition in effect.",
+            "headers": {
+              "Cache-Control": {
+                "description": "`private, no-cache`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "The adopted version's content digest, quoted: it changes only on adopt.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "OpenBinding-Adoption": {
+                "description": "The adoption's number in the environment (informative).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "OpenBinding-Composition-Version": {
+                "description": "The adopted version's label (informative).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "`Authorization, X-API-Key`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The caller's copy (`If-None-Match`) is the composition in effect.",
+            "headers": {
+              "Cache-Control": {
+                "description": "`private, no-cache`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "The adopted version's content digest, quoted: it changes only on adopt.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "OpenBinding-Adoption": {
+                "description": "The adoption's number in the environment (informative).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "OpenBinding-Composition-Version": {
+                "description": "The adopted version's label (informative).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "`Authorization, X-API-Key`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A member's personal key lacks `compositions:read` or its boundary excludes this feed."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`not_found` (no such environment for this credential, or the composition's parity for a member) or `nothing_adopted` (nothing is adopted yet)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many reads with this credential (`feed_rate_limited`); `Retry-After` says when.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Read the composition in effect in an environment",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
     "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/keys": {
       "post": {
         "description": "The key reads this environment's feed and nothing else. Its secret is in this answer only. An environment holds at most two live keys, so a key is rotated by minting the second and revoking the first. ADMIN; a personal API key also needs `keys:write`.",

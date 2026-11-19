@@ -124,6 +124,13 @@ ANONYMOUS_READ_ROUTES: frozenset[tuple[str, str]] = frozenset({
     ("GET", "/v1/organizations/{org}/pricing-snapshots/{snapshot}/yaml"),
 })
 
+#: The routes that count against a limiter of their own instead of a work class: a composition environment's
+#: feed, read by an application with a feed key (no user budget to charge), counted per credential
+#: (``core.ratelimit.FeedRateLimiter``, ``FEED_RATE_PER_MINUTE``).
+OWN_LIMITER_ROUTES: frozenset[tuple[str, str]] = frozenset({
+    ("GET", "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/composition"),
+})
+
 #: The setting that holds each class's budget.
 _BUDGETS: dict[WorkClass, str] = {
     "compile": "work_rate_limit_compile_requests",

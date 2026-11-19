@@ -11,15 +11,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Header, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ....access.dependencies import get_current_user, session_dependency
+from ....access.dependencies import FeedReader, get_current_user, get_feed_reader, session_dependency
 from ....composition import text
 from ....core import revision as etags
 from ....db.models import OrganizationRole, User
 from ....models.errors import CONFLICT_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE, ErrorResponse, api_error
-from ..application import adoption, environments, feed_keys
+from ..application import adoption, environments, feed, feed_keys
 from ..domain.environments import AdoptRole
 from .schemas import (
     AdoptionEvaluation,
@@ -460,3 +460,65 @@ async def revoke_environment_feed_key(
     _, found, row, role = await environments.readable_environment(session, org, composition, environment, user)
     environments.require(role, OrganizationRole.ADMIN)
     await feed_keys.revoke_key(session, found, row, key, user)
+
+
+# -- The feed --------------------------------------------------------------------------------------------
+
+_FEED_HEADERS = {
+    "ETag": {"description": "The adopted version's content digest, quoted: it changes only on adopt.", "schema": {"type": "string"}},
+    "Cache-Control": {"description": "`private, no-cache`.", "schema": {"type": "string"}},
+    "Vary": {"description": "`Authorization, X-API-Key`.", "schema": {"type": "string"}},
+    "OpenBinding-Adoption": {"description": "The adoption's number in the environment (informative).", "schema": {"type": "string"}},
+    "OpenBinding-Composition-Version": {"description": "The adopted version's label (informative).", "schema": {"type": "string"}},
+}
+
+
+@router.get(
+    "/{environment}/composition",
+    response_class=Response,
+    operation_id="getEnvironmentFeed",
+    summary="Read the composition in effect in an environment",
+    description=(
+        "The adopted version's Composition2Yaml bytes, unchanged. Read with the environment's feed key (`obe_…`, as "
+        "`X-API-Key` or a Bearer token) or a member's credential with `compositions:read`. The `ETag` is the "
+        "version's content digest and moves only on adopt: send it as `If-None-Match` and a 304 says nothing "
+        "changed. Consumers read `binding.<task>.candidate`, keep their last good state on any other answer, "
+        "honour `Retry-After`, and poll about every 30 seconds."
+    ),
+    responses={
+        200: {
+            "description": "The composition in effect.",
+            "headers": _FEED_HEADERS,
+            "content": {"application/yaml": {"schema": {"type": "string"}}},
+        },
+        304: {"description": "The caller's copy (`If-None-Match`) is the composition in effect.", "headers": _FEED_HEADERS},
+        401: {"model": ErrorResponse, "description": "No credential, or one that is not valid (`unauthorized`)."},
+        403: {
+            "model": ErrorResponse,
+            "description": "A member's personal key lacks `compositions:read` or its boundary excludes this feed.",
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": (
+                "`not_found` (no such environment for this credential, or the composition's parity for a member) or "
+                "`nothing_adopted` (nothing is adopted yet)."
+            ),
+        },
+        429: {
+            "model": ErrorResponse,
+            "description": "Too many reads with this credential (`feed_rate_limited`); `Retry-After` says when.",
+            "headers": {"Retry-After": {"description": "Seconds to wait.", "schema": {"type": "integer"}}},
+        },
+    },
+)
+async def get_environment_feed(
+    org: str,
+    composition: str,
+    environment: str,
+    if_none_match: str | None = Header(default=None, alias="If-None-Match"),
+    reader: FeedReader = Depends(get_feed_reader),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> Response:
+    return await feed.feed_response(
+        session, reader, org=org, composition=composition, environment=environment, if_none_match=if_none_match,
+    )

@@ -395,3 +395,44 @@ async def test_two_concurrent_mints_at_the_limit(pg) -> None:
             select(CompositionEnvironmentKey).where(CompositionEnvironmentKey.revoked_at.is_(None))
         )).all()
         assert len(live) == 2
+
+
+async def test_an_adopt_racing_a_feed_read_never_mixes_versions(pg) -> None:
+    """The read returns the old or the new version, its ETag always the bytes' own digest."""
+    import asyncio
+
+    from openbinding_gateway.access.dependencies import FeedReader
+    from openbinding_gateway.db.models import CompositionVersion, User
+    from openbinding_gateway.modules.compositions.application import feed
+
+    async with pg.session() as session:
+        w = await world(session)
+        environment_id = await environment(session, w)
+        await session.commit()
+    tag = await _tag(pg, environment_id)
+    assert (await _adopt(pg, w, environment_id, "1.0.0", tag))[0] == 200
+    tag = await _tag(pg, environment_id)
+
+    async def read():
+        async with pg.session() as session:
+            user = await session.get(User, w.user_id)
+            organization = await session.get(Organization, w.organization_id)
+            from openbinding_gateway.db.models import OrganizationMembership, OrganizationRole
+
+            if not await session.scalar(select(OrganizationMembership.id).where(OrganizationMembership.user_id == user.id)):
+                session.add(OrganizationMembership(organization_id=organization.id, user_id=user.id,
+                                                   role=OrganizationRole.OWNER))
+                await session.commit()
+            response = await feed.feed_response(
+                session, FeedReader("member", user=user), org=organization.slug, composition="shop",
+                environment="production", if_none_match=None,
+            )
+            return response.headers["ETag"], response.body.decode()
+
+    results = await asyncio.gather(read(), _adopt(pg, w, environment_id, "1.1.0", tag), read())
+    async with pg.session() as session:
+        by_digest = {
+            f'"{row.content_digest}"': row.content for row in (await session.scalars(select(CompositionVersion))).all()
+        }
+    for etag, body in (results[0], results[2]):
+        assert by_digest[etag] == body

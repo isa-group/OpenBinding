@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 186
+    assert len(ROUTES) == 187
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -367,3 +367,9 @@ def test_feed_keys_are_administered_with_keys_write():
     assert required_permissions(keys, "POST") == expected
     assert required_permissions(f"{keys}/{{key}}", "DELETE") == expected
     assert required_permissions("/v1/organizations/a/compositions/b/environments/c/keys/d", "DELETE") == expected
+
+
+def test_the_feed_is_a_composition_read():
+    feed = "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/composition"
+    assert ("GET", feed) in ROUTES
+    assert required_permissions(feed, "GET") == frozenset({"compositions:read"})

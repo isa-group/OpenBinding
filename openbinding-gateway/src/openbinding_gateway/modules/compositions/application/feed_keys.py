@@ -1,4 +1,4 @@
-"""The feed keys of a composition environment: minted, revoked and resolved.
+"""The feed keys of a composition environment: minted and revoked (``access.dependencies`` resolves them).
 
 A feed key belongs to its environment (``security.feed_keys``): it reads that environment's feed and nothing else,
 survives its creator leaving the organization, and counts against nobody's ``maxApiKeys``. The secret is shown once
@@ -10,7 +10,6 @@ effect on the next request (no cache) and is final.
 from __future__ import annotations
 
 import uuid
-from datetime import timedelta, timezone
 
 from fastapi import status
 from sqlalchemy import func, select
@@ -22,10 +21,6 @@ from ....security import feed_keys
 from ...shared.application import audit
 from ..domain.environments import MAX_LIVE_FEED_KEYS
 from .environments import TARGET, environment_unreadable
-
-#: How stale ``last_used_at`` may get before it is worth a write.
-LAST_USED_RESOLUTION = timedelta(minutes=1)
-
 
 async def mint_key(
     session: AsyncSession, composition: Composition, environment: CompositionEnvironment, actor: User, label: str,
@@ -88,24 +83,3 @@ async def revoke_key(
         session, actor, "composition.environment_key_revoked", TARGET, environment.id, environment.organization_id,
         composition=composition.slug, environment=environment.slug, prefix=row.prefix,
     )
-
-
-async def environment_for_feed_key(session: AsyncSession, credential: str) -> CompositionEnvironment | None:
-    """The environment a live feed key belongs to, or ``None``: looked up by prefix, compared in constant time.
-
-    ``last_used_at`` is touched at most once a minute: it is a hint for the environment's ADMIN, and a feed is
-    polled.
-    """
-    prefix = feed_keys.prefix_of(credential)
-    if prefix is None:
-        return None
-    row = await session.scalar(select(CompositionEnvironmentKey).where(CompositionEnvironmentKey.prefix == prefix))
-    if row is None or row.revoked_at is not None or not feed_keys.matches(credential, row.secret_hash):
-        return None
-    now = utcnow()
-    last = row.last_used_at
-    if last is not None and last.tzinfo is None:
-        last = last.replace(tzinfo=timezone.utc)
-    if last is None or now - last > LAST_USED_RESOLUTION:
-        row.last_used_at = now
-    return await session.get(CompositionEnvironment, row.environment_id)
