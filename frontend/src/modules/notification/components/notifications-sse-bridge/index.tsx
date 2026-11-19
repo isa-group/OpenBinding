@@ -7,6 +7,7 @@ import { useCallback } from 'react';
 import { useToast } from '../../../core/contexts/useToast';
 import type { Notification } from '../../api/notificationsApi';
 import { useNotificationsSSE } from '../../hooks/useNotificationsSSE';
+import { notificationBody } from '../../utils/notification-link';
 
 export default function NotificationsSSEBridge() {
   const { addToast } = useToast();
@@ -15,7 +16,7 @@ export default function NotificationsSSEBridge() {
       addToast({
         kind: notification.kind,
         title: notification.subject,
-        message: notification.body,
+        message: notificationBody(notification),
       }),
     [addToast]
   );
