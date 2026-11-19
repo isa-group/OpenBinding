@@ -7,7 +7,7 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import select
 
-from _b1_helpers import make_key
+from _b1_helpers import gate, make_key  # noqa: F401
 from openbinding_gateway.db.models import ApiKey, User, utcnow
 
 from ._flow import known_user, sign_in
@@ -93,3 +93,24 @@ def test_the_orphan_window_is_bounded() -> None:
     for days in (0, 366):
         with pytest.raises(ValidationError):
             Settings(_env_file=None, api_key_orphan_days=days)
+
+
+async def test_environment_key_ignores_orphaned_creator(api_client, registration, db_session, gate, scoretech, monkeypatch) -> None:  # noqa: F811
+    """F4's environment feed keys (``obe_``) belong to their environment and name no person: the orphan rule, which
+    governs personal ``obk_`` keys, never judges them. Their creator's personal key is suspended meanwhile."""
+    import uuid
+
+    from test_environment_feed import feed_url, operated
+
+    # The team is made by local registration, then the gateway switches to Identity.
+    monkeypatch.setattr(scoretech, "auth_provider", "local")
+    t, feed = await operated(api_client, registration, db_session, gate)
+    personal = await make_key(api_client, t.owner, ["account:read"])
+    monkeypatch.setattr(scoretech, "auth_provider", "scoretech")
+    creator = await db_session.get(User, uuid.UUID(t.ids["owner"]))
+    for last in (None, utcnow() - timedelta(days=31)):
+        creator.last_identity_refresh_at = last
+        await db_session.flush()
+        assert (await api_client.get(feed_url(t), headers=feed)).status_code == 200
+        refused = await api_client.get("/v1/users/me", headers=personal)
+        assert refused.status_code == 401 and refused.json()["detail"]["code"] == "api_key_suspended"
