@@ -14,6 +14,7 @@ import { useResource } from '../../../core/hooks/useResource';
 import type { OrgRole } from '../../../organization/api/organizationsApi';
 import { useEnvironmentsApi } from '../../api/environmentsApi';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
+import AdoptionHistory from '../adoption-history';
 import { adoptedText } from '../../utils/environments';
 import EnvironmentFormDialog, { DeleteEnvironmentDialog } from '../environment-form-dialog';
 
@@ -182,6 +183,14 @@ export default function EnvironmentDetail({
           </div>
         </dl>
       </section>
+
+      <AdoptionHistory
+        org={org}
+        composition={composition.slug}
+        environment={environment.slug}
+        inEffect={inEffect?.adoption ?? null}
+        refresh={`${inEffect?.adoption ?? 0}`}
+      />
 
       {dialog === 'edit' && (
         <EnvironmentFormDialog

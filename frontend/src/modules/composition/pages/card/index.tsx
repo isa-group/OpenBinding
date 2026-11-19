@@ -65,7 +65,9 @@ import CompositionVersionGraph from '../../components/version-graph';
 import CompositionVersionsTab from '../../components/versions-tab';
 import CompositionAnalyticsTab from '../../components/analytics-tab';
 import ConfigurationSpaceView from '../../components/configuration-space-view';
+import AdoptDialog from '../../components/adopt-dialog';
 import OperationTab from '../../components/operation-tab';
+import { useEnvironmentsApi } from '../../api/environmentsApi';
 import { roleAtLeast, useCompositionRole } from '../../hooks/useCompositionRole';
 import { saveBlob, saveText } from '../../utils/download';
 import { useCardComposition, type LoadedComposition } from './hooks';
@@ -509,6 +511,21 @@ function CardBody({
 
   const [forking, setForking] = useState(false);
   const [importing, setImporting] = useState(false);
+  // An adoption being chosen (an environment or a version picked first), and how many were made: the Operation tab and the
+  // Versions tab read the environments again after each.
+  const [adopting, setAdopting] = useState<{ environment?: string; version?: string } | null>(null);
+  const [adoptions, setAdoptions] = useState(0);
+  const { listEnvironments } = useEnvironmentsApi();
+  // Whether the reader may adopt in some environment: then each row of the Versions tab offers "Adopt…".
+  const adoptable = useResource<boolean>(
+    `composition-adoptable:${reader}:${org}/${slug}:${tab === 'versions'}:${adoptions}`,
+    async () =>
+      member && tab === 'versions' && !composition.archived
+        ? (await listEnvironments(org, slug).catch(() => [])).some(environment =>
+            roleAtLeast(role, environment.adoptRole)
+          )
+        : false
+  );
   const [link, setLink] = useState<{ url: string; description?: string } | null>(null);
 
   // A visitor who asked to fork comes back signed in with `?fork=1`: the modal opens once and the address forgets it.
@@ -852,11 +869,19 @@ function CardBody({
                 shown.reload();
                 reload();
               }}
+              onAdopt={adoptable.data ? version => setAdopting({ version: version.id }) : undefined}
             />
           </div>
         )}
         {tab === 'operation' && (
-          <OperationTab org={org} composition={composition} versions={versions} role={role} />
+          <OperationTab
+            org={org}
+            composition={composition}
+            versions={versions}
+            role={role}
+            refresh={adoptions}
+            onAdopt={environment => setAdopting({ environment: environment.slug })}
+          />
         )}
         {tab === 'settings' && (
           <CompositionSettingsTab
@@ -879,6 +904,26 @@ function CardBody({
         )}
       </ResourceCardShell>
 
+      {adopting && (
+        <AdoptDialog
+          org={org}
+          composition={composition}
+          versions={versions}
+          role={role}
+          environment={adopting.environment}
+          version={adopting.version}
+          onClose={() => setAdopting(null)}
+          onAdopted={result => {
+            setAdopting(null);
+            setAdoptions(count => count + 1);
+            addToast({
+              kind: SYSTEM_TOAST,
+              title: `Version ${result.adoption.version.label} adopted in ${result.environment.name}`,
+              message: `Adoption #${result.adoption.ordinal}. The application reads it on its next poll.`,
+            });
+          }}
+        />
+      )}
       {link && (
         <PricingLinkModal
           linkUrl={link.url}
