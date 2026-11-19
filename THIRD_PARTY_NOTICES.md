@@ -201,6 +201,7 @@ Generated from the origin header of each file.
 | `frontend/src/modules/composition/components/create-composition-form/index.tsx` | `frontend/src/modules/pricing/components/create-pricing-form/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/follow-button/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/environment-card/index.tsx` | `frontend/src/modules/pricing/components/collection-card/index.tsx` (at `fc776b4d`) | adapted |
+| `frontend/src/modules/composition/components/environment-key-panel/index.tsx` | `frontend/src/modules/api-keys/pages/ApiKeysPage.tsx` (at `fc776b4d`; the reveal-once block, through OpenBinding's API keys page) | adapted |
 | `frontend/src/modules/composition/components/fork-composition-modal/index.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/get-composition-menu/index.tsx` | `frontend/src/modules/pricing/components/get-pricing-menu/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/new-version-menu/index.tsx` | `frontend/src/modules/pricing/components/new-version-menu/index.tsx` | adapted |

@@ -168,3 +168,77 @@ test.describe('J1 · operate a composition, J2 · switch the provider', () => {
     expect(handle.unmocked).toEqual([]);
   });
 });
+
+test.describe('J1 · feed keys, J3 · check now', () => {
+  test('an admin creates an environment, makes a feed key shown once, revokes it and deletes the environment', async ({
+    page,
+  }) => {
+    const handle = await installMockApi(page, 'admin', { tomatometer: true });
+    const outside = watchOrigins(page);
+    await page.goto(OPERATION);
+    await page.getByRole('button', { name: 'New environment' }).click();
+    const form = page.getByRole('dialog', { name: 'New environment' });
+    await form.getByRole('textbox', { name: 'Name' }).fill('Canary');
+    await expect(form.getByRole('textbox', { name: 'Slug' })).toHaveValue('canary');
+    await form.getByRole('button', { name: 'Create environment' }).click();
+    await expect(card(page, 'Canary')).toContainText('Nothing adopted yet');
+
+    await card(page, 'Canary').getByRole('link', { name: 'Canary' }).click();
+    const feed = page.getByRole('region', { name: 'Feed', exact: true });
+    await expect(feed).toContainText('/environments/canary/composition');
+    await expect(
+      feed.getByRole('button', { name: 'Download the composition in effect' })
+    ).toBeDisabled();
+    await feed.getByRole('button', { name: 'Create key' }).click();
+    await feed.getByRole('textbox', { name: 'Key label' }).fill('TomatoMeter canary');
+    await feed.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(feed.getByLabel('Secret')).toHaveText(/^obe_f1c7a5e0_/);
+    await expect(feed).toContainText('Copy this key now. You won’t be able to see it again.');
+    await feed.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(feed.getByLabel('Secret')).toHaveCount(0);
+    await expect(page.locator('body')).not.toContainText('fixture-feed-key-not-a-secret');
+    const keys = feed.getByRole('list', { name: 'Feed keys' });
+    await expect(keys).toContainText('obe_f1c7a5e0…');
+    await expect(keys).toContainText('never used');
+
+    await keys.getByRole('button', { name: 'Revoke' }).click();
+    await page.getByRole('button', { name: 'Revoke key' }).click();
+    await expect(keys).toContainText('Revoked');
+
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    const remove = page.getByRole('dialog', { name: 'Delete Canary?' });
+    await remove.getByRole('textbox').fill('canary');
+    await remove.getByRole('button', { name: 'Delete permanently' }).click();
+    await expect(page.getByRole('heading', { level: 2, name: 'Environments' })).toBeVisible();
+    await expect(card(page, 'Canary')).toHaveCount(0);
+    expect(outside).toEqual([]);
+    expect(handle.unmocked).toEqual([]);
+  });
+
+  test('check now reports every source of the recorded manifests as the latest, then a newer upstream version, and changes nothing', async ({
+    page,
+  }) => {
+    const handle = await installMockApi(page, 'admin', { tomatometer: true });
+    await page.goto(`${OPERATION}?environment=production`);
+    const sources = page.getByRole('region', { name: 'Sources' });
+    await sources.getByRole('button', { name: 'Check now' }).click();
+    const report = sources.getByRole('list', { name: 'Check report' });
+    await expect(report).toContainText('Brevo 2026-10 is the latest (plan PROFESSIONAL).');
+    await expect(report).toContainText('Dropbox 2021 is the latest (plan PLUS).');
+    await expect(report).toContainText('sphere/tomatometer 1.0.0 is the latest.');
+    await expect(report).toContainText('Valid on the installed toolchain.');
+    await expect(sources).toContainText('Nothing was changed.');
+    await expect(page.getByRole('region', { name: 'In effect', exact: true })).toContainText(
+      'Adoption #3'
+    );
+
+    if (handle.operation) handle.operation.check = 'newer';
+    await sources.getByRole('button', { name: 'Check now' }).click();
+    await expect(report).toContainText(
+      'Brevo 2027-01 is newer than the pinned 2026-10 (plan PROFESSIONAL).'
+    );
+    await expect(report.getByText('Newer', { exact: true })).toBeVisible();
+    expect(handle.operation?.adopted).toEqual([]);
+    expect(handle.unmocked).toEqual([]);
+  });
+});

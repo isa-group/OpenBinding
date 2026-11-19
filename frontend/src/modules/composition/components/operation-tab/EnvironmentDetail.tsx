@@ -20,6 +20,8 @@ import { compositionsApi, useCompositionsApi } from '../../api/compositionsApi';
 import { useEnvironmentsApi } from '../../api/environmentsApi';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
 import AdoptionHistory from '../adoption-history';
+import CheckPanel from '../check-panel';
+import EnvironmentKeyPanel from '../environment-key-panel';
 import { adoptedText } from '../../utils/environments';
 import EnvironmentFormDialog, { DeleteEnvironmentDialog } from '../environment-form-dialog';
 
@@ -256,6 +258,23 @@ export default function EnvironmentDetail({
           }}
         />
       </section>
+
+      {roleAtLeast(role, 'MEMBER') && (
+        <CheckPanel
+          org={org}
+          composition={composition.slug}
+          environment={environment.slug}
+          adopted={inEffect !== null}
+        />
+      )}
+
+      <EnvironmentKeyPanel
+        org={org}
+        composition={composition.slug}
+        environment={environment}
+        canAdminister={canAdminister}
+        onChanged={reload}
+      />
 
       <AdoptionHistory
         org={org}

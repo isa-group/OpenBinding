@@ -15,7 +15,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { config } from '../../../../config';
 import { useResource } from '../../../core/hooks/useResource';
 import { classifyAuthError, marker, readApiError } from '../../../core/api/errors';
 import type { CompositionVersionView, ProblemFacts } from '../../../core/api/types';
@@ -37,6 +36,7 @@ import {
   type CompositionViewModel,
 } from '../../../core/utils/composition/viewModel';
 import customAlert from '../../../core/utils/custom-alert';
+import { gatewayUrl } from '../../../core/utils/gatewayUrl';
 import { problemFactsApi } from '../../../core/utils/problem/facts';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { orgPath } from '../../../organization/types/paths';
@@ -86,13 +86,6 @@ const shortId = (id: string) => id.slice(0, 8);
 
 const actionClass =
   'flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-tp-input-border bg-tp-input-bg px-3 text-xs text-tp-ink transition-colors hover:bg-tp-surface focus:border-tp-primary focus:outline-none';
-
-/** An absolute address for a gateway path (the API base may be relative to this page). */
-function gatewayUrl(path: string): string {
-  const base = config.apiBaseUrl.replace(/\/$/, '');
-  const absolute = /^https?:\/\//.test(base) ? base : `${window.location.origin}${base}`;
-  return `${absolute}${path}`;
-}
 
 /**
  * Where the shown version comes from, in SPHERE's dotted line: the composition it was forked from (a link while the reader
