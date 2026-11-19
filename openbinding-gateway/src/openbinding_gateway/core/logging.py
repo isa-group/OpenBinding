@@ -14,7 +14,8 @@ _LABELED_SECRET = re.compile(
     r"(\s*[:=]\s*)([^\s,;]+)"
 )
 _BEARER = re.compile(r"(?i)\bBearer\s+[^\s,;]+")
-_OPENBINDING_KEY = re.compile(r"\bobk_[A-Za-z0-9_-]+")
+#: A personal API key (``obk_``) or an environment feed key (``obe_``).
+_OPENBINDING_KEY = re.compile(r"\bob[ke]_[A-Za-z0-9_-]+")
 #: A SPHERE API key (an organization's connection): never logged, whatever carries it.
 _SPHERE_KEY = re.compile(r"\bsk-[0-9a-f]{64}\b")
 

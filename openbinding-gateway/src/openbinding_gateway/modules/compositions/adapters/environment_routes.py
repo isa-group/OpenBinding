@@ -19,7 +19,7 @@ from ....composition import text
 from ....core import revision as etags
 from ....db.models import OrganizationRole, User
 from ....models.errors import CONFLICT_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE, ErrorResponse, api_error
-from ..application import adoption, environments
+from ..application import adoption, environments, feed_keys
 from ..domain.environments import AdoptRole
 from .schemas import (
     AdoptionEvaluation,
@@ -28,6 +28,8 @@ from .schemas import (
     CompositionAdoptionView,
     EnvironmentAdopt,
     EnvironmentAdoptResult,
+    FeedKeyCreate,
+    FeedKeyCreated,
     VersionName,
     CompositionEnvironmentCreate,
     CompositionEnvironmentList,
@@ -393,3 +395,68 @@ async def list_composition_adoptions(
         adoptions=[adoption_view(item) for item in rows],
         nextBefore=last if last is not None and last > 1 and len(rows) == limit else None,
     )
+
+
+# -- Feed keys -------------------------------------------------------------------------------------------
+
+
+@router.post(
+    "/{environment}/keys",
+    status_code=status.HTTP_201_CREATED,
+    response_model=FeedKeyCreated,
+    operation_id="createEnvironmentFeedKey",
+    summary="Mint a feed key of an environment",
+    description=(
+        "The key reads this environment's feed and nothing else. Its secret is in this answer only. An environment "
+        "holds at most two live keys, so a key is rotated by minting the second and revoking the first. ADMIN; a "
+        "personal API key also needs `keys:write`."
+    ),
+    responses={
+        **UNREADABLE,
+        **FORBIDDEN,
+        409: {**CONFLICT_RESPONSE, "description": "Two live keys already (`feed_key_limit`): revoke one first."},
+    },
+)
+async def create_environment_feed_key(
+    org: str,
+    composition: str,
+    environment: str,
+    payload: FeedKeyCreate,
+    response: Response,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> FeedKeyCreated:
+    """Mint a feed key; the secret is shown once."""
+    organization, found, row, role = await environments.readable_environment(
+        session, org, composition, environment, user,
+    )
+    environments.require(role, OrganizationRole.ADMIN)
+    key, secret = await feed_keys.mint_key(session, found, row, user, payload.label)
+    response.headers["Cache-Control"] = "no-store"
+    return FeedKeyCreated(
+        key=EnvironmentKeyView(
+            id=key.id, hint=f"{key.prefix}…", label=key.label, createdAt=key.created_at, createdBy=user.username,
+            creatorIsMember=True, lastUsedAt=None, revokedAt=None,
+        ),
+        secret=secret,
+    )
+
+
+@router.delete(
+    "/{environment}/keys/{key}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="revokeEnvironmentFeedKey",
+    responses=({**UNREADABLE, **FORBIDDEN}),
+)
+async def revoke_environment_feed_key(
+    org: str,
+    composition: str,
+    environment: str,
+    key: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> None:
+    """Revoke a feed key (ADMIN): it stops authenticating on the next request, for good."""
+    _, found, row, role = await environments.readable_environment(session, org, composition, environment, user)
+    environments.require(role, OrganizationRole.ADMIN)
+    await feed_keys.revoke_key(session, found, row, key, user)

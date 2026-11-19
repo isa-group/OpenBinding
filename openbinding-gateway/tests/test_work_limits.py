@@ -100,6 +100,7 @@ ENVIRONMENTS = "/v1/organizations/{org}/compositions/{composition}/environments"
 OPERATION_WRITES = {
     ("POST", ENVIRONMENTS),
     ("POST", f"{ENVIRONMENTS}/{{environment}}/adopt"),
+    ("POST", f"{ENVIRONMENTS}/{{environment}}/keys"),
 }
 
 

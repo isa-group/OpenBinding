@@ -359,3 +359,39 @@ async def test_a_patch_racing_an_adopt_with_one_tag(pg) -> None:
     adopted, patched = await asyncio.gather(_adopt(pg, w, environment_id, "1.0.0", tag), patch())
 
     assert sorted([adopted[0], patched]) == [200, 412], (adopted, patched)
+
+
+async def test_two_concurrent_mints_at_the_limit(pg) -> None:
+    """One live key already: of two concurrent mints one gets the second slot, the other 409 feed_key_limit."""
+    import asyncio
+
+    from fastapi import HTTPException
+
+    from openbinding_gateway.db.models import Composition, User
+    from openbinding_gateway.modules.compositions.application import feed_keys
+
+    async with pg.session() as session:
+        w = await world(session)
+        environment_id = await environment(session, w)
+        await key(session, w, environment_id)
+        await session.commit()
+
+    async def mint():
+        async with pg.session() as session:
+            composition = await session.get(Composition, w.composition_id)
+            row = await session.get(CompositionEnvironment, environment_id)
+            actor = await session.get(User, w.user_id)
+            try:
+                await feed_keys.mint_key(session, composition, row, actor, "")
+                await session.commit()
+                return 201
+            except HTTPException as exc:
+                await session.rollback()
+                return exc.status_code
+
+    assert sorted(await asyncio.gather(mint(), mint())) == [201, 409]
+    async with pg.session() as session:
+        live = (await session.scalars(
+            select(CompositionEnvironmentKey).where(CompositionEnvironmentKey.revoked_at.is_(None))
+        )).all()
+        assert len(live) == 2

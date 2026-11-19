@@ -7309,6 +7309,40 @@
         "title": "Facets",
         "type": "object"
       },
+      "FeedKeyCreate": {
+        "additionalProperties": false,
+        "description": "A new feed key of an environment.",
+        "properties": {
+          "label": {
+            "default": "",
+            "description": "What reads with it, to recognise it later.",
+            "maxLength": 80,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "title": "FeedKeyCreate",
+        "type": "object"
+      },
+      "FeedKeyCreated": {
+        "description": "A new feed key: its secret is shown here once and never again.",
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/EnvironmentKeyView"
+          },
+          "secret": {
+            "description": "The whole key (`obe_…`): configure the application with it now.",
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "secret"
+        ],
+        "title": "FeedKeyCreated",
+        "type": "object"
+      },
       "FieldChangeView": {
         "description": "One field that differs: its dotted path within the entry (or the document), and both values.",
         "properties": {
@@ -25984,6 +26018,254 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/keys": {
+      "post": {
+        "description": "The key reads this environment's feed and nothing else. Its secret is in this answer only. An environment holds at most two live keys, so a key is rotated by minting the second and revoking the first. ADMIN; a personal API key also needs `keys:write`.",
+        "operationId": "createEnvironmentFeedKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedKeyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedKeyCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role is too weak (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Two live keys already (`feed_key_limit`): revoke one first."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Mint a feed key of an environment",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write",
+          "keys:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/keys/{key}": {
+      "delete": {
+        "description": "Revoke a feed key (ADMIN): it stops authenticating on the next request, for good.",
+        "operationId": "revokeEnvironmentFeedKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role is too weak (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Revoke Environment Feed Key",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write",
+          "keys:write"
         ]
       }
     },

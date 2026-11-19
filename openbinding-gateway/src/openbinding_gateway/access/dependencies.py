@@ -39,6 +39,7 @@ from ..security.apikeys import (
     prefix_of,
     required_permissions,
 )
+from ..security.feed_keys import looks_like_feed_key
 from ..security.tokens import TokenError, bearer_token, read_access_token
 from .contracts import settle_pending_contract
 
@@ -186,8 +187,14 @@ async def _user_for_credential(
 
     Both channels leave here as the same ``User`` for ownership and pricing,
     but API-key resolution also attaches the verified key to that request's
-    ORM instance so authorization does not lose its narrower policy.
+    ORM instance so authorization does not lose its narrower policy. An
+    environment feed key (``obe_``) is refused here with 401
+    ``environment_key_elsewhere``: it names no user.
     """
+    if looks_like_feed_key(credential):
+        # An environment's feed key names no user: it reads that environment's feed (``get_feed_reader``) and
+        # nothing else, and says so instead of being tried as a token.
+        raise environment_key_elsewhere()
     if looks_like_api_key(credential):
         return await _user_for_api_key(credential, session)
 
@@ -200,6 +207,16 @@ async def _user_for_credential(
     if user is not None:
         user._authenticated_api_key = None  # type: ignore[attr-defined]
     return user
+
+
+def environment_key_elsewhere() -> HTTPException:
+    """The 401 of an environment feed key presented to any route but its feed."""
+    return api_error(
+        status.HTTP_401_UNAUTHORIZED,
+        "environment_key_elsewhere",
+        "An environment key reads only its environment's feed.",
+        headers=_AUTHENTICATE_CHALLENGE,
+    )
 
 
 def _record_caller(request: Request, user: Optional[User]) -> None:

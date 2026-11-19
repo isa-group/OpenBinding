@@ -1075,3 +1075,18 @@ class EnvironmentAdoptResult(BaseModel):
 
     environment: CompositionEnvironmentView
     adoption: CompositionAdoptionView
+
+
+class FeedKeyCreate(BaseModel):
+    """A new feed key of an environment."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = Field(default="", max_length=80, description="What reads with it, to recognise it later.")
+
+
+class FeedKeyCreated(BaseModel):
+    """A new feed key: its secret is shown here once and never again."""
+
+    key: EnvironmentKeyView
+    secret: str = Field(description="The whole key (`obe_…`): configure the application with it now.")

@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 184
+    assert len(ROUTES) == 186
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -359,3 +359,11 @@ def test_adopting_needs_its_own_permission():
     assert "compositions:adopt" not in apikeys.ADMIN_PERMISSIONS
     history = "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/adoptions"
     assert required_permissions(history, "GET") == frozenset({"compositions:read"})
+
+
+def test_feed_keys_are_administered_with_keys_write():
+    keys = "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/keys"
+    expected = frozenset({"compositions:write", "keys:write"})
+    assert required_permissions(keys, "POST") == expected
+    assert required_permissions(f"{keys}/{{key}}", "DELETE") == expected
+    assert required_permissions("/v1/organizations/a/compositions/b/environments/c/keys/d", "DELETE") == expected
