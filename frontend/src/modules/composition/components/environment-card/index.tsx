@@ -72,7 +72,7 @@ export default function EnvironmentCard({ environment, to, onAdopt, menuItems = 
           <h3 className="truncate text-sm font-medium text-tp-ink group-hover:text-tp-accent">
             <Link
               to={to}
-              className="cursor-pointer outline-none after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-tp-primary"
+              className="block cursor-pointer truncate leading-6 outline-none after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-tp-primary"
             >
               {environment.name}
             </Link>
