@@ -8,7 +8,13 @@ import type { Mode } from '../../utils/composition/viewModel';
 /** The modes this renderer draws so far; the others join with the blocks that build them. */
 export type RendererMode = Extract<
   Mode,
-  'catalog' | 'architecture' | 'workflow' | 'comparison' | 'configurator' | 'showcase'
+  | 'catalog'
+  | 'architecture'
+  | 'workflow'
+  | 'comparison'
+  | 'configurator'
+  | 'showcase'
+  | 'operations'
 >;
 
 /**
@@ -21,7 +27,9 @@ export type RendererMode = Extract<
  *   candidates each version chose;
  * - configurator: what the toolchain makes of the binding chosen, and the linked problem's candidates to choose from;
  * - showcase: a composition as its documents say it, for every reader: what it does, its values and how far they can be trusted,
- *   the workflow, the providers and the upstream plans, the problem it links (named, never opened), and its own pricing.
+ *   the workflow, the providers and the upstream plans, the problem it links (named, never opened), and its own pricing;
+ * - operations: what an environment's feed serves (the version in effect, its binding and the offering version its evaluation
+ *   read), and the environment's adoption history.
  */
 export type Section =
   | 'identity'
@@ -39,7 +47,9 @@ export type Section =
   | 'changes'
   | 'result'
   | 'choice'
-  | 'about';
+  | 'about'
+  | 'inEffect'
+  | 'adoptions';
 
 export const MODE_SECTIONS: Readonly<Record<RendererMode, readonly Section[]>> = {
   catalog: [
@@ -57,6 +67,7 @@ export const MODE_SECTIONS: Readonly<Record<RendererMode, readonly Section[]>> =
   comparison: ['changes', 'graph', 'candidates'],
   configurator: ['result', 'choice'],
   showcase: ['about', 'status', 'values', 'graph', 'providers', 'plans', 'problem', 'offering'],
+  operations: ['inEffect', 'adoptions'],
 };
 
 /** How tightly a mode is laid out: a page of its own, or a panel beside something else. */

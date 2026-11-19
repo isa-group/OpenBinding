@@ -27,7 +27,10 @@ import { valueModels, valueStatus, type ValueModel, type ValueStatus } from './v
 
 export type Reader = 'member' | 'public';
 
-/** The renderer's modes; `calculator` and `configurator` need a linked problem the reader may read. */
+/**
+ * The renderer's modes; `calculator` and `configurator` need a linked problem the reader may read, and `operations` (what is in
+ * effect in an environment) is a member's.
+ */
 export type Mode =
   | 'catalog'
   | 'architecture'
@@ -35,7 +38,8 @@ export type Mode =
   | 'comparison'
   | 'calculator'
   | 'configurator'
-  | 'showcase';
+  | 'showcase'
+  | 'operations';
 
 export type Outcome = EvaluationView['outcome'];
 
@@ -201,6 +205,7 @@ export function compositionViewModel(input: CompositionViewModelInput): Composit
     if ((composition.version_count ?? 0) > 1) modes.push('comparison');
     if (problemReadable) modes.push('calculator', 'configurator');
     if (composition.visibility === 'public') modes.push('showcase');
+    if (member) modes.push('operations');
   }
 
   const diagnostics =

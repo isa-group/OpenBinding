@@ -4,6 +4,7 @@ import type { AnalysisActions } from './modes/analysis';
 import { ArchitectureMode } from './modes/architecture';
 import { CatalogMode } from './modes/catalog';
 import { ConfiguratorMode } from './modes/configurator';
+import { OperationsMode, type OperationsData } from './modes/operations';
 import { ShowcaseMode } from './modes/showcase';
 import { WorkflowMode } from './modes/workflow';
 import { sectionsOf, type Density, type RendererMode, type Section } from './presets';
@@ -29,6 +30,8 @@ interface CompositionRendererProps extends RendererLinks {
    * storefront are drawn from it; without it they keep their reference faces. The page loads it, so core never reads a module.
    */
   upstream?: RendererUpstream | null;
+  /** What the `operations` mode draws: an environment's version in effect and the page's slots. */
+  operation?: OperationsData;
 }
 
 /**
@@ -44,6 +47,7 @@ export function CompositionRenderer({
   problemHref = null,
   runHref = null,
   upstream = null,
+  operation,
 }: CompositionRendererProps) {
   const sections = sectionsOf(mode, hideSections);
   return (
@@ -69,6 +73,9 @@ export function CompositionRenderer({
       )}
       {mode === 'showcase' && (
         <ShowcaseMode model={model} sections={sections} upstream={upstream} />
+      )}
+      {mode === 'operations' && operation && (
+        <OperationsMode sections={sections} operation={operation} />
       )}
     </div>
   );

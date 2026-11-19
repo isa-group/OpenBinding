@@ -2,7 +2,7 @@
 // version in effect. SPHERE has no environments; the header follows the composition page's own sections. ADMIN edits and
 // deletes it from here with the `ETag` this read answered.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { classifyAuthError, marker } from '../../../core/api/errors';
 import type {
@@ -10,8 +10,13 @@ import type {
   CompositionVersionView,
   CompositionView,
 } from '../../../core/api/types';
+import { CompositionRenderer } from '../../../core/components/composition-renderer/CompositionRenderer';
+import { MarginTable } from '../../../core/components/margin-table';
 import { useResource } from '../../../core/hooks/useResource';
+import { compositionViewModel } from '../../../core/utils/composition/viewModel';
 import type { OrgRole } from '../../../organization/api/organizationsApi';
+import { compositionPath } from '../../../../routes/paths/compositions';
+import { compositionsApi, useCompositionsApi } from '../../api/compositionsApi';
 import { useEnvironmentsApi } from '../../api/environmentsApi';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
 import AdoptionHistory from '../adoption-history';
@@ -53,6 +58,39 @@ export default function EnvironmentDetail({
   );
   const reload = () => setNonce(value => value + 1);
   const canAdminister = roleAtLeast(role, 'ADMIN');
+  const { getVersionMargins } = useCompositionsApi();
+
+  // The version in effect, its upstream plans and its margins with the pinned evaluation. The users default to the
+  // environment's expected users; a value typed here only asks again (after a pause) and is never saved.
+  const loaded = read.data?.value ?? read.stale?.value ?? null;
+  const current = loaded?.inEffect ?? null;
+  const [usersTyped, setUsersTyped] = useState<string | null>(null);
+  const usersShown =
+    usersTyped ?? (loaded && loaded.expectedUsers !== null ? String(loaded.expectedUsers) : '');
+  const [usersPaused, setUsersPaused] = useState(usersShown);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setUsersPaused(usersShown), 400);
+    return () => window.clearTimeout(timer);
+  }, [usersShown]);
+  const usersAsked = usersTyped === null ? usersShown : usersPaused;
+  const users = /^[1-9]\d{0,9}$/.test(usersAsked) ? usersAsked : undefined;
+  const margins = useResource(
+    `environment-margins:${org}/${composition.slug}/${current?.version.id ?? 'none'}/${current?.evaluation?.id ?? ''}/${users ?? ''}`,
+    async () =>
+      current
+        ? getVersionMargins(org, composition.slug, current.version.id, {
+            users,
+            evaluation: current.evaluation?.id,
+          })
+        : null
+  );
+  const upstream = useResource(
+    `environment-upstream:${org}/${composition.slug}/${current?.version.id ?? 'none'}`,
+    async () =>
+      current
+        ? compositionsApi.upstream(org, composition.slug, current.version.id).catch(() => null)
+        : null
+  );
 
   const back = (
     <Link
@@ -182,6 +220,41 @@ export default function EnvironmentDetail({
             </dd>
           </div>
         </dl>
+      </section>
+
+      <section
+        aria-label="Operation"
+        className="rounded-xl border border-tp-hairline bg-tp-canvas p-5"
+      >
+        <CompositionRenderer
+          model={compositionViewModel({
+            composition,
+            version: null,
+            facts: null,
+            reader: 'member',
+          })}
+          mode="operations"
+          hideSections={['adoptions']}
+          operation={{
+            inEffect,
+            upstream: upstream.data ?? null,
+            onOpenVersion: label =>
+              compositionPath(org, composition.slug, undefined, { version: label }),
+            onAdopt: canAdopt ? () => onAdopt?.(environment) : undefined,
+            margins: (
+              <MarginTable
+                margins={margins.data ?? margins.stale ?? null}
+                loading={margins.status === 'loading'}
+                error={
+                  margins.status === 'error'
+                    ? `The margins couldn’t be computed${marker(classifyAuthError(margins.error))}.`
+                    : null
+                }
+                users={{ value: usersShown, onChange: setUsersTyped }}
+              />
+            ),
+          }}
+        />
       </section>
 
       <AdoptionHistory

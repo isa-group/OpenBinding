@@ -62,6 +62,11 @@ test.describe('J1 · operate a composition, J2 · switch the provider', () => {
     // The detail: the history, newest first, with the version it replaced and the way to compare them.
     await card(page, 'Production').getByRole('link', { name: 'Production' }).click();
     await expect(page).toHaveURL(/\?environment=production$/);
+    // The margins follow the adoption: 1.1.0's pinned evaluation, per user 0.029990.
+    await expect(page.getByRole('region', { name: 'In effect', exact: true })).toContainText(
+      'In effect: 1.1.0'
+    );
+    await expect(page.getByRole('region', { name: 'Margin per plan' })).toContainText('−0.03');
     const latest = page.getByRole('listitem', { name: 'Adoption 4' });
     await expect(latest).toContainText('1.0.0 → 1.1.0');
     await expect(latest).toContainText('In effect');
@@ -92,6 +97,40 @@ test.describe('J1 · operate a composition, J2 · switch the provider', () => {
     expect(handle.operation?.adopted).toHaveLength(1);
 
     expect(outside).toEqual([]);
+    expect(handle.unmocked).toEqual([]);
+  });
+
+  test('an environment shows the composition in effect and its margins per plan, under any number of users', async ({
+    page,
+  }) => {
+    const handle = await installMockApi(page, 'admin', { tomatometer: true });
+    await page.goto(`${OPERATION}?environment=production`);
+    const inEffect = page.getByRole('region', { name: 'In effect', exact: true });
+    await expect(inEffect).toContainText('In effect: 1.0.0');
+    await expect(inEffect).toContainText('Adoption #3');
+    await expect(inEffect.getByRole('list', { name: 'Binding in effect' })).toContainText(
+      'email.brevo.professional'
+    );
+    await expect(inEffect).toContainText(
+      'Offering version 1.0.0, read when this version was evaluated.'
+    );
+    const margins = page.getByRole('region', { name: 'Margin per plan' });
+    await expect(margins.getByRole('row')).toHaveCount(8);
+    await expect(margins.locator('caption')).toContainText('1,000 users');
+    const basic = margins.getByRole('row').nth(1);
+    await expect(basic).toContainText('basic');
+    await expect(basic).toContainText('−0.51loss');
+    // Any number of users asks again, with the pinned evaluation; nothing is saved.
+    const asked = page.waitForRequest(
+      request => request.url().includes('/margins?') && request.url().includes('users=3')
+    );
+    await page.getByRole('spinbutton', { name: 'Users' }).fill('3');
+    expect(new URL((await asked).url()).searchParams.get('evaluation')).toBe(
+      '00000000-0000-4000-8000-000000000033'
+    );
+    await expect(margins.locator('caption')).toContainText('3 users');
+    // The feed's ETag and the evaluation's basis are never printed.
+    await expect(page.locator('main')).not.toContainText(/sha256-/);
     expect(handle.unmocked).toEqual([]);
   });
 

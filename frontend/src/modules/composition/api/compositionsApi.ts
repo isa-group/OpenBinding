@@ -121,6 +121,27 @@ export function useCompositionsApi() {
     [fetchWithInterceptor]
   );
 
+  /**
+   * The margin per offering plan of a version (`GET …/versions/{version}/margins`), from one of its evaluations (the current
+   * one by default) and a number of users (without one, margins come back empty, `users_required`). Members only.
+   */
+  const getVersionMargins = useCallback(
+    async (
+      org: string,
+      composition: string,
+      version: string,
+      options: { users?: string; evaluation?: string },
+      signal?: AbortSignal
+    ) =>
+      readResponse<Schemas['CompositionMargins']>(
+        await fetchWithInterceptor(
+          `/v1/organizations/${enc(org)}/compositions/${enc(composition)}/versions/${enc(version)}/margins${query({ users: options.users, evaluation: options.evaluation })}`,
+          { signal }
+        )
+      ),
+    [fetchWithInterceptor]
+  );
+
   /** Every version of a composition the account reads, zipped (`GET …/download`). */
   const downloadVersions = useCallback(
     async (org: string, composition: string) => {
@@ -142,6 +163,7 @@ export function useCompositionsApi() {
       setFollow,
       getGraph,
       resolvePermalink,
+      getVersionMargins,
       downloadVersions,
     }),
     [
@@ -152,6 +174,7 @@ export function useCompositionsApi() {
       setFollow,
       getGraph,
       resolvePermalink,
+      getVersionMargins,
       downloadVersions,
     ]
   );
