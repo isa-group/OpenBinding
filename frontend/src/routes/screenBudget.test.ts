@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { screens } from './router';
 
 // The screens of the application, exactly: one row per screen of `screens` (routes/router.tsx), with its address and layout.
-// The convergence on SPHERE ended at 38 screens (design §9). F5: −/sso/callback, +/sso/identity/callback,
+// The convergence on SPHERE ended at 38 screens (design §9). F5: − the US CAS return page, +/sso/identity/callback,
 // +/sso/identity/username (39: 21 public, 18 protected); F7 adds /orbit (40), F9 five collection routes (45). A block that adds or removes a screen changes this list and the ceiling in the same commit.
 
 // prettier-ignore
