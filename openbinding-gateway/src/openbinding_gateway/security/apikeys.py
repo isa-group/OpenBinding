@@ -396,6 +396,9 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         if method == "POST" and segments[-1] == "adopt" and segments[-3:-2] == ["environments"]:
             # Adopting changes what an application runs: its own permission, which write does not imply.
             return frozenset({ApiKeyPermission.COMPOSITIONS_ADOPT.value})
+        if method == "POST" and segments[-1] == "check" and segments[-3:-2] == ["environments"]:
+            # Checking an environment now writes nothing, as checking a document does.
+            return frozenset({ApiKeyPermission.COMPOSITIONS_READ.value})
         if "environments" in segments and "keys" in segments[segments.index("environments"):] and method != "GET":
             # An environment's feed keys: a credential an application holds, so key administration too.
             return frozenset({ApiKeyPermission.COMPOSITIONS_WRITE.value, ApiKeyPermission.KEYS_WRITE.value})

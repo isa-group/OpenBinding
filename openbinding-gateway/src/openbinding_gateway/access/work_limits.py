@@ -93,6 +93,8 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
     ("GET", "/v1/organizations/{org}/sphere/pricings"): "read",
     ("GET", "/v1/organizations/{org}/sphere/pricings/{pricing_id}"): "read",
     ("GET", "/v1/organizations/{org}/sphere/pricings/{pricing_id}/versions/{version_id}"): "read",
+    # Checking a composition environment now: an assessment and up to eight manifest reads.
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/check"): "read",
 }
 
 #: The routes a visitor may read public compositions through (``get_reader``): the list of every organization's,

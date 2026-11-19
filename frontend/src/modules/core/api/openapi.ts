@@ -1661,6 +1661,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check the composition in effect against its sources now
+         * @description Assesses the version in effect on the installed toolchain and compares the upstream pricings and the offering it pins with what their sources publish now. Writes nothing: no snapshot, row, event or notification, and the feed is unchanged. A source that cannot be read now is `unavailable`. MEMBER; counted as a `read`.
+         */
+        post: operations["checkCompositionEnvironment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/composition": {
         parameters: {
             query?: never;
@@ -3984,6 +4004,53 @@ export interface components {
              */
             reason: "new_feature" | "administrative_decision" | "institutional_agreement" | "retirement_or_discount";
         };
+        /** CheckBinding */
+        CheckBinding: {
+            /** Diagnostics */
+            diagnostics: components["schemas"]["CompositionDiagnosticView"][];
+            /**
+             * Status
+             * @description The stored content assessed on the installed toolchain, as `versions/check` assesses a document.
+             * @enum {string}
+             */
+            status: "valid" | "invalid" | "declared";
+            /**
+             * Toolchain
+             * @description The installed toolchain's digest; null for a declared version.
+             */
+            toolchain: string | null;
+        };
+        /** CheckOffering */
+        CheckOffering: {
+            latest: components["schemas"]["CheckOfferingVersion"] | null;
+            /** @description The version the adoption's evaluation read. */
+            pinned: components["schemas"]["CheckOfferingVersion"] | null;
+            /** Source */
+            source: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "current" | "newer" | "unavailable" | "none";
+        };
+        /** CheckOfferingVersion */
+        CheckOfferingVersion: {
+            /** Createdat */
+            createdAt: string | null;
+            /** Versionname */
+            versionName: string | null;
+        };
+        /** CheckPinned */
+        CheckPinned: {
+            /** Createdat */
+            createdAt: string | null;
+            /** Name */
+            name: string | null;
+            /** Versionid */
+            versionId: string | null;
+        };
         /**
          * CheckResult
          * @description The lint of a document against its problem: 200 whether or not it is valid; nothing is stored.
@@ -4013,6 +4080,35 @@ export interface components {
              * @description What a seal would store: `verified` for a linked document, `declared` for one with no problem.
              */
             values_status: ("verified" | "declared") | null;
+        };
+        /**
+         * CheckUpstream
+         * @description One bound task's upstream pricing: the version it pins against the one its source calls latest now.
+         */
+        CheckUpstream: {
+            latest: components["schemas"]["CheckPinned"] | null;
+            pinned: components["schemas"]["CheckPinned"] | null;
+            /** Plan */
+            plan: string | null;
+            /** Sphere */
+            sphere: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "current" | "newer" | "unavailable" | "not_snapshotted";
+            /** Task */
+            task: string;
+        };
+        /** CheckVersion */
+        CheckVersion: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
         };
         /**
          * CodeInvitationCreate
@@ -5557,6 +5653,22 @@ export interface components {
         EnvironmentBound: {
             /** Candidate */
             candidate: string;
+        };
+        /**
+         * EnvironmentCheck
+         * @description What the composition in effect pins against what its sources publish now; nothing was written.
+         */
+        EnvironmentCheck: {
+            binding: components["schemas"]["CheckBinding"];
+            /**
+             * Checkedat
+             * Format: date-time
+             */
+            checkedAt: string;
+            offering: components["schemas"]["CheckOffering"];
+            /** Upstream */
+            upstream: components["schemas"]["CheckUpstream"][];
+            version: components["schemas"]["CheckVersion"];
         };
         /**
          * EnvironmentEvaluation
@@ -15653,6 +15765,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    checkCompositionEnvironment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+                environment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvironmentCheck"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller's role is too weak (`organization_forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Nothing is adopted in this environment yet (`nothing_adopted`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Account authentication is not configured on this deployment. */

@@ -15,11 +15,13 @@ from fastapi import APIRouter, Depends, Header, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....access.dependencies import FeedReader, get_current_user, get_feed_reader, session_dependency
+from ....access.work_limits import limit_work
 from ....composition import text
 from ....core import revision as etags
 from ....db.models import OrganizationRole, User
 from ....models.errors import CONFLICT_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE, ErrorResponse, api_error
 from ..application import adoption, environments, feed, feed_keys
+from ..application.check import check_environment
 from ..domain.environments import AdoptRole
 from .schemas import (
     AdoptionEvaluation,
@@ -28,6 +30,7 @@ from .schemas import (
     CompositionAdoptionView,
     EnvironmentAdopt,
     EnvironmentAdoptResult,
+    EnvironmentCheck,
     FeedKeyCreate,
     FeedKeyCreated,
     VersionName,
@@ -522,3 +525,42 @@ async def get_environment_feed(
     return await feed.feed_response(
         session, reader, org=org, composition=composition, environment=environment, if_none_match=if_none_match,
     )
+
+
+# -- Check now -------------------------------------------------------------------------------------------
+
+
+@router.post(
+    "/{environment}/check",
+    response_model=EnvironmentCheck,
+    operation_id="checkCompositionEnvironment",
+    summary="Check the composition in effect against its sources now",
+    description=(
+        "Assesses the version in effect on the installed toolchain and compares the upstream pricings and the "
+        "offering it pins with what their sources publish now. Writes nothing: no snapshot, row, event or "
+        "notification, and the feed is unchanged. A source that cannot be read now is `unavailable`. MEMBER; "
+        "counted as a `read`."
+    ),
+    dependencies=[Depends(limit_work)],
+    responses={
+        **UNREADABLE,
+        **FORBIDDEN,
+        409: {**CONFLICT_RESPONSE, "description": "Nothing is adopted in this environment yet (`nothing_adopted`)."},
+    },
+)
+async def check_composition_environment(
+    org: str,
+    composition: str,
+    environment: str,
+    response: Response,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> EnvironmentCheck:
+    """Check an environment now: what it runs against what its sources publish."""
+    organization, found, row, role = await environments.readable_environment(
+        session, org, composition, environment, user,
+    )
+    environments.require(role, OrganizationRole.MEMBER)
+    report = await check_environment(session, organization, found, row, user)
+    headers(response)
+    return EnvironmentCheck.model_validate(report)

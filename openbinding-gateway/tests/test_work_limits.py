@@ -79,6 +79,10 @@ REQUESTS = {
     ("POST", DERIVE): ("POST", "/v1/organizations/{org}/compositions/none/derive", EMPTY_JSON),
     # Counted before the key is checked: the first is a 422, the second a 429.
     ("PUT", CONNECTION): ("PUT", CONNECTION, BAD_KEY),
+    # Counted before the composition is looked up: the first is a 404, the second a 429.
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/check"): (
+        "POST", "/v1/organizations/{org}/compositions/none/environments/production/check", EMPTY_JSON,
+    ),
     # Answered from the recorded SPHERE.
     ("GET", "/v1/organizations/{org}/sphere/pricings"): ("GET", "/v1/organizations/{org}/sphere/pricings?q=Mailgun", {}),
     ("GET", "/v1/organizations/{org}/sphere/pricings/{pricing_id}"): (
@@ -93,7 +97,8 @@ REQUESTS = {
 LANGUAGE_ROUTES = {route for route in REQUESTS if route[1].startswith(LANGUAGE)}
 #: The routes that read SPHERE on the caller's behalf (``read`` class).
 SPHERE_ROUTES = {route for route in REQUESTS if route[1].startswith(("/v1/organizations/{org}/connections",
-                                                                      "/v1/organizations/{org}/sphere"))}
+                                                                      "/v1/organizations/{org}/sphere"))
+                 or route[1].endswith("/environments/{environment}/check")}
 BIM_ROUTES = {("POST", PROBE)} | LANGUAGE_ROUTES
 ENVIRONMENTS = "/v1/organizations/{org}/compositions/{composition}/environments"
 #: Writes under a composition that compile, read and evaluate nothing: an environment, its adoptions and its

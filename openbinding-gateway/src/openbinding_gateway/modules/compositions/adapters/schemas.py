@@ -1090,3 +1090,55 @@ class FeedKeyCreated(BaseModel):
 
     key: EnvironmentKeyView
     secret: str = Field(description="The whole key (`obe_…`): configure the application with it now.")
+
+
+class CheckVersion(BaseModel):
+    id: uuid.UUID
+    label: str
+
+
+class CheckBinding(BaseModel):
+    status: Literal["valid", "invalid", "declared"] = Field(
+        description="The stored content assessed on the installed toolchain, as `versions/check` assesses a document.",
+    )
+    toolchain: Optional[str] = Field(description="The installed toolchain's digest; null for a declared version.")
+    diagnostics: list[CompositionDiagnosticView]
+
+
+class CheckPinned(BaseModel):
+    versionId: Optional[str]
+    name: Optional[str]
+    createdAt: Optional[str]
+
+
+class CheckUpstream(BaseModel):
+    """One bound task's upstream pricing: the version it pins against the one its source calls latest now."""
+
+    task: str
+    sphere: Optional[str]
+    plan: Optional[str]
+    pinned: Optional[CheckPinned]
+    latest: Optional[CheckPinned]
+    status: Literal["current", "newer", "unavailable", "not_snapshotted"]
+
+
+class CheckOfferingVersion(BaseModel):
+    versionName: Optional[str]
+    createdAt: Optional[str]
+
+
+class CheckOffering(BaseModel):
+    source: Optional[dict[str, str]]
+    pinned: Optional[CheckOfferingVersion] = Field(description="The version the adoption's evaluation read.")
+    latest: Optional[CheckOfferingVersion]
+    status: Literal["current", "newer", "unavailable", "none"]
+
+
+class EnvironmentCheck(BaseModel):
+    """What the composition in effect pins against what its sources publish now; nothing was written."""
+
+    checkedAt: datetime
+    version: CheckVersion
+    binding: CheckBinding
+    upstream: list[CheckUpstream]
+    offering: CheckOffering

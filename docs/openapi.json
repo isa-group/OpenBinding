@@ -2690,6 +2690,179 @@
         "title": "ChangeSubscriptionRequest",
         "type": "object"
       },
+      "CheckBinding": {
+        "properties": {
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "status": {
+            "description": "The stored content assessed on the installed toolchain, as `versions/check` assesses a document.",
+            "enum": [
+              "valid",
+              "invalid",
+              "declared"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "toolchain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The installed toolchain's digest; null for a declared version.",
+            "title": "Toolchain"
+          }
+        },
+        "required": [
+          "status",
+          "toolchain",
+          "diagnostics"
+        ],
+        "title": "CheckBinding",
+        "type": "object"
+      },
+      "CheckOffering": {
+        "properties": {
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckOfferingVersion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pinned": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckOfferingVersion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version the adoption's evaluation read."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "status": {
+            "enum": [
+              "current",
+              "newer",
+              "unavailable",
+              "none"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "pinned",
+          "latest",
+          "status"
+        ],
+        "title": "CheckOffering",
+        "type": "object"
+      },
+      "CheckOfferingVersion": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "versionName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionname"
+          }
+        },
+        "required": [
+          "versionName",
+          "createdAt"
+        ],
+        "title": "CheckOfferingVersion",
+        "type": "object"
+      },
+      "CheckPinned": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "versionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionid"
+          }
+        },
+        "required": [
+          "versionId",
+          "name",
+          "createdAt"
+        ],
+        "title": "CheckPinned",
+        "type": "object"
+      },
       "CheckResult": {
         "description": "The lint of a document against its problem: 200 whether or not it is valid; nothing is stored.",
         "properties": {
@@ -2757,6 +2930,96 @@
           "diagnostics"
         ],
         "title": "CheckResult",
+        "type": "object"
+      },
+      "CheckUpstream": {
+        "description": "One bound task's upstream pricing: the version it pins against the one its source calls latest now.",
+        "properties": {
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckPinned"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pinned": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckPinned"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          },
+          "sphere": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sphere"
+          },
+          "status": {
+            "enum": [
+              "current",
+              "newer",
+              "unavailable",
+              "not_snapshotted"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task",
+          "sphere",
+          "plan",
+          "pinned",
+          "latest",
+          "status"
+        ],
+        "title": "CheckUpstream",
+        "type": "object"
+      },
+      "CheckVersion": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "CheckVersion",
         "type": "object"
       },
       "CodeInvitationCreate": {
@@ -6473,6 +6736,41 @@
           "candidate"
         ],
         "title": "EnvironmentBound",
+        "type": "object"
+      },
+      "EnvironmentCheck": {
+        "description": "What the composition in effect pins against what its sources publish now; nothing was written.",
+        "properties": {
+          "binding": {
+            "$ref": "#/components/schemas/CheckBinding"
+          },
+          "checkedAt": {
+            "format": "date-time",
+            "title": "Checkedat",
+            "type": "string"
+          },
+          "offering": {
+            "$ref": "#/components/schemas/CheckOffering"
+          },
+          "upstream": {
+            "items": {
+              "$ref": "#/components/schemas/CheckUpstream"
+            },
+            "title": "Upstream",
+            "type": "array"
+          },
+          "version": {
+            "$ref": "#/components/schemas/CheckVersion"
+          }
+        },
+        "required": [
+          "checkedAt",
+          "version",
+          "binding",
+          "upstream",
+          "offering"
+        ],
+        "title": "EnvironmentCheck",
         "type": "object"
       },
       "EnvironmentEvaluation": {
@@ -26013,6 +26311,147 @@
           }
         ],
         "summary": "List Composition Adoptions",
+        "tags": [
+          "Composition environments"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/environments/{environment}/check": {
+      "post": {
+        "description": "Assesses the version in effect on the installed toolchain and compares the upstream pricings and the offering it pins with what their sources publish now. Writes nothing: no snapshot, row, event or notification, and the feed is unchanged. A source that cannot be read now is `unavailable`. MEMBER; counted as a `read`.",
+        "operationId": "checkCompositionEnvironment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "environment",
+            "required": true,
+            "schema": {
+              "title": "Environment",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvironmentCheck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role is too weak (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or environment, or the caller is not a member: `Composition not found.` for a private or missing composition, `Environment not found.` otherwise."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Nothing is adopted in this environment yet (`nothing_adopted`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Check the composition in effect against its sources now",
         "tags": [
           "Composition environments"
         ],
