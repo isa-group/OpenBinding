@@ -1754,7 +1754,17 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     if (section === 'graph' && request.method === 'GET') return graphOf(entry);
     if (section === 'download' && request.method === 'GET')
       return { status: 200, text: 'PK', type: 'application/zip' };
-    if (section === 'evaluate' && request.method === 'POST') return evaluate(entry, request);
+    if (section === 'evaluate' && request.method === 'POST') {
+      // TomatoMeter's calculator asks with users or a demand variant (F4 J6): the gateway's what-if fixtures answer.
+      const sent = request.body() as { version?: string };
+      const version =
+        entry.versions.find(item => item.id === sent.version) ?? entry.versions.at(-1);
+      const demand =
+        operation && slug === 'tomatometer' && version
+          ? operation.evaluate(request, version)
+          : null;
+      return demand ?? evaluate(entry, request);
+    }
     if (section === 'neighborhood' && request.method === 'GET')
       return neighbourhood(entry, request);
     if (section === 'environments')

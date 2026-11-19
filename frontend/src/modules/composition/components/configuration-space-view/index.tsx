@@ -43,6 +43,7 @@ import ConfigurationSpaceItem from '../configuration-space-item';
 import CompareTray from './compare-tray';
 import { captureLabel, nextSlot, type CompareSide, type CompareSlots } from './compare-slots';
 import ConfigurationComparison from './configuration-comparison';
+import DemandControls from './demand-controls';
 import { configurationsOf, type ExplorerConfiguration } from './configurations';
 
 /** How many moves the toolchain evaluates at most for one look. */
@@ -91,6 +92,15 @@ export default function ConfigurationSpaceView({
   const [tried, setTried] = useState<{ binding: WrittenBinding; attempt: number } | null>(null);
   const [deriving, setDeriving] = useState<BindingDerivation | null>(null);
   const [draft, setDraft] = useState<{ busy: boolean; error: string }>({ busy: false, error: '' });
+  // The calculator's demand (F4): users typed (asked after a pause) and a revision of the linked problem; nothing is saved.
+  const [usersTyped, setUsersTyped] = useState('');
+  const [usersAsked, setUsersAsked] = useState('');
+  useEffect(() => {
+    const timer = window.setTimeout(() => setUsersAsked(usersTyped), 500);
+    return () => window.clearTimeout(timer);
+  }, [usersTyped]);
+  const [demandRevision, setDemandRevision] = useState<number | null>(null);
+  const [demandRefusal, setDemandRefusal] = useState<string | null>(null);
   const configurator = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLLIElement>(null);
   const key = `${org}/${slug}/${version}/${attempt}`;
@@ -570,6 +580,21 @@ export default function ConfigurationSpaceView({
         </div>
       )}
 
+      {model.status.problemRevision && (
+        <DemandControls
+          org={org}
+          problemRef={model.status.problemRevision}
+          users={usersTyped}
+          onUsers={setUsersTyped}
+          revision={demandRevision}
+          onRevision={value => {
+            setDemandRevision(value);
+            setDemandRefusal(null);
+          }}
+          refusal={demandRefusal}
+        />
+      )}
+
       <div ref={configurator} className="rounded-xl border border-tp-hairline bg-tp-canvas p-4">
         {candidates?.status === 'loading' && (
           <p className="text-xs text-tp-steel" role="status">
@@ -591,7 +616,18 @@ export default function ConfigurationSpaceView({
           key={tried?.attempt ?? 0}
           model={model}
           mode="configurator"
-          analysis={{ ...actions, start: tried?.binding }}
+          analysis={{
+            ...actions,
+            start: tried?.binding,
+            demand: {
+              ...(/^[1-9]\d{0,9}$/.test(usersAsked) ? { users: Math.trunc(+usersAsked) } : {}),
+              ...(demandRevision !== null ? { revision: demandRevision } : {}),
+            },
+            onDemandRefused: message => {
+              setDemandRevision(null);
+              setDemandRefusal(message);
+            },
+          }}
         />
       </div>
 

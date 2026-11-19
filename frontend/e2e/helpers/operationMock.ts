@@ -6,6 +6,7 @@ import type {
   CompositionVersionView,
   EnvironmentCheck,
   EnvironmentKeyView,
+  EvaluateResult,
   FeedKeyCreated,
 } from '../../src/modules/core/api/types';
 import type { CompositionReply, CompositionRequest } from './mockCompositions';
@@ -47,6 +48,16 @@ export interface OperationStore {
   margins: (request: CompositionRequest, version: CompositionVersionView) => CompositionReply;
   /** Which answer `check` gives. */
   check: 'current' | 'newer';
+  /**
+   * Answers `…/evaluate` with users or a revision (the calculator's demand, J6): the gateway's what-if fixtures, under the
+   * revision asked; null when the request asks neither, so the shared mock answers it.
+   */
+  evaluate: (
+    request: CompositionRequest,
+    version: CompositionVersionView
+  ) => CompositionReply | null;
+  /** The bodies of every evaluation with a demand, in order. */
+  evaluated: Array<Record<string, unknown>>;
   /** Every adoption a page made, in order (environment slug, version label, `If-Match` sent). */
   adopted: Array<{ environment: string; version: string; ifMatch: string | undefined }>;
 }
@@ -79,7 +90,14 @@ function adapt<T>(value: T, org: string, versions: readonly CompositionVersionVi
 export function operationStore(org: string, composition: string): OperationStore {
   let held: Held[] | null = null;
   let minted = 0;
-  const store: OperationStore = { route, margins, check: 'current', adopted: [] };
+  const store: OperationStore = {
+    route,
+    margins,
+    evaluate,
+    check: 'current',
+    adopted: [],
+    evaluated: [],
+  };
   const etagOf = (item: Held) => `"env-${item.view.slug}-${item.revision}"`;
 
   function state(versions: readonly CompositionVersionView[]): Held[] {
@@ -315,6 +333,29 @@ export function operationStore(org: string, composition: string): OperationStore
     const item: Held = { view, revision: 1, adoptions: [] };
     all.push(item);
     return ok(view, 201, { ETag: etagOf(item) });
+  }
+
+  function evaluate(
+    request: CompositionRequest,
+    version: CompositionVersionView
+  ): CompositionReply | null {
+    const body = request.body();
+    if (body.users === undefined && body.revision === undefined) return null;
+    store.evaluated.push(body);
+    const revision = typeof body.revision === 'number' ? body.revision : null;
+    const answer = core<EvaluateResult>(
+      revision !== null ? 'tomatometer.evaluate.revision.json' : 'tomatometer.evaluate.users.json'
+    );
+    const users = typeof body.users === 'number' ? body.users : null;
+    return ok({
+      ...answer,
+      version: { id: version.id, label: version.label },
+      revision: answer.revision && {
+        ...answer.revision,
+        number: revision ?? version.problem?.revision.revision ?? answer.revision.number,
+      },
+      margins: users === null ? null : answer.margins && { ...answer.margins, users },
+    });
   }
 
   function margins(request: CompositionRequest, version: CompositionVersionView): CompositionReply {
