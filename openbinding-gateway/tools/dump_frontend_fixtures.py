@@ -377,8 +377,6 @@ async def _operation(
     """
     import copy
 
-    import httpx
-
     from openbinding_gateway.security import apikeys, feed_keys
 
     out: dict[str, Any] = {}
@@ -428,16 +426,17 @@ async def _operation(
     _fresh_pricing_source()
     out["tomatometer.check.production.json"] = _ok(
         await client.post(f"{environments}/production/check", headers=headers), 200).json()
-    mailgun = "/api/v1/public/pricings/6ade364540e55445692b0eda"
+    # The recorded manifest route of set-B Mailgun (the family the e-mail plan was read from).
+    mailgun = next(route for route in _RECORDED.routes if route.endswith("/public/pricings/6ade364540e55445692b0eda"))
     manifest = json.loads((_RECORDED.root / _RECORDED.routes[mailgun]["file"]).read_text())
     newer = {"versionId": "6ffffffffffffffffffffff1", "version": "2027-01", "createdAt": "2027-01-15T00:00:00.000Z",
              "contentHash": "0" * 64}
     scripted = {**manifest, "latestVersionId": newer["versionId"], "versions": [newer, *manifest["versions"]]}
-    _RECORDED._script(_RECORDED._for(mailgun), lambda request: httpx.Response(200, json=scripted))
+    _RECORDED.serve(mailgun, json.dumps(scripted).encode(), {"content-type": "application/json"})
     _fresh_pricing_source()
     out["tomatometer.check.production.newer.json"] = _ok(
         await client.post(f"{environments}/production/check", headers=headers), 200).json()
-    _RECORDED.scripts.clear()
+    _RECORDED.extra.clear()
     _fresh_pricing_source()
     out["tomatometer.versions.json"] = _ok(await client.get(f"{compositions}/versions", headers=headers), 200).json()
     # The calculator: a what-if binding with users, and the same against a demand variant (revision 3).
