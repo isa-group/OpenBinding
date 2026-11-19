@@ -76,6 +76,7 @@ describe('AuthenticationPage', () => {
                 register: registerMock,
                 signOut: signOutMock,
                 refresh: vi.fn(),
+                resume: vi.fn(),
                 isAdmin: false,
                 fetchWithInterceptor: vi.fn(),
               }}
@@ -264,6 +265,7 @@ describe('AuthenticationPage', () => {
                   register: registerMock,
                   signOut: signOutMock,
                   refresh: vi.fn(),
+                  resume: vi.fn(),
                   isAdmin: false,
                   fetchWithInterceptor: vi.fn(),
                 }}

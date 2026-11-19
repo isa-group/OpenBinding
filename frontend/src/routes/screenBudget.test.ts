@@ -12,6 +12,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['auth-forgot-password', '/forgot-password', 'public'],
   ['auth-reset-password', '/reset-password', 'public'],
   ['auth-identity-callback', '/sso/identity/callback', 'public'],
+  ['auth-identity-username', '/sso/identity/username', 'public'],
   ['pub-home', '/', 'session'],
   ['org-explore', '/organizations', 'session'],
   ['org-detail', '/orgs/:org/:tab?', 'session'],
@@ -48,7 +49,7 @@ const SCREENS: Array<[string, string, string]> = [
   ['problem-editor', '/problem-editor', 'standalone'],
 ];
 
-const CEILING = 38;
+const CEILING = 39;
 
 describe('screen budget', () => {
   it('serves exactly the listed screens, with their addresses and layouts, in table order', () => {
@@ -63,8 +64,8 @@ describe('screen budget', () => {
     expect(screens).toHaveLength(CEILING);
   });
 
-  it('opens 20 screens to visitors (the public, session and editor layouts) and keeps 18 behind an account', () => {
-    expect(screens.filter(screen => screen.layout !== 'protected')).toHaveLength(20);
+  it('opens 21 screens to visitors (the public, session and editor layouts) and keeps 18 behind an account', () => {
+    expect(screens.filter(screen => screen.layout !== 'protected')).toHaveLength(21);
     expect(screens.filter(screen => screen.layout === 'protected')).toHaveLength(18);
   });
 

@@ -79,6 +79,7 @@ function renderAt(path: string, user: UserProfile | null = person, loading = fal
           register: vi.fn(),
           signOut: vi.fn(),
           refresh: vi.fn(),
+          resume: vi.fn(),
           isAdmin: user?.role === 'admin',
           fetchWithInterceptor: vi.fn(async () => new Response('[]', { status: 200 })),
         }}

@@ -41,6 +41,7 @@ function renderGuard(
             register: vi.fn(),
             signOut: vi.fn(),
             refresh: vi.fn(),
+            resume: vi.fn(),
             isAdmin: user?.role === 'admin',
             fetchWithInterceptor: vi.fn(),
           }}

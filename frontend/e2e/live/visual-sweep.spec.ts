@@ -120,6 +120,7 @@ async function stops(page: Page, token: string): Promise<Stop[]> {
     { id: 'auth-forgot-password', path: '/forgot-password', visitor: true },
     { id: 'auth-reset-password', path: '/reset-password?token=not-a-token', visitor: true },
     { id: 'auth-identity-callback', path: '/sso/identity/callback', visitor: true },
+    { id: 'auth-identity-username', path: '/sso/identity/username', visitor: true },
     { id: 'org-list', path: '/me/orgs' },
     { id: 'org-new', path: '/orgs/new' },
     { id: 'org-join', path: `/orgs/join/${code}` },

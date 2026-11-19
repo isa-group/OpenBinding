@@ -111,6 +111,7 @@ function renderPricing(user: UserProfile | null = null, token?: string) {
           register: vi.fn(),
           signOut: vi.fn(),
           refresh: vi.fn(),
+          resume: vi.fn(),
           isAdmin: false,
           fetchWithInterceptor: vi.fn(),
         }}

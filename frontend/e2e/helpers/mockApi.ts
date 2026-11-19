@@ -1373,6 +1373,13 @@ export async function installMockApi(
       await call.fulfill({ json: authConfigBody(authProvider) });
       return;
     }
+    if (known.method === 'GET' && parts.join('/') === 'v1/auth/identity/pending') {
+      await call.fulfill({
+        status: 404,
+        json: { code: 'no_pending_signup', detail: 'No sign-up is waiting.' },
+      });
+      return;
+    }
     if (known.method === 'POST' && parts.join('/') === 'v1/auth/identity/session') {
       await call.fulfill(
         cookie

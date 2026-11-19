@@ -10,6 +10,8 @@ export interface AuthContextValue {
   register: (details: { username: string; email: string; password: string }) => Promise<void>;
   /** End this session, or every OpenBinding session of the account (`all`), and the SCORE SSO session behind it. */
   signOut: (scope?: SignOutScope) => Promise<void>;
+  /** Ask the gateway again whether the session cookie names a session, then who it is (after a first SCORETech sign-in). */
+  resume: () => Promise<void>;
   /** Re-read the profile, after a plan change or a password change. */
   refresh: () => Promise<void>;
   isAdmin: boolean;

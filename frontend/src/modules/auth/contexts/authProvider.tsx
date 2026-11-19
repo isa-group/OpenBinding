@@ -242,6 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         signOut,
         refresh: loadProfile,
+        resume,
         isAdmin: user?.role === 'admin',
         fetchWithInterceptor: apiClient.fetchWithInterceptor,
       }}

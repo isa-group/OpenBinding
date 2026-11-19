@@ -132,6 +132,7 @@ export function renderModule(element: ReactElement, options: ModuleRenderOptions
     register: vi.fn(),
     signOut: vi.fn(),
     refresh: vi.fn(),
+    resume: vi.fn(),
     isAdmin: user?.role === 'admin',
     fetchWithInterceptor: gateway as unknown as (
       path: string,

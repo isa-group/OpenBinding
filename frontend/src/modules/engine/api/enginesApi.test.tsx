@@ -24,6 +24,7 @@ function apiOver(gateway: ReturnType<typeof fakeGateway>) {
         register: async () => undefined,
         signOut: async () => undefined,
         refresh: async () => undefined,
+        resume: async () => undefined,
         isAdmin: false,
         fetchWithInterceptor: gateway as unknown as (
           path: string,

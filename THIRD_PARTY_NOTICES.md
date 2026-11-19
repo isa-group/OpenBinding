@@ -92,6 +92,7 @@ and each names its origin in its header:
 |---|---|
 | `openbinding-gateway/src/openbinding_gateway/modules/identity/application/provisioning.py` | `api/src/main/services/SphereAuthService.ts` lines 119-160 (the pending sign-up and its completion with a chosen username) |
 | `openbinding-gateway/src/openbinding_gateway/modules/identity/application/renewal.py` | `api/src/main/services/ScoretechIdentityService.ts` lines 342-381 (revoking the token a lost write obtained) |
+| `frontend/src/modules/auth/pages/identity-username/index.tsx` (and the pending and complete calls of `frontend/src/modules/auth/api/identityApi.ts`) | `frontend/src/pages/sphere-auth/index.tsx` and `frontend/src/api/auth/sphereAuthApi.ts` (adapted: a first sign-in only, no linking; OpenBinding's auth layout and refusal wording) |
 
 ## Code ported from SPHERE
 

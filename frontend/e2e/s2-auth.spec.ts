@@ -653,5 +653,86 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           .getByRole('heading', { level: 1, name: 'Sign-in could not be completed' })
       ).toBeVisible();
     });
+    test('auth-identity-username /sso/identity/username: a taken name, then a free one', async ({
+      page,
+    }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(page, { provider: 'scoretech' });
+      let signedUp = false;
+      const chosen: string[] = [];
+      await page.route(`${API}/v1/auth/identity/pending`, route =>
+        route.fulfill({
+          json: {
+            suggested_username: 'sofia',
+            email: 'sofia@example.org',
+            email_verified: true,
+            display_name: 'Sofía Ramos',
+            expires_at: '2026-12-01T00:15:00Z',
+          },
+        })
+      );
+      await page.route(`${API}/v1/auth/identity/complete`, route => {
+        const username = String((route.request().postDataJSON() as { username: string }).username);
+        chosen.push(username);
+        if (username === 'sofia')
+          return route.fulfill({
+            status: 409,
+            json: failureBody(409, 'username_taken', 'That username is taken.'),
+          });
+        signedUp = true;
+        return route.fulfill({ status: 201, json: { return_to: '/me/orgs' } });
+      });
+      await page.route(`${API}/v1/auth/identity/session`, route =>
+        signedUp
+          ? route.fulfill({
+              json: { access_token: 's2-access', token_type: 'bearer', expires_in: 300 },
+            })
+          : route.fulfill({
+              status: 401,
+              json: failureBody(401, 'no_session', 'There is no session.'),
+            })
+      );
+      const main = page.locator('main');
+      await page.goto('/sso/identity/username?returnTo=%2Fme%2Forgs');
+      await expect(
+        main.getByRole('heading', { level: 1, name: 'Choose your username' })
+      ).toBeVisible();
+      await expect(main.getByLabel('Username')).toHaveValue('sofia');
+      await expect(main.getByText('sofia@example.org')).toBeVisible();
+      await capture(page, testInfo, `identity-username-${name}-empty`);
+
+      await main.getByRole('button', { name: 'Create my account' }).click();
+      await expect(main.getByText('That username is taken. Choose another one.')).toBeVisible();
+      await expect(main.getByLabel('Username')).toHaveAttribute('aria-invalid', 'true');
+      await capture(page, testInfo, `identity-username-${name}-409`);
+
+      await main.getByLabel('Username').fill('sofia.ramos');
+      await capture(page, testInfo, `identity-username-${name}-valid`);
+      await main.getByRole('button', { name: 'Create my account' }).click();
+      await expect(page).toHaveURL(/\/me\/orgs$/);
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'Your organizations' })
+      ).toBeVisible();
+      expect(chosen).toEqual(['sofia', 'sofia.ramos']);
+      expect(critical).toEqual([]);
+    });
+
+    test('auth-identity-username with no sign-up waiting goes back to sign in, saying it expired', async ({
+      page,
+    }) => {
+      await mockApi(page, { provider: 'scoretech' });
+      await interceptIdentity(page);
+      await page.route(`${API}/v1/auth/identity/pending`, route =>
+        route.fulfill({
+          status: 404,
+          json: failureBody(404, 'no_pending_signup', 'Nothing waits.'),
+        })
+      );
+      await page.goto('/sso/identity/username');
+      await expect(page).toHaveURL(/\/authentication\?identity_error=expired$/);
+      await expect(
+        page.locator('main').getByRole('heading', { level: 1, name: 'Your sign-in expired' })
+      ).toBeVisible();
+    });
   });
 }
