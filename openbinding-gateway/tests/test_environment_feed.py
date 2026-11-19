@@ -233,3 +233,47 @@ async def test_only_an_adoption_moves_the_feed(api_client, registration, db_sess
     back = await api_client.get(feed_url(t), headers=key)
     assert back.headers["ETag"] == first.headers["ETag"] and back.content == first.content
     assert back.headers["OpenBinding-Adoption"] == "3"
+
+
+async def test_a_re_evaluation_on_a_new_basis_moves_neither_the_feed_nor_the_pinned_margins(
+    api_client, registration, db_session, gate, sphere,  # noqa: F811
+):
+    """I3 for a new toolchain basis: the version gains a current evaluation (which reads the offering again), but the
+    adoption keeps the evaluation it pinned, so the environment's margins and its feed stay as they were."""
+    from _composition_helpers import OtherToolchain
+    from compositions._sphere import BINDING, compositions, generated_problem
+    from openbinding_gateway.integrations import bim
+
+    headers, org = await generated_problem(api_client, registration, db_session, gate)
+    base = compositions(org)
+    derived = await api_client.post(
+        f"{base}/derive", headers=headers,
+        json={"revision": "tomatometer-email@2", "binding": BINDING, "version": "1.0.0",
+              "offering": {"sphere": "sphere/tomatometer"}},
+    )
+    assert derived.status_code == 201, derived.text
+    environments = f"{base}/environments"
+    created = await api_client.post(environments, headers=headers, json={"slug": "production", "name": "P"})
+    adopted = await api_client.post(
+        f"{environments}/production/adopt", headers={**headers, "If-Match": created.headers["ETag"]},
+        json={"version": "1.0.0"},
+    )
+    assert adopted.status_code == 200, adopted.text
+    pinned = adopted.json()["environment"]["inEffect"]["evaluation"]["id"]
+    key = {"X-API-Key": (await api_client.post(f"{environments}/production/keys", headers=headers, json={})).json()["secret"]}
+    feed_before = await api_client.get(f"{environments}/production/composition", headers=key)
+    margins_url = f"{base}/versions/1.0.0/margins?users=1000&evaluation={pinned}"
+    margins_before = await api_client.get(margins_url, headers=headers)
+
+    with bim.bim_override(OtherToolchain(bim.get_bim())):
+        stored = await api_client.post(f"{base}/versions/1.0.0/evaluations", headers=headers)
+        assert stored.status_code == 201, stored.text
+        current = await api_client.get(f"{base}/versions/1.0.0/margins?users=1000", headers=headers)
+        assert current.json()["evaluation"]["id"] != pinned  # the default follows the current evaluation
+        feed_after = await api_client.get(f"{environments}/production/composition", headers=key)
+        margins_after = await api_client.get(margins_url, headers=headers)
+        view = (await api_client.get(f"{environments}/production", headers=headers)).json()
+
+    assert feed_after.headers["ETag"] == feed_before.headers["ETag"] and feed_after.content == feed_before.content
+    assert margins_after.json() == margins_before.json()
+    assert view["inEffect"]["evaluation"]["id"] == pinned and view["inEffect"]["adoption"] == 1
