@@ -14,6 +14,16 @@ from ._settings import FRONTEND, scoretech_values
 from .fake_issuer import FakeIssuer, script_dns
 
 
+@pytest.fixture(autouse=True)
+def forget_anonymous_errors():
+    """These tests answer many anonymous 4xx on purpose; the per-process budget of stored anonymous failures
+    (``telemetry``, a minute long) must not run out for the tests that come after them."""
+    from openbinding_gateway import telemetry
+
+    yield
+    telemetry.reset_anonymous_error_limits()
+
+
 @pytest.fixture
 def scoretech(monkeypatch):
     """The process settings switched to ``scoretech`` mode for this test (every reader sees the same object)."""

@@ -444,7 +444,7 @@ for a missing environment).
 | `code` | Status | Meaning |
 |---|---|---|
 | `quota_exceeded` | 402 | a per-account limit of the plan would be passed: `maxApiKeys`, `maxFederatedEngines`, `maxProblems`, `maxRepositoryStorage`. `quota` names `limit_id`, `limit` and `used` |
-| `username_unavailable` | 409 | registration or a first CAS or SCORETech sign-in asked for a reserved username: one that names engines or engine registrations already (engine namespaces are usernames baked into immutable manifests, and they outlive a deleted account), one starting with `deleted-`, the pseudonyms of deleted accounts, or one of the platform's names (`admin`, `identity`, `support`, …) |
+| `username_unavailable` | 409 | registration or a first CAS or SCORETech sign-in asked for a reserved username: one that names engines or engine registrations already (engine namespaces are usernames baked into immutable manifests, and they outlive a deleted account), or one starting with `deleted-`, the pseudonyms of deleted accounts; a first SCORETech sign-in also refuses the platform's own names (`admin`, `identity`, `support`, …) |
 | `last_owner` | 409 | `DELETE /v1/users/me`: the account owns an organization; it hands it over first |
 | `owner_transfer_required` | 409 | a member route named the owner of the organization: the owner's seat moves only by `PUT /v1/organizations/{org}/owner` |
 

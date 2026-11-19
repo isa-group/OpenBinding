@@ -60,10 +60,10 @@ async def username_reserved(session: AsyncSession, username: str) -> bool:
     engine registrations alike), and they outlive the account (a deleted account keeps them, under a
     pseudonymised username). A new account with that name would inherit them and could publish further versions
     under a namespace that consumers already trust, so the name stays taken. Names in the pseudonym space of
-    deleted accounts are kept too, and so are the platform's own names.
+    deleted accounts are kept too. (A first SCORETech sign-in also refuses ``RESERVED_USERNAMES``.)
     """
     name = username.casefold()
-    if name.startswith(PSEUDONYM_PREFIX) or name in RESERVED_USERNAMES:
+    if name.startswith(PSEUDONYM_PREFIX):
         return True
     for column in (EngineRevision.namespace, EngineRegistrationRevision.namespace):
         if await session.scalar(select(column).where(func.lower(column) == name).limit(1)):
@@ -75,7 +75,7 @@ def username_unavailable() -> Exception:
     return api_error(
         status.HTTP_409_CONFLICT,
         "username_unavailable",
-        "That username is reserved: it names published engines, belongs to a deleted account, or is the platform's.",
+        "That username is reserved: it names published engines, belongs to a deleted account, or is the platform's own.",
     )
 
 
@@ -192,7 +192,12 @@ async def suggestion(db: AsyncSession, record: dict) -> str:
     email = record.get("email") if record.get("email_verified") else None
     base = normalise_username(email.split("@", 1)[0] if email else record.get("display_name"))
     for candidate in [base, *(f"{base[:61]}-{n}" for n in range(2, 10))]:
-        if _USERNAME.fullmatch(candidate) and not await username_reserved(db, candidate) and not await username_taken(db, candidate):
+        if (
+            _USERNAME.fullmatch(candidate)
+            and candidate not in RESERVED_USERNAMES
+            and not await username_reserved(db, candidate)
+            and not await username_taken(db, candidate)
+        ):
             return candidate
     return base
 
@@ -241,7 +246,7 @@ async def complete(db: AsyncSession, settings: Settings, cookie_value: str | Non
             await get_store().delete(PENDING_NAMESPACE, key)
             raise _no_pending()
         claims = claims_of(record)
-        if await username_reserved(db, username):
+        if username.casefold() in RESERVED_USERNAMES or await username_reserved(db, username):
             raise username_unavailable()
         if await username_taken(db, username):
             raise _conflict("username_taken", "That username is taken.")

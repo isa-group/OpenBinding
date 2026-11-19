@@ -8,7 +8,7 @@ from openbinding_gateway.security.secrets import generate_key
 ISSUER = "https://identity.test/identity/auth/realms/score"
 TRANSPORT = "https://keycloak.test/identity/auth/realms/score"
 CLIENT_ID = "ob-test-client"
-CLIENT_SECRET = "fixture-local-only-client-secret-0001"
+CLIENT_SECRET = "fake-issuer-test-secret-0001"
 FRONTEND = "https://openbinding.test"
 FERNET_KEY = generate_key()
 
