@@ -273,11 +273,17 @@ async def _create(
     now = utcnow()
     user_id = uuid.uuid4()
     email = sessions.placeholder_email(user_id)
+    released: tuple[User, str] | None = None
     if claims.email and claims.email_verified:
         holder = await sessions.email_holder(db, claims.email)
         if holder is not None:
-            reason = await sessions.release_reason(db, holder, claims.issuer)
-            await sessions.release_email(db, holder, reason or "unverified_holder", actor=user_id)
+            # Freed before the account that takes it is inserted (users.email is unique); the audit row, whose
+            # actor is that account, is written once it exists.
+            reason = await sessions.release_reason(db, holder, claims.issuer) or "unverified_holder"
+            holder.email = sessions.placeholder_email(holder.id)
+            holder.email_verified = False
+            await db.flush()
+            released = (holder, reason)
         email = claims.email
     from .research import RESEARCH, eligible
 
@@ -319,6 +325,8 @@ async def _create(
                 "identity_already_provisioned", "This SCORETech account already has an OpenBinding account; start signing in again."
             ) from None
         raise _conflict("username_taken", "That username is taken.") from None
+    if released is not None:
+        sessions.audit(db, "account.email.released", actor=user.id, target=released[0].id, detail={"reason": released[1]})
     await create_contract_or_mark_pending(user, plan, settings)
     if research:
         sessions.audit(db, "account.research.granted", actor=user.id, target=user.id, detail={"basis": "email"})

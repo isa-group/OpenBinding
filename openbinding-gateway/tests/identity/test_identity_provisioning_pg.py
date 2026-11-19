@@ -77,3 +77,25 @@ async def test_a_local_registration_of_alice_beside_alice_is_refused(pg, registr
         second = await client.post("/v1/auth/register", json=registration(username="Alice"))
     assert first.status_code == 201
     assert second.status_code == 409 and second.json()["detail"]["code"] == "already_registered"
+
+
+@pytest.mark.usefixtures("fake_issuer")
+async def test_an_unverified_holder_is_released_to_a_first_sign_in(pg, fake_issuer) -> None:
+    """The audit row of the release names the new account as actor: it is written once that account exists (FK)."""
+    from sqlalchemy import select
+
+    from openbinding_gateway.db.models import AuditEvent, User
+
+    async with pg.session() as session:
+        session.add(User(username="holder", email="held@example.org", email_verified=False, password_hash="x", plan_cache=""))
+        await session.commit()
+    async with browsers(pg, 1) as (one,):
+        await first_sign_in(one, fake_issuer, fake_issuer.user(email="held@example.org"))
+        done = await choose(one, "newholder")
+    assert done.status_code == 201, done.text
+    async with pg.session() as session:
+        holder = (await session.execute(select(User).where(User.username == "holder"))).scalars().one()
+        taker = (await session.execute(select(User).where(User.username == "newholder"))).scalars().one()
+        assert taker.email == "held@example.org" and holder.email.endswith("@identity.openbinding.invalid")
+        event = (await session.execute(select(AuditEvent).where(AuditEvent.action == "account.email.released"))).scalars().one()
+        assert event.actor_id == taker.id and event.target_id == holder.id and event.detail == {"reason": "unverified_holder"}
