@@ -1,4 +1,4 @@
-// Adapted from SCORETech-identity packages/ui/src/avatar.tsx (revision 215dffedf556294e2424f7c7b4e9bf57d038d66f, v0.1.11),
+// Adapted from SCORETech-identity packages/ui/src/avatar.tsx (revision 215dffe, v0.1.11),
 // https://github.com/SCORELabUS/SCORETech-identity. Copyright (c) 2026 SCORE Lab.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: the values of Identity's avatar module without its component (`identity-avatar.tsx`), so the component file
@@ -70,6 +70,10 @@ const colors: Record<string, string> = {
   black: '#000000',
   white: '#ffffff',
 };
+/** The colours Identity's renderer falls back to (its tentu red, drawn in white): a new avatar starts with them. */
+export const AVATAR_DEFAULT_BACKGROUND = '#be1d37';
+export const AVATAR_DEFAULT_FOREGROUND = '#ffffff';
+
 export const avatarColor = (value: string | undefined, fallback: string) =>
   value && /^#[a-f0-9]{6}$/i.test(value) ? value : colors[value || ''] || fallback;
 

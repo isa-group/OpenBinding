@@ -1,7 +1,7 @@
-// Adapted from SCORETech-identity packages/ui/src/avatar.tsx (revision 215dffedf556294e2424f7c7b4e9bf57d038d66f, v0.1.11),
+// Adapted from SCORETech-identity packages/ui/src/avatar.tsx (revision 215dffe, v0.1.11),
 // https://github.com/SCORELabUS/SCORETech-identity. Copyright (c) 2026 SCORE Lab.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
-// Changes: `lucide-react` icons swapped for the same glyphs of `react-icons/lu`, which OpenBinding ships; the size is a
+// Changes: Identity's lucide icons swapped for the same glyphs of `react-icons/lu`, which OpenBinding ships; the size is a
 // prop and the layout Tailwind classes instead of Identity's `.avatar` and `.user-avatar` rules (78 % artwork, 65 % icons);
 // colours pass through `avatarColor` (hex, or Identity's named colours) before they reach an inline style; no photo kind;
 // the values live in `avatar-values.ts`.
@@ -19,7 +19,13 @@ import {
   LuStar,
 } from 'react-icons/lu';
 import { avatarArtwork } from './avatar-assets';
-import { avatarColor, avatarInitials, type AvatarDescriptor } from './avatar-values';
+import {
+  AVATAR_DEFAULT_BACKGROUND,
+  AVATAR_DEFAULT_FOREGROUND,
+  avatarColor,
+  avatarInitials,
+  type AvatarDescriptor,
+} from './avatar-values';
 
 const legacy = {
   spark: LuSparkles,
@@ -47,11 +53,11 @@ export default function IdentityAvatar({
   const initials = avatarInitials(name);
   const foreground = avatarColor(
     'foregroundColor' in value ? value.foregroundColor : undefined,
-    '#ffffff'
+    AVATAR_DEFAULT_FOREGROUND
   );
   const background = avatarColor(
     'backgroundColor' in value ? value.backgroundColor : undefined,
-    '#be1d37'
+    AVATAR_DEFAULT_BACKGROUND
   );
   const assetId = 'assetId' in value ? value.assetId : undefined;
   const artwork = value.kind === 'icon' && assetId ? avatarArtwork[assetId] : undefined;

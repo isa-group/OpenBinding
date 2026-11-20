@@ -15,6 +15,13 @@ const files = import.meta.glob(['/src/**/*.{ts,tsx,css}', '!/src/**/*.test.*'], 
 const shipped = Object.entries(files).filter(
   ([path]) => !/(\/src\/test\/setup\.ts$|testKit\.tsx?$|[Tt]estUtils\.tsx?$)/.test(path)
 );
+/**
+ * SCORETech Identity's avatar module, copied at 215dffe: its colours are the values of Identity's avatar descriptor (what the
+ * gateway stores and serves, `models/avatars.py`), not colours of OpenBinding's interface, so they stay byte-equal to
+ * Identity's rather than becoming theme tokens.
+ */
+const IDENTITY_AVATAR =
+  /\/src\/modules\/core\/components\/user-avatar\/(avatar-values|avatar-assets|identity-avatar)\.tsx?$/;
 const isFixture = (path: string) => /(\/src\/test\/fixtures\/|[Ff]ixtures?\.ts$)/.test(path);
 
 const grep = (
@@ -86,7 +93,10 @@ describe('the interface is light and carries no prototype persona', () => {
     const hex = /#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b/;
     const sources = shipped.filter(([path]) => !/\.css$/.test(path));
     const owned = [...sources, ...stylesheets()].filter(
-      ([path]) => !isFixture(path) && !/\/src\/styles\/tailwind\.css$/.test(path)
+      ([path]) =>
+        !isFixture(path) &&
+        !/\/src\/styles\/tailwind\.css$/.test(path) &&
+        !IDENTITY_AVATAR.test(path)
     );
     expect(owned.length).toBeGreaterThan(100);
     expect(grep(hex, /\.(css|tsx?)$/, owned)).toEqual([]);

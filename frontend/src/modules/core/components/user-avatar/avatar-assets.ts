@@ -1,4 +1,4 @@
-// Copied from SCORETech-identity packages/ui/src/avatar-assets.ts (revision 215dffedf556294e2424f7c7b4e9bf57d038d66f, v0.1.11),
+// Copied from SCORETech-identity packages/ui/src/avatar-assets.ts (revision 215dffe, v0.1.11),
 // https://github.com/SCORELabUS/SCORETech-identity. Copyright (c) 2026 SCORE Lab.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md. The artwork is SPHERE's predefined avatars (SCORELabUS).
 // Changes: none below this header (Prettier's formatting).

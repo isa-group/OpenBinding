@@ -16,6 +16,8 @@ import { classifyAuthError } from '../../core/api/errors';
 import { Modal } from '../../core/components/modal';
 import UserAvatar from '../../core/components/user-avatar';
 import {
+  AVATAR_DEFAULT_BACKGROUND as DEFAULT_BACKGROUND,
+  AVATAR_DEFAULT_FOREGROUND as DEFAULT_FOREGROUND,
   avatarChoices,
   avatarIcons,
   avatarPalette,
@@ -35,9 +37,6 @@ const MODES: Array<{ id: Mode; label: string }> = [
   { id: 'preset', label: 'Presets' },
 ];
 const ICONS: ReadonlyArray<{ id: IconId; label: string }> = [...avatarIcons, ...avatarChoices];
-
-const DEFAULT_BACKGROUND = '#be1d37';
-const DEFAULT_FOREGROUND = '#ffffff';
 
 const choice = (selected: boolean) =>
   `cursor-pointer rounded-[8px] border-2 transition-colors ${
