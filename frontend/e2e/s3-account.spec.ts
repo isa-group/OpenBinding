@@ -74,7 +74,7 @@ const sofia = {
   email: 'sofia@example.org',
   password_enabled: false,
 };
-type Account = typeof lucia;
+type Account = typeof lucia & { display_name?: string | null; avatar?: unknown };
 
 /** What the gateway reports for the RESEARCH plan of the pricing 0.2.0: the plan, its features and its limits, with no consumption. */
 const researchUsage = () => ({
@@ -304,8 +304,15 @@ async function mockApi(
     const method = methodOf(route);
     if (method === 'PATCH') {
       if (state.refuse.patch) return state.refuse.patch(route);
-      const body = route.request().postDataJSON() as { email?: string };
+      const body = route.request().postDataJSON() as {
+        email?: string;
+        display_name?: string;
+        avatar?: unknown;
+      };
       if (body.email) state.account = { ...state.account, email: body.email };
+      if ('display_name' in body)
+        state.account = { ...state.account, display_name: body.display_name || null };
+      if ('avatar' in body) state.account = { ...state.account, avatar: body.avatar };
       return json(state.account)(route);
     }
     if (method === 'DELETE') return (state.refuse.delete ?? noContent)(route);
@@ -414,6 +421,7 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
 
 const SECTIONS: Array<[string, string]> = [
   ['Account', '/me/settings'],
+  ['Public profile', '/me/settings?section=profile'],
   ['Notifications', '/me/settings?section=notifications'],
   ['Plan', '/me/settings?section=plan'],
   ['Appearance', '/me/settings?section=appearance'],
@@ -615,6 +623,84 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         current_password: null,
       });
       await expect(page).toHaveURL(/\/$/);
+      expect(critical).toEqual([]);
+    });
+
+    test('acct-settings · Public profile: the display name and the avatar, edited in local mode', async ({
+      page,
+    }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      const state = await mockApi(page, lucia);
+      await page.goto('/me/settings?section=profile');
+      const main = page.locator('main');
+      await expect(main.getByRole('heading', { level: 2, name: 'Public profile' })).toBeVisible();
+      await expectSettingsNav(page, isMobile, 'Public profile');
+      await main.getByLabel('Display name').fill('Lucía Vega');
+      const patched = page.waitForRequest(
+        request => request.method() === 'PATCH' && request.url() === `${API}/v1/users/me`
+      );
+      await main.getByRole('button', { name: 'Save display name' }).click();
+      expect((await patched).postDataJSON()).toEqual({ display_name: 'Lucía Vega' });
+      expect(state.account.display_name).toBe('Lucía Vega');
+      await capture(page, testInfo, `settings-${name}-profile`);
+
+      await main.getByRole('button', { name: 'Change avatar' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Edit avatar' });
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button', { name: 'Icons' }).click();
+      await dialog.getByRole('button', { name: 'Robot' }).click();
+      await dialog.getByRole('button', { name: 'Background colour #0d7660' }).click();
+      await capture(page, testInfo, `settings-${name}-avatar-editor`);
+      const saved = page.waitForRequest(
+        request => request.method() === 'PATCH' && request.url() === `${API}/v1/users/me`
+      );
+      await dialog.getByRole('button', { name: 'Save avatar' }).click();
+      expect((await saved).postDataJSON()).toEqual({
+        avatar: {
+          kind: 'icon',
+          assetId: 'avatar-9',
+          backgroundColor: '#0d7660',
+          foregroundColor: '#ffffff',
+        },
+      });
+      await expect(dialog).toHaveCount(0);
+      // The header follows: the session is read again and draws the new avatar.
+      if (!isMobile)
+        await expect(
+          page.getByRole('button', { name: 'Account menu' }).locator('[data-avatar-kind="icon"]')
+        ).toBeVisible();
+      expect(critical).toEqual([]);
+    });
+
+    test('acct-settings · Public profile in SCORETech Identity mode: read-only, edited in Identity', async ({
+      page,
+    }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(
+        page,
+        {
+          ...sofia,
+          display_name: 'Sofía Ruiz',
+          avatar: {
+            kind: 'icon',
+            assetId: 'leaf',
+            backgroundColor: '#212529',
+            foregroundColor: '#ffffff',
+          },
+        },
+        {},
+        'scoretech'
+      );
+      await page.goto('/me/settings?section=profile');
+      const main = page.locator('main');
+      await expect(main.getByText('Sofía Ruiz')).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Change avatar' })).toHaveCount(0);
+      await expect(main.getByLabel('Display name')).toHaveCount(0);
+      const edit = main.getByRole('link', { name: /Edit in SCORETech Identity/ });
+      await expect(edit).toHaveAttribute('target', '_blank');
+      expect(new URL((await edit.getAttribute('href')) ?? '').hash).toBe('#public-profile');
+      await expect(main.locator('[data-avatar-kind="icon"]')).toBeVisible();
+      await capture(page, testInfo, `settings-${name}-identity-profile`);
       expect(critical).toEqual([]);
     });
 

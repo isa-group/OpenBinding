@@ -3108,12 +3108,14 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change your email or password
+         * Change your email, password, display name or avatar
          * @description Change what the account holder is allowed to change.
          *
-         *     Both changes need the current password. Email is included in that because
-         *     the email address is one of the two ways to sign in, so changing it is a
-         *     change of credential, not of contact details.
+         *     The email and the password need the current password. Email is included in
+         *     that because the email address is one of the two ways to sign in, so
+         *     changing it is a change of credential, not of contact details. The display
+         *     name and the avatar (local mode) need no password: they are what others see,
+         *     not a way in. In SCORETech Identity mode all four are Identity's (409).
          *
          *     The revision is the account row's, shared with the notification preferences.
          */
@@ -9611,10 +9613,20 @@ export interface components {
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
             /**
+             * Avatar
+             * @description Local mode: the avatar, in SCORETech Identity's shapes; null removes it (the initials). Absent keeps it. In SCORETech Identity mode it is Identity's (409 `managed_by_identity`).
+             */
+            avatar?: (components["schemas"]["PresetAvatar"] | components["schemas"]["InitialsAvatar"] | components["schemas"]["IconAvatar"]) | null;
+            /**
              * Current Password
              * @description Required when changing the password.
              */
             current_password?: string | null;
+            /**
+             * Display Name
+             * @description Local mode: the name to show others; an empty one, or null, removes it. Absent keeps it. In SCORETech Identity mode it is Identity's (409 `managed_by_identity`).
+             */
+            display_name?: string | null;
             /** Email */
             email?: string | null;
             /** New Password */

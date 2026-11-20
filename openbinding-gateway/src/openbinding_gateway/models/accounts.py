@@ -12,7 +12,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from ..security.apikeys import ApiKeyPermission, ENGINE_LIMITED_PERMISSIONS
 from .avatars import AvatarDescriptor
@@ -174,6 +174,29 @@ class UpdateProfileRequest(BaseModel):
         default=None, description="Required when changing the password."
     )
     new_password: Optional[str] = None
+    display_name: Optional[str] = Field(
+        default=None,
+        max_length=160,
+        description=(
+            "Local mode: the name to show others; an empty one, or null, removes it. Absent keeps it. In SCORETech "
+            "Identity mode it is Identity's (409 `managed_by_identity`)."
+        ),
+    )
+    avatar: Optional[AvatarDescriptor] = Field(
+        default=None,
+        description=(
+            "Local mode: the avatar, in SCORETech Identity's shapes; null removes it (the initials). Absent keeps it. "
+            "In SCORETech Identity mode it is Identity's (409 `managed_by_identity`)."
+        ),
+    )
+
+    @field_validator("display_name")
+    @classmethod
+    def _trimmed(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        value = " ".join(value.split())
+        return value or None
 
 
 class ApiKeyEngineRef(BaseModel):

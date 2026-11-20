@@ -433,11 +433,13 @@ since `73779a8a`; their rows say so.
 | `frontend/src/modules/settings/api/userSettingsApi.ts` | `frontend/src/modules/settings/api/userSettingsApi.ts` | adapted |
 | `frontend/src/modules/settings/components/AccountSection.tsx` | `frontend/src/modules/settings/components/AccountSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/AppearanceSection.tsx` | `frontend/src/modules/settings/components/NotificationsSection.tsx` | pattern-only |
+| `frontend/src/modules/settings/components/AvatarEditor.tsx` | `frontend/src/modules/settings/components/AvatarEditor.tsx` | adapted (SCORETech Identity's descriptor shapes; no upload or crop) |
 | `frontend/src/modules/settings/components/BetaFeaturesSection.tsx` | `frontend/src/modules/settings/components/BetaFeaturesSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/DangerZoneSection.tsx` | `frontend/src/modules/settings/components/DangerZoneSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/IdentityAccountSection.tsx` | `frontend/src/modules/settings/components/IdentityAccountSection.tsx` | adapted (without the `linking` variant) |
 | `frontend/src/modules/settings/components/NotificationsSection.tsx` | `frontend/src/modules/settings/components/NotificationsSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/PlanSection.tsx` | `frontend/src/modules/settings/components/PaymentsSection.tsx` | adapted |
+| `frontend/src/modules/settings/components/PublicProfileSection.tsx` | `frontend/src/modules/settings/components/PublicProfileSection.tsx` | adapted (the display name and the avatar only) |
 | `frontend/src/modules/settings/components/SaveButton.tsx` | `frontend/src/modules/settings/components/AccountSection.tsx` | adapted (extracted) |
 | `frontend/src/modules/settings/components/UnsavedChangesDialog.tsx` | `frontend/src/modules/settings/components/UnsavedChangesDialog.tsx` | adapted |
 | `frontend/src/modules/settings/pages/settings-page/index.tsx` | `frontend/src/modules/settings/pages/SettingsPage.tsx` | adapted |

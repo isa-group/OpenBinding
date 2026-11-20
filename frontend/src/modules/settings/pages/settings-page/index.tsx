@@ -20,6 +20,7 @@ import BetaFeaturesSection from '../../components/BetaFeaturesSection';
 import DangerZoneSection from '../../components/DangerZoneSection';
 import NotificationsSection from '../../components/NotificationsSection';
 import PlanSection from '../../components/PlanSection';
+import PublicProfileSection from '../../components/PublicProfileSection';
 import UnsavedChangesDialog from '../../components/UnsavedChangesDialog';
 import { SETTINGS_SECTIONS, sectionOf, settingsPath, type SettingsSectionId } from './sections';
 
@@ -54,6 +55,7 @@ export default function SettingsPage() {
   };
 
   const accountDirtyChange = useCallback((d: boolean) => markDirty('account', d), [markDirty]);
+  const profileDirtyChange = useCallback((d: boolean) => markDirty('profile', d), [markDirty]);
   const notificationsDirtyChange = useCallback(
     (d: boolean) => markDirty('notifications', d),
     [markDirty]
@@ -203,6 +205,9 @@ export default function SettingsPage() {
                   ) : (
                     <AccountSection onDirtyChange={accountDirtyChange} />
                   ))}
+                {activeSection === 'profile' && (
+                  <PublicProfileSection onDirtyChange={profileDirtyChange} />
+                )}
                 {activeSection === 'notifications' && (
                   <NotificationsSection onDirtyChange={notificationsDirtyChange} />
                 )}

@@ -16084,6 +16084,36 @@
       },
       "UpdateProfileRequest": {
         "properties": {
+          "avatar": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "icon": "#/components/schemas/IconAvatar",
+                    "initials": "#/components/schemas/InitialsAvatar",
+                    "preset": "#/components/schemas/PresetAvatar"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PresetAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InitialsAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IconAvatar"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Local mode: the avatar, in SCORETech Identity's shapes; null removes it (the initials). Absent keeps it. In SCORETech Identity mode it is Identity's (409 `managed_by_identity`).",
+            "title": "Avatar"
+          },
           "current_password": {
             "anyOf": [
               {
@@ -16095,6 +16125,19 @@
             ],
             "description": "Required when changing the password.",
             "title": "Current Password"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Local mode: the name to show others; an empty one, or null, removes it. Absent keeps it. In SCORETech Identity mode it is Identity's (409 `managed_by_identity`).",
+            "title": "Display Name"
           },
           "email": {
             "anyOf": [
@@ -38853,7 +38896,7 @@
         ]
       },
       "patch": {
-        "description": "Change what the account holder is allowed to change.\n\nBoth changes need the current password. Email is included in that because\nthe email address is one of the two ways to sign in, so changing it is a\nchange of credential, not of contact details.\n\nThe revision is the account row's, shared with the notification preferences.",
+        "description": "Change what the account holder is allowed to change.\n\nThe email and the password need the current password. Email is included in\nthat because the email address is one of the two ways to sign in, so\nchanging it is a change of credential, not of contact details. The display\nname and the avatar (local mode) need no password: they are what others see,\nnot a way in. In SCORETech Identity mode all four are Identity's (409).\n\nThe revision is the account row's, shared with the notification preferences.",
         "operationId": "updateOwnProfile",
         "parameters": [
           {
@@ -38991,7 +39034,7 @@
             "ApiKeyAuth": []
           }
         ],
-        "summary": "Change your email or password",
+        "summary": "Change your email, password, display name or avatar",
         "tags": [
           "Users"
         ],

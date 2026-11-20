@@ -303,7 +303,14 @@ describe('/me/settings in SCORETech Identity mode', () => {
     renderIdentitySettings();
     await screen.findByRole('heading', { level: 2, name: 'Your SCORETech account' });
     const nav = settingsNav();
-    for (const name of ['Account', 'Notifications', 'Plan', 'Appearance', 'Beta features'])
+    for (const name of [
+      'Account',
+      'Public profile',
+      'Notifications',
+      'Plan',
+      'Appearance',
+      'Beta features',
+    ])
       expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
   });
 
@@ -317,5 +324,126 @@ describe('/me/settings in SCORETech Identity mode', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete my account' }));
     const dialog = await screen.findByRole('dialog', { name: 'Confirm deletion' });
     expect(within(dialog).queryByLabelText(/password/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('/me/settings › Public profile', () => {
+  it('saves the display name in local mode, without a password', async () => {
+    const gateway = fakeGateway({
+      'PATCH /v1/users/me': ({ body }) => ({ body: { ...ME, ...(body as object) } }),
+    });
+    renderSettings('/me/settings?section=profile', gateway);
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Public profile' })
+    ).toBeInTheDocument();
+    const field = screen.getByLabelText('Display name');
+    const save = screen.getByRole('button', { name: 'Save display name' });
+    expect(save).toBeDisabled();
+    fireEvent.change(field, { target: { value: '  Alex Rivera ' } });
+    fireEvent.click(save);
+    await waitFor(() =>
+      expect(
+        gateway.mock.calls.some(
+          ([path, init]) => path === '/v1/users/me' && init?.method === 'PATCH'
+        )
+      ).toBe(true)
+    );
+    const patch = gateway.mock.calls.find(([, init]) => init?.method === 'PATCH');
+    expect(JSON.parse(patch?.[1]?.body as string)).toEqual({ display_name: 'Alex Rivera' });
+  });
+
+  it('edits the avatar in a dialog that takes the focus, in Identity shapes', async () => {
+    const gateway = fakeGateway({ 'PATCH /v1/users/me': { body: ME } });
+    const { auth } = renderSettings('/me/settings?section=profile', gateway);
+    fireEvent.click(await screen.findByRole('button', { name: 'Change avatar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit avatar' });
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Icons' }));
+    const leaf = within(dialog).getByRole('button', { name: 'Leaf' });
+    fireEvent.click(leaf);
+    expect(leaf).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Background colour #212529' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save avatar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const patches = () =>
+      gateway.mock.calls
+        .filter(([, init]) => init?.method === 'PATCH')
+        .map(([, init]) => JSON.parse(init?.body as string));
+    expect(patches()).toEqual([
+      {
+        avatar: {
+          kind: 'icon',
+          assetId: 'leaf',
+          backgroundColor: '#212529',
+          foregroundColor: '#ffffff',
+        },
+      },
+    ]);
+    expect(auth.refresh).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change avatar' }));
+    const again = await screen.findByRole('dialog', { name: 'Edit avatar' });
+    fireEvent.click(within(again).getByRole('button', { name: 'Presets' }));
+    expect(within(again).queryByRole('button', { name: /colour #/ })).not.toBeInTheDocument();
+    fireEvent.click(within(again).getByRole('button', { name: 'Fox' }));
+    fireEvent.click(within(again).getByRole('button', { name: 'Save avatar' }));
+    await waitFor(() => expect(patches()).toHaveLength(2));
+    expect(patches()[1]).toEqual({ avatar: { kind: 'preset', assetId: 'fox' } });
+  });
+
+  it('removes an avatar, and says when saving fails', async () => {
+    let calls = 0;
+    const gateway = fakeGateway({
+      'PATCH /v1/users/me': () => {
+        calls += 1;
+        return calls === 1 ? { status: 503, body: { code: 'unavailable' } } : { body: ME };
+      },
+    });
+    renderModule(<SettingsPage />, {
+      entry: '/me/settings?section=profile',
+      path: '/me/settings',
+      gateway,
+      user: { ...ME, avatar: { kind: 'preset', assetId: 'owl' } },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Change avatar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit avatar' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove avatar' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Nothing was saved/);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove avatar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const last = gateway.mock.calls.filter(([, init]) => init?.method === 'PATCH').at(-1);
+    expect(JSON.parse(last?.[1]?.body as string)).toEqual({ avatar: null });
+  });
+
+  it('shows Identity display name and avatar read-only in SCORETech Identity mode', async () => {
+    renderModule(<SettingsPage />, {
+      entry: '/me/settings?section=profile',
+      path: '/me/settings',
+      authConfig: SCORETECH_CONFIG,
+      user: {
+        ...ME,
+        password_enabled: false,
+        display_name: 'Alex Rivera',
+        avatar: {
+          kind: 'icon',
+          assetId: 'leaf',
+          backgroundColor: '#212529',
+          foregroundColor: '#ffffff',
+        },
+      },
+    });
+    expect(await screen.findByText('Alex Rivera')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Change avatar' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Display name')).not.toBeInTheDocument();
+    const edit = screen.getByRole('link', { name: /Edit in SCORETech Identity/ });
+    expect(edit).toHaveAttribute('target', '_blank');
+    expect(edit).toHaveAttribute('rel', 'noopener noreferrer');
+    const href = new URL(edit.getAttribute('href') ?? '');
+    expect(href.hash).toBe('#public-profile');
+    expect(href.searchParams.get('return_to')).toBe(
+      `${window.location.origin}/me/settings?section=account`
+    );
+    expect(document.querySelector('[data-avatar-kind="icon"]')).not.toBeNull();
   });
 });
