@@ -57,6 +57,7 @@ from ..db.models import (
 )
 from ..core import revision
 from ..models.errors import ErrorResponse, api_error
+from ..models.avatars import avatar_of
 from ..models.platform import (
     AvatarSelection,
     CodeInvitationCreate,
@@ -770,6 +771,8 @@ async def _member_views(
             id=row.id, organization_id=row.organization_id, user_id=row.user_id,
             username=member.username if member else None,
             email=member.email if member else None,
+            display_name=member.display_name if member else None,
+            avatar=avatar_of(member.avatar) if member else None,
             role=row.role.value, created_at=row.created_at,
         ))
     return members
@@ -905,6 +908,7 @@ async def upsert_member(
     return MemberView(
         id=existing.id, organization_id=existing.organization_id, user_id=existing.user_id,
         username=member_user.username, email=member_user.email,
+        display_name=member_user.display_name, avatar=avatar_of(member_user.avatar),
         role=existing.role.value, created_at=existing.created_at,
     )
 
@@ -955,7 +959,7 @@ def _code_view(invitation: OrganizationInvitationCode, creator: User | None) -> 
 
 
 def _user_ref(user: User | None) -> UserRef | None:
-    return UserRef(id=user.id, username=user.username) if user is not None else None
+    return UserRef.of(user) if user is not None else None
 
 
 async def _new_code(

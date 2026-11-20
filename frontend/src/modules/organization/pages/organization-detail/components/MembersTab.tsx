@@ -238,10 +238,28 @@ export default function MembersTab({
               key={member.id}
               className={`flex flex-wrap items-center gap-3 px-5 py-3 transition-colors hover:bg-tp-surface/50 ${removed ? 'opacity-60' : ''}`}
             >
-              <UserAvatar username={name} size={36} />
+              <UserAvatar
+                username={name}
+                displayName={member.display_name}
+                avatar={member.avatar}
+                size={36}
+              />
 
               <div className="min-w-0 flex-1">
-                <p className={`text-sm font-medium text-tp-ink ${removed ? 'line-through' : ''}`}>
+                {member.display_name && (
+                  <p
+                    className={`truncate text-sm font-medium text-tp-ink ${removed ? 'line-through' : ''}`}
+                  >
+                    {member.display_name}
+                  </p>
+                )}
+                <p
+                  className={
+                    member.display_name
+                      ? `text-xs text-tp-steel ${removed ? 'line-through' : ''}`
+                      : `text-sm font-medium text-tp-ink ${removed ? 'line-through' : ''}`
+                  }
+                >
                   @{name}
                   {isMe && <span className="ml-1.5 text-xs font-normal text-tp-steel">(you)</span>}
                 </p>

@@ -3399,6 +3399,11 @@ export interface components {
              */
             api_keys_suspended_at?: string | null;
             /**
+             * Avatar
+             * @description The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.
+             */
+            avatar?: (components["schemas"]["PresetAvatar"] | components["schemas"]["InitialsAvatar"] | components["schemas"]["IconAvatar"]) | null;
+            /**
              * Contract Pending
              * @description True when the account still owes a contract.
              * @default false
@@ -3409,6 +3414,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Display Name
+             * @description The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.
+             */
+            display_name?: string | null;
             /**
              * Email
              * @description The account's address as stored: what the person registered, the email SCORETech Identity verified, or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an `email` format).
@@ -6657,11 +6667,46 @@ export interface components {
              */
             value: string;
         };
+        /**
+         * IconAvatar
+         * @description One of Identity's icons or SPHERE's predefined avatars, in two colours.
+         */
+        IconAvatar: {
+            /**
+             * Assetid
+             * @enum {string}
+             */
+            assetId: "spark" | "rocket" | "heart" | "leaf" | "star" | "avatar-1" | "avatar-2" | "avatar-3" | "avatar-4" | "avatar-6" | "avatar-7" | "avatar-8" | "avatar-9" | "avatar-10";
+            /** Backgroundcolor */
+            backgroundColor: string;
+            /** Foregroundcolor */
+            foregroundColor: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "icon";
+        };
         ImmutableResourceRef: {
             digest: string;
             name: string;
             namespace: string;
             version: string;
+        };
+        /**
+         * InitialsAvatar
+         * @description The initials of the display name (or the username), in two colours.
+         */
+        InitialsAvatar: {
+            /** Backgroundcolor */
+            backgroundColor: string;
+            /** Foregroundcolor */
+            foregroundColor: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "initials";
         };
         InstanceManifest: {
             /** @constant */
@@ -7113,10 +7158,20 @@ export interface components {
         /** MemberView */
         MemberView: {
             /**
+             * Avatar
+             * @description The member's avatar; null draws the initials.
+             */
+            avatar?: (components["schemas"]["PresetAvatar"] | components["schemas"]["InitialsAvatar"] | components["schemas"]["IconAvatar"]) | null;
+            /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Display Name
+             * @description The member's display name; null if none.
+             */
+            display_name?: string | null;
             /** Email */
             email?: string | null;
             /**
@@ -7537,6 +7592,22 @@ export interface components {
              * @description The Pricing2Yaml text, for pricing-renderer.
              */
             yaml: string;
+        };
+        /**
+         * PresetAvatar
+         * @description One of Identity's preset animals, drawn in Identity's default colours.
+         */
+        PresetAvatar: {
+            /**
+             * Assetid
+             * @enum {string}
+             */
+            assetId: "owl" | "fox" | "octopus" | "robot";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "preset";
         };
         /**
          * PricingSnapshotView
@@ -9715,10 +9786,20 @@ export interface components {
              */
             api_keys_suspended_at?: string | null;
             /**
+             * Avatar
+             * @description The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.
+             */
+            avatar?: (components["schemas"]["PresetAvatar"] | components["schemas"]["InitialsAvatar"] | components["schemas"]["IconAvatar"]) | null;
+            /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Display Name
+             * @description The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.
+             */
+            display_name?: string | null;
             /**
              * Email
              * @description The account's address as stored: what the person registered, the email SCORETech Identity verified, or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an `email` format).
@@ -9765,9 +9846,14 @@ export interface components {
         UserRef: {
             /**
              * Avatar
-             * @description The user's avatar URL; none yet (Identity, F5).
+             * @description The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.
              */
-            avatar?: string | null;
+            avatar?: (components["schemas"]["PresetAvatar"] | components["schemas"]["InitialsAvatar"] | components["schemas"]["IconAvatar"]) | null;
+            /**
+             * Display Name
+             * @description The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.
+             */
+            display_name?: string | null;
             /**
              * Id
              * Format: uuid

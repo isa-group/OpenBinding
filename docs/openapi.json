@@ -238,6 +238,36 @@
             "description": "SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.",
             "title": "Api Keys Suspended At"
           },
+          "avatar": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "icon": "#/components/schemas/IconAvatar",
+                    "initials": "#/components/schemas/InitialsAvatar",
+                    "preset": "#/components/schemas/PresetAvatar"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PresetAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InitialsAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IconAvatar"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.",
+            "title": "Avatar"
+          },
           "contract_pending": {
             "default": false,
             "description": "True when the account still owes a contract.",
@@ -248,6 +278,18 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.",
+            "title": "Display Name"
           },
           "email": {
             "description": "The account's address as stored: what the person registered, the email SCORETech Identity verified, or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an `email` format).",
@@ -8760,6 +8802,55 @@
         "title": "HistogramBucket",
         "type": "object"
       },
+      "IconAvatar": {
+        "additionalProperties": false,
+        "description": "One of Identity's icons or SPHERE's predefined avatars, in two colours.",
+        "properties": {
+          "assetId": {
+            "enum": [
+              "spark",
+              "rocket",
+              "heart",
+              "leaf",
+              "star",
+              "avatar-1",
+              "avatar-2",
+              "avatar-3",
+              "avatar-4",
+              "avatar-6",
+              "avatar-7",
+              "avatar-8",
+              "avatar-9",
+              "avatar-10"
+            ],
+            "title": "Assetid",
+            "type": "string"
+          },
+          "backgroundColor": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Backgroundcolor",
+            "type": "string"
+          },
+          "foregroundColor": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Foregroundcolor",
+            "type": "string"
+          },
+          "kind": {
+            "const": "icon",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "assetId",
+          "backgroundColor",
+          "foregroundColor"
+        ],
+        "title": "IconAvatar",
+        "type": "object"
+      },
       "ImmutableResourceRef": {
         "additionalProperties": false,
         "properties": {
@@ -8783,6 +8874,34 @@
           "version",
           "digest"
         ],
+        "type": "object"
+      },
+      "InitialsAvatar": {
+        "additionalProperties": false,
+        "description": "The initials of the display name (or the username), in two colours.",
+        "properties": {
+          "backgroundColor": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Backgroundcolor",
+            "type": "string"
+          },
+          "foregroundColor": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Foregroundcolor",
+            "type": "string"
+          },
+          "kind": {
+            "const": "initials",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "backgroundColor",
+          "foregroundColor"
+        ],
+        "title": "InitialsAvatar",
         "type": "object"
       },
       "InstanceManifest": {
@@ -9961,10 +10080,52 @@
       },
       "MemberView": {
         "properties": {
+          "avatar": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "icon": "#/components/schemas/IconAvatar",
+                    "initials": "#/components/schemas/InitialsAvatar",
+                    "preset": "#/components/schemas/PresetAvatar"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PresetAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InitialsAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IconAvatar"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The member's avatar; null draws the initials.",
+            "title": "Avatar"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The member's display name; null if none.",
+            "title": "Display Name"
           },
           "email": {
             "anyOf": [
@@ -10920,6 +11081,33 @@
           "document"
         ],
         "title": "PlansPricingView",
+        "type": "object"
+      },
+      "PresetAvatar": {
+        "additionalProperties": false,
+        "description": "One of Identity's preset animals, drawn in Identity's default colours.",
+        "properties": {
+          "assetId": {
+            "enum": [
+              "owl",
+              "fox",
+              "octopus",
+              "robot"
+            ],
+            "title": "Assetid",
+            "type": "string"
+          },
+          "kind": {
+            "const": "preset",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "assetId"
+        ],
+        "title": "PresetAvatar",
         "type": "object"
       },
       "PricingSnapshotView": {
@@ -16394,10 +16582,52 @@
             "description": "SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.",
             "title": "Api Keys Suspended At"
           },
+          "avatar": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "icon": "#/components/schemas/IconAvatar",
+                    "initials": "#/components/schemas/InitialsAvatar",
+                    "preset": "#/components/schemas/PresetAvatar"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PresetAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InitialsAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IconAvatar"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.",
+            "title": "Avatar"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.",
+            "title": "Display Name"
           },
           "email": {
             "description": "The account's address as stored: what the person registered, the email SCORETech Identity verified, or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an `email` format).",
@@ -16463,14 +16693,44 @@
           "avatar": {
             "anyOf": [
               {
+                "discriminator": {
+                  "mapping": {
+                    "icon": "#/components/schemas/IconAvatar",
+                    "initials": "#/components/schemas/InitialsAvatar",
+                    "preset": "#/components/schemas/PresetAvatar"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PresetAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InitialsAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IconAvatar"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.",
+            "title": "Avatar"
+          },
+          "display_name": {
+            "anyOf": [
+              {
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "The user's avatar URL; none yet (Identity, F5).",
-            "title": "Avatar"
+            "description": "The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.",
+            "title": "Display Name"
           },
           "id": {
             "format": "uuid",

@@ -15,6 +15,7 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 from ..security.apikeys import ApiKeyPermission, ENGINE_LIMITED_PERMISSIONS
+from .avatars import AvatarDescriptor
 
 USERNAME_PATTERN = r"^[a-zA-Z0-9][a-zA-Z0-9._-]{2,63}$"
 
@@ -128,6 +129,14 @@ class UserProfile(BaseModel):
     institutional_email: bool = Field(
         default=False,
         description="Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.",
+    )
+    display_name: Optional[str] = Field(
+        default=None,
+        description="The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.",
+    )
+    avatar: Optional[AvatarDescriptor] = Field(
+        default=None,
+        description="The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.",
     )
     password_enabled: bool = Field(
         default=False,

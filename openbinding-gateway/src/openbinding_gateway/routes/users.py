@@ -31,6 +31,7 @@ from ..models.accounts import (
     UserProfile,
 )
 from ..core.like import LIKE_ESCAPE, like_contains
+from ..models.avatars import avatar_of
 from ..models.platform import UserRef
 from ..models.errors import (
     CONFLICT_RESPONSE,
@@ -82,6 +83,8 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
         created_at=user.created_at,
         email_verified=user.email_verified,
         institutional_email=institutional_email(user),
+        display_name=user.display_name,
+        avatar=avatar_of(user.avatar),
         password_enabled=user.password_enabled,
         api_keys_suspended_at=owner_may_use_keys(user, settings=get_settings()).suspended_at,
     )
@@ -158,7 +161,7 @@ async def search_users(
             User.id != user.id,
         ).order_by(User.username).limit(USER_SEARCH_LIMIT)
     )).all()
-    return [UserRef(id=row.id, username=row.username) for row in rows]
+    return [UserRef.of(row) for row in rows]
 
 
 @router.get(

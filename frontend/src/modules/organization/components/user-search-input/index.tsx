@@ -197,8 +197,24 @@ export default function UserSearchInput({
                 index === highlightedIndex ? 'bg-tp-surface' : ''
               }`}
             >
-              <UserAvatar username={user.username} avatar={user.avatar} size={32} />
-              <p className="text-sm font-medium text-tp-ink">@{user.username}</p>
+              <UserAvatar
+                username={user.username}
+                displayName={user.display_name}
+                avatar={user.avatar}
+                size={32}
+              />
+              <div className="min-w-0">
+                {user.display_name && (
+                  <p className="truncate text-sm font-medium text-tp-ink">{user.display_name}</p>
+                )}
+                <p
+                  className={
+                    user.display_name ? 'text-xs text-tp-steel' : 'text-sm font-medium text-tp-ink'
+                  }
+                >
+                  @{user.username}
+                </p>
+              </div>
             </li>
           ))}
         </ul>
