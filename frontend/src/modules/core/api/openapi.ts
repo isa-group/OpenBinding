@@ -3357,6 +3357,29 @@ export interface components {
             /** Total */
             total: number;
         };
+        /**
+         * AdminIdentityLink
+         * @description The external identity an account signs in with: SCORETech Identity's issuer and subject.
+         */
+        AdminIdentityLink: {
+            /** Issuer */
+            issuer: string;
+            /**
+             * Linked At
+             * Format: date-time
+             */
+            linked_at: string;
+            /**
+             * Provider
+             * @description `scoretech`.
+             */
+            provider: string;
+            /**
+             * Subject
+             * @description Identity's `sub` for this account.
+             */
+            subject: string;
+        };
         /** AdminSubscriptionView */
         AdminSubscriptionView: {
             /** Changed */
@@ -3386,9 +3409,15 @@ export interface components {
         };
         /**
          * AdminUserView
-         * @description A user as an administrator sees them: the profile, plus what it costs.
+         * @description A user as an administrator sees them: the profile, plus what it costs and how it signs in.
          */
         AdminUserView: {
+            /**
+             * Active Sessions
+             * @description Browser sessions neither signed out nor expired, in either sign-in mode.
+             * @default 0
+             */
+            active_sessions: number;
             /**
              * Api Key Count
              * @description How many keys are in use.
@@ -3437,6 +3466,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** @description The SCORETech Identity the account signs in with; null for a local account. */
+            identity?: components["schemas"]["AdminIdentityLink"] | null;
             /**
              * Institutional Email
              * @description Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.
@@ -3445,6 +3476,11 @@ export interface components {
             institutional_email: boolean;
             /** Is Active */
             is_active: boolean;
+            /**
+             * Last Identity Refresh At
+             * @description When the account last signed in or renewed with SCORETech Identity; null if never.
+             */
+            last_identity_refresh_at?: string | null;
             /**
              * Password Enabled
              * @description Whether the account has a password of its own: deleting it then asks for the current one. False for an account that only signs in with SCORETech Identity.
@@ -3456,6 +3492,11 @@ export interface components {
              * @description Plan last recorded for the SPACE contract (read from the database, so reading the profile never needs SPACE). The contract itself decides what a request is allowed to do; this is what the interface displays. Empty when the account has no plan (the stateless open gate, or SPACE has not assigned one).
              */
             plan: string;
+            /**
+             * Research Basis
+             * @description How the account was last granted RESEARCH: `email` (a verified institutional email) or `admin` (an administrator); null if it never was.
+             */
+            research_basis?: ("email" | "admin") | null;
             role: components["schemas"]["RoleName"];
             /** Username */
             username: string;

@@ -21,7 +21,7 @@ import ResourceCardShell, {
 import { Skeleton } from '../../../core/components/skeleton';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import NotFoundPage from '../../../core/pages/page-not-found';
-import { formatDate } from '../../../core/utils/format';
+import { formatDate, formatDateTime } from '../../../core/utils/format';
 import { useResource } from '../../../core/hooks/useResource';
 import {
   adminPath,
@@ -342,6 +342,48 @@ function DetailScreen({ param, tab }: { param: string; tab: AdminUserTab }) {
                     ) : (
                       'Not verified'
                     )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Signs in with</dt>
+                  <dd>
+                    {user.identity
+                      ? 'SCORETech Identity'
+                      : user.password_enabled
+                        ? 'OpenBinding password'
+                        : 'No sign-in method'}
+                  </dd>
+                </div>
+                {user.identity && (
+                  <div className="sm:col-span-2">
+                    <dt>Identity issuer</dt>
+                    <dd className="break-all">{user.identity.issuer}</dd>
+                  </div>
+                )}
+                {user.identity && (
+                  <div className="sm:col-span-2">
+                    <dt>Identity subject</dt>
+                    <dd>
+                      <CopyField value={user.identity.subject} label="Identity subject" />
+                    </dd>
+                  </div>
+                )}
+                <div>
+                  <dt>Last Identity sign-in</dt>
+                  <dd>{formatDateTime(user.last_identity_refresh_at) ?? 'Never'}</dd>
+                </div>
+                <div>
+                  <dt>Active sessions</dt>
+                  <dd>{user.active_sessions}</dd>
+                </div>
+                <div>
+                  <dt>RESEARCH basis</dt>
+                  <dd>
+                    {user.research_basis === 'email'
+                      ? 'Institutional domain of its verified e-mail'
+                      : user.research_basis === 'admin'
+                        ? 'Granted by an administrator'
+                        : 'Never granted'}
                   </dd>
                 </div>
                 <div>

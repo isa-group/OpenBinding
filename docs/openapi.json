@@ -162,6 +162,38 @@
         "title": "AdminAuditPage",
         "type": "object"
       },
+      "AdminIdentityLink": {
+        "description": "The external identity an account signs in with: SCORETech Identity's issuer and subject.",
+        "properties": {
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "linked_at": {
+            "format": "date-time",
+            "title": "Linked At",
+            "type": "string"
+          },
+          "provider": {
+            "description": "`scoretech`.",
+            "title": "Provider",
+            "type": "string"
+          },
+          "subject": {
+            "description": "Identity's `sub` for this account.",
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "issuer",
+          "subject",
+          "linked_at"
+        ],
+        "title": "AdminIdentityLink",
+        "type": "object"
+      },
       "AdminSubscriptionView": {
         "properties": {
           "changed": {
@@ -217,8 +249,14 @@
         "type": "object"
       },
       "AdminUserView": {
-        "description": "A user as an administrator sees them: the profile, plus what it costs.",
+        "description": "A user as an administrator sees them: the profile, plus what it costs and how it signs in.",
         "properties": {
+          "active_sessions": {
+            "default": 0,
+            "description": "Browser sessions neither signed out nor expired, in either sign-in mode.",
+            "title": "Active Sessions",
+            "type": "integer"
+          },
           "api_key_count": {
             "default": 0,
             "description": "How many keys are in use.",
@@ -307,6 +345,17 @@
             "title": "Id",
             "type": "string"
           },
+          "identity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminIdentityLink"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The SCORETech Identity the account signs in with; null for a local account."
+          },
           "institutional_email": {
             "default": false,
             "description": "Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.",
@@ -316,6 +365,19 @@
           "is_active": {
             "title": "Is Active",
             "type": "boolean"
+          },
+          "last_identity_refresh_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the account last signed in or renewed with SCORETech Identity; null if never.",
+            "title": "Last Identity Refresh At"
           },
           "password_enabled": {
             "default": false,
@@ -328,6 +390,22 @@
             "maxLength": 128,
             "title": "Plan",
             "type": "string"
+          },
+          "research_basis": {
+            "anyOf": [
+              {
+                "enum": [
+                  "email",
+                  "admin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the account was last granted RESEARCH: `email` (a verified institutional email) or `admin` (an administrator); null if it never was.",
+            "title": "Research Basis"
           },
           "role": {
             "$ref": "#/components/schemas/RoleName"

@@ -352,13 +352,39 @@ class PricingTokenView(BaseModel):
     pricing_token: str
 
 
+class AdminIdentityLink(BaseModel):
+    """The external identity an account signs in with: SCORETech Identity's issuer and subject."""
+
+    provider: str = Field(..., description="`scoretech`.")
+    issuer: str
+    subject: str = Field(..., description="Identity's `sub` for this account.")
+    linked_at: datetime
+
+
 class AdminUserView(UserProfile):
-    """A user as an administrator sees them: the profile, plus what it costs."""
+    """A user as an administrator sees them: the profile, plus what it costs and how it signs in."""
 
     contract_pending: bool = Field(
         default=False, description="True when the account still owes a contract."
     )
     api_key_count: int = Field(default=0, description="How many keys are in use.")
+    identity: Optional[AdminIdentityLink] = Field(
+        default=None, description="The SCORETech Identity the account signs in with; null for a local account."
+    )
+    last_identity_refresh_at: Optional[datetime] = Field(
+        default=None,
+        description="When the account last signed in or renewed with SCORETech Identity; null if never.",
+    )
+    active_sessions: int = Field(
+        default=0, description="Browser sessions neither signed out nor expired, in either sign-in mode."
+    )
+    research_basis: Optional[Literal["email", "admin"]] = Field(
+        default=None,
+        description=(
+            "How the account was last granted RESEARCH: `email` (a verified institutional email) or `admin` (an "
+            "administrator); null if it never was."
+        ),
+    )
 
 
 class AdminUserPage(BaseModel):

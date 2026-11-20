@@ -5,6 +5,7 @@ Code outside ``modules/identity`` reaches the module through this package only
 """
 
 from . import sessions
+from .accounts import AccountIdentityFacts, IdentityLink, identity_facts
 from .cookies import presented_session, refuse_foreign_origin, set_session_cookie
 from .admission import KeyAdmission, owner_may_use_keys
 from .research import apply_plan_rule, institutional_email, upgrade_to_research
@@ -15,6 +16,9 @@ from .ports import OidcClient, OneTimeStore, SessionLock
 from .stores import IdentityStoreNotConfigured, get_lock, get_oidc, get_store, set_lock, set_oidc, set_store
 
 __all__ = [
+    "AccountIdentityFacts",
+    "IdentityLink",
+    "identity_facts",
     "KeyAdmission",
     "owner_may_use_keys",
     "apply_plan_rule",

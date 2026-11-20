@@ -55,6 +55,7 @@ from ..db.models import (
 )
 from ..jobs import reconciler
 from ..models.accounts import (
+    AdminIdentityLink,
     AdminUserPage,
     AdminUserView,
     ChangePlanRequest,
@@ -85,7 +86,14 @@ from ..space_client import (
     get_gate,
 )
 from ..mailer import send_mail
-from ..modules.identity.application import end_all, institutional_email
+from ..models.avatars import avatar_of
+from ..modules.identity.application import (
+    AccountIdentityFacts,
+    end_all,
+    identity_facts,
+    institutional_email,
+    owner_may_use_keys,
+)
 from .users import usage_view_for
 
 router = APIRouter(
@@ -233,28 +241,14 @@ async def list_users(
             )
         ).all()
     )
+    facts = await identity_facts(session, [user.id for user in users])
     views = []
     for user in users:
         try:
             plan = user.plan_cache if user.contract_pending else (await get_gate().subscription(user.id)).plan
         except PricingUnavailable as error:
             raise pricing_unavailable_error(error, where="admin user list") from error
-        views.append(
-            AdminUserView(
-                id=user.id,
-                username=user.username,
-                email=user.email,
-                role=user.role.value,
-                is_active=user.is_active,
-                plan=plan,
-                created_at=user.created_at,
-                contract_pending=user.contract_pending,
-                api_key_count=key_counts.get(user.id, 0),
-                email_verified=user.email_verified,
-                institutional_email=institutional_email(user),
-                password_enabled=user.password_enabled,
-            )
-        )
+        views.append(_admin_user_view(user, plan, facts[user.id], api_key_count=key_counts.get(user.id, 0)))
     return AdminUserPage(
         users=views,
         total=total or 0,
@@ -316,20 +310,7 @@ async def update_user(
         )
 
     await session.flush()
-    return AdminUserView(
-        id=user.id,
-        username=user.username,
-        email=user.email,
-        role=user.role.value,
-        is_active=user.is_active,
-        plan=plan,
-        created_at=user.created_at,
-        contract_pending=user.contract_pending,
-        api_key_count=0,
-        email_verified=user.email_verified,
-        institutional_email=institutional_email(user),
-        password_enabled=user.password_enabled,
-    )
+    return _admin_user_view(user, plan, (await identity_facts(session, [user.id]))[user.id])
 
 
 @router.post(
@@ -383,13 +364,24 @@ async def change_plan(
     return result.user
 
 
-def _admin_user_view(user: User, plan: str) -> AdminUserView:
+def _admin_user_view(
+    user: User, plan: str, facts: AccountIdentityFacts, *, api_key_count: int = 0
+) -> AdminUserView:
+    link = facts.identity
     return AdminUserView(
         id=user.id, username=user.username, email=user.email, role=user.role.value,
         is_active=user.is_active, plan=plan, created_at=user.created_at,
-        contract_pending=user.contract_pending, api_key_count=0,
+        contract_pending=user.contract_pending, api_key_count=api_key_count,
         email_verified=user.email_verified, institutional_email=institutional_email(user),
         password_enabled=user.password_enabled,
+        display_name=user.display_name, avatar=avatar_of(user.avatar),
+        api_keys_suspended_at=owner_may_use_keys(user, settings=get_settings()).suspended_at,
+        identity=AdminIdentityLink(
+            provider=link.provider, issuer=link.issuer, subject=link.subject, linked_at=link.linked_at
+        ) if link is not None else None,
+        last_identity_refresh_at=user.last_identity_refresh_at,
+        active_sessions=facts.active_sessions,
+        research_basis=facts.research_basis,
     )
 
 
@@ -491,7 +483,7 @@ async def _apply_subscription(
     await session.flush()
     _set_subscription_etag(response, user, after)
     return AdminSubscriptionView(
-        user=_admin_user_view(user, after.plan),
+        user=_admin_user_view(user, after.plan, (await identity_facts(session, [user.id]))[user.id]),
         subscription=_subscription_view(after),
         changed=configuration_changed,
     )
@@ -559,7 +551,7 @@ async def get_subscription(
         raise pricing_unavailable_error(error, where="admin subscription read") from error
     _set_subscription_etag(response, user, current)
     return AdminSubscriptionView(
-        user=_admin_user_view(user, current.plan),
+        user=_admin_user_view(user, current.plan, (await identity_facts(session, [user.id]))[user.id]),
         subscription=_subscription_view(current),
         changed=False,
     )

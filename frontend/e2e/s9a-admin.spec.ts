@@ -638,7 +638,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         main.getByText(/sam-okafor@example\.invalid · since Jun 15, 2026/)
       ).toBeVisible();
       await expect(main.getByLabel('Account facts').getByText('Not verified')).toBeVisible();
+      await expect(
+        main.getByLabel('Account facts').getByText('OpenBinding password')
+      ).toBeVisible();
       await capture(page, testInfo, `detail-${name}-identity`, { height: tall(1400) });
+      // A SCORETech Identity account: its issuer and subject, its last renewal, its sessions and why it has RESEARCH.
+      await page.goto(`/admin/users/${MARIA.id}?tab=identity`);
+      const facts = main.getByLabel('Account facts');
+      await expect(facts.getByText('SCORETech Identity')).toBeVisible();
+      await expect(facts.getByText('Institutional domain of its verified e-mail')).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Copy Identity subject' })).toBeVisible();
+      await capture(page, testInfo, `detail-${name}-identity-scoretech`, { height: tall(1400) });
+      await page.goto(`/admin/users/${SAM.id}`);
       await tab('Usage');
       await expect(page).toHaveURL(new RegExp(`/admin/users/${SAM.id}\\?tab=usage$`));
       await expect(
