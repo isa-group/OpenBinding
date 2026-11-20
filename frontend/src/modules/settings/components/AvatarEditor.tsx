@@ -165,7 +165,11 @@ export default function AvatarEditor({ username, displayName, avatar }: Props) {
             </div>
 
             {mode === 'icon' && (
-              <div role="group" aria-label="Icons" className="grid grid-cols-5 gap-2.5">
+              <div
+                role="group"
+                aria-label="Icons"
+                className="grid grid-cols-5 gap-2 sm:grid-cols-7"
+              >
                 {ICONS.map(option => (
                   <button
                     key={option.id}
@@ -174,7 +178,7 @@ export default function AvatarEditor({ username, displayName, avatar }: Props) {
                     aria-pressed={icon === option.id}
                     aria-label={option.label}
                     title={option.label}
-                    className={`flex aspect-square items-center justify-center ${choice(icon === option.id)}`}
+                    className={`flex h-14 items-center justify-center ${choice(icon === option.id)}`}
                   >
                     <UserAvatar
                       username={username}
@@ -192,7 +196,11 @@ export default function AvatarEditor({ username, displayName, avatar }: Props) {
             )}
 
             {mode === 'preset' && (
-              <div role="group" aria-label="Presets" className="grid grid-cols-4 gap-2.5">
+              <div
+                role="group"
+                aria-label="Presets"
+                className="grid grid-cols-4 gap-2 sm:grid-cols-7"
+              >
                 {avatarPresets.map(option => (
                   <button
                     key={option.id}
@@ -201,7 +209,7 @@ export default function AvatarEditor({ username, displayName, avatar }: Props) {
                     aria-pressed={preset === option.id}
                     aria-label={option.label}
                     title={option.label}
-                    className={`flex aspect-square items-center justify-center ${choice(preset === option.id)}`}
+                    className={`flex h-14 items-center justify-center ${choice(preset === option.id)}`}
                   >
                     <UserAvatar
                       username={username}
