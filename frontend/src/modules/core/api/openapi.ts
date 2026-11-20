@@ -3434,6 +3434,12 @@ export interface components {
             /** Is Active */
             is_active: boolean;
             /**
+             * Password Enabled
+             * @description Whether the account has a password of its own: deleting it then asks for the current one. False for an account that only signs in with SCORETech Identity.
+             * @default false
+             */
+            password_enabled: boolean;
+            /**
              * Plan
              * @description Plan last recorded for the SPACE contract (read from the database, so reading the profile never needs SPACE). The contract itself decides what a request is allowed to do; this is what the interface displays. Empty when the account has no plan (the stateless open gate, or SPACE has not assigned one).
              */
@@ -9737,6 +9743,12 @@ export interface components {
             institutional_email: boolean;
             /** Is Active */
             is_active: boolean;
+            /**
+             * Password Enabled
+             * @description Whether the account has a password of its own: deleting it then asks for the current one. False for an account that only signs in with SCORETech Identity.
+             * @default false
+             */
+            password_enabled: boolean;
             /**
              * Plan
              * @description Plan last recorded for the SPACE contract (read from the database, so reading the profile never needs SPACE). The contract itself decides what a request is allowed to do; this is what the interface displays. Empty when the account has no plan (the stateless open gate, or SPACE has not assigned one).

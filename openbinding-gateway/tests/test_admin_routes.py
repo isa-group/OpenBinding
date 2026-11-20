@@ -117,7 +117,11 @@ async def test_the_listing_never_carries_a_password_hash(
 
     response = await api_client.get("/v1/admin/users", headers=admin)
 
-    assert "password" not in response.text.lower()
+    # Only whether an account has a password (`password_enabled`, a boolean) is said, never the password or its hash.
+    assert "password_hash" not in response.text and "$argon2" not in response.text
+    for row in response.json()["users"]:
+        assert {key for key in row if "password" in key} == {"password_enabled"}
+        assert isinstance(row["password_enabled"], bool)
 
 
 async def test_accounts_can_be_searched(api_client, registration, gate, db_session):

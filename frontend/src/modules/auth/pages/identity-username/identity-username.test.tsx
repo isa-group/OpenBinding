@@ -180,6 +180,7 @@ describe('IdentityUsernamePage', () => {
       created_at: '2026-01-01T00:00:00Z',
       email_verified: true,
       institutional_email: false,
+      password_enabled: true,
     } satisfies UserProfile;
     draw(undefined, SCORETECH, signedIn);
     await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/me\/orgs$/));

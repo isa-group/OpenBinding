@@ -32,6 +32,7 @@ const personas = {
     // The institutional mark follows a verified institutional e-mail, not the plan.
     email_verified: true,
     institutional_email: true,
+    password_enabled: true,
   },
 } as const;
 

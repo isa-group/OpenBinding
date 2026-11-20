@@ -49,6 +49,7 @@ const lucia = {
   created_at: '2026-03-02T00:00:00Z',
   email_verified: true,
   institutional_email: true,
+  password_enabled: true,
 };
 const marco = {
   ...lucia,
@@ -57,6 +58,7 @@ const marco = {
   plan: 'FREE',
   email_verified: false,
   institutional_email: false,
+  password_enabled: true,
 };
 const iker = {
   ...marco,
@@ -64,6 +66,13 @@ const iker = {
   email: 'iker@example.org',
   role: 'admin',
   plan: 'LAB',
+};
+/** An account that signs in with SCORETech Identity only: no password of its own. */
+const sofia = {
+  ...lucia,
+  username: 'sofia.ruiz',
+  email: 'sofia@example.org',
+  password_enabled: false,
 };
 type Account = typeof lucia;
 
@@ -237,7 +246,8 @@ const methodOf = (route: Route) => route.request().method();
 async function mockApi(
   page: Page,
   account: Account,
-  overrides: Partial<State> = {}
+  overrides: Partial<State> = {},
+  provider: 'local' | 'scoretech' = 'local'
 ): Promise<State> {
   const state: State = {
     account,
@@ -267,7 +277,7 @@ async function mockApi(
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
-  await authConfig(page);
+  await authConfig(page, provider);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   await signedIn(page, 's3-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
@@ -560,6 +570,51 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 2, name: 'Account' })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Sign-in & Security' })).toHaveCount(0);
       await expect(page.getByText(/Universidad de Sevilla · CAS|Link CAS identity/)).toHaveCount(0);
+      expect(critical).toEqual([]);
+    });
+
+    test('acct-settings in SCORETech Identity mode: the SCORETech account, no local credentials, deletion without a password', async ({
+      page,
+    }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(page, sofia, {}, 'scoretech');
+      await page.goto('/me/settings');
+      const main = page.locator('main');
+      await expect(
+        main.getByRole('heading', { level: 2, name: 'Your SCORETech account' })
+      ).toBeVisible();
+      await expect(main.getByLabel('Email address')).toHaveCount(0);
+      await expect(main.getByLabel('New password')).toHaveCount(0);
+      const profile = main.getByRole('link', { name: /Open my SCORETech profile/ });
+      await expect(profile).toHaveAttribute('target', '_blank');
+      await expect(profile).toHaveAttribute('rel', 'noopener noreferrer');
+      const href = new URL((await profile.getAttribute('href')) ?? '');
+      expect(href.hash).toBe('#public-profile');
+      expect(href.searchParams.get('return_to')).toBe(
+        `${new URL(page.url()).origin}/me/settings?section=account`
+      );
+      await expectSettingsNav(page, isMobile, 'Account');
+      await capture(page, testInfo, `settings-${name}-identity-account`);
+
+      await page.goto('/me/settings?section=danger');
+      await expect(
+        main.getByRole('heading', { level: 3, name: 'Delete OpenBinding account' })
+      ).toBeVisible();
+      await expect(main.getByText(/Your SCORETech Identity account and your access/)).toBeVisible();
+      await main.getByRole('button', { name: 'Delete my account' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Confirm deletion' });
+      await expect(dialog.getByLabel(/password/i)).toHaveCount(0);
+      await dialog.getByLabel('Type sofia.ruiz to confirm').fill('sofia.ruiz');
+      await capture(page, testInfo, `settings-${name}-identity-danger-dialog`);
+      const deleted = page.waitForRequest(
+        request => request.method() === 'DELETE' && request.url() === `${API}/v1/users/me`
+      );
+      await dialog.getByRole('button', { name: 'Delete account' }).click();
+      expect((await deleted).postDataJSON()).toEqual({
+        confirmation: 'sofia.ruiz',
+        current_password: null,
+      });
+      await expect(page).toHaveURL(/\/$/);
       expect(critical).toEqual([]);
     });
 

@@ -35,6 +35,7 @@ const researchUser: UserProfile = {
   created_at: '2026-09-01T00:00:00Z',
   email_verified: true,
   institutional_email: true,
+  password_enabled: true,
 };
 
 const markName = { name: 'Universidad de Sevilla' };
@@ -98,6 +99,7 @@ describe('Universidad de Sevilla institutional branding', () => {
       email: 'someone@us.es',
       email_verified: false,
       institutional_email: false,
+      password_enabled: true,
     };
     render(
       <MemoryRouter>

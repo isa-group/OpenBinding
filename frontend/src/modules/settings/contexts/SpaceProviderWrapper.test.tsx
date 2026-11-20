@@ -56,6 +56,7 @@ describe('SpaceProviderWrapper', () => {
       created_at: '2026-01-01T00:00:00Z',
       email_verified: false,
       institutional_email: false,
+      password_enabled: true,
     };
 
     const token = makeToken({
@@ -90,6 +91,7 @@ describe('SpaceProviderWrapper', () => {
       created_at: '2026-01-01T00:00:00Z',
       email_verified: false,
       institutional_email: false,
+      password_enabled: true,
     };
 
     render(

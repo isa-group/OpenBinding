@@ -252,6 +252,7 @@ async def list_users(
                 api_key_count=key_counts.get(user.id, 0),
                 email_verified=user.email_verified,
                 institutional_email=institutional_email(user),
+                password_enabled=user.password_enabled,
             )
         )
     return AdminUserPage(
@@ -327,6 +328,7 @@ async def update_user(
         api_key_count=0,
         email_verified=user.email_verified,
         institutional_email=institutional_email(user),
+        password_enabled=user.password_enabled,
     )
 
 
@@ -387,6 +389,7 @@ def _admin_user_view(user: User, plan: str) -> AdminUserView:
         is_active=user.is_active, plan=plan, created_at=user.created_at,
         contract_pending=user.contract_pending, api_key_count=0,
         email_verified=user.email_verified, institutional_email=institutional_email(user),
+        password_enabled=user.password_enabled,
     )
 
 

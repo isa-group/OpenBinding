@@ -25,6 +25,7 @@ const researchUser = {
   // The institutional mark follows a verified institutional e-mail, not the plan.
   email_verified: true,
   institutional_email: true,
+  password_enabled: true,
 };
 
 /** Answers the two calls AuthContext makes on load; everything else on the API origin gets an empty 404. */

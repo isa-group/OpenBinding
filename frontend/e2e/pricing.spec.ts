@@ -52,6 +52,7 @@ const account = (plan: string) => ({
   created_at: '2026-03-02T00:00:00Z',
   email_verified: plan === 'RESEARCH',
   institutional_email: plan === 'RESEARCH',
+  password_enabled: true,
 });
 
 interface Mocks {

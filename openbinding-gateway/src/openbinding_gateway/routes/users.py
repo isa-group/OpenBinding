@@ -82,6 +82,7 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
         created_at=user.created_at,
         email_verified=user.email_verified,
         institutional_email=institutional_email(user),
+        password_enabled=user.password_enabled,
         api_keys_suspended_at=owner_may_use_keys(user, settings=get_settings()).suspended_at,
     )
 

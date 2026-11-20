@@ -129,6 +129,13 @@ class UserProfile(BaseModel):
         default=False,
         description="Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.",
     )
+    password_enabled: bool = Field(
+        default=False,
+        description=(
+            "Whether the account has a password of its own: deleting it then asks for the current one. False for an "
+            "account that only signs in with SCORETech Identity."
+        ),
+    )
     api_keys_suspended_at: Optional[datetime] = Field(
         default=None,
         description=(

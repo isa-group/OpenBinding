@@ -1,6 +1,12 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { addressNow, fakeGateway, ME, renderModule } from '../../../../test/moduleKit';
+import {
+  addressNow,
+  fakeGateway,
+  ME,
+  renderModule,
+  SCORETECH_CONFIG,
+} from '../../../../test/moduleKit';
 import { BRAND_STORAGE_KEY } from '../../../core/theme/brand';
 import SettingsPage from '.';
 import { sectionOf, settingsPath } from './sections';
@@ -22,6 +28,16 @@ const PREFERENCES = {
 
 const renderSettings = (entry = '/me/settings', gateway = fakeGateway({})) =>
   renderModule(<SettingsPage />, { entry, path: '/me/settings', gateway });
+
+/** Settings in SCORETech Identity mode, for an account that signs in with Identity only. */
+const renderIdentitySettings = (entry = '/me/settings', gateway = fakeGateway({})) =>
+  renderModule(<SettingsPage />, {
+    entry,
+    path: '/me/settings',
+    gateway,
+    authConfig: SCORETECH_CONFIG,
+    user: { ...ME, password_enabled: false, email_verified: true },
+  });
 
 const settingsNav = () => screen.getByRole('navigation', { name: 'Settings' });
 
@@ -247,5 +263,59 @@ describe('/me/settings', () => {
       confirmation: ME.username,
       current_password: null,
     });
+  });
+
+  it('asks the current password at deletion only of an account that has one', async () => {
+    const gateway = fakeGateway({ 'DELETE /v1/users/me': { status: 204 } });
+    renderModule(<SettingsPage />, {
+      entry: '/me/settings?section=danger',
+      path: '/me/settings',
+      gateway,
+      user: { ...ME, password_enabled: false },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete my account' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Confirm deletion' });
+    expect(within(dialog).queryByLabelText('Current password')).not.toBeInTheDocument();
+  });
+});
+
+describe('/me/settings in SCORETech Identity mode', () => {
+  it('shows the SCORETech account instead of the local email and password', async () => {
+    renderIdentitySettings();
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Your SCORETech account' })
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Email address')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /Open my SCORETech profile/ });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link).toHaveTextContent('(opens in a new tab)');
+    const href = new URL(link.getAttribute('href') ?? '');
+    expect(`${href.origin}${href.pathname}`).toBe('https://identity.example/account/');
+    expect(href.hash).toBe('#public-profile');
+    expect(href.searchParams.get('return_to')).toBe(
+      `${window.location.origin}/me/settings?section=account`
+    );
+  });
+
+  it('keeps the other sections', async () => {
+    renderIdentitySettings();
+    await screen.findByRole('heading', { level: 2, name: 'Your SCORETech account' });
+    const nav = settingsNav();
+    for (const name of ['Account', 'Notifications', 'Plan', 'Appearance', 'Beta features'])
+      expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
+  });
+
+  it('says the SCORETech account stays, and asks no password at deletion', async () => {
+    const gateway = fakeGateway({ 'DELETE /v1/users/me': { status: 204 } });
+    renderIdentitySettings('/me/settings?section=danger', gateway);
+    expect(
+      await screen.findByRole('heading', { level: 3, name: 'Delete OpenBinding account' })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Your SCORETech Identity account and your access/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete my account' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Confirm deletion' });
+    expect(within(dialog).queryByLabelText(/password/i)).not.toBeInTheDocument();
   });
 });
