@@ -44,8 +44,14 @@ async function signIn(browser: Browser, role: Role): Promise<Page> {
   const page = await context.newPage();
   await startSignIn(page);
   await answerWithCode(page, email(role));
-  expect((await landed(page)).pathname).toBe('/sso/identity/callback');
+  await backFromIdentity(page);
   return page;
+}
+
+/** Back on OpenBinding after Identity: the callback screen, or already where it sent the browser on to (`/`). */
+async function backFromIdentity(page: Page): Promise<void> {
+  expect(['/sso/identity/callback', '/']).toContain((await landed(page)).pathname);
+  await page.waitForURL(url => url.origin === OB && url.pathname === '/', { timeout: 60_000 });
 }
 
 async function bearer(page: Page): Promise<Record<string, string>> {
@@ -244,7 +250,7 @@ test('@orphan J7: 31 days without Identity suspend the key; a sign-in brings it 
 
   // Signing in again (the SSO session answers at once) renews with Identity: the key works.
   await startSignIn(page);
-  expect((await landed(page)).pathname).toBe('/sso/identity/callback');
+  await backFromIdentity(page);
   const again = await page.request.get(`${OB}/api/v1/users/me`, {
     headers: { 'X-API-Key': orphanKey },
   });
