@@ -41,7 +41,7 @@ packages.
 | [date-fns](https://github.com/date-fns/date-fns) | `4.4.0` | MIT | Relative and formatted dates |
 | [react-dropzone](https://github.com/react-dropzone/react-dropzone) | `14.4.1` | MIT | File drop areas |
 | [dnd-kit](https://github.com/clauderic/dnd-kit) (`@dnd-kit/core`, `sortable`, `utilities`) | `6.3.1`, `10.0.0`, `3.2.2` | MIT | Drag and drop in the organization tree |
-| [react-easy-crop](https://github.com/ValentinH/react-easy-crop) | `5.5.7` | MIT | Cropping avatars |
+| [react-easy-crop](https://github.com/ValentinH/react-easy-crop) | `5.5.7` | MIT | Cropping organization avatars |
 | [react-helmet-async](https://github.com/staylor/react-helmet-async) | `3.1.0` | Apache-2.0 | Page titles |
 | [monaco-editor](https://github.com/microsoft/monaco-editor) and [@monaco-editor/react](https://github.com/suren-atoyan/monaco-react) | `0.52.2`, `4.7.0` | MIT | The code editors, bundled locally |
 | [react-markdown](https://github.com/remarkjs/react-markdown) and [remark-gfm](https://github.com/remarkjs/remark-gfm) | `10.1.0`, `4.0.1` | MIT | The about pages |
@@ -75,13 +75,43 @@ reads pricings as the two TypeScript readers do, so that the gateway and the scr
 
 ## Code ported from SCORETech Identity
 
-The file below ports code of [SCORELabUS/SCORETech-identity](https://github.com/SCORELabUS/SCORETech-identity) at
-`215dffedf556294e2424f7c7b4e9bf57d038d66f` (tag `v0.1.11`, MIT, "Copyright (c) 2026 SCORE Lab") and names its origin in
-its header:
+The files below port code of [SCORELabUS/SCORETech-identity](https://github.com/SCORELabUS/SCORETech-identity) at
+`215dffedf556294e2424f7c7b4e9bf57d038d66f` (tag `v0.1.11`, MIT, "Copyright (c) 2026 SCORE Lab") and name their origin in
+their headers:
 
-| File | Identity origin |
-|---|---|
-| `openbinding-gateway/src/openbinding_gateway/modules/identity/domain/claims.py` | `packages/ui/src/avatar.tsx` (the twelve named avatar colours) and `provider/.../ApplicationUserClaims.java` (the avatar descriptor's shapes) |
+| File | Identity origin | Use |
+|---|---|---|
+| `openbinding-gateway/src/openbinding_gateway/modules/identity/domain/claims.py` | `packages/ui/src/avatar.tsx` (the twelve named avatar colours) and `provider/.../ApplicationUserClaims.java` (the avatar descriptor's shapes) | adapted |
+| `openbinding-gateway/src/openbinding_gateway/models/avatars.py` | `provider/.../ApplicationUserClaims.java` (the three shapes of `scoretech_avatar`, its preset and icon ids) | pattern-only |
+| `frontend/src/modules/core/components/user-avatar/avatar-assets.ts` | `packages/ui/src/avatar-assets.ts` (Identity's copy of SPHERE's predefined avatar artwork) | verbatim |
+| `frontend/src/modules/core/components/user-avatar/identity-avatar.tsx` | `packages/ui/src/avatar.tsx` (the `Avatar` renderer; `react-icons/lu` for `lucide-react`) | adapted |
+| `frontend/src/modules/core/components/user-avatar/avatar-values.ts` | `packages/ui/src/avatar.tsx` (`avatarPalette`, `avatarChoices`, the named colours, the initials) | adapted |
+
+SCORETech Identity's licence, verbatim:
+
+```text
+MIT License
+
+Copyright (c) 2026 SCORE Lab
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ## Code ported from SPACE
 
@@ -281,7 +311,7 @@ since `73779a8a`; their rows say so.
 | `frontend/src/modules/core/components/switch/index.tsx` | `frontend/src/modules/settings/components/beta-features-section.tsx` | pattern-only |
 | `frontend/src/modules/core/components/tab-bar/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/toast/index.tsx` | `frontend/src/modules/core/components/toast/index.tsx` | adapted |
-| `frontend/src/modules/core/components/user-avatar/index.tsx` | `frontend/src/modules/core/components/user-avatar/index.tsx` | adapted |
+| `frontend/src/modules/core/components/user-avatar/index.tsx` | `frontend/src/modules/core/components/user-avatar/index.tsx` | adapted (draws SCORETech Identity's descriptor) |
 | `frontend/src/modules/core/contexts/toastContext.tsx` | `frontend/src/modules/core/contexts/toastContext.tsx` | adapted |
 | `frontend/src/modules/core/contexts/useToast.ts` | `frontend/src/modules/core/contexts/useToast.ts` | verbatim |
 | `frontend/src/modules/core/hooks/useQueryParams.ts` | `frontend/src/modules/core/hooks/useQueryParams.ts` | verbatim |

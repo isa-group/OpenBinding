@@ -130,6 +130,28 @@ browser                       gateway                                       Iden
   revoked; `UserProfile.api_keys_suspended_at` says when they stop). Environment-owned feed keys have no owning person
   and are outside the rule.
 
+## What people see
+
+- **Settings › Account** in `scoretech` mode is "Your SCORETech account": **Open my SCORETech profile** opens Identity's
+  account page (`account_url`, ending in `#public-profile`) in a new tab with `return_to` set to Settings › Account, and
+  Identity's "Back to application" comes back. There is no email or password form: both are Identity's (`PATCH
+  /v1/users/me` answers `409 managed_by_identity`).
+- **Settings › Public profile** shows the display name and the avatar. In `scoretech` mode both come from the last
+  verified ID token (`scoretech_display_name` or `name`, and `scoretech_avatar`), read-only, with **Edit in SCORETech
+  Identity**. In `local` mode the person sets them (`PATCH /v1/users/me` with `display_name` and `avatar`, no password);
+  the avatar editor offers exactly Identity's shapes (initials, an icon or a preset, Identity's colours), so an account
+  keeps the same kind of avatar across a change of mode. There is no photo upload.
+- **Avatars.** `UserRef`, organization members and the profile carry `display_name` and `avatar`, the stored descriptor
+  with colours as hex (Identity's named colours are converted when the token is read); anything else is served as null and
+  drawn as initials. The frontend draws it with Identity's own renderer.
+- **The Danger Zone** says that deleting the OpenBinding account leaves the SCORETech account and access to other SCORE
+  services, and asks for the current password only when the account has one (`UserProfile.password_enabled`).
+- **API keys.** In `scoretech` mode the keys page says on which day the keys stop working unless the person signs in again
+  (`api_keys_suspended_at`), and warns once they are suspended.
+- **Administration.** The admin user's Identity tab shows how the account signs in (SCORETech Identity or a password),
+  the issuer and subject, the last sign-in or renewal with Identity, the live browser sessions and the basis of its last
+  RESEARCH grant (its verified institutional e-mail, or an administrator). None of it is in a user reference.
+
 ## Local mode and rollback
 
 `AUTH_PROVIDER=local` keeps registration, password sign-in and the password reset of OpenBinding's own accounts, for
@@ -180,5 +202,7 @@ account, so a switch starts from an empty database ([the runbook](runbooks/ident
   the real issuer at the gateway level: first sign-in, renewal, logout, the email rules, RESEARCH, native registration
   and the rollback leg (`frontend/e2e/identity/01-gateway.spec.ts`), then through OpenBinding's screens: a first sign-in
   from the header with the username screen, the renewal past the access lifespan, two tabs signing out, the error pages
-  and the local form after the rollback (`frontend/e2e/identity/02-screens.spec.ts`).
+  and the local form after the rollback (`frontend/e2e/identity/02-screens.spec.ts`), and Settings, avatars, an orphaned
+  key and the deletion of an account (`frontend/e2e/identity/03-account.spec.ts`), with visual stops in both palettes at
+  1440 and 390 px.
 - The ordinary lab (`AUTH_PROVIDER=local`) runs every `e2e/live` walk over the same cookie session.
