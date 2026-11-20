@@ -74,7 +74,11 @@ const sofia = {
   email: 'sofia@example.org',
   password_enabled: false,
 };
-type Account = typeof lucia & { display_name?: string | null; avatar?: unknown };
+type Account = typeof lucia & {
+  display_name?: string | null;
+  avatar?: unknown;
+  api_keys_suspended_at?: string | null;
+};
 
 /** What the gateway reports for the RESEARCH plan of the pricing 0.2.0: the plan, its features and its limits, with no consumption. */
 const researchUsage = () => ({
@@ -860,6 +864,34 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         current_password: null,
       });
       await expect(page).toHaveURL(/\/$/);
+      expect(critical).toEqual([]);
+    });
+
+    test('acct-api-keys in SCORETech Identity mode: when the keys stop, and suspended keys', async ({
+      page,
+    }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      const inAMonth = new Date(Date.now() + 30 * 86_400_000).toISOString();
+      const state = await mockApi(
+        page,
+        { ...sofia, api_keys_suspended_at: inAMonth } as Account,
+        { usage: json(freeUsage()) },
+        'scoretech'
+      );
+      await page.goto('/me/api-keys');
+      const main = page.locator('main');
+      await expect(main.getByRole('status').filter({ hasText: 'stop working on' })).toContainText(
+        'unless you sign in again'
+      );
+      await capture(page, testInfo, `api-keys-${name}-orphan-notice`);
+
+      state.account = { ...state.account, api_keys_suspended_at: hoursAgo(2) } as Account;
+      await page.reload();
+      await expect(
+        main.getByRole('alert').filter({ hasText: 'Your API keys are suspended' })
+      ).toContainText('until you sign in with SCORETech Identity');
+      await expect(main.getByRole('article', { name: 'ci-lectura-resultados' })).toBeVisible();
+      await capture(page, testInfo, `api-keys-${name}-suspended`);
       expect(critical).toEqual([]);
     });
 
