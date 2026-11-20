@@ -8,7 +8,6 @@ colours as hex, or null. A stored value that is not one of Identity's three shap
 from __future__ import annotations
 
 import ast
-import pathlib
 import typing
 import uuid
 
@@ -16,11 +15,12 @@ import pytest
 from sqlalchemy import select
 
 from _b1_helpers import gate, make_account, make_org, put_member  # noqa: F401
+from _paths import GATEWAY_ROOT
 from openbinding_gateway.db.models import User
 from openbinding_gateway.models.avatars import AvatarIconId, AvatarPresetId, avatar_of, stored_avatar
 from openbinding_gateway.modules.identity.domain.claims import ICONS, PRESETS, parse_avatar
 
-SRC = pathlib.Path(__file__).resolve().parents[2] / "src" / "openbinding_gateway"
+SRC = GATEWAY_ROOT / "src" / "openbinding_gateway"
 
 #: What Identity's claim carries (``ApplicationUserClaims.java``) and what OpenBinding then serves.
 IDENTITY_DESCRIPTORS = [
