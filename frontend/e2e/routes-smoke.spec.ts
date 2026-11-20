@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { countScreenLines, dropOptionalSegments, readScreenLines } from './helpers/galleryRoutes';
+import { authConfig, signedIn } from './helpers/session';
 
 // Visits every screen of the route table (`screens` in src/routes/router.tsx) with example parameter values. There are no redirects: an old
 // address is answered by no screen.
@@ -38,10 +39,9 @@ async function mockApi(page: Page, role: 'user' | 'admin' | null) {
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   if (!role) return;
-  await page.addInitScript(() =>
-    localStorage.setItem('openbinding-access-token', 'routes-smoke-token')
-  );
+  await signedIn(page, 'routes-smoke-token');
   await page.route(`${API}/v1/users/me`, route => route.fulfill({ json: account(role) }));
   await page.route(`${API}/v1/users/me/pricing-token`, route =>
     route.fulfill({ json: { pricing_token: 'smoke-token' } })

@@ -103,13 +103,6 @@ const sameAddOns = (a: Record<string, number>, b: Record<string, number>) => {
 
 /** A refusal of a contract change in the words of this card, where the gateway's alone would leave an administrator guessing. */
 function refusalInWords(refusal: Failure | null, username: string): Failure | null {
-  if (refusal?.code === 'research_requires_us_cas') {
-    return {
-      ...refusal,
-      title: 'RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)',
-      text: `${username} hasn’t linked a Universidad de Sevilla CAS identity. RESEARCH can only be assigned to accounts that have.`,
-    };
-  }
   if (refusal?.code === 'invalid_subscription') {
     return {
       ...refusal,
@@ -424,7 +417,6 @@ export function AgreementCard({
             >
               {catalog.plans.map(option => {
                 const isCurrent = option.id === subscription.plan;
-                const needsCas = option.id === 'RESEARCH' && !user.cas_verified;
                 return (
                   <button
                     key={option.id}
@@ -442,12 +434,12 @@ export function AgreementCard({
                       {option.byAgreement
                         ? 'By agreement'
                         : option.id === 'RESEARCH'
-                          ? 'Free with verified CAS'
+                          ? 'Free · verified US e-mail or your grant'
                           : 'Free'}
                     </span>
-                    {needsCas && (
-                      <small className="text-[11px] text-tp-warning-text">
-                        Needs a verified CAS identity
+                    {option.id === 'RESEARCH' && !user.institutional_email && (
+                      <small className="text-[11px] text-tp-steel">
+                        Granted by you: no verified institutional e-mail
                       </small>
                     )}
                   </button>

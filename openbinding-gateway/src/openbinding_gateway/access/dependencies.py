@@ -244,21 +244,13 @@ async def _user_for_credential(
     except TokenError:
         return None
 
-    if claims.session_id is not None:
-        # One joined read of the session and its user: logout, deactivation, deletion and a change of
-        # AUTH_PROVIDER end the token on its next request. No resolver installed: refused.
-        user = (
-            await _session_resolver(session, claims.session_id, claims.user_id, claims.provider, settings=settings)
-            if _session_resolver is not None
-            else None
-        )
-    elif settings.auth_provider == "local":
-        # Tokens of the local TokenPair, until local sign-in opens sessions too.
-        user = await session.get(User, claims.user_id)
-        if user is not None:
-            user._identity_session_id = None  # type: ignore[attr-defined]
-    else:
-        user = None
+    # One joined read of the session and its user: logout, deactivation, deletion and a change of
+    # AUTH_PROVIDER end the token on its next request. No resolver installed: refused.
+    user = (
+        await _session_resolver(session, claims.session_id, claims.user_id, claims.provider, settings=settings)
+        if _session_resolver is not None
+        else None
+    )
     if user is not None:
         user._authenticated_api_key = None  # type: ignore[attr-defined]
     return user

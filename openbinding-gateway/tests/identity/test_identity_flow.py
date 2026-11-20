@@ -42,11 +42,6 @@ async def test_the_authorization_url_carries_pkce_state_nonce_and_the_locale(bro
         assert attribute.lower() in cookie.lower()
 
 
-async def test_register_uses_the_registrations_page(browser) -> None:
-    response = await start(browser, screen="register")
-    assert "/protocol/openid-connect/registrations?" in response.headers["location"]
-
-
 async def test_a_known_user_signs_in_and_holds_only_an_opaque_cookie(browser, fake_issuer, db_session) -> None:
     user, _, person = await known_user(db_session, fake_issuer)
     response = await sign_in(browser, fake_issuer, person)

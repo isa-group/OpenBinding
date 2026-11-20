@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.settings import Settings
 from ....db.models import SESSION_REVOKE_REASONS, AuditEvent, AuthIdentity, IdentitySession, User, utcnow
 from ....security.secrets import CredentialStore, SecretsUnavailable
+from ....security.tokens import issue_access_token
 from ..domain.claims import IdentityClaims, TokenSet
 
 logger = logging.getLogger(__name__)
@@ -131,6 +132,35 @@ async def create(
     return row, value
 
 
+async def open_local(
+    db: AsyncSession, user: User, *, settings: Settings, presented: str | None = None
+) -> tuple[IdentitySession, str]:
+    """A ``local`` session opened by a password sign-in or a registration, and its cookie value.
+
+    A session cookie the browser presented is revoked (``replaced``): a sign-in never keeps a session id that
+    existed before it (fixation). Local rows hold no refresh token and have the same limits as Identity's.
+    """
+    old = await find_by_cookie(db, presented)
+    if old is not None and old.revoked_at is None:
+        await revoke(db, old, "replaced")
+    row, value = await create(db, user, "local", settings=settings)
+    audit(db, "account.signed_in", actor=user.id, target=user.id, detail={"provider": "local"})
+    return row, value
+
+
+def access_token_for(settings: Settings, secret: str, row: IdentitySession) -> str:
+    """A short gateway token bound to ``row`` (``sid``, ``prv``), for the session's user."""
+    return issue_access_token(
+        secret,
+        user_id=row.user_id,
+        ttl_seconds=settings.access_token_ttl_s,
+        session_id=row.id,
+        provider=row.provider,
+        issuer=settings.gateway_jwt_issuer,
+        audience=settings.gateway_jwt_audience,
+    )
+
+
 def is_live(row: IdentitySession, now: datetime) -> bool:
     return (
         row.revoked_at is None
@@ -227,7 +257,7 @@ async def revoke(
 
 
 def placeholder_email(user_id: uuid.UUID) -> str:
-    """The address of an account whose email Identity has not verified (the CAS precedent)."""
+    """The address of an account whose email Identity has not verified (a reserved name, so never deliverable)."""
     return f"{user_id}@identity.openbinding.invalid"
 
 
@@ -261,7 +291,7 @@ async def release_reason(db: AsyncSession, holder: User, issuer: str) -> str | N
     """Why ``holder``'s copy of an email someone else verified may be released, or ``None`` if it may not.
 
     A holder with an Identity account of this issuer holds a stale copy (Identity forbids duplicate emails);
-    a holder whose own email is unverified (every local, seeded or CAS account) proves nothing. A holder whose
+    a holder whose own email is unverified (every local or seeded account) proves nothing. A holder whose
     email is verified and who has no identity of this issuer keeps it.
     """
     if await has_identity_of(db, holder.id, issuer):

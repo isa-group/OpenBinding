@@ -1,5 +1,6 @@
 /**
- * The shapes the accounts endpoints speak in.
+ * The shapes the accounts endpoints speak in. The gateway's views (the profile, the session's token, the administration's
+ * account views) are the generated types of `docs/openapi.json`; the rest are the frontend's own shapes.
  *
  * Kept apart from `client.ts`, which describes solving. The two have nothing to
  * say to each other, and somebody looking for the shape of a solution should
@@ -59,36 +60,11 @@ export interface CreateApiKeyRequest {
   expires_at?: string | null;
 }
 
-export interface UserProfile {
-  id: string;
-  username: string;
-  email: string;
-  role: RoleName;
-  is_active: boolean;
-  plan: string;
-  created_at: string;
-  /** Added by the collaborative platform; optional keeps older API fixtures compatible. */
-  cas_verified?: boolean;
-}
+/** `GET /v1/users/me`: the signed-in account, as the gateway describes it. */
+export type UserProfile = components['schemas']['UserProfile'];
 
-export interface TokenPair {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-  expires_in: number;
-}
-
-/** A plan the gateway changed as a side effect of signing in: linking CAS raises FREE to RESEARCH at no extra cost. */
-export interface PlanChange {
-  from: string;
-  to: string;
-  extra_cost: boolean;
-}
-
-/** `POST /v1/auth/cas/exchange`: the session, and the plan change linking CAS caused, if any (`null` otherwise). */
-export interface CasSession extends TokenPair {
-  plan_changed?: PlanChange | null;
-}
+/** A short gateway token bound to the browser session (sign-in, or `POST /v1/auth/identity/session`); kept in memory only. */
+export type AccessGrant = components['schemas']['AccessGrant'];
 
 export interface ApiKeySummary {
   id: string;
@@ -140,38 +116,14 @@ export interface ContractChangePayload {
   pricingVersion?: string;
 }
 
-export interface AdminUserView extends UserProfile {
-  contract_pending: boolean;
-  api_key_count: number;
-}
+export type AdminUserView = components['schemas']['AdminUserView'];
 
-export interface AdminUserPage {
-  users: AdminUserView[];
-  total: number;
-  offset: number;
-  limit: number;
-}
+export type AdminUserPage = components['schemas']['AdminUserPage'];
 
 export type ContractChangeReason =
   'new_feature' | 'administrative_decision' | 'institutional_agreement' | 'retirement_or_discount';
 
-export interface AdminSubscriptionView {
-  user: AdminUserView;
-  subscription: {
-    plan: string;
-    add_ons: Record<string, number>;
-    pricing_version: string;
-    renews_at: string | null;
-  };
-  changed: boolean;
-}
-
-export interface ExternalIdentity {
-  id: string;
-  provider: 'us-cas' | string;
-  subject: string;
-  verifiedAt: string;
-}
+export type AdminSubscriptionView = components['schemas']['AdminSubscriptionView'];
 
 export interface Notification {
   id: string;

@@ -9,7 +9,6 @@ document whatever ``AUTH_PROVIDER`` says. Adapted from SPHERE's ``ScoretechIdent
 from __future__ import annotations
 
 import logging
-from typing import Literal
 
 from datetime import timedelta
 
@@ -23,7 +22,6 @@ from ....core.ratelimit import enforce_auth_rate_limit
 from ....core.settings import Settings, get_settings
 from ....models.accounts import AccessGrant, AuthConfigView, SignOutRequest, CompletedSignUp, CompleteSignUpRequest, PendingSignUp
 from ....models.errors import CONFLICT_RESPONSE, ErrorResponse, NOT_FOUND_RESPONSE, api_error
-from ....security.tokens import issue_access_token
 from ....db.models import IdentitySession, User, utcnow
 from sqlalchemy import update
 from ..application import flows, provisioning, sessions
@@ -77,19 +75,18 @@ _REDIRECT_CODES = ", ".join(f"`{code}`" for code in IDENTITY_ERROR_CODES)
 @router.get(
     "/identity/login",
     operation_id="startIdentitySignIn",
-    summary="Start signing in (or registering) with SCORETech Identity",
+    summary="Start signing in (or signing up) with SCORETech Identity",
     status_code=status.HTTP_302_FOUND,
     response_class=RedirectResponse,
     dependencies=[Depends(requires_provider("scoretech", browser=True))],
     responses={
-        302: {"description": "To SCORETech Identity's sign-in (or registration) page, with a flow cookie."},
+        302: {"description": "To SCORETech Identity's sign-in page (which also registers), with a flow cookie."},
         303: {"description": "To `/authentication?identity_error=unavailable` when Identity cannot be used."},
         429: {"description": "Too many sign-ins from this address; see `Retry-After`."},
     },
 )
 async def identity_login(
     request: Request,
-    screen: Literal["login", "register"] = Query(default="login"),
     return_to: str | None = Query(default=None, alias="returnTo", max_length=2048),
     settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:
@@ -98,7 +95,7 @@ async def identity_login(
         return _redirect(flows.error_target(settings, "unavailable"))
     await enforce_auth_rate_limit(request, "identity_login", None, settings)
     try:
-        begun = await flows.begin(settings, return_to, register=screen == "register")
+        begun = await flows.begin(settings, return_to)
     except (IdentityError, IdentityStoreNotConfigured) as error:
         logger.info("identity_login_unavailable error=%s", type(error).__name__)
         return _redirect(flows.error_target(settings, "unavailable"))
@@ -315,15 +312,7 @@ async def identity_session(
     secret = settings.gateway_jwt_secret
     if not secret:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "auth_unavailable", "This gateway has no signing secret configured.")
-    token = issue_access_token(
-        secret,
-        user_id=user.id,
-        ttl_seconds=settings.access_token_ttl_s,
-        session_id=row.id,
-        provider=row.provider,
-        issuer=settings.gateway_jwt_issuer,
-        audience=settings.gateway_jwt_audience,
-    )
+    token = sessions.access_token_for(settings, secret, row)
     response = JSONResponse(
         AccessGrant(access_token=token, expires_in=settings.access_token_ttl_s).model_dump()
     )

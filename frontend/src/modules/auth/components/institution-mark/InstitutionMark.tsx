@@ -26,7 +26,7 @@ interface InstitutionMarkProps {
 
 /**
  * Co-brand of the Universidad de Sevilla. Renders nothing unless the signed-in
- * account is institutional. Assets are used as shipped (no filters or recolouring).
+ * account has a verified institutional e-mail. Assets are used as shipped (no filters or recolouring).
  * The compact variant is a plain mark meant to sit inside another link (the
  * brand link); the wide variant links to the university site.
  */

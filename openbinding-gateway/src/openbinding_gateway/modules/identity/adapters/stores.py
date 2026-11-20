@@ -1,6 +1,6 @@
 """The one-time store and the session lock, in memory and in Redis.
 
-``RedisOneTimeStore`` is the store the US CAS flow used (moved here from ``cas.py``): keys
+``RedisOneTimeStore`` holds the sign-in flows and pending sign-ups: keys
 ``openbinding:{namespace}:{key}``, ``SET NX EX`` to put, ``GET`` to peek, ``GETDEL`` to pop. ``RedisSessionLock``
 is ``SET NX PX`` with a random owner token, released by a Lua compare-and-delete so that a worker whose lock
 expired can never free the lock another worker took since. The memory versions are for tests and development;

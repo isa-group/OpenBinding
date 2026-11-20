@@ -316,7 +316,6 @@ class Settings(BaseSettings):
     #: Lifetime of a gateway access token (``ACCESS_TOKEN_TTL_S``). The browser keeps it in memory and renews it
     #: from its session cookie (``POST /v1/auth/identity/session``) before it ends.
     access_token_ttl_s: int = 5 * 60
-    refresh_token_ttl_s: int = 30 * 24 * 60 * 60
     #: ``iss`` and ``aud`` of the session tokens (``GATEWAY_JWT_ISSUER`` /
     #: ``GATEWAY_JWT_AUDIENCE``). Both are written when a token is issued and
     #: verified when it is read.
@@ -456,15 +455,8 @@ class Settings(BaseSettings):
     #: checked at startup like the CORS origins.
     public_base_url: str = "http://localhost:8000"
 
-    # -- Universidad de Sevilla CAS ------------------------------------
-    cas_enabled: bool = False
-    cas_environment: Literal["production", "preproduction"] = "production"
-    cas_base_url: Optional[str] = None
-    #: Origin of the frontend the CAS flow returns to (``FRONTEND_URL``); same
-    #: format as ``PUBLIC_BASE_URL``.
+    #: Origin of the frontend sign-in returns the browser to (``FRONTEND_URL``); same format as ``PUBLIC_BASE_URL``.
     frontend_url: str = "http://localhost:5173"
-    cas_state_ttl_s: int = 10 * 60
-    cas_exchange_ttl_s: int = 30
     expose_recovery_tokens: bool = False
 
     # -- Identity -------------------------------------------------------
@@ -937,16 +929,6 @@ class Settings(BaseSettings):
             if configured:
                 urls[engine_id] = configured
         return urls
-
-    @property
-    def effective_cas_base_url(self) -> str:
-        if self.cas_base_url:
-            return self.cas_base_url.rstrip("/")
-        return (
-            "https://sso.us.es/CAS"
-            if self.cas_environment == "production"
-            else "https://ssopre.us.es/CAS"
-        )
 
 
 @lru_cache(maxsize=1)

@@ -4,21 +4,22 @@ Registration is open: anyone may create an account, and it starts on the free
 plan. That is a product decision rather than an oversight, and it is the reason
 the quota work exists - an open door needs a meter behind it, not a lock.
 
-Sessions are a short-lived access token plus a refresh token that is rotated on
-every use. Rotation is what makes a stolen refresh token survivable: using it
-invalidates it, so the legitimate holder and the thief cannot both keep going,
-and the one who loses is forced to sign in again.
+A sign-in or a registration opens the same browser session SCORETech Identity
+sign-ins open (``identity_sessions``, provider ``local``): an HttpOnly cookie the
+SPA turns into short gateway tokens at ``POST /v1/auth/identity/session`` and ends
+at ``POST /v1/auth/identity/logout``. The token login returns is bound to that
+session (``sid``), so signing out ends it at once. A present ``Origin`` outside the
+frontend's must not sign anybody in (login CSRF); an absent one passes, for scripts.
 """
 
 from __future__ import annotations
 
-import uuid
 import hashlib
 import secrets
 from datetime import timedelta
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,16 +29,14 @@ from ..access.contracts import create_contract_or_mark_pending
 from ..access.dependencies import get_user_by_identifier, session_dependency
 from ..core.ratelimit import enforce_auth_rate_limit
 from ..core.settings import Settings, get_settings
-from ..db.models import ApiKey, AuditEvent, Notification, PasswordResetToken, RefreshToken, User, UserRole, utcnow
+from ..db.models import ApiKey, AuditEvent, Notification, PasswordResetToken, User, UserRole, utcnow
 from ..mailer import send_mail
 from ..models.accounts import (
+    AccessGrant,
     LoginRequest,
-    LogoutRequest,
-    RefreshRequest,
     RegisterRequest,
     PasswordResetComplete,
     PasswordResetRequest,
-    TokenPair,
     UserProfile,
 )
 from ..models.errors import (
@@ -48,20 +47,30 @@ from ..models.errors import (
     api_error,
 )
 from ..security.passwords import hash_password, password_complaint, verify_password
-from ..security.tokens import (
-    TokenError,
-    issue_access_token,
-    issue_refresh_token,
-    read_refresh_token,
-)
 from .users import profile_of
-from ..modules.identity.application import end_all, requires_provider, username_reserved, username_unavailable
+from ..modules.identity.application import (
+    access_token_for,
+    end_all,
+    open_local,
+    presented_session,
+    refuse_foreign_origin,
+    remaining_seconds,
+    requires_provider,
+    set_session_cookie,
+    username_reserved,
+    username_unavailable,
+)
 
 #: Every route here serves ``AUTH_PROVIDER=local`` only: in ``scoretech`` mode each answers 409
 #: ``local_auth_disabled`` (SCORETech Identity is then the only way in).
 router = APIRouter(
     prefix="/v1/auth", tags=["Authentication"], dependencies=[Depends(requires_provider("local"))]
 )
+
+ORIGIN_REFUSED_RESPONSE = {
+    "model": ErrorResponse,
+    "description": "Sent by a browser from another origin than the frontend's (`origin_refused`).",
+}
 
 TOO_MANY_ATTEMPTS_RESPONSE = {
     "model": ErrorResponse,
@@ -80,48 +89,22 @@ def _signing_secret(settings: Settings) -> str:
     return secret
 
 
-def _read_refresh(settings: Settings, token: str):
-    return read_refresh_token(
-        _signing_secret(settings),
-        token,
-        issuer=settings.gateway_jwt_issuer,
-        audience=settings.gateway_jwt_audience,
-    )
+async def _open_session(
+    session: AsyncSession, user: User, settings: Settings, request: Request, response: Response
+) -> str:
+    """Open a ``local`` browser session for ``user``, set its cookie on ``response``; a token bound to it."""
+    secret = _signing_secret(settings)
+    row, value = await open_local(session, user, settings=settings, presented=presented_session(request, settings))
+    set_session_cookie(response, settings, value, remaining_seconds(row, utcnow()))
+    return access_token_for(settings, secret, row)
 
 
 async def _issue_session(
-    session: AsyncSession, user: User, settings: Settings
-) -> TokenPair:
-    """A fresh access token plus a refresh token recorded for later revocation."""
-    secret = _signing_secret(settings)
-    jti = uuid.uuid4()
-
-    session.add(
-        RefreshToken(
-            jti=jti,
-            user_id=user.id,
-            expires_at=utcnow() + timedelta(seconds=settings.refresh_token_ttl_s),
-        )
-    )
-
-    return TokenPair(
-        access_token=issue_access_token(
-            secret,
-            user_id=user.id,
-            ttl_seconds=settings.access_token_ttl_s,
-            issuer=settings.gateway_jwt_issuer,
-            audience=settings.gateway_jwt_audience,
-        ),
-        refresh_token=issue_refresh_token(
-            secret,
-            user_id=user.id,
-            jti=jti,
-            ttl_seconds=settings.refresh_token_ttl_s,
-            issuer=settings.gateway_jwt_issuer,
-            audience=settings.gateway_jwt_audience,
-        ),
-        expires_in=settings.access_token_ttl_s,
-    )
+    session: AsyncSession, user: User, settings: Settings, request: Request, response: Response
+) -> AccessGrant:
+    """A local session (cookie) and a short token bound to it."""
+    token = await _open_session(session, user, settings, request, response)
+    return AccessGrant(access_token=token, expires_in=settings.access_token_ttl_s)
 
 
 @router.post(
@@ -130,15 +113,18 @@ async def _issue_session(
     status_code=status.HTTP_201_CREATED,
     operation_id="register",
     summary="Create an account",
-    responses={409: CONFLICT_RESPONSE, 422: {"description": "The password is not acceptable."},
+    responses={403: ORIGIN_REFUSED_RESPONSE, 409: CONFLICT_RESPONSE, 422: {"description": "The password is not acceptable."},
                429: TOO_MANY_ATTEMPTS_RESPONSE, 503: UNAVAILABLE_RESPONSE},
 )
 async def register(
     request: RegisterRequest,
     http_request: Request,
+    http_response: Response,
     session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> UserProfile:
+    """Create the account and sign it in: the answer sets the session cookie, as a sign-in does."""
+    refuse_foreign_origin(http_request, settings)
     await enforce_auth_rate_limit(http_request, "register", request.email, settings)
     complaint = password_complaint(request.password)
     if complaint:
@@ -193,22 +179,26 @@ async def register(
     # restarting would be a worse failure than a delayed contract.
     await create_contract_or_mark_pending(user, default_plan, settings)
 
+    await _open_session(session, user, settings, http_request, http_response)
     return await profile_of(session, user)
 
 
 @router.post(
     "/login",
-    response_model=TokenPair,
+    response_model=AccessGrant,
     operation_id="login",
     summary="Start a session",
-    responses={401: UNAUTHORIZED_RESPONSE, 429: TOO_MANY_ATTEMPTS_RESPONSE, 503: UNAVAILABLE_RESPONSE},
+    responses={401: UNAUTHORIZED_RESPONSE, 403: ORIGIN_REFUSED_RESPONSE, 429: TOO_MANY_ATTEMPTS_RESPONSE, 503: UNAVAILABLE_RESPONSE},
 )
 async def login(
     request: LoginRequest,
     http_request: Request,
+    http_response: Response,
     session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
-) -> TokenPair:
+) -> AccessGrant:
+    """The session cookie, and a token bound to that session (a SPA renews it from the cookie)."""
+    refuse_foreign_origin(http_request, settings)
     # Before the password hash, which is the expensive part an attacker wants us to repeat.
     await enforce_auth_rate_limit(http_request, "login", request.username_or_email, settings)
     user = await get_user_by_identifier(session, request.username_or_email)
@@ -225,104 +215,7 @@ async def login(
             "Those credentials do not match an active account.",
         )
 
-    return await _issue_session(session, user, settings)
-
-
-@router.post(
-    "/refresh",
-    response_model=TokenPair,
-    operation_id="refreshSession",
-    summary="Exchange a refresh token for a new pair",
-    responses={401: UNAUTHORIZED_RESPONSE, 429: TOO_MANY_ATTEMPTS_RESPONSE, 503: UNAVAILABLE_RESPONSE},
-)
-async def refresh(
-    request: RefreshRequest,
-    http_request: Request,
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-    settings: Settings = Depends(get_settings),
-) -> TokenPair:
-    # By client address only: the token is not trusted enough to name a bucket.
-    await enforce_auth_rate_limit(http_request, "refresh", None, settings)
-    try:
-        claims = _read_refresh(settings, request.refresh_token)
-    except TokenError as error:
-        raise api_error(status.HTTP_401_UNAUTHORIZED, "invalid_token", str(error)) from error
-
-    # Locked so two concurrent refreshes of one token serialize: the second
-    # sees it revoked and is treated as a replay (row locks need PostgreSQL).
-    stored = (
-        await session.execute(
-            select(RefreshToken)
-            .where(RefreshToken.jti == claims.jti)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-    ).scalars().first()
-    if stored is not None and stored.user_id == claims.user_id and stored.revoked_at is not None:
-        # A spent token coming back means two parties hold the session, and
-        # there is no telling which is the thief: end every session of the user.
-        # Committed here because the error below rolls the request back.
-        now = utcnow()
-        live = await session.execute(
-            select(RefreshToken).where(
-                RefreshToken.user_id == stored.user_id, RefreshToken.revoked_at.is_(None)
-            ).with_for_update()
-        )
-        for token in live.scalars():
-            token.revoked_at = now
-        await session.commit()
-        raise api_error(
-            status.HTTP_401_UNAUTHORIZED,
-            "token_reused",
-            "That refresh token was already used; every session of the account has been ended.",
-        )
-    if stored is None or not stored.is_usable or stored.user_id != claims.user_id:
-        raise api_error(
-            status.HTTP_401_UNAUTHORIZED,
-            "invalid_token",
-            "That refresh token is spent, revoked or expired.",
-        )
-
-    user = await session.get(User, claims.user_id)
-    if user is None or not user.is_active:
-        raise api_error(
-            status.HTTP_401_UNAUTHORIZED, "invalid_token", "That account is not active."
-        )
-
-    # Rotation: the presented token is spent whether or not the caller ever
-    # sees the new one, so it cannot be replayed.
-    stored.revoked_at = utcnow()
-
-    return await _issue_session(session, user, settings)
-
-
-@router.post(
-    "/logout",
-    status_code=status.HTTP_204_NO_CONTENT,
-    operation_id="logout",
-    summary="End a session",
-    responses={503: UNAVAILABLE_RESPONSE},
-)
-async def logout(
-    request: LogoutRequest,
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-    settings: Settings = Depends(get_settings),
-) -> None:
-    """Revoke a refresh token.
-
-    Answers the same way whatever the token turns out to be. Signing out is not
-    an operation anybody should be able to use to find out whether a token was
-    real, and the caller's intent is satisfied either way.
-    """
-    try:
-        claims = _read_refresh(settings, request.refresh_token)
-    except TokenError:
-        return None
-
-    stored = await session.get(RefreshToken, claims.jti)
-    if stored is not None and stored.revoked_at is None:
-        stored.revoked_at = utcnow()
-    return None
+    return await _issue_session(session, user, settings, http_request, http_response)
 
 
 #: An argon2 hash of nothing in particular, used to spend the same time on a
@@ -407,9 +300,6 @@ async def complete_password_reset(
     user.password_hash = hash_password(payload.new_password)
     user.password_enabled = True
     stored.used_at = utcnow()
-    await session.execute(RefreshToken.__table__.update().where(
-        RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None)
-    ).values(revoked_at=utcnow()))
     await session.execute(ApiKey.__table__.update().where(
         ApiKey.user_id == user.id, ApiKey.revoked_at.is_(None)
     ).values(revoked_at=utcnow()))

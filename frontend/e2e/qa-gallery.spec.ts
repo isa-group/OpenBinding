@@ -40,7 +40,10 @@ const HEADING: Record<string, RegExp> = {
   auth: /Welcome back/,
   'auth-forgot-password': /Forgot your password\?/,
   'auth-reset-password': /This reset link can’t be used/,
-  'auth-sso-callback': /no code to finish sign-in/,
+  // Visited without a session: nothing came of a sign-in, so it says so on the (local) sign-in page.
+  'auth-identity-callback': /Welcome back/,
+  // Visited with no sign-up waiting: it expired, so the (local) sign-in page says so.
+  'auth-identity-username': /Welcome back/,
   'org-join': /^Lab Other$/,
   'pub-pricing': /Plans for every kind of binding work/,
   'pub-language': /^Composition2Yaml$/,

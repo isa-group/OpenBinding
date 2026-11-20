@@ -71,10 +71,14 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
     const url = new URL(request.url());
     // The notification stream asks for its tickets on its own; they are not what a screen sent.
     if (url.pathname.startsWith('/v1/notifications/')) return;
+    // Nor is the session check every page makes when it loads (the token is renewed from the session cookie).
+    if (url.pathname === '/v1/auth/identity/session') return;
     requests.push({ method: request.method(), path: url.pathname, search: url.search, body: request.postData() ?? '' });
   });
 
   await page.route(`${API}/**`, json({ detail: 'not mocked' }, 404));
+  // How the gateway signs people in: the application draws nothing before it knows (local mode, the form).
+  await page.route(`${API}/v1/auth/config`, json({ provider: 'local', login_url: null, account_url: null }));
   await page.route(`${API}/v1/bim/templates`, json({ templates: TEMPLATES }));
   await page.route(`${API}/v1/engines/protocol`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
   await page.route(`${API}/v1/engines`, json({ engines: [] }));
@@ -87,7 +91,9 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
   }
   if (!role) return requests;
 
-  await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 'navigation-token'));
+  // The session is the gateway's HttpOnly cookie: the SPA asks the session route for a token and keeps it in memory.
+  await page.route(`${API}/v1/auth/identity/session`, json({ access_token: 'navigation-token', token_type: 'bearer', expires_in: 300 }));
+  await page.route(`${API}/v1/auth/identity/logout`, (route) => route.fulfill({ status: 204 }));
   await page.route(`${API}/v1/users/me`, json(account(role)));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: 'navigation-pricing' }));
   await page.route(`${API}/v1/notifications**`, json([]));

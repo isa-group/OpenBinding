@@ -6,7 +6,7 @@ import { API, CASE, ORG, OTHER_ORG, RESULTS_DIR, signInByApi } from './support';
 /**
  * The palette × size sweep of the lab (F2c described it, F3 commits it), measured by the page itself:
  *
- * - every screen of the route table (`src/routes/router.tsx`, 38 today) and the extra tabs and dialogs of F2c and F3 (the
+ * - every screen of the route table (`src/routes/router.tsx`, 39 today) and the extra tabs and dialogs of F2c and F3 (the
  *   organization's tabs, a problem's Candidates and Versions, the study front, a public showcase, a SPHERE problem's Candidates,
  *   the SPHERE wizard's steps, a composition drawn from SPHERE snapshots and the beta Connections tab), in both palettes
  *   (`data-brand` sphere and openbinding) at 1440×900 and 390×844: the requested brand is the one drawn, nothing scrolls
@@ -119,7 +119,8 @@ async function stops(page: Page, token: string): Promise<Stop[]> {
     { id: 'auth', path: '/authentication', visitor: true },
     { id: 'auth-forgot-password', path: '/forgot-password', visitor: true },
     { id: 'auth-reset-password', path: '/reset-password?token=not-a-token', visitor: true },
-    { id: 'auth-sso-callback', path: '/sso/callback', visitor: true },
+    { id: 'auth-identity-callback', path: '/sso/identity/callback', visitor: true },
+    { id: 'auth-identity-username', path: '/sso/identity/username', visitor: true },
     { id: 'org-list', path: '/me/orgs' },
     { id: 'org-new', path: '/orgs/new' },
     { id: 'org-join', path: `/orgs/join/${code}` },

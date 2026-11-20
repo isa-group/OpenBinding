@@ -405,7 +405,7 @@ async def test_the_space_adapter_does_not_carry_the_text_of_a_transport_error(er
 
 
 def test_no_pricing_answer_is_built_from_the_text_of_an_exception():
-    """A guard for the sites no test above reaches (CAS, deletion): ``api_error(..., "pricing_unavailable", <text>)``."""
+    """A guard for the sites no test above reaches (deletion): ``api_error(..., "pricing_unavailable", <text>)``."""
     offending = []
     for path in sorted((SRC / "routes").glob("*.py")) + [SRC / "services" / "entitlements.py"]:
         source = path.read_text(encoding="utf-8")

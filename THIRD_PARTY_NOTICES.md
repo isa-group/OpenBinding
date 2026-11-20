@@ -2,11 +2,11 @@
 
 ## Universidad de Sevilla mark
 
-The compact Universidad de Sevilla mark shown only for verified institutional
-accounts is reproduced unchanged from the SPHERE project asset. Universidad de
-Sevilla names and marks remain the property of Universidad de Sevilla; their
-presence identifies the account's CAS identity provider and does not by itself
-state sponsorship or endorsement. See the University's official visual identity
+The compact Universidad de Sevilla mark shown only for accounts with a verified
+institutional e-mail is reproduced unchanged from the SPHERE project asset.
+Universidad de Sevilla names and marks remain the property of Universidad de
+Sevilla; their presence identifies the account's institutional e-mail and does
+not by itself state sponsorship or endorsement. See the University's official visual identity
 guidance at https://www.us.es/laUS/imagen-corporativa.
 
 OpenBinding remains an independent project. The platform adapts product and implementation
@@ -92,6 +92,7 @@ and each names its origin in its header:
 |---|---|
 | `openbinding-gateway/src/openbinding_gateway/modules/identity/application/provisioning.py` | `api/src/main/services/SphereAuthService.ts` lines 119-160 (the pending sign-up and its completion with a chosen username) |
 | `openbinding-gateway/src/openbinding_gateway/modules/identity/application/renewal.py` | `api/src/main/services/ScoretechIdentityService.ts` lines 342-381 (revoking the token a lost write obtained) |
+| `frontend/src/modules/auth/pages/identity-username/index.tsx` (and the pending and complete calls of `frontend/src/modules/auth/api/identityApi.ts`) | `frontend/src/pages/sphere-auth/index.tsx` and `frontend/src/api/auth/sphereAuthApi.ts` (adapted: a first sign-in only, no linking; OpenBinding's auth layout and refusal wording) |
 
 ## Code ported from SPHERE
 
@@ -152,16 +153,17 @@ Generated from the origin header of each file.
 | `frontend/src/modules/api-keys/pages/api-keys-page/index.tsx` | `frontend/src/modules/api-keys/pages/ApiKeysPage.tsx` | adapted |
 | `frontend/src/modules/api-keys/utils/accessLevel.ts` | `frontend/src/modules/core/components/scope-selector.tsx` | adapted (extracted) |
 | `frontend/src/modules/auth/components/animated-logo/index.tsx` | `frontend/src/modules/auth/components/animated-logo/index.tsx` | adapted |
+| `frontend/src/modules/auth/api/identityApi.ts` | `frontend/src/modules/auth/api/identityApi.ts` | adapted |
+| `frontend/src/modules/auth/components/identity-redirect.tsx` | `frontend/src/modules/auth/components/identity-redirect.tsx` | adapted |
+| `frontend/src/modules/auth/contexts/authConfig.tsx` and `authConfigContext.ts` | `frontend/src/modules/auth/contexts/authConfig.tsx` | adapted |
 | `frontend/src/modules/auth/components/auth-field/index.tsx` | `frontend/src/modules/auth/components/login-form/index.tsx` | pattern-only |
 | `frontend/src/modules/auth/components/auth-layout/index.tsx` | `frontend/src/modules/auth/components/auth-layout/index.tsx` | adapted |
 | `frontend/src/modules/auth/components/auth-layout/variants.ts` | `frontend/src/modules/auth/components/auth-layout/index.tsx` | verbatim |
 | `frontend/src/modules/auth/components/login-form/index.tsx` | `frontend/src/modules/auth/components/login-form/index.tsx` | adapted |
 | `frontend/src/modules/auth/components/register-form/index.tsx` | `frontend/src/modules/auth/components/register-form/index.tsx` | adapted |
-| `frontend/src/modules/auth/components/uvus-login-button/index.tsx` | `frontend/src/modules/auth/components/uvus-login-button/index.tsx` | adapted |
 | `frontend/src/modules/auth/pages/authentication-page/index.tsx` | `frontend/src/modules/auth/pages/authentication-page/index.tsx` | adapted |
 | `frontend/src/modules/auth/pages/forgot-password/index.tsx` | `frontend/src/modules/auth/pages/forgot-password/index.tsx` | adapted |
 | `frontend/src/modules/auth/pages/reset-password/index.tsx` | `frontend/src/modules/auth/pages/reset-password/index.tsx` | adapted |
-| `frontend/src/modules/auth/pages/sso-callback/index.tsx` | `frontend/src/modules/auth/pages/sso-callback/index.tsx` | adapted |
 | `frontend/src/modules/beta/components/beta-badge/index.tsx` | `frontend/src/modules/beta/components/beta-badge/index.tsx` | verbatim |
 | `frontend/src/modules/beta/components/beta-gate/index.tsx` | `frontend/src/modules/beta/components/beta-gate/index.tsx` | verbatim |
 | `frontend/src/modules/beta/config/betaFeatures.ts` | `frontend/src/modules/beta/config/betaFeatures.ts` | adapted |
@@ -425,7 +427,6 @@ Generated from the origin header of each file.
 | `frontend/src/modules/settings/components/AppearanceSection.tsx` | `frontend/src/modules/settings/components/NotificationsSection.tsx` | pattern-only |
 | `frontend/src/modules/settings/components/BetaFeaturesSection.tsx` | `frontend/src/modules/settings/components/BetaFeaturesSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/DangerZoneSection.tsx` | `frontend/src/modules/settings/components/DangerZoneSection.tsx` | adapted |
-| `frontend/src/modules/settings/components/IntegrationsSection.tsx` | `frontend/src/modules/settings/components/IntegrationsSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/NotificationsSection.tsx` | `frontend/src/modules/settings/components/NotificationsSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/PlanSection.tsx` | `frontend/src/modules/settings/components/PaymentsSection.tsx` | adapted |
 | `frontend/src/modules/settings/components/SaveButton.tsx` | `frontend/src/modules/settings/components/AccountSection.tsx` | adapted (extracted) |

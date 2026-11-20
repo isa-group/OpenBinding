@@ -3,7 +3,6 @@ import { HttpTransport } from '../../core/api/http';
 import { accountClientOf } from './accountClient';
 import { planClientOf } from '../../settings/api/planClient';
 import { HttpError } from '../../core/api/http';
-import { forgetCasFlow, readCasFlow } from '../utils/authFlow';
 
 /** The transport at a test gateway, with the client's operations on it (as the old ApiClient bundled them). */
 function clientAt(base: string) {
@@ -11,7 +10,8 @@ function clientAt(base: string) {
   return Object.assign(
     Object.create(transport) as HttpTransport,
     accountClientOf(transport),
-    planClientOf(transport)
+    planClientOf(transport),
+    { transport }
   );
 }
 
@@ -40,7 +40,7 @@ describe('authentication requests', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    forgetCasFlow();
+    client.transport.clearTokens();
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
   });
@@ -65,8 +65,43 @@ describe('authentication requests', () => {
       status: 422,
       code: 'validation_error',
     });
-    expect(localStorage.getItem('openbinding-access-token')).toBeNull();
+    expect(client.transport.getAccessToken()).toBeNull();
   });
+
+  it('signs in with credentials, so the answer sets the session cookie, and keeps the token in memory only', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ access_token: 'a', refresh_token: 'r', token_type: 'bearer', expires_in: 300 })
+    );
+    await client.login('alice', 'long-enough-password');
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'POST', credentials: 'include' });
+    expect(client.transport.getAccessToken()).toBe('a');
+    expect(Object.keys(localStorage)).toEqual([]);
+    expect(Object.keys(sessionStorage)).toEqual([]);
+  });
+
+  it('registers with credentials (the answer opens the session)', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'u1', username: 'alice' }, 201));
+    await client.register({
+      username: 'alice',
+      email: 'a@example.org',
+      password: 'long-enough-password',
+    });
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'POST', credentials: 'include' });
+  });
+
+  it.each(['this', 'all'] as const)(
+    'signs out (%s) at the session route, and forgets the token whatever it answers',
+    async scope => {
+      client.transport.setTokens({ access_token: 'a', expires_in: 300 });
+      fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      await expect(client.logout(scope)).rejects.toThrow('Failed to fetch');
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://gateway.example/v1/auth/identity/logout');
+      expect(init).toMatchObject({ method: 'POST', credentials: 'include', cache: 'no-store' });
+      expect(JSON.parse(String(init?.body))).toEqual({ scope });
+      expect(client.transport.getAccessToken()).toBeNull();
+    }
+  );
 
   it('keeps the field-level answer of a 422 on the error', async () => {
     const body = problem('validation_error', 'Request validation failed: /email: bad email', [
@@ -133,8 +168,7 @@ describe('authentication requests', () => {
   });
 
   it('does not try to renew a session while logging in with a stale token lying around', async () => {
-    localStorage.setItem('openbinding-access-token', 'stale');
-    localStorage.setItem('openbinding-refresh-token', 'stale-refresh');
+    client.transport.setTokens({ access_token: 'stale', expires_in: 300 });
     const ended = vi.fn();
     window.addEventListener('openbinding:session-ended', ended);
     fetchMock.mockResolvedValueOnce(
@@ -149,52 +183,5 @@ describe('authentication requests', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(ended).not.toHaveBeenCalled();
     window.removeEventListener('openbinding:session-ended', ended);
-  });
-
-  it('stores the tokens a CAS exchange returns, and throws what it refuses', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ access_token: 'a', refresh_token: 'r', token_type: 'bearer', expires_in: 60 })
-    );
-    await expect(client.exchangeCasCode('x'.repeat(32))).resolves.toBeNull();
-    expect(localStorage.getItem('openbinding-access-token')).toBe('a');
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ code: 'x'.repeat(32) });
-
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ detail: { code: 'cas_code_invalid', error: 'used' } }, 401)
-    );
-    await expect(client.exchangeCasCode('y'.repeat(32))).rejects.toMatchObject({
-      status: 401,
-      code: 'cas_code_invalid',
-    });
-  });
-
-  it('hands back the plan change a CAS exchange caused, and null when the plan did not change', async () => {
-    const session = { access_token: 'a', refresh_token: 'r', token_type: 'bearer', expires_in: 60 };
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        ...session,
-        plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false },
-      })
-    );
-    await expect(client.exchangeCasCode('x'.repeat(32))).resolves.toEqual({
-      from: 'BASIC',
-      to: 'RESEARCH',
-      extra_cost: false,
-    });
-
-    fetchMock.mockResolvedValueOnce(jsonResponse({ ...session, plan_changed: null }));
-    await expect(client.exchangeCasCode('y'.repeat(32))).resolves.toBeNull();
-  });
-
-  it('remembers that a CAS link leaves the app, and builds the start URL for either mode', async () => {
-    expect(client.casStartUrl()).toBe('https://gateway.example/v1/auth/cas/start?mode=login');
-    expect(client.casStartUrl('link')).toBe('https://gateway.example/v1/auth/cas/start?mode=link');
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ url: '/api/v1/auth/cas/start?mode=link&intent=abc' })
-    );
-
-    await client.createCasLinkIntent();
-
-    expect(readCasFlow()?.mode).toBe('link');
   });
 });

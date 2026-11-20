@@ -1,6 +1,7 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
+import { authConfig, signedIn } from './helpers/session';
 
 // S3 · the account: acct-settings (`/me/settings?section=`: account, sign-in & security, notifications, plan, appearance, beta
 // features, danger zone) and acct-api-keys (`/me/api-keys`, with the Create new API key dialog at `?create=key`).
@@ -46,14 +47,16 @@ const lucia = {
   is_active: true,
   plan: 'RESEARCH',
   created_at: '2026-03-02T00:00:00Z',
-  cas_verified: true,
+  email_verified: true,
+  institutional_email: true,
 };
 const marco = {
   ...lucia,
   username: 'marco.diaz',
   email: 'marco@example.org',
   plan: 'FREE',
-  cas_verified: false,
+  email_verified: false,
+  institutional_email: false,
 };
 const iker = {
   ...marco,
@@ -203,7 +206,6 @@ interface State {
   pricingToken: Handler;
   usage: Handler;
   keys: ApiKey[];
-  identities: Array<{ id: string; provider: string; subject: string; verifiedAt: string }>;
   notifications: ReturnType<typeof notifications>;
   preferences: {
     inbox: boolean;
@@ -222,8 +224,6 @@ interface State {
       | 'create'
       | 'revoke'
       | 'rotate'
-      | 'link'
-      | 'unlink'
       | 'notifications'
       | 'preferences'
       | 'savePreferences',
@@ -244,9 +244,6 @@ async function mockApi(
     pricingToken: json({ pricing_token: token(3600) }),
     usage: json(researchUsage()),
     keys: [reader, runner],
-    identities: account.cas_verified
-      ? [{ id: 'i1', provider: 'us-cas', subject: 'lvega1', verifiedAt: '2026-09-01T00:00:00Z' }]
-      : [],
     notifications: notifications(),
     preferences: {
       inbox: true,
@@ -266,26 +263,13 @@ async function mockApi(
     refuse: {},
     ...overrides,
   };
-  await page.addInitScript(() => {
-    localStorage.setItem('openbinding-access-token', 's3-access');
-    localStorage.setItem('openbinding-refresh-token', 's3-refresh');
-  });
 
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  // A 401 that is not an expired session (a wrong password) makes the client renew the session once before it reports it.
-  await page.route(
-    `${API}/v1/auth/refresh`,
-    json({
-      access_token: 's3-access-2',
-      refresh_token: 's3-refresh-2',
-      token_type: 'bearer',
-      expires_in: 900,
-    })
-  );
-  await page.route(`${API}/v1/auth/logout`, noContent);
+  await signedIn(page, 's3-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/v1/engines`, json({ engines: [engine] }));
   await page.route(
@@ -304,10 +288,6 @@ async function mockApi(
         created_at: '2026-09-01T00:00:00Z',
       },
     ])
-  );
-  // The CAS round trip leaves the application; stand in for the university's side of it.
-  await page.route('**/api/v1/auth/cas/start**', route =>
-    route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>CAS (simulated)</h1>' })
   );
 
   await page.route(`${API}/v1/users/me`, async route => {
@@ -355,19 +335,6 @@ async function mockApi(
     const id = /api-keys\/([^/]+)$/.exec(route.request().url())?.[1];
     state.keys = state.keys.filter(item => item.id !== id);
     return noContent(route);
-  });
-
-  await page.route(`${API}/v1/users/me/identities`, route => json(state.identities)(route));
-  await page.route(new RegExp(`^${API}/v1/users/me/identities/([^/?]+)`), async route => {
-    if (state.refuse.unlink) return state.refuse.unlink(route);
-    state.identities = [];
-    // Unlinking a RESEARCH account moves the plan back to the default one, and with it the institutional mark.
-    state.account = { ...state.account, plan: 'FREE', cas_verified: false };
-    return noContent(route);
-  });
-  await page.route(`${API}/v1/auth/cas/link-intent`, async route => {
-    if (state.refuse.link) return state.refuse.link(route);
-    return json({ url: '/api/v1/auth/cas/start?mode=link&intent=s3' })(route);
   });
 
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), async route => {
@@ -437,7 +404,6 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
 
 const SECTIONS: Array<[string, string]> = [
   ['Account', '/me/settings'],
-  ['Sign-in & Security', '/me/settings?section=integrations'],
   ['Notifications', '/me/settings?section=notifications'],
   ['Plan', '/me/settings?section=plan'],
   ['Appearance', '/me/settings?section=appearance'],
@@ -583,46 +549,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('acct-settings · Sign-in & Security: unlink the CAS identity with the typed phrase, link it again', async ({
+    test('acct-settings has no Sign-in & Security section: sign-in is the session, not linked identities', async ({
       page,
-    }, testInfo) => {
+    }) => {
       const critical = watchCriticalErrors(page);
-      const state = await mockApi(page, lucia);
+      await mockApi(page, lucia);
       await page.goto('/me/settings?section=integrations');
       const main = page.locator('main');
-
-      await expect(
-        main.getByRole('heading', { level: 2, name: 'Sign-in & Security' })
-      ).toBeVisible();
-      await expectSettingsNav(page, isMobile, 'Sign-in & Security');
-      await expect(main.getByText('Connected', { exact: true })).toBeVisible();
-      await expect(main.getByText(/Linked Sep 1, 2026 · lvega1/)).toBeVisible();
-      await capture(page, testInfo, `settings-${name}-integrations`);
-
-      await main.getByRole('button', { name: 'Unlink Universidad de Sevilla · CAS' }).click();
-      const dialog = page.getByRole('dialog', {
-        name: 'Unlink your Universidad de Sevilla identity?',
-      });
-      await expect(dialog).toBeVisible();
-      await expect(dialog.getByLabel('Plan change')).toContainText('RESEARCH');
-      const unlink = dialog.getByRole('button', { name: 'Unlink' });
-      await expect(unlink).toBeDisabled();
-      await dialog.getByLabel('Type DOWNGRADE RESEARCH to confirm').fill('DOWNGRADE RESEARCH');
-      await capture(page, testInfo, `settings-${name}-integrations-unlink`);
-      const deleted = page.waitForRequest(
-        request => request.method() === 'DELETE' && request.url().includes('/identities/i1')
-      );
-      await unlink.click();
-      expect(new URL((await deleted).url()).searchParams.get('confirmation')).toBe(
-        'DOWNGRADE RESEARCH'
-      );
-      await expect(main.getByText(/Identity unlinked\. Your plan is now/)).toBeVisible();
-      await expect(main.getByText('Not connected', { exact: true })).toBeVisible();
-      expect(state.identities).toEqual([]);
-
-      // Linking leaves for the university's sign-in.
-      await main.getByRole('button', { name: 'Link CAS identity' }).click();
-      await expect(page).toHaveURL(/\/api\/v1\/auth\/cas\/start\?mode=link&intent=s3/);
+      // An unknown section is the Account section.
+      await expect(main.getByRole('heading', { level: 2, name: 'Account' })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Sign-in & Security' })).toHaveCount(0);
+      await expect(page.getByText(/Universidad de Sevilla · CAS|Link CAS identity/)).toHaveCount(0);
       expect(critical).toEqual([]);
     });
 

@@ -4,7 +4,7 @@
 // Changes: OpenBinding's workspace: the stat tiles count organizations, the compositions the account reads and the runs
 // running; recent organizations, compositions and problems (recents the account can still read, else the latest
 // compositions), then the recent runs of the organizations; OpenBinding's quick actions; the empty state for an account
-// without organizations, with the invitation hint; the plan-changed notice; links instead of `router.push` buttons; the
+// without organizations, with the invitation hint; links instead of `router.push` buttons; the
 // greeting uses the username (OpenBinding keeps no first name).
 
 import { motion } from 'framer-motion';
@@ -13,7 +13,6 @@ import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import type { Job } from '../../../run/api/runsClient';
 import { runsApi } from '../../../run/api/runsClient';
-import { PlanChangedNotice } from '../../../auth/components/plan-changed-notice';
 import {
   compositionPath,
   myCompositionsPath,
@@ -147,15 +146,12 @@ export default function DashboardPage() {
     [recentProblems, bySlug, byId]
   );
 
-  // The plan-changed notice stays mounted across the skeleton: it is read once, when it first appears.
-  const notice = <PlanChangedNotice className="mb-6" />;
   if (organizationsLoading || isLoading)
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-8">
         <Helmet>
           <title>OpenBinding - Dashboard</title>
         </Helmet>
-        {notice}
         <DashboardSkeleton />
       </div>
     );
@@ -218,7 +214,6 @@ export default function DashboardPage() {
       <Helmet>
         <title>OpenBinding - Dashboard</title>
       </Helmet>
-      {notice}
 
       {/* Welcome */}
       <motion.div

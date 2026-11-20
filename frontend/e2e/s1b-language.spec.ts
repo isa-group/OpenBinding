@@ -5,6 +5,7 @@ import { expect as baseExpect, test, type Page, type Route, type TestInfo } from
 const expect = baseExpect.configure({ timeout: 15_000 });
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
 import { zipStore } from '../src/modules/core/utils/bimZip';
+import { authConfig, signedIn } from './helpers/session';
 
 // S1b · public screens, part 2: eng-catalog, eng-detail, pub-language (its smoke; J6 walks it in f2a-language.spec.ts), and the
 // problem editor for a visitor (its anonymous check; J3 walks it signed in in f2b-problem-editor.spec.ts).
@@ -333,13 +334,14 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   // The public engine catalogue; a signed-in account gets its own list below.
   await page.route(
     `${API}/v1/engines`,
     mocks.engines ?? json({ engines: [randomSearch, evolutionary, minizinc] })
   );
   if (mocks.signedIn) {
-    await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 's1b-token'));
+    await signedIn(page, 's1b-token');
     await page.route(`${API}/v1/users/me`, json(lucia));
     await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: 's1b-pricing' }));
     await page.route(

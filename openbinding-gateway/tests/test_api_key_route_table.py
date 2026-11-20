@@ -48,8 +48,9 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    # 196 with SCORETech Identity (F5), and the three composition template routes (F4).
-    assert len(ROUTES) == 199
+    # 196 with SCORETech Identity (F5-A) and the three composition template routes (F4-B); F5-B deletes the refresh
+    # token route and the local logout, then the four US CAS routes and the two linked-identity routes (191).
+    assert len(ROUTES) == 191
 
 
 def test_the_unclassified_permission_cannot_be_granted():

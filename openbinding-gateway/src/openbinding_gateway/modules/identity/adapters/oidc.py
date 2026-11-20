@@ -192,11 +192,13 @@ class IdentityOidc:
 
     # -- browser URL ------------------------------------------------------------------------------------------
 
-    async def authorization_url(self, params: dict[str, str], *, register: bool = False) -> str:
-        """The public authorization (or registration) endpoint with ``params``; never rewritten."""
+    async def authorization_url(self, params: dict[str, str]) -> str:
+        """The public authorization endpoint with ``params``; never rewritten.
+
+        One endpoint for signing in and signing up: SCORETech Identity registers an unknown email from its sign-in page
+        (a code, then its registration stage); Keycloak's own ``/registrations`` form is not Identity's code flow.
+        """
         endpoint = (await self.discovery())["authorization_endpoint"]
-        if register:
-            endpoint = endpoint[: -len("/auth")] + "/registrations" if endpoint.endswith("/auth") else endpoint
         return f"{endpoint}?{urlencode(params)}"
 
     # -- token endpoint ---------------------------------------------------------------------------------------

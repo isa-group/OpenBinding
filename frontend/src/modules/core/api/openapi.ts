@@ -365,84 +365,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/auth/cas/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Complete the CAS round trip and return to the frontend */
-        get: operations["completeUsCasValidation"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/cas/exchange": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Exchange the one-time CAS code for a session
-         * @description The session tokens, plus ``plan_changed`` when this sign-in raised the plan.
-         *
-         *     ``plan_changed`` is ``{from, to, extra_cost}`` (``extra_cost`` is always
-         *     false: RESEARCH is part of the institutional agreement) and is null when the
-         *     plan did not change.
-         */
-        post: operations["exchangeUsCasCode"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/cas/link-intent": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Link Intent
-         * @description Mint a one-use navigation URL without putting a JWT in the browser URL.
-         */
-        post: operations["createUsCasLinkIntent"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/cas/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Start Cas */
-        get: operations["startUsCasLogin"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/auth/config": {
         parameters: {
             query?: never;
@@ -507,7 +429,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Start signing in (or registering) with SCORETech Identity
+         * Start signing in (or signing up) with SCORETech Identity
          * @description Navigated to by the browser. `returnTo` is a frontend path, kept only when it is safe.
          */
         get: operations["startIdentitySignIn"];
@@ -593,32 +515,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start a session */
-        post: operations["login"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/auth/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
         /**
-         * End a session
-         * @description Revoke a refresh token.
-         *
-         *     Answers the same way whatever the token turns out to be. Signing out is not
-         *     an operation anybody should be able to use to find out whether a token was
-         *     real, and the caller's intent is satisfied either way.
+         * Start a session
+         * @description The session cookie, and a token bound to that session (a SPA renews it from the cookie).
          */
-        post: operations["logout"];
+        post: operations["login"];
         delete?: never;
         options?: never;
         head?: never;
@@ -659,23 +560,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/auth/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Exchange a refresh token for a new pair */
-        post: operations["refreshSession"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/auth/register": {
         parameters: {
             query?: never;
@@ -685,7 +569,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create an account */
+        /**
+         * Create an account
+         * @description Create the account and sign it in: the answer sets the session cookie, as a sign-in does.
+         */
         post: operations["register"];
         delete?: never;
         options?: never;
@@ -3327,40 +3214,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/users/me/identities": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Identities */
-        get: operations["listOwnIdentities"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/users/me/identities/{identity_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Unlink Identity */
-        delete: operations["unlinkOwnIdentity"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/users/me/pricing-token": {
         parameters: {
             query?: never;
@@ -3434,7 +3287,9 @@ export interface components {
     schemas: {
         /**
          * AccessGrant
-         * @description A short gateway access token minted from the session cookie; kept in memory by the browser.
+         * @description A short gateway access token bound to a browser session (sign-in, or minted from the session cookie).
+         *
+         *     The browser keeps it in memory only; the session itself is the HttpOnly cookie.
          */
         AccessGrant: {
             /** Access Token */
@@ -3543,11 +3398,6 @@ export interface components {
              * @description SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.
              */
             api_keys_suspended_at?: string | null;
-            /**
-             * Cas Verified
-             * @default false
-             */
-            cas_verified: boolean;
             /**
              * Contract Pending
              * @description True when the account still owes a contract.
@@ -3776,7 +3626,7 @@ export interface components {
             account_url?: string | null;
             /**
              * Login Url
-             * @description Where the browser starts a SCORETech sign-in (add `returnTo`); null in `local` mode.
+             * @description Where the browser starts a SCORETech sign-in, or a sign-up (Identity registers an unknown email from its sign-in page); add `returnTo`. Null in `local` mode.
              */
             login_url?: string | null;
             /**
@@ -3785,11 +3635,6 @@ export interface components {
              * @enum {string}
              */
             provider: "local" | "scoretech";
-            /**
-             * Register Url
-             * @description Where the browser starts a SCORETech registration; null in `local` mode.
-             */
-            register_url?: string | null;
         };
         /**
          * AvatarSelection
@@ -4221,38 +4066,6 @@ export interface components {
             version: string;
             /** Versionlabel */
             versionLabel: string | null;
-        };
-        /** CasExchange */
-        CasExchange: {
-            /** Code */
-            code: string;
-        };
-        /** CasLinkIntent */
-        CasLinkIntent: {
-            /** Url */
-            url: string;
-        };
-        /**
-         * CasSession
-         * @description The CAS code exchange: a session, and the plan change linking CAS caused, if any.
-         */
-        CasSession: {
-            /** Access Token */
-            access_token: string;
-            /**
-             * Expires In
-             * @description Lifetime of the access token, in seconds.
-             */
-            expires_in: number;
-            /** @description Set when this sign-in raised the plan (BASIC to RESEARCH on linking CAS); null otherwise. */
-            plan_changed?: components["schemas"]["PlanChange"] | null;
-            /** Refresh Token */
-            refresh_token: string;
-            /**
-             * Token Type
-             * @default bearer
-             */
-            token_type: string;
         };
         /** ChangePlanRequest */
         ChangePlanRequest: {
@@ -7122,14 +6935,6 @@ export interface components {
              */
             username_or_email: string;
         };
-        /** LogoutRequest */
-        LogoutRequest: {
-            /**
-             * Refresh Token
-             * @description The token to revoke, ending that session.
-             */
-            refresh_token: string;
-        };
         /** MaintenancePurgeRequest */
         MaintenancePurgeRequest: {
             /**
@@ -7696,28 +7501,6 @@ export interface components {
              * @description The application path of the composition (`/compositions/{org}/{composition}`), with `?version=` when the link names a version the caller reads.
              */
             location: string;
-        };
-        /**
-         * PlanChange
-         * @description A plan change the account holder did not ask for by name, and what it costs.
-         */
-        PlanChange: {
-            /**
-             * Extra Cost
-             * @description Always false: the change carries no extra charge (RESEARCH is part of the institutional agreement).
-             * @default false
-             */
-            extra_cost: boolean;
-            /**
-             * From
-             * @description The plan before.
-             */
-            from: string;
-            /**
-             * To
-             * @description The plan after.
-             */
-            to: string;
         };
         /**
          * PlansPricingView
@@ -8442,11 +8225,6 @@ export interface components {
             cost: components["schemas"]["RangeFacet"];
             providers: components["schemas"]["RangeFacet"];
             tasks: components["schemas"]["RangeFacet"];
-        };
-        /** RefreshRequest */
-        RefreshRequest: {
-            /** Refresh Token */
-            refresh_token: string;
         };
         /** RegisterRequest */
         RegisterRequest: {
@@ -9748,23 +9526,6 @@ export interface components {
              */
             slug: string;
         };
-        /** TokenPair */
-        TokenPair: {
-            /** Access Token */
-            access_token: string;
-            /**
-             * Expires In
-             * @description Lifetime of the access token, in seconds.
-             */
-            expires_in: number;
-            /** Refresh Token */
-            refresh_token: string;
-            /**
-             * Token Type
-             * @default bearer
-             */
-            token_type: string;
-        };
         /** UnreadCount */
         UnreadCount: {
             /** Count */
@@ -9947,11 +9708,6 @@ export interface components {
              * @description SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.
              */
             api_keys_suspended_at?: string | null;
-            /**
-             * Cas Verified
-             * @default false
-             */
-            cas_verified: boolean;
             /**
              * Created At
              * Format: date-time
@@ -11383,150 +11139,6 @@ export interface operations {
             };
         };
     };
-    completeUsCasValidation: {
-        parameters: {
-            query?: {
-                /** @description The one-time state issued by `/start`. */
-                state?: string | null;
-                /** @description The CAS service ticket. */
-                ticket?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Always a redirect to `{FRONTEND_URL}/sso/callback`. On success the query carries `code` (one-time, exchange it at `POST /v1/auth/cas/exchange`) and, when linking CAS raised the account's plan, `plan_changed=<new plan>` (e.g. `RESEARCH`; the full `{from, to, extra_cost}` is in the exchange response). On failure the query carries `error=<code>` instead, where code is one of: `cas_unavailable`, `cas_state_invalid`, `cas_ticket_invalid`, `account_inactive`, `identity_in_use`, `account_collision`, `username_unavailable`, `pricing_unavailable`, `institutional_pricing_invalid`, `cas_error`. The destination comes from configuration only, never from the request. */
-            303: {
-                headers: {
-                    /** @description Frontend CAS callback URL. */
-                    Location?: string;
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The request does not satisfy the contract; `diagnostics` says where. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    exchangeUsCasCode: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CasExchange"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CasSession"];
-                };
-            };
-            /** @description The request does not satisfy the contract; `diagnostics` says where. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    createUsCasLinkIntent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CasLinkIntent"];
-                };
-            };
-            /** @description Missing or invalid account credential. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Account authentication is not configured on this deployment. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    startUsCasLogin: {
-        parameters: {
-            query?: {
-                mode?: "login" | "link";
-                intent?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            307: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The request does not satisfy the contract; `diagnostics` says where. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
     getAuthConfig: {
         parameters: {
             query?: never;
@@ -11656,7 +11268,6 @@ export interface operations {
     startIdentitySignIn: {
         parameters: {
             query?: {
-                screen?: "login" | "register";
                 returnTo?: string | null;
             };
             header?: never;
@@ -11665,7 +11276,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description To SCORETech Identity's sign-in (or registration) page, with a flow cookie. */
+            /** @description To SCORETech Identity's sign-in page (which also registers), with a flow cookie. */
             302: {
                 headers: {
                     [name: string]: unknown;
@@ -11839,11 +11450,20 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenPair"];
+                    "application/json": components["schemas"]["AccessGrant"];
                 };
             };
             /** @description No usable credential was supplied. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Sent by a browser from another origin than the frontend's (`origin_refused`). */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11867,46 +11487,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description A service the gateway depends on is not reachable. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    logout: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LogoutRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The request does not satisfy the contract; `diagnostics` says where. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description A service the gateway depends on is not reachable. */
@@ -12004,66 +11584,6 @@ export interface operations {
             };
         };
     };
-    refreshSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RefreshRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokenPair"];
-                };
-            };
-            /** @description No usable credential was supplied. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description The request does not satisfy the contract; `diagnostics` says where. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Too many attempts from this address; see the `Retry-After` header. */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description A service the gateway depends on is not reachable. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     register: {
         parameters: {
             query?: never;
@@ -12084,6 +11604,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserProfile"];
+                };
+            };
+            /** @description Sent by a browser from another origin than the frontend's (`origin_refused`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description The request conflicts with something that already exists. */
@@ -23915,114 +23444,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description The request does not satisfy the contract; `diagnostics` says where. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Account authentication is not configured on this deployment. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    listOwnIdentities: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
-                };
-            };
-            /** @description Missing or invalid account credential. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Account authentication is not configured on this deployment. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    unlinkOwnIdentity: {
-        parameters: {
-            query?: {
-                /** @description Type DOWNGRADE RESEARCH when unlinking US CAS from RESEARCH. */
-                confirmation?: string | null;
-            };
-            header?: never;
-            path: {
-                identity_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Missing or invalid account credential. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */

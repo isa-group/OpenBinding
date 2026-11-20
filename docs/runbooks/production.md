@@ -23,7 +23,7 @@ it does not extend `docker-compose.yml`, builds nothing and has no profiles.
 | Service | Image variable (`images.env`) | Secret files | Notes |
 |---|---|---|---|
 | `postgres` | `POSTGRES_IMAGE` | `postgres_password` | volume `pgdata`; runs as uid 70 |
-| `redis` | `REDIS_IMAGE` | none | volume `redisdata`; job queue and CAS store |
+| `redis` | `REDIS_IMAGE` | none | volume `redisdata`; job queue, the sign-in flows and the renewal lock |
 | `migrate` | `GATEWAY_IMAGE` | `database_url` | one-shot (`OPENBINDING_MIGRATE=only`), exits when the schema is current |
 | `gateway` | `GATEWAY_IMAGE` | `database_url`, `gateway_jwt_secret`, `space_api_key`, `secrets_fernet_keys`, `bootstrap_admin_password` | starts after `migrate` completed; the only service with the JWT secret |
 | `worker` | `GATEWAY_IMAGE` | `database_url`, `space_api_key`, `secrets_fernet_keys` | queue `default`, 4 threads |

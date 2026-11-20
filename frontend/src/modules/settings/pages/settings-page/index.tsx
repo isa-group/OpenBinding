@@ -15,7 +15,6 @@ import AccountSection from '../../components/AccountSection';
 import AppearanceSection from '../../components/AppearanceSection';
 import BetaFeaturesSection from '../../components/BetaFeaturesSection';
 import DangerZoneSection from '../../components/DangerZoneSection';
-import IntegrationsSection from '../../components/IntegrationsSection';
 import NotificationsSection from '../../components/NotificationsSection';
 import PlanSection from '../../components/PlanSection';
 import UnsavedChangesDialog from '../../components/UnsavedChangesDialog';
@@ -197,7 +196,6 @@ export default function SettingsPage() {
                 {activeSection === 'account' && (
                   <AccountSection onDirtyChange={accountDirtyChange} />
                 )}
-                {activeSection === 'integrations' && <IntegrationsSection />}
                 {activeSection === 'notifications' && (
                   <NotificationsSection onDirtyChange={notificationsDirtyChange} />
                 )}

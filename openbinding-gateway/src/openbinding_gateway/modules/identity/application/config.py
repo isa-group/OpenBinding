@@ -27,7 +27,6 @@ def auth_config_view(settings: Settings) -> AuthConfigView:
     return AuthConfigView(
         provider="scoretech",
         login_url=login,
-        register_url=f"{login}?screen=register",
         account_url=settings.identity_account_url,
     )
 

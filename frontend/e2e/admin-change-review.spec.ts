@@ -10,6 +10,7 @@ import { failureBody } from './helpers/problems';
 import type { AdminUserView } from '../src/modules/core/api/account';
 import { AGREEMENT_PRICING_FIXTURE as PRICING_FIXTURE } from '../src/test/fixtures/agreementPricing';
 import { ALEX, SAM, USERS, subscriptionOf, usageOf } from '../src/test/fixtures/admin';
+import { authConfig, signedIn } from './helpers/session';
 
 // admin-user-detail /admin/users/:user?tab=agreement · the review of a subscription change, drawn by pricing-renderer's <pricing-change-review>.
 // In jsdom the element never takes its properties, so this is where its drawing is checked: plan, price, add-ons, features and limits
@@ -82,24 +83,12 @@ async function mockApi(
       etagOf(id)
     );
 
-  await page.addInitScript(() => {
-    localStorage.setItem('openbinding-access-token', 'review-access');
-    localStorage.setItem('openbinding-refresh-token', 'review-refresh');
-  });
-
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  await page.route(
-    `${API}/v1/auth/refresh`,
-    json({
-      access_token: 'review-access-2',
-      refresh_token: 'review-refresh-2',
-      token_type: 'bearer',
-      expires_in: 900,
-    })
-  );
+  await signedIn(page, 'review-access');
   await page.route(`${API}/v1/plans/pricing`, json(PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(ALEX));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf('PRO')));
@@ -124,11 +113,12 @@ async function mockApi(
       const body = bodyOf(route);
       sent.subscription.push({ id: account.id, body, ifMatch });
       if (stale(ifMatch, account.id)) return precondition(account.id)(route);
-      if (body.plan === 'RESEARCH' && !account.cas_verified) {
+      if (body.plan === 'RESEARCH') {
+        // This stand-in refuses RESEARCH, to show a refusal said in the review.
         return detail(
-          409,
-          'research_requires_us_cas',
-          'RESEARCH requires a verified Universidad de Sevilla CAS identity.'
+          422,
+          'invalid_subscription',
+          'RESEARCH is not offered by this pricing.'
         )(route);
       }
       account.plan = String(body.plan);
@@ -359,7 +349,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await review.locator('[data-pr-part="review-back"]').click();
       await expect(review).toHaveCount(0);
 
-      // RESEARCH needs a CAS identity: the refusal is said in the review, which keeps Confirm for another try.
+      // A refused agreement is said in the review, which keeps Confirm for another try.
       await plans.getByRole('radio', { name: /^RESEARCH/ }).click();
       await expect(plans.getByRole('radio', { name: /^RESEARCH/ })).toBeChecked();
       await main.getByRole('button', { name: 'Apply agreement', exact: true }).click();
@@ -368,13 +358,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await review.locator('[data-pr-part="review-confirm"]').click();
       const error = review.locator('[data-pr-part="review-error"]');
       await expect(error).toContainText('The change couldn’t be applied.');
-      await expect(error).toContainText(
-        'RESEARCH needs a verified CAS identity (409 · research_requires_us_cas).'
-      );
+      await expect(error).toContainText('That agreement isn’t valid (422 · invalid_subscription).');
       await expect(review.locator('[data-pr-part="review-confirm"]')).toBeFocused();
       await review.locator('[data-pr-part="review-back"]').click();
       await expect(
-        main.getByText('RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)')
+        main.getByText('That agreement isn’t valid (422 · invalid_subscription)')
       ).toBeVisible();
 
       // “Plan only” is reviewed too, and sends the plan alone.

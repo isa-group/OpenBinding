@@ -26,7 +26,6 @@ from _problem_helpers import make_org
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import AuditEvent, User
 from openbinding_gateway.integrations import bim
-from openbinding_gateway.security.tokens import issue_access_token
 
 YAML = {"content-type": "application/yaml"}
 SIMPLE_BINDING = {"t1": "c1a", "t2": "c2a", "t3": "c3a"}
@@ -185,17 +184,13 @@ async def test_a_reader_who_is_not_a_member_gets_one_404_body(api_client, regist
 
 
 async def test_an_expired_or_malformed_credential_is_refused_and_never_read_as_a_visitor(
-    api_client, registration, db_session, gate,  # noqa: F811
+    api_client, registration, db_session, gate, session_token,  # noqa: F811
 ):
     owner = await an_owner(api_client, registration, db_session, gate)
     hidden = await create(api_client, owner, "hidden")
     shown = await create(api_client, owner, "shown")
     await set_visibility(api_client, owner.headers, shown, "public")
-    settings = get_settings()
-    expired = issue_access_token(
-        settings.gateway_jwt_secret, user_id=owner.user.id, ttl_seconds=-60,
-        issuer=settings.gateway_jwt_issuer, audience=settings.gateway_jwt_audience,
-    )
+    expired = await session_token(owner.user.id, ttl_seconds=-60)
 
     for credential in ({"Authorization": f"Bearer {expired}"}, {"Authorization": "Bearer not-a-token"}):
         for path in (hidden, shown, f"{shown}/versions"):

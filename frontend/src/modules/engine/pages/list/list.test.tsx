@@ -30,6 +30,8 @@ const admin: UserProfile = {
   is_active: true,
   plan: 'PRO',
   created_at: '2026-01-01T00:00:00Z',
+  email_verified: false,
+  institutional_email: false,
 };
 
 function registration(

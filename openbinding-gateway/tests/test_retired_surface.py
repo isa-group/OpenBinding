@@ -44,6 +44,10 @@ def test_no_route_of_the_gateway_is_retired():
         "/v1/organizations/{org}/library",
         "/v1/compositions/compile",
         "/v1/jobs/{job_id}",
+        "/v1/auth/refresh",
+        "/v1/auth/logout",
+        "/v1/auth/cas/start",
+        "/v1/users/me/identities/{identity_id}",
     ],
 )
 def test_a_retired_route_is_found_also_inside_an_included_router(path):
@@ -64,6 +68,20 @@ def test_the_bim_services_live_under_v1_bim_only():
 def test_no_modelled_table_is_retired():
     assert surface.retired_tables(Base.metadata.tables) == []
     assert surface.retired_tables(["jobs", "projects", "artifacts"]) == ["artifacts", "projects"]
+
+
+def test_no_retired_setting_or_property_is_back():
+    from openbinding_gateway.core.settings import Settings
+
+    assert surface.retired_settings(Settings.model_fields) == []
+    assert surface.retired_settings(["cas_enabled", "auth_provider"]) == ["cas_enabled"]
+    assert surface.retired_properties(app.openapi()) == []
+    planted = {"components": {"schemas": {"UserProfile": {"properties": {"cas_verified": {}, "email": {}}}}}}
+    assert surface.retired_properties(planted) == ["UserProfile.cas_verified"]
+
+
+def test_the_identity_routes_of_the_session_model_are_not_mistaken_for_retired_ones():
+    assert surface.retired_routes(["/v1/auth/identity/logout", "/v1/auth/identity/session", "/v1/auth/login"]) == []
 
 
 def test_no_entitlement_id_is_a_string_literal_outside_the_map():
@@ -89,7 +107,7 @@ def test_the_tool_passes_on_this_checkout():
     )
 
     assert done.returncode == 0, done.stdout + done.stderr
-    assert "no retired route, table or spelled entitlement id" in done.stdout
+    assert "no retired route, table, setting, property or spelled entitlement id" in done.stdout
 
 
 def test_the_composition2yaml_services_are_not_the_retired_language():

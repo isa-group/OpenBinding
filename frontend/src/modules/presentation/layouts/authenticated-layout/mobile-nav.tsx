@@ -39,9 +39,9 @@ export default function MobileNav({ isOpen, onClose, onSearch, organization }: P
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
-  const handleLogout = () => {
+  const handleLogout = (scope: 'this' | 'all' = 'this') => {
     onClose();
-    void signOut().then(() => navigate('/'));
+    void signOut(scope).then(() => navigate('/'));
   };
 
   const linkClass = (active: boolean) =>
@@ -236,10 +236,17 @@ export default function MobileNav({ isOpen, onClose, onSearch, organization }: P
                 </div>
                 <button
                   type="button"
-                  onClick={handleLogout}
+                  onClick={() => handleLogout()}
                   className="flex w-full cursor-pointer items-center justify-center rounded-lg px-4 py-2.5 text-sm text-tp-steel transition-colors hover:bg-tp-surface hover:text-tp-ink"
                 >
                   Sign out
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLogout('all')}
+                  className="flex w-full cursor-pointer items-center justify-center rounded-lg px-4 py-2.5 text-xs text-tp-steel transition-colors hover:bg-tp-surface hover:text-tp-ink"
+                >
+                  End every session
                 </button>
               </div>
             </div>

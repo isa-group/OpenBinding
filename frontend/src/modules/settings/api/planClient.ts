@@ -1,12 +1,7 @@
 // The plan's client: the account's usage, the published pricing, and the pricing token the SPACE
 // client reads, cut out of the old `api/client.ts` monolith.
 
-import {
-  PRICING_TOKEN_KEY,
-  PRICING_TOKEN_UPDATED_EVENT,
-  apiClient,
-  HttpTransport,
-} from '../../core/api/http';
+import { apiClient, HttpTransport, setPricingToken } from '../../core/api/http';
 import type { PlansPricingView, UsageView } from '../../core/api/account';
 
 /** The client over a transport: the application's own, or a test's. */
@@ -28,13 +23,10 @@ export function planClientOf(transport: HttpTransport) {
       return transport.request<PlansPricingView>('/v1/plans/pricing');
     },
 
-    /** What the interface gates features with; the browser never sees SPACE. */
+    /** What the interface gates features with; the browser never sees SPACE. Kept in memory only. */
     async getPricingToken(): Promise<string> {
       const body = await transport.request<{ pricing_token: string }>('/v1/users/me/pricing-token');
-      localStorage.setItem(PRICING_TOKEN_KEY, body.pricing_token);
-      window.dispatchEvent(
-        new CustomEvent(PRICING_TOKEN_UPDATED_EVENT, { detail: body.pricing_token })
-      );
+      setPricingToken(body.pricing_token);
       return body.pricing_token;
     },
   };

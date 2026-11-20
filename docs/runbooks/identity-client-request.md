@@ -7,7 +7,8 @@ in OpenBinding needs to change for this request; it is configuration on the Iden
 the SCORETech Identity lab (`./lab up`) and needs nothing from this request.
 
 F5 outcome: OpenBinding signs in with SCORETech Identity when `AUTH_PROVIDER=scoretech` ([IDENTITY.md](../IDENTITY.md));
-CAS goes away, and local accounts remain for development, labs and rollback.
+the US CAS sign-in is gone, and local accounts remain for development, labs and rollback (with the same cookie
+session).
 
 ## The request (ready to send)
 

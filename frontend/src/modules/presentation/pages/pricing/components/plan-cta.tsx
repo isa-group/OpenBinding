@@ -11,7 +11,8 @@ interface PlanCtaProps {
 
 /**
  * What a plan offers, the same in the drawn document and in the comparison: nothing on the account's own plan, the contact
- * dialog for a plan arranged by agreement, CAS for RESEARCH, sign-up for a free plan. Nothing is bought here.
+ * dialog for a plan arranged by agreement, how RESEARCH is had (a verified institutional e-mail or an administrator), sign-up
+ * for a free plan. Nothing is bought here.
  */
 export default function PlanCta({ plan, signedIn, current, onContact }: PlanCtaProps) {
   if (current) return null;
@@ -23,12 +24,12 @@ export default function PlanCta({ plan, signedIn, current, onContact }: PlanCtaP
     );
   if (plan.id === 'RESEARCH') {
     return signedIn ? (
-      <Action variant="primary" to="/me/settings?section=integrations">
-        Link CAS identity
+      <Action variant="secondary" to="/me/settings?section=plan">
+        How to get RESEARCH
       </Action>
     ) : (
       <Action variant="primary" to="/authentication">
-        Log in with CAS
+        Sign in
       </Action>
     );
   }

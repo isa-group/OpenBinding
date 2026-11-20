@@ -16,14 +16,19 @@ const account = (n: number, username: string, role: 'user' | 'admin', plan: stri
   is_active: true,
   plan,
   created_at: '2026-03-02T00:00:00Z',
-  cas_verified: false,
+  email_verified: false,
+  institutional_email: false,
   contract_pending: false,
   api_key_count: 1,
   ...extra,
 });
 
 export const ALEX = account(5, 'alex.rivera', 'admin', 'PRO', { created_at: '2026-01-10T00:00:00Z' });
-export const MARIA = account(1, 'maria.santos', 'user', 'RESEARCH', { api_key_count: 2, cas_verified: true });
+export const MARIA = account(1, 'maria.santos', 'user', 'RESEARCH', {
+  api_key_count: 2,
+  email_verified: true,
+  institutional_email: true,
+});
 export const SAM = account(2, 'sam.okafor', 'user', 'BASIC', { created_at: '2026-06-15T00:00:00Z' });
 export const JORDAN = account(3, 'jordan.lee', 'user', 'BASIC', { contract_pending: true, api_key_count: 0, created_at: '2026-07-01T00:00:00Z' });
 export const PRIYA = account(4, 'priya.nair', 'user', 'ADVANCED', { api_key_count: 3, created_at: '2026-04-20T00:00:00Z' });

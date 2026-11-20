@@ -22,8 +22,8 @@ export const planSummaries: readonly PlanSummary[] = [
   },
   {
     name: 'Research',
-    price: 'Free with verified CAS',
-    how: 'For Universidad de Sevilla accounts with a verified CAS identity.',
+    price: 'Free with a verified US e-mail',
+    how: 'Free for a verified e-mail at us.es or alum.us.es, or granted by an administrator.',
     chips: ['10 API keys', '4 concurrent runs'],
   },
   {

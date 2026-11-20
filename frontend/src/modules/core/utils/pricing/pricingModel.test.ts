@@ -47,7 +47,7 @@ describe('readCatalog', () => {
   it('reads the plans in the order of the document, with no price anywhere', () => {
     expect(view.plans.map(plan => [plan.id, plan.priceLabel, plan.unitLabel])).toEqual([
       ['FREE', 'Free', 'default plan'],
-      ['RESEARCH', 'Free', 'with verified CAS'],
+      ['RESEARCH', 'Free', 'with a verified US e-mail'],
       ['LAB', 'Contact us', 'institutional agreement'],
     ]);
     expect(view.plans[2].description).toBe(

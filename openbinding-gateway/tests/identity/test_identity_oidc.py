@@ -195,11 +195,6 @@ async def test_the_transport_rewrite_reaches_the_transport_host_and_checks_the_p
     assert location.startswith(ISSUER + "/protocol/openid-connect/auth?")
 
 
-async def test_the_registration_screen_uses_the_registrations_endpoint(issuer) -> None:
-    location = await client_for(issuer).authorization_url({"a": "b"}, register=True)
-    assert location.startswith(ISSUER + "/protocol/openid-connect/registrations?")
-
-
 async def test_leeway_edges(issuer) -> None:
     client = client_for(issuer)
     await client.discovery()

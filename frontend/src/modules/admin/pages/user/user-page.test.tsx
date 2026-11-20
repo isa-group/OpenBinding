@@ -229,8 +229,8 @@ describe('admin-user-detail · one account', () => {
       `/admin/users/${SAM.id}?tab=agreement`
     );
     const facts = within(screen.getByLabelText('Account facts'));
-    expect(facts.getByText('None linked')).toBeInTheDocument();
-    expect(screen.queryByText('Institutional identity verified')).not.toBeInTheDocument();
+    expect(facts.getByText('Not verified')).toBeInTheDocument();
+    expect(screen.queryByText('Verified institutional e-mail')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy account id' })).toBeInTheDocument();
 
     tab('Agreement');
@@ -289,7 +289,9 @@ describe('admin-user-detail · one account', () => {
     expect(within(plans).getAllByRole('radio')).toHaveLength(4);
     expect(within(plans).getByRole('radio', { name: /^BASIC · current/ })).toBeChecked();
     expect(
-      within(plans).getByRole('radio', { name: /^RESEARCH.*Needs a verified CAS identity/ })
+      within(plans).getByRole('radio', {
+        name: /^RESEARCH.*Granted by you: no verified institutional e-mail/,
+      })
     ).toBeInTheDocument();
     expect(screen.getByText('Add-ons for BASIC')).toBeInTheDocument();
     expect(screen.getByText('BASIC has no add-ons.')).toBeInTheDocument();
@@ -549,35 +551,14 @@ describe('admin-user-detail · one account', () => {
     ).toBeInTheDocument();
   });
 
-  it('explains a RESEARCH agreement refused for want of a CAS identity (409) and an invalid one (422), in the review and back in the form', async () => {
+  it('explains an invalid agreement (422) in the review', async () => {
     open();
     await ready();
     choose(/^RESEARCH/);
-    api.adminUpdateSubscription.mockRejectedValueOnce(refusal(409, 'research_requires_us_cas'));
-    let drawn = await reviewOf('Apply agreement');
-    fireEvent.click(within(drawn).getByRole('button', { name: 'Apply agreement' }));
-    expect(await within(drawn).findByRole('alert')).toHaveTextContent(
-      'RESEARCH needs a verified CAS identity (409 · research_requires_us_cas). sam.okafor hasn’t linked a Universidad de Sevilla CAS identity.'
-    );
-    // The review stays open with the refusal; going back shows it in the form, where the agreement can be changed.
-    expect(
-      screen.getByRole('region', { name: 'Review the change for sam.okafor' })
-    ).toBeInTheDocument();
-    fireEvent.click(within(drawn).getByRole('button', { name: 'Back' }));
-    expect(
-      await screen.findByText(
-        'RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)'
-      )
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/hasn’t linked a Universidad de Sevilla CAS identity/)
-    ).toBeInTheDocument();
-
     api.adminUpdateSubscription.mockRejectedValueOnce(
       refusal(422, 'invalid_subscription', 'COLLABORATION_PACK is not available for BASIC')
     );
-    drawn = await reviewOf('Apply agreement');
-    // A new review starts without the refusal of the last attempt.
+    const drawn = await reviewOf('Apply agreement');
     expect(within(drawn).queryByRole('alert')).not.toBeInTheDocument();
     fireEvent.click(within(drawn).getByRole('button', { name: 'Apply agreement' }));
     expect(await within(drawn).findByRole('alert')).toHaveTextContent(

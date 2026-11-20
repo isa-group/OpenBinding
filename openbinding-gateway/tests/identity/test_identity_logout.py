@@ -147,8 +147,6 @@ async def test_tokens_of_one_mode_are_refused_in_the_other(browser, fake_issuer,
     assert (await browser.get("/v1/users/me", headers=headers)).status_code == 401
     monkeypatch.setattr(scoretech, "auth_provider", "scoretech")
     assert (await browser.get("/v1/users/me", headers=headers)).status_code == 200
-    bare = issue_access_token(scoretech.gateway_jwt_secret, user_id=user.id, ttl_seconds=60)
-    assert (await browser.get("/v1/users/me", headers={"authorization": f"Bearer {bare}"})).status_code == 401
     local_sid = issue_access_token(scoretech.gateway_jwt_secret, user_id=user.id, ttl_seconds=60, session_id=uuid.uuid4(), provider="local")
     assert (await browser.get("/v1/users/me", headers={"authorization": f"Bearer {local_sid}"})).status_code == 401
 

@@ -40,6 +40,8 @@ const lucia: UserProfile = {
   plan: 'RESEARCH',
   is_active: true,
   created_at: '2026-01-01T00:00:00Z',
+  email_verified: false,
+  institutional_email: false,
 };
 
 // The first render of a file is slow on a busy machine.

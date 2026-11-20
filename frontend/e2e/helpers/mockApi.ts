@@ -54,6 +54,7 @@ import {
 import { presetPage } from '../../src/test/fixtures/presets';
 import { compositionStore, type CompositionSeed, type CompositionStore } from './mockCompositions';
 import { snapshotRoutes, sphereProblemRoutes, sphereRoutes, tomatometerListed } from './sphereMock';
+import { authConfigBody } from './session';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
 // with compositions, problems, runs and studies, and everything the public screens read.
@@ -67,7 +68,8 @@ const hoursAgo = (hours: number) => new Date(Date.parse(NOW) - hours * 3_600_000
 
 /**
  * Who the page is: the administrator from the start, nobody, or a visitor whom `POST /v1/auth/login` signs in as the administrator
- * (a request is signed in when it carries the access token).
+ * (a request is signed in when it carries the access token). The session is the gateway's cookie: `POST /v1/auth/identity/session`
+ * answers a token while it lives (from the start for the administrator, after the login for the visitor) and 401 otherwise.
  */
 export type Session = 'admin' | 'none' | 'visitor';
 
@@ -87,7 +89,8 @@ const ME = {
   is_active: true,
   plan: 'RESEARCH',
   created_at: '2026-01-10T00:00:00Z',
-  cas_verified: true,
+  email_verified: true,
+  institutional_email: true,
 };
 
 /** The accounts of the administration screens: the ids the audit and overview fixtures point at, on example.org like the rest of the gallery. */
@@ -1029,10 +1032,6 @@ function userRoutes(request: Request): Reply {
       return subId === 'beta-features' ? ok({ enabled: false }) : notFound();
     case 'compositions':
       return request.compositions.mineList(request);
-    case 'identities':
-      return ok([
-        { id: 'i1', provider: 'us-cas', subject: 'arivera1', verifiedAt: '2026-09-01T00:00:00Z' },
-      ]);
     default:
       return method === 'GET' ? notFound() : { status: 204 };
   }
@@ -1201,15 +1200,6 @@ function route(request: Request): Reply | null {
   if (area === 'organizations' && parts[3] === 'pricing-snapshots') return snapshotRoutes(parts);
 
   switch (area) {
-    case 'auth':
-      return second === 'refresh'
-        ? ok({
-            access_token: 'gallery-access-2',
-            refresh_token: 'gallery-refresh-2',
-            token_type: 'bearer',
-            expires_in: 900,
-          })
-        : null;
     case 'users':
       return second === 'me' ? userRoutes(request) : null;
     case 'notifications':
@@ -1322,21 +1312,18 @@ function route(request: Request): Reply | null {
 
 /**
  * Answers the API origin of the page: a signed-in administrator, nobody when `session` is `none`, or a visitor who signs in as the
- * administrator (`visitor`); `seed` adds compositions.
+ * administrator (`visitor`); `seed` adds compositions; `authProvider` is what `GET /v1/auth/config` says (local by default).
  */
 export async function installMockApi(
   page: Page,
   session: Session,
-  seed: CompositionSeed = {}
+  seed: CompositionSeed = {},
+  authProvider: 'local' | 'scoretech' = 'local'
 ): Promise<MockHandle> {
   const handle: MockHandle = { unmocked: [] };
   await page.clock.setFixedTime(new Date(NOW));
-  if (session === 'admin') {
-    await page.addInitScript(() => {
-      localStorage.setItem('openbinding-access-token', 'gallery-access');
-      localStorage.setItem('openbinding-refresh-token', 'gallery-refresh');
-    });
-  }
+  // The session cookie: the administrator holds one from the start, a visitor once `POST /v1/auth/login` answers.
+  let cookie = session === 'admin';
   const zip = new JSZip();
   zip.file('instance.json', '{"apiVersion":"bim/v1","kind":"Instance"}');
   zip.file('application.json', '{"kind":"Application"}');
@@ -1366,15 +1353,40 @@ export async function installMockApi(
       },
     };
     if (session === 'visitor' && known.method === 'POST' && parts.join('/') === 'v1/auth/login') {
+      cookie = true;
       await call.fulfill({
         status: 200,
         json: {
           access_token: 'gallery-access',
           refresh_token: 'gallery-refresh',
           token_type: 'bearer',
-          expires_in: 900,
+          expires_in: 300,
         },
       });
+      return;
+    }
+    if (known.method === 'GET' && parts.join('/') === 'v1/auth/config') {
+      await call.fulfill({ json: authConfigBody(authProvider) });
+      return;
+    }
+    if (known.method === 'GET' && parts.join('/') === 'v1/auth/identity/pending') {
+      await call.fulfill({
+        status: 404,
+        json: { code: 'no_pending_signup', detail: 'No sign-up is waiting.' },
+      });
+      return;
+    }
+    if (known.method === 'POST' && parts.join('/') === 'v1/auth/identity/session') {
+      await call.fulfill(
+        cookie
+          ? { json: { access_token: 'gallery-access', token_type: 'bearer', expires_in: 300 } }
+          : { status: 401, json: { code: 'no_session', detail: 'There is no session; sign in.' } }
+      );
+      return;
+    }
+    if (known.method === 'POST' && parts.join('/') === 'v1/auth/identity/logout') {
+      cookie = false;
+      await call.fulfill({ status: 204 });
       return;
     }
     // The engine catalogue is public: a visitor gets the public engines.
@@ -1877,17 +1889,30 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
     return notFound('Not mocked.');
   };
 
+  // The walk's session cookie, set by `POST /v1/auth/login`.
+  let walkCookie = false;
   const walkRoute = (request: Request, body: Buffer | null, signedIn: boolean): Reply | null => {
     const { method, parts } = request;
     const [first, area, second, third] = parts;
     if (first !== 'v1') return null;
     if (area === 'auth' && second === 'login' && method === 'POST') {
+      walkCookie = true;
       return ok({
         access_token: 'walk-access',
         refresh_token: 'walk-refresh',
         token_type: 'bearer',
-        expires_in: 900,
+        expires_in: 300,
       });
+    }
+    if (area === 'auth' && second === 'config' && method === 'GET') return ok(authConfigBody());
+    if (area === 'auth' && second === 'identity' && third === 'session' && method === 'POST') {
+      return walkCookie
+        ? ok({ access_token: 'walk-access', token_type: 'bearer', expires_in: 300 })
+        : { status: 401, json: { code: 'no_session', detail: 'There is no session; sign in.' } };
+    }
+    if (area === 'auth' && second === 'identity' && third === 'logout' && method === 'POST') {
+      walkCookie = false;
+      return { status: 204 };
     }
     if (!signedIn && SESSION_ONLY.has(area))
       return {

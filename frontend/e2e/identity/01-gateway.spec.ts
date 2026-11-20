@@ -163,9 +163,6 @@ test('@signup a native registration by email code is refused until the permissio
   browser,
 }) => {
   const { context, page } = await fresh(browser);
-  // The registration screen answers (at 215dffe it is Keycloak's own form, not the code flow; see the PR's limits).
-  await startSignIn(page, '?screen=register');
-  await expect(page.getByRole('heading', { name: 'Register' })).toBeVisible();
   // Identity registers natively from its sign-in page: an unknown email gets a code, then the registration stage.
   await startSignIn(page);
   await answerWithCode(page, email('new'), { first: 'Walk', last: 'Newcomer' });

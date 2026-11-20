@@ -1,18 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   afterSignInTarget,
-  casFlowFor,
   clearSessionEnded,
   clearSignInNote,
-  exchangeCasOnce,
-  forgetCasExchanges,
-  forgetCasFlow,
   hasRecentSignIn,
   hasSessionEnded,
   markSessionEnded,
   noteSignInStarted,
-  readCasFlow,
-  rememberCasFlow,
   safeReturnPath,
 } from './authFlow';
 
@@ -128,86 +122,5 @@ describe('sign-in note', () => {
     expect(hasRecentSignIn()).toBe(false);
     sessionStorage.setItem('openbinding-sign-in-started', 'soon');
     expect(hasRecentSignIn()).toBe(false);
-  });
-});
-
-describe('CAS exchange and flow, kept per code', () => {
-  beforeEach(() => {
-    forgetCasFlow();
-    forgetCasExchanges();
-  });
-
-  it('runs an exchange once however many screens ask for it', async () => {
-    const start = vi.fn().mockResolvedValue(undefined);
-
-    await Promise.all([exchangeCasOnce('code-1', start), exchangeCasOnce('code-1', start)]);
-    await exchangeCasOnce('code-1', start);
-    await exchangeCasOnce('code-2', start);
-
-    expect(start).toHaveBeenCalledTimes(2);
-  });
-
-  it('hands every caller the same refusal', async () => {
-    const start = vi.fn().mockRejectedValue(new Error('spent'));
-
-    await expect(exchangeCasOnce('code-1', start)).rejects.toThrow('spent');
-    await expect(exchangeCasOnce('code-1', start)).rejects.toThrow('spent');
-    expect(start).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps the flow against its code after the memory is forgotten', () => {
-    rememberCasFlow('login', '/me/settings');
-    expect(casFlowFor('code-1')).toEqual({ mode: 'login', returnTo: '/me/settings' });
-    forgetCasFlow();
-
-    expect(casFlowFor('code-1')).toEqual({ mode: 'login', returnTo: '/me/settings' });
-    expect(casFlowFor('code-2')).toBeNull();
-    expect(casFlowFor(null)).toBeNull();
-  });
-});
-
-describe('CAS flow memory', () => {
-  beforeEach(() => {
-    forgetCasFlow();
-  });
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('remembers the mode and a safe return path, and nothing else', () => {
-    rememberCasFlow('login', '/problems/org/project');
-    expect(readCasFlow()).toEqual({ mode: 'login', returnTo: '/problems/org/project' });
-    expect(JSON.stringify(sessionStorage)).not.toMatch(/token/i);
-  });
-
-  it('drops a return path that is not safe', () => {
-    rememberCasFlow('login', 'https://evil.example');
-    expect(readCasFlow()).toEqual({ mode: 'login', returnTo: null });
-  });
-
-  it('is empty once forgotten', () => {
-    rememberCasFlow('link');
-    forgetCasFlow();
-    expect(readCasFlow()).toBeNull();
-  });
-
-  it('stops being believed after half an hour', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-10-09T10:00:00Z'));
-    rememberCasFlow('link');
-    vi.setSystemTime(new Date('2026-10-09T10:29:00Z'));
-    expect(readCasFlow()?.mode).toBe('link');
-    vi.setSystemTime(new Date('2026-10-09T10:31:00Z'));
-    expect(readCasFlow()).toBeNull();
-  });
-
-  it('ignores a malformed entry', () => {
-    sessionStorage.setItem('openbinding-cas-flow', '{not json');
-    expect(readCasFlow()).toBeNull();
-    sessionStorage.setItem(
-      'openbinding-cas-flow',
-      JSON.stringify({ mode: 'admin', at: Date.now() })
-    );
-    expect(readCasFlow()).toBeNull();
   });
 });

@@ -2,7 +2,7 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's account fields and rules (username, email and a password of at least ten characters, with its strength
-// meter) instead of names, phone and address; no SSO buttons (CAS creates its account on the login view); a new account is
+// meter) instead of names, phone and address; no SSO buttons (SCORETech Identity has its own sign-up); a new account is
 // signed in at once and sent where it was heading, with no e-mail verification; the refusal wording and the free-plan note.
 
 import { motion } from 'framer-motion';
@@ -279,8 +279,8 @@ export default function RegisterForm() {
           </Link>
         </div>
         <p className="mt-1 text-xs leading-5 text-tp-steel">
-          Your allowances and plan are on your account page once you’re in. A verified Universidad
-          de Sevilla CAS identity can move you to RESEARCH later.
+          Your allowances and plan are on your account page once you’re in. RESEARCH is free for a
+          verified e-mail at us.es or alum.us.es, or granted by an administrator.
         </p>
       </motion.div>
 

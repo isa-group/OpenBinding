@@ -1,6 +1,7 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
+import { authConfig, signedIn } from './helpers/session';
 
 // S4a · organization and collaboration, part 1: app-home, SPHERE's organization tree (/me/orgs) and creation page (/orgs/new), org-overview, org-settings (General, with the members, run presets and audit sections at /settings/members, /settings/presets and /settings/audit).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
@@ -46,7 +47,8 @@ const lucia = {
   is_active: true,
   plan: 'RESEARCH',
   created_at: '2026-03-02T00:00:00Z',
-  cas_verified: true,
+  email_verified: true,
+  institutional_email: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
@@ -329,24 +331,13 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     refuse: {},
     ...overrides,
   };
-  await page.addInitScript(() => {
-    localStorage.setItem('openbinding-access-token', 's4a-access');
-    localStorage.setItem('openbinding-refresh-token', 's4a-refresh');
-  });
 
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  await page.route(
-    `${API}/v1/auth/refresh`,
-    json({
-      access_token: 's4a-access-2',
-      refresh_token: 's4a-refresh-2',
-      token_type: 'bearer',
-      expires_in: 900,
-    })
-  );
+  await signedIn(page, 's4a-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));

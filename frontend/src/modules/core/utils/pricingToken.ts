@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { getStoredPricingToken, PRICING_TOKEN_UPDATED_EVENT } from '../api/http';
+import { currentPricingToken, PRICING_TOKEN_UPDATED_EVENT } from '../api/http';
 
 /**
  * Whether the browser holds a pricing token it can still trust. The token is internal: this module reads it
@@ -48,15 +48,15 @@ function untilExpiry(token: string | null, now: number): number | null {
 }
 
 function snapshot(): PricingTokenStatus {
-  return pricingTokenStatus(getStoredPricingToken(), Date.now());
+  return pricingTokenStatus(currentPricingToken(), Date.now());
 }
 
-/** Tells the subscriber when a new token arrives, another tab changes it, or the current one expires. */
+/** Tells the subscriber when a new token arrives or is dropped, or the current one expires. */
 function subscribe(notify: () => void): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const arm = () => {
     clearTimeout(timer);
-    const wait = untilExpiry(getStoredPricingToken(), Date.now());
+    const wait = untilExpiry(currentPricingToken(), Date.now());
     // A timer cannot wait longer than ~24.8 days; a later expiry is re-checked when this one fires.
     if (wait !== null) timer = setTimeout(changed, Math.min(wait + 50, 2_000_000_000));
   };
@@ -65,16 +65,14 @@ function subscribe(notify: () => void): () => void {
     arm();
   }
   window.addEventListener(PRICING_TOKEN_UPDATED_EVENT, changed);
-  window.addEventListener('storage', changed);
   arm();
   return () => {
     clearTimeout(timer);
     window.removeEventListener(PRICING_TOKEN_UPDATED_EVENT, changed);
-    window.removeEventListener('storage', changed);
   };
 }
 
-/** The status of the stored token, kept current as the token changes or expires. */
+/** The status of the page's token, kept current as the token changes or expires. */
 export function usePricingTokenStatus(): PricingTokenStatus {
   return useSyncExternalStore(subscribe, snapshot, () => 'missing');
 }

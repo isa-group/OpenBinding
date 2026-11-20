@@ -39,21 +39,6 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class RefreshRequest(BaseModel):
-    refresh_token: str
-
-
-class LogoutRequest(BaseModel):
-    refresh_token: str = Field(..., description="The token to revoke, ending that session.")
-
-
-class TokenPair(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = Field(default="bearer")
-    expires_in: int = Field(..., description="Lifetime of the access token, in seconds.")
-
-
 class AuthConfigView(BaseModel):
     """How this gateway signs people in, for the frontend to read before it draws anything."""
 
@@ -61,10 +46,11 @@ class AuthConfigView(BaseModel):
         ..., description="`scoretech`: SCORETech Identity through the gateway; `local`: OpenBinding's own accounts."
     )
     login_url: Optional[str] = Field(
-        default=None, description="Where the browser starts a SCORETech sign-in (add `returnTo`); null in `local` mode."
-    )
-    register_url: Optional[str] = Field(
-        default=None, description="Where the browser starts a SCORETech registration; null in `local` mode."
+        default=None,
+        description=(
+            "Where the browser starts a SCORETech sign-in, or a sign-up (Identity registers an unknown email from "
+            "its sign-in page); add `returnTo`. Null in `local` mode."
+        ),
     )
     account_url: Optional[str] = Field(
         default=None, description="The person's SCORETech Identity account page; null in `local` mode."
@@ -72,7 +58,10 @@ class AuthConfigView(BaseModel):
 
 
 class AccessGrant(BaseModel):
-    """A short gateway access token minted from the session cookie; kept in memory by the browser."""
+    """A short gateway access token bound to a browser session (sign-in, or minted from the session cookie).
+
+    The browser keeps it in memory only; the session itself is the HttpOnly cookie.
+    """
 
     access_token: str
     token_type: str = Field(default="bearer")
@@ -107,28 +96,6 @@ class CompletedSignUp(BaseModel):
     return_to: str = Field(..., description="The frontend path to continue at.")
 
 
-class PlanChange(BaseModel):
-    """A plan change the account holder did not ask for by name, and what it costs."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    from_plan: str = Field(..., alias="from", description="The plan before.")
-    to: str = Field(..., description="The plan after.")
-    extra_cost: bool = Field(
-        default=False,
-        description="Always false: the change carries no extra charge (RESEARCH is part of the institutional agreement).",
-    )
-
-
-class CasSession(TokenPair):
-    """The CAS code exchange: a session, and the plan change linking CAS caused, if any."""
-
-    plan_changed: Optional[PlanChange] = Field(
-        default=None,
-        description="Set when this sign-in raised the plan (BASIC to RESEARCH on linking CAS); null otherwise.",
-    )
-
-
 class UserProfile(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -155,7 +122,6 @@ class UserProfile(BaseModel):
         ),
     )
     created_at: datetime
-    cas_verified: bool = False
     email_verified: bool = Field(
         default=False, description="Whether SCORETech Identity verified `email` (never for a local account)."
     )

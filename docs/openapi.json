@@ -2,7 +2,7 @@
   "components": {
     "schemas": {
       "AccessGrant": {
-        "description": "A short gateway access token minted from the session cookie; kept in memory by the browser.",
+        "description": "A short gateway access token bound to a browser session (sign-in, or minted from the session cookie).\n\nThe browser keeps it in memory only; the session itself is the HttpOnly cookie.",
         "properties": {
           "access_token": {
             "title": "Access Token",
@@ -237,11 +237,6 @@
             ],
             "description": "SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.",
             "title": "Api Keys Suspended At"
-          },
-          "cas_verified": {
-            "default": false,
-            "title": "Cas Verified",
-            "type": "boolean"
           },
           "contract_pending": {
             "default": false,
@@ -819,7 +814,7 @@
                 "type": "null"
               }
             ],
-            "description": "Where the browser starts a SCORETech sign-in (add `returnTo`); null in `local` mode.",
+            "description": "Where the browser starts a SCORETech sign-in, or a sign-up (Identity registers an unknown email from its sign-in page); add `returnTo`. Null in `local` mode.",
             "title": "Login Url"
           },
           "provider": {
@@ -830,18 +825,6 @@
             ],
             "title": "Provider",
             "type": "string"
-          },
-          "register_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Where the browser starts a SCORETech registration; null in `local` mode.",
-            "title": "Register Url"
           }
         },
         "required": [
@@ -2659,74 +2642,6 @@
           "permanentUrl"
         ],
         "title": "CandidateProvenance",
-        "type": "object"
-      },
-      "CasExchange": {
-        "properties": {
-          "code": {
-            "minLength": 32,
-            "title": "Code",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code"
-        ],
-        "title": "CasExchange",
-        "type": "object"
-      },
-      "CasLinkIntent": {
-        "properties": {
-          "url": {
-            "title": "Url",
-            "type": "string"
-          }
-        },
-        "required": [
-          "url"
-        ],
-        "title": "CasLinkIntent",
-        "type": "object"
-      },
-      "CasSession": {
-        "description": "The CAS code exchange: a session, and the plan change linking CAS caused, if any.",
-        "properties": {
-          "access_token": {
-            "title": "Access Token",
-            "type": "string"
-          },
-          "expires_in": {
-            "description": "Lifetime of the access token, in seconds.",
-            "title": "Expires In",
-            "type": "integer"
-          },
-          "plan_changed": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PlanChange"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Set when this sign-in raised the plan (BASIC to RESEARCH on linking CAS); null otherwise."
-          },
-          "refresh_token": {
-            "title": "Refresh Token",
-            "type": "string"
-          },
-          "token_type": {
-            "default": "bearer",
-            "title": "Token Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "access_token",
-          "refresh_token",
-          "expires_in"
-        ],
-        "title": "CasSession",
         "type": "object"
       },
       "ChangePlanRequest": {
@@ -9630,20 +9545,6 @@
         "title": "LoginRequest",
         "type": "object"
       },
-      "LogoutRequest": {
-        "properties": {
-          "refresh_token": {
-            "description": "The token to revoke, ending that session.",
-            "title": "Refresh Token",
-            "type": "string"
-          }
-        },
-        "required": [
-          "refresh_token"
-        ],
-        "title": "LogoutRequest",
-        "type": "object"
-      },
       "MaintenancePurgeRequest": {
         "additionalProperties": false,
         "properties": {
@@ -10955,33 +10856,6 @@
           "location"
         ],
         "title": "PermanentLink",
-        "type": "object"
-      },
-      "PlanChange": {
-        "description": "A plan change the account holder did not ask for by name, and what it costs.",
-        "properties": {
-          "extra_cost": {
-            "default": false,
-            "description": "Always false: the change carries no extra charge (RESEARCH is part of the institutional agreement).",
-            "title": "Extra Cost",
-            "type": "boolean"
-          },
-          "from": {
-            "description": "The plan before.",
-            "title": "From",
-            "type": "string"
-          },
-          "to": {
-            "description": "The plan after.",
-            "title": "To",
-            "type": "string"
-          }
-        },
-        "required": [
-          "from",
-          "to"
-        ],
-        "title": "PlanChange",
         "type": "object"
       },
       "PlansPricingView": {
@@ -12732,19 +12606,6 @@
           "cost"
         ],
         "title": "RangeFacets",
-        "type": "object"
-      },
-      "RefreshRequest": {
-        "properties": {
-          "refresh_token": {
-            "title": "Refresh Token",
-            "type": "string"
-          }
-        },
-        "required": [
-          "refresh_token"
-        ],
-        "title": "RefreshRequest",
         "type": "object"
       },
       "RegisterRequest": {
@@ -16014,35 +15875,6 @@
         "title": "TemplateProblemView",
         "type": "object"
       },
-      "TokenPair": {
-        "properties": {
-          "access_token": {
-            "title": "Access Token",
-            "type": "string"
-          },
-          "expires_in": {
-            "description": "Lifetime of the access token, in seconds.",
-            "title": "Expires In",
-            "type": "integer"
-          },
-          "refresh_token": {
-            "title": "Refresh Token",
-            "type": "string"
-          },
-          "token_type": {
-            "default": "bearer",
-            "title": "Token Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "access_token",
-          "refresh_token",
-          "expires_in"
-        ],
-        "title": "TokenPair",
-        "type": "object"
-      },
       "UnreadCount": {
         "properties": {
           "count": {
@@ -16555,11 +16387,6 @@
             ],
             "description": "SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.",
             "title": "Api Keys Suspended At"
-          },
-          "cas_verified": {
-            "default": false,
-            "title": "Cas Verified",
-            "type": "boolean"
           },
           "created_at": {
             "format": "date-time",
@@ -19005,237 +18832,6 @@
         "x-required-role": "admin"
       }
     },
-    "/v1/auth/cas/callback": {
-      "get": {
-        "operationId": "completeUsCasValidation",
-        "parameters": [
-          {
-            "description": "The one-time state issued by `/start`.",
-            "in": "query",
-            "name": "state",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "The one-time state issued by `/start`.",
-              "title": "State"
-            }
-          },
-          {
-            "description": "The CAS service ticket.",
-            "in": "query",
-            "name": "ticket",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "The CAS service ticket.",
-              "title": "Ticket"
-            }
-          }
-        ],
-        "responses": {
-          "303": {
-            "description": "Always a redirect to `{FRONTEND_URL}/sso/callback`. On success the query carries `code` (one-time, exchange it at `POST /v1/auth/cas/exchange`) and, when linking CAS raised the account's plan, `plan_changed=<new plan>` (e.g. `RESEARCH`; the full `{from, to, extra_cost}` is in the exchange response). On failure the query carries `error=<code>` instead, where code is one of: `cas_unavailable`, `cas_state_invalid`, `cas_ticket_invalid`, `account_inactive`, `identity_in_use`, `account_collision`, `username_unavailable`, `pricing_unavailable`, `institutional_pricing_invalid`, `cas_error`. The destination comes from configuration only, never from the request.",
-            "headers": {
-              "Location": {
-                "description": "Frontend CAS callback URL.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          }
-        },
-        "summary": "Complete the CAS round trip and return to the frontend",
-        "tags": [
-          "Authentication"
-        ]
-      }
-    },
-    "/v1/auth/cas/exchange": {
-      "post": {
-        "description": "The session tokens, plus ``plan_changed`` when this sign-in raised the plan.\n\n``plan_changed`` is ``{from, to, extra_cost}`` (``extra_cost`` is always\nfalse: RESEARCH is part of the institutional agreement) and is null when the\nplan did not change.",
-        "operationId": "exchangeUsCasCode",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CasExchange"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CasSession"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          }
-        },
-        "summary": "Exchange the one-time CAS code for a session",
-        "tags": [
-          "Authentication"
-        ]
-      }
-    },
-    "/v1/auth/cas/link-intent": {
-      "post": {
-        "description": "Mint a one-use navigation URL without putting a JWT in the browser URL.",
-        "operationId": "createUsCasLinkIntent",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CasLinkIntent"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Create Link Intent",
-        "tags": [
-          "Authentication"
-        ],
-        "x-required-api-key-permissions": [
-          "account:write"
-        ]
-      }
-    },
-    "/v1/auth/cas/start": {
-      "get": {
-        "operationId": "startUsCasLogin",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "mode",
-            "required": false,
-            "schema": {
-              "default": "login",
-              "enum": [
-                "login",
-                "link"
-              ],
-              "title": "Mode",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "intent",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Intent"
-            }
-          }
-        ],
-        "responses": {
-          "307": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          }
-        },
-        "summary": "Start Cas",
-        "tags": [
-          "Authentication"
-        ]
-      }
-    },
     "/v1/auth/config": {
       "get": {
         "description": "The provider and, in `scoretech` mode, where the browser signs in, registers and manages its account.\n\nPublic; it names no secret, client id or internal address.",
@@ -19436,20 +19032,6 @@
         "parameters": [
           {
             "in": "query",
-            "name": "screen",
-            "required": false,
-            "schema": {
-              "default": "login",
-              "enum": [
-                "login",
-                "register"
-              ],
-              "title": "Screen",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
             "name": "returnTo",
             "required": false,
             "schema": {
@@ -19468,7 +19050,7 @@
         ],
         "responses": {
           "302": {
-            "description": "To SCORETech Identity's sign-in (or registration) page, with a flow cookie."
+            "description": "To SCORETech Identity's sign-in page (which also registers), with a flow cookie."
           },
           "303": {
             "description": "To `/authentication?identity_error=unavailable` when Identity cannot be used."
@@ -19487,7 +19069,7 @@
             "description": "Too many sign-ins from this address; see `Retry-After`."
           }
         },
-        "summary": "Start signing in (or registering) with SCORETech Identity",
+        "summary": "Start signing in (or signing up) with SCORETech Identity",
         "tags": [
           "Authentication"
         ]
@@ -19634,6 +19216,7 @@
     },
     "/v1/auth/login": {
       "post": {
+        "description": "The session cookie, and a token bound to that session (a SPA renews it from the cookie).",
         "operationId": "login",
         "requestBody": {
           "content": {
@@ -19650,7 +19233,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TokenPair"
+                  "$ref": "#/components/schemas/AccessGrant"
                 }
               }
             },
@@ -19665,6 +19248,16 @@
               }
             },
             "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Sent by a browser from another origin than the frontend's (`origin_refused`)."
           },
           "422": {
             "content": {
@@ -19698,51 +19291,6 @@
           }
         },
         "summary": "Start a session",
-        "tags": [
-          "Authentication"
-        ]
-      }
-    },
-    "/v1/auth/logout": {
-      "post": {
-        "description": "Revoke a refresh token.\n\nAnswers the same way whatever the token turns out to be. Signing out is not\nan operation anybody should be able to use to find out whether a token was\nreal, and the caller's intent is satisfied either way.",
-        "operationId": "logout",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LogoutRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "A service the gateway depends on is not reachable."
-          }
-        },
-        "summary": "End a session",
         "tags": [
           "Authentication"
         ]
@@ -19845,79 +19393,9 @@
         ]
       }
     },
-    "/v1/auth/refresh": {
-      "post": {
-        "operationId": "refreshSession",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RefreshRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenPair"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "No usable credential was supplied."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too many attempts from this address; see the `Retry-After` header."
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "A service the gateway depends on is not reachable."
-          }
-        },
-        "summary": "Exchange a refresh token for a new pair",
-        "tags": [
-          "Authentication"
-        ]
-      }
-    },
     "/v1/auth/register": {
       "post": {
+        "description": "Create the account and sign it in: the answer sets the session cookie, as a sign-in does.",
         "operationId": "register",
         "requestBody": {
           "content": {
@@ -19939,6 +19417,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Sent by a browser from another origin than the frontend's (`origin_refused`)."
           },
           "409": {
             "content": {
@@ -39886,168 +39374,6 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:read"
-        ]
-      }
-    },
-    "/v1/users/me/identities": {
-      "get": {
-        "operationId": "listOwnIdentities",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
-                  "title": "Response Listownidentities",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "List Identities",
-        "tags": [
-          "Users"
-        ],
-        "x-required-api-key-permissions": [
-          "account:read"
-        ]
-      }
-    },
-    "/v1/users/me/identities/{identity_id}": {
-      "delete": {
-        "operationId": "unlinkOwnIdentity",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "identity_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Identity Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Type DOWNGRADE RESEARCH when unlinking US CAS from RESEARCH.",
-            "in": "query",
-            "name": "confirmation",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Type DOWNGRADE RESEARCH when unlinking US CAS from RESEARCH.",
-              "title": "Confirmation"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Unlink Identity",
-        "tags": [
-          "Users"
-        ],
-        "x-required-api-key-permissions": [
-          "account:write"
         ]
       }
     },

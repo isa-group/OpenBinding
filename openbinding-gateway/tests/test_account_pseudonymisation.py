@@ -23,6 +23,7 @@ from _fake_space import FakePricingGate
 from _pricing import fixture_catalog
 from openbinding_gateway import space_client
 from openbinding_gateway.db.models import (
+    IdentitySession,
     ApiKey,
     AuditEvent,
     AuthIdentity,
@@ -34,7 +35,6 @@ from openbinding_gateway.db.models import (
     OrganizationInvitationCode,
     OrganizationMembership,
     PasswordResetToken,
-    RefreshToken,
     User,
     utcnow,
 )
@@ -112,7 +112,7 @@ async def test_deletion_pseudonymises_the_row_and_removes_what_was_the_accounts_
     db_session.add_all([
         engine, engine_registration, job,
         Notification(user_id=user_id, kind="test", subject="Hello", body="Hello"),
-        AuthIdentity(user_id=user_id, provider="us-cas", issuer="https://sso.us.es/CAS", subject="uvus-of-the-person", attributes={"mail": details["email"]}),
+        AuthIdentity(user_id=user_id, provider="scoretech", issuer="https://identity.test/identity/auth/realms/score", subject="sub-of-the-person", attributes={}),
         PasswordResetToken(user_id=user_id, token_prefix=uuid.uuid4().hex[:12], token_hash="0" * 64, expires_at=utcnow() + timedelta(hours=1)),
     ])
     await db_session.commit()
@@ -130,7 +130,7 @@ async def test_deletion_pseudonymises_the_row_and_removes_what_was_the_accounts_
     assert row.preferences == {} and row.plan_cache == "" and row.contract_pending is False
     assert row.deleted_at is not None
     for model, column in (
-        (ApiKey, ApiKey.user_id), (RefreshToken, RefreshToken.user_id), (PasswordResetToken, PasswordResetToken.user_id),
+        (ApiKey, ApiKey.user_id), (IdentitySession, IdentitySession.user_id), (PasswordResetToken, PasswordResetToken.user_id),
         (AuthIdentity, AuthIdentity.user_id), (Notification, Notification.user_id),
         (OrganizationMembership, OrganizationMembership.user_id),
     ):
@@ -226,7 +226,11 @@ async def test_a_contract_that_cannot_be_removed_changes_nothing(api_client, reg
     db_session.expire_all()
     row = await db_session.get(User, uuid.UUID(profile["id"]))
     assert (row.username, row.email, row.is_active, row.deleted_at) == (details["username"], details["email"], True, None)
-    assert await count(db_session, RefreshToken, RefreshToken.user_id == row.id) == 1
+    # The sessions registration and login opened survive a deletion that did not happen.
+    assert await count(db_session, IdentitySession, IdentitySession.user_id == row.id) >= 1
+    assert await count(
+        db_session, IdentitySession, IdentitySession.user_id == row.id, IdentitySession.revoked_at.is_not(None)
+    ) == 0
 
 
 @pytest.mark.parametrize("wrong", ["confirmation", "password"])

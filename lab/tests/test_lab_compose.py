@@ -697,7 +697,10 @@ def test_worker_has_the_variables_it_needs(services):
 def test_gateway_environment(services):
     env = _env(services["gateway"])
     assert env["APP_ENV"] == "dev"
-    assert env["CAS_ENABLED"] == "false"
+    assert not any(name.startswith("CAS_") for name in env)  # US CAS is gone (F5)
+    # The e2e container browses http://web:8080 while FRONTEND_URL is the public origin: the sign-in routes'
+    # Origin checks accept both (local sign-in opens the cookie session, D17).
+    assert env["AUTH_TRUSTED_ORIGINS"] == "http://web:8080"
     assert env["CORS_ALLOW_ORIGINS"] == RAW_CORS
     assert env["FEDERATION_SECRET_KEY"] == "${DEMO_FERNET_KEY}"  # the name settings.py reads
     assert env["SPACE_PRICING_VERSION"] == "${DEMO_SPACE_PRICING_VERSION}"

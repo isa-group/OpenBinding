@@ -71,7 +71,7 @@ def test_the_walk_cleans_up_always_and_reads_the_lab_admin_from_the_container():
     assert "trap cleanup EXIT" in walk
     assert "KC_BOOTSTRAP_ADMIN_PASSWORD" in walk and "docker inspect" in walk
     assert "--volumes" in walk and "lab/identity/down.sh" in walk
-    for phase in ("--grep @bootstrap", "--grep @signup", "--grep @granted", "--grep @rollback"):
+    for phase in ("--grep @bootstrap", "--grep @screens", "--grep @signup", "--grep @granted", "--grep @rollback"):
         assert phase in walk, phase
     assert "OB_AUTH_PROVIDER=local" in walk
 

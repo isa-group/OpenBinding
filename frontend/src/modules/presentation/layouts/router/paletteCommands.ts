@@ -151,7 +151,6 @@ export function buildCommands({
     Settings: 'Your email, password and account',
     Plan: 'Your plan and the SPACE and SPHERE consoles',
     'API keys': 'Keys for scripts and CI',
-    'Sign-in & Security': 'The identities you sign in with',
     Notifications: 'Which notifications you get, and how',
     Appearance: 'The colour palette: SPHERE orange or OpenBinding blue',
   };

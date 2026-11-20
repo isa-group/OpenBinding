@@ -138,7 +138,7 @@ export default function PricingPage() {
             Plans for every kind of binding work
           </h1>
           <p className="max-w-2xl text-lg text-tp-slate">
-            Start free. Research accounts are free with a verified Universidad de Sevilla identity.
+            Start free. Research accounts are free with a verified Universidad de Sevilla e-mail.
             Larger capacity is arranged by institutional agreement; there’s no checkout.
           </p>
           {released && (

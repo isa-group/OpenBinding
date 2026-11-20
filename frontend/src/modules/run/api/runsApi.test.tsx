@@ -17,6 +17,7 @@ function hook(routes: Record<string, Answer>) {
         register: vi.fn(),
         signOut: vi.fn(),
         refresh: vi.fn(),
+        resume: vi.fn(),
         isAdmin: false,
         fetchWithInterceptor: gateway as unknown as (
           path: string,

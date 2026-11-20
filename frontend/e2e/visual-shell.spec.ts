@@ -1,4 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
+import { authConfig, signedIn } from './helpers/session';
+
+// The application draws nothing before `GET /v1/auth/config` answers; a test that mocks nothing else is a visitor of a
+// local-mode gateway (a later catch-all of the API origin answers it again).
+test.beforeEach(async ({ page }) => {
+  await authConfig(page);
+});
 
 // Screenshots go to testInfo.outputPath() (test-results/, ignored by git) so they can be inspected after a run.
 
@@ -22,6 +29,9 @@ const personas = {
     is_active: true,
     plan: 'RESEARCH',
     created_at: '2026-09-01T00:00:00Z',
+    // The institutional mark follows a verified institutional e-mail, not the plan.
+    email_verified: true,
+    institutional_email: true,
   },
 } as const;
 
@@ -57,12 +67,11 @@ const notifications = [
 
 /** Answers what the application shell loads; everything else on the API origin gets an empty 404. */
 async function signIn(page: Page, persona: keyof typeof personas) {
-  await page.addInitScript(() =>
-    localStorage.setItem('openbinding-access-token', 'visual-shell-token')
-  );
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
+  await signedIn(page, 'visual-shell-token');
   await page.route(`${API}/v1/users/me`, route => route.fulfill({ json: personas[persona] }));
   await page.route(`${API}/v1/users/me/pricing-token`, route =>
     route.fulfill({ json: { pricing_token: 'visual-token' } })

@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Feature, On, Default } from 'space-react-client';
 import type { UserProfile } from '../../core/api/account';
-import { PRICING_TOKEN_UPDATED_EVENT } from '../../core/api/http';
+import { PRICING_TOKEN_UPDATED_EVENT, setPricingToken } from '../../core/api/http';
 import { SpaceProviderWrapper } from './SpaceProviderWrapper';
 
 const auth = vi.hoisted(() => ({
@@ -40,12 +40,12 @@ function makeToken(features: Record<string, { eval: boolean }>): string {
 describe('SpaceProviderWrapper', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    setPricingToken(null);
     auth.user = null;
     api.getPricingToken.mockResolvedValue(null);
   });
 
-  it('hydrates TokenService from localStorage on mount for signed-in user', async () => {
+  it('hydrates TokenService from the token the page holds in memory, for a signed-in user', async () => {
     auth.user = {
       id: 'alice-id',
       username: 'alice',
@@ -54,12 +54,14 @@ describe('SpaceProviderWrapper', () => {
       plan: 'FREE',
       is_active: true,
       created_at: '2026-01-01T00:00:00Z',
+      email_verified: false,
+      institutional_email: false,
     };
 
     const token = makeToken({
       'openbinding-authoring': { eval: true },
     });
-    localStorage.setItem('pricingToken', token);
+    setPricingToken(token);
 
     render(
       <SpaceProviderWrapper>
@@ -86,6 +88,8 @@ describe('SpaceProviderWrapper', () => {
       plan: 'FREE',
       is_active: true,
       created_at: '2026-01-01T00:00:00Z',
+      email_verified: false,
+      institutional_email: false,
     };
 
     render(

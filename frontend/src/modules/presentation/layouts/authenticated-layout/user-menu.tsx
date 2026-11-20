@@ -69,9 +69,9 @@ export default function UserMenu() {
     };
   }, [isOpen]);
 
-  const handleLogout = () => {
+  const handleLogout = (scope: 'this' | 'all' = 'this') => {
     setIsOpen(false);
-    void signOut().then(() => navigate('/'));
+    void signOut(scope).then(() => navigate('/'));
   };
 
   return (
@@ -126,7 +126,7 @@ export default function UserMenu() {
             <div className="border-t border-tp-hairline">
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={() => handleLogout()}
                 className="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm text-tp-slate transition-colors hover:bg-tp-surface hover:text-tp-ink"
               >
                 <svg
@@ -144,6 +144,14 @@ export default function UserMenu() {
                   />
                 </svg>
                 Sign out
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLogout('all')}
+                title="Sign out of every OpenBinding session of this account, on every device"
+                className="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 pl-[2.375rem] text-left text-xs text-tp-steel transition-colors hover:bg-tp-surface hover:text-tp-ink"
+              >
+                End every session
               </button>
             </div>
           </motion.div>

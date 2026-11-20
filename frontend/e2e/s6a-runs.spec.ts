@@ -21,6 +21,7 @@ import {
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 import { FEDERATED_PRESET, presetFixture, presetPage } from '../src/test/fixtures/presets';
+import { authConfig, signedIn } from './helpers/session';
 
 // S6a · execution: run-launch (`/runs/new`, with run presets), the organization's Runs tab (`/orgs/:org/runs`) and run-detail
 // (`/runs/:org/:run`, with deriving a composition from a finished run).
@@ -62,7 +63,8 @@ const lucia = {
   is_active: true,
   plan: 'RESEARCH',
   created_at: '2026-03-02T00:00:00Z',
-  cas_verified: true,
+  email_verified: true,
+  institutional_email: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
@@ -412,24 +414,13 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     org('org-4', 'read-lab', 'Read Lab', 'VIEWER'),
     org('org-5', 'empty-lab', 'Empty Lab', 'MEMBER'),
   ];
-  await page.addInitScript(() => {
-    localStorage.setItem('openbinding-access-token', 's6a-access');
-    localStorage.setItem('openbinding-refresh-token', 's6a-refresh');
-  });
 
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  await page.route(
-    `${API}/v1/auth/refresh`,
-    json({
-      access_token: 's6a-access-2',
-      refresh_token: 's6a-refresh-2',
-      token_type: 'bearer',
-      expires_in: 900,
-    })
-  );
+  await signedIn(page, 's6a-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(

@@ -8,6 +8,10 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import { Outlet, useRoutes, type RouteObject } from 'react-router-dom';
 import { RouteFallback } from '../modules/core/components/route-fallback';
 import ProtectedRoute from '../modules/auth/components/protected-route';
+import {
+  IdentityAwareLocalPage,
+  IdentityCallback,
+} from '../modules/auth/components/identity-redirect';
 import ErrorBoundary from '../modules/core/components/error-boundary';
 import NotFoundPage from '../modules/core/pages/page-not-found';
 import AuthenticatedLayout from '../modules/presentation/layouts/authenticated-layout';
@@ -50,7 +54,7 @@ const ApiKeysPage = lazy(() => import('../modules/api-keys/pages/api-keys-page')
 const AuthenticationPage = lazy(() => import('../modules/auth/pages/authentication-page'));
 const ForgotPasswordPage = lazy(() => import('../modules/auth/pages/forgot-password'));
 const ResetPasswordPage = lazy(() => import('../modules/auth/pages/reset-password'));
-const SsoCallbackPage = lazy(() => import('../modules/auth/pages/sso-callback'));
+const IdentityUsernamePage = lazy(() => import('../modules/auth/pages/identity-username'));
 const CreateOrganizationPage = lazy(
   () => import('../modules/organization/pages/create-organization')
 );
@@ -94,9 +98,10 @@ export const screens: Screen[] = [
   // PUBLIC ROUTES (the public layout)
   // ═══════════════════════════════════════════════════════════
   { id: 'auth', path: '/authentication', layout: 'public', element: <AuthenticationPage /> },
-  { id: 'auth-forgot-password', path: '/forgot-password', layout: 'public', element: <ForgotPasswordPage /> },
-  { id: 'auth-reset-password', path: '/reset-password', layout: 'public', element: <ResetPasswordPage /> },
-  { id: 'auth-sso-callback', path: '/sso/callback', layout: 'public', element: <SsoCallbackPage /> },
+  { id: 'auth-forgot-password', path: '/forgot-password', layout: 'public', element: <IdentityAwareLocalPage><ForgotPasswordPage /></IdentityAwareLocalPage> },
+  { id: 'auth-reset-password', path: '/reset-password', layout: 'public', element: <IdentityAwareLocalPage><ResetPasswordPage /></IdentityAwareLocalPage> },
+  { id: 'auth-identity-callback', path: '/sso/identity/callback', layout: 'public', element: <IdentityCallback /> },
+  { id: 'auth-identity-username', path: '/sso/identity/username', layout: 'public', element: <IdentityUsernamePage /> },
 
   // ═══════════════════════════════════════════════════════════
   // PUBLIC ROUTES (AppLayout: public or authenticated chrome, by session)

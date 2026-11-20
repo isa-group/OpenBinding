@@ -6,7 +6,6 @@ test.use({ viewport: { width: 1280, height: 800 } });
 // The settings page keeps its section in the address (`/me/settings?section=`); API keys are a page of their own.
 const SECTIONS: Array<[string, string, string]> = [
   ['/me/settings', 'Account', 'Account Details'],
-  ['/me/settings?section=integrations', 'Sign-in & Security', 'Sign-in & Security'],
   ['/me/settings?section=notifications', 'Notifications', 'Notifications'],
   ['/me/settings?section=plan', 'Plan', 'Plan & permissions'],
   ['/me/settings?section=appearance', 'Appearance', 'Appearance'],
@@ -17,7 +16,6 @@ const SECTIONS: Array<[string, string, string]> = [
 /** The account's own reads the settings and API key pages make, answered empty. */
 async function mockAccount(page: Page) {
   const json = (body: unknown) => (route: Route) => route.fulfill({ json: body });
-  await page.route(`${API}/v1/users/me/identities`, json([]));
   await page.route(`${API}/v1/users/me/usage`, json({ plan: 'FREE', contract_pending: false, features: {}, capabilities: { maxApiKeys: 2 } }));
   await page.route(`${API}/v1/users/me/settings/beta-features`, json({ enabled: false }));
   await page.route(`${API}/v1/notifications/preferences`, json({ inbox: true, email_contract_changes: true, email_invitations: true, email_job_failures: false, kinds: {} }));

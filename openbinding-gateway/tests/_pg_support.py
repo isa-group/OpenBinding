@@ -113,8 +113,15 @@ async def http_client(pg: PgDatabase) -> AsyncIterator[Any]:
 
     app.dependency_overrides[session_dependency] = one_session_per_request
     app.dependency_overrides[optional_session] = one_session_per_request
+    # A script, not a browser: bearer tokens only. A session cookie kept by the client would be presented at the next
+    # sign-in of another account and revoked there (``replaced``), as in tests/conftest.py's ``api_client``.
+    async def forget_cookies(response):
+        client.cookies.clear()
+
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://gateway") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://gateway", event_hooks={"response": [forget_cookies]}
+        ) as client:
             yield client
     finally:
         app.dependency_overrides.clear()

@@ -113,7 +113,7 @@ describe('the Playwright specs', () => {
       .map(name => name.replace(`${identity}/`, ''));
 
     it('live in e2e/identity, numbered apart from e2e/live, and run only by their own configuration', () => {
-      expect(specs.sort()).toEqual(['01-gateway.spec.ts']);
+      expect(specs.sort()).toEqual(['01-gateway.spec.ts', '02-screens.spec.ts']);
       const config = read(`${root}/playwright.identity.config.ts`);
       expect(config).toContain("testDir: './e2e/identity'");
       expect(config).toMatch(/workers: 1\b/);
@@ -130,6 +130,14 @@ describe('the Playwright specs', () => {
         expect(spec).toContain(`'${tag} `);
       for (const role of ['member', 'research', 'clash', 'squat', 'norole'])
         expect(spec).toContain(`'${role}: `);
+    });
+
+    it('walk the screens: the username screen, the renewal, two tabs, the error pages and the rollback', () => {
+      const spec = read(`${identity}/02-screens.spec.ts`);
+      for (const tag of ['@screens J1, J2', '@screens J3', '@screens J4', '@rollback J8'])
+        expect(spec).toContain(`'${tag}`);
+      expect(spec).toContain('identity-username-409');
+      expect(spec).toContain('identity-error-${code}');
     });
 
     it('read codes from the lab Mailpit and never type a literal password or address of a real domain', () => {

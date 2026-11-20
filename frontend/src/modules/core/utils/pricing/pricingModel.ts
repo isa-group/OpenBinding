@@ -140,7 +140,8 @@ function planColumn(id: string, plan: Dict, index: number): PlanColumn {
     id,
     description,
     priceLabel: typeof price === 'number' ? 'Free' : text(price) || 'Free',
-    unitLabel: id === 'RESEARCH' ? 'with verified CAS' : index === 0 ? 'default plan' : 'free plan',
+    unitLabel:
+      id === 'RESEARCH' ? 'with a verified US e-mail' : index === 0 ? 'default plan' : 'free plan',
     byAgreement: false,
   };
 }

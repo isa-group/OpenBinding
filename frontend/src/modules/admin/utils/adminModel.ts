@@ -612,25 +612,18 @@ export function describeAuditEvent(event: AuditEvent): AuditView {
         facts,
       };
     }
-    case 'account.cas.linked': {
-      const change = dictOf(detail.plan_changed);
-      const from = textOf(change.from);
-      const to = textOf(change.to);
-      const facts: Array<[string, string]> = [];
-      if (textOf(detail.provider)) facts.push(['Provider', textOf(detail.provider)]);
-      if (from && to)
-        facts.push([
-          'Plan',
-          `${from} → ${to}${change.extra_cost === false ? ' · no extra cost' : ''}`,
-        ]);
+    case 'account.research.granted': {
+      const basis = textOf(detail.basis);
       return {
         text:
-          from && to
-            ? `An institutional identity was linked and the plan went from ${from} to ${to} at no extra cost.`
-            : 'An institutional identity was linked.',
-        before: from || null,
-        after: to || null,
-        facts,
+          basis === 'email'
+            ? 'RESEARCH was granted for a verified institutional e-mail.'
+            : 'RESEARCH was granted by an administrator.',
+        before: null,
+        after: 'RESEARCH',
+        facts: basis
+          ? [['Basis', basis === 'email' ? 'Verified institutional e-mail' : 'Administrator']]
+          : [],
       };
     }
     case 'organization.updated':

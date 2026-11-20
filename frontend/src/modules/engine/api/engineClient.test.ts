@@ -271,7 +271,6 @@ describe('a 422 is an error unless the caller asks for its body', () => {
 
   it.each([
     ['deleteEngineRegistration', (api: Client) => api.deleteEngineRegistration(REF)],
-    ['createCasLinkIntent', (api: Client) => api.createCasLinkIntent()],
     ['activateEngineRegistration', (api: Client) => api.activateEngineRegistration(REF)],
     ['deactivateEngineRegistration', (api: Client) => api.deactivateEngineRegistration(REF)],
     [

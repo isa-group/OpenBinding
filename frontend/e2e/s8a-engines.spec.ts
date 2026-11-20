@@ -24,6 +24,7 @@ import {
   usageOf,
 } from '../src/test/fixtures/engines';
 import { PLANS_PRICING_FIXTURE } from '../src/test/fixtures/plansPricing';
+import { authConfig, signedIn } from './helpers/session';
 
 // S8a · engines of the account: eng-register, eng-registrations and eng-registration-detail.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
@@ -73,7 +74,8 @@ const alex = {
   is_active: true,
   plan: 'RESEARCH',
   created_at: '2026-03-02T00:00:00Z',
-  cas_verified: true,
+  email_verified: true,
+  institutional_email: true,
 };
 
 type Key =
@@ -137,24 +139,13 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     sent: { activated: [], deactivated: [], publication: [], deleted: [] },
   };
   const user = options.admin ? { ...alex, role: 'admin' } : alex;
-  await page.addInitScript(() => {
-    localStorage.setItem('openbinding-access-token', 's8a-access');
-    localStorage.setItem('openbinding-refresh-token', 's8a-refresh');
-  });
 
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
+  await authConfig(page);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
-  await page.route(
-    `${API}/v1/auth/refresh`,
-    json({
-      access_token: 's8a-access-2',
-      refresh_token: 's8a-refresh-2',
-      token_type: 'bearer',
-      expires_in: 900,
-    })
-  );
+  await signedIn(page, 's8a-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(user));
   await page.route(`${API}/v1/users/me/usage`, route =>

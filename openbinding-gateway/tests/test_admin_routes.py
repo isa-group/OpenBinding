@@ -365,7 +365,8 @@ async def test_an_administrator_grants_research_without_any_identity_and_never_w
         },
     )
     db_session.add(AuthIdentity(
-        user_id=uuid.UUID(profile["id"]), provider="us-cas", issuer="https://sso.us.es/CAS", subject="verified-uvus",
+        user_id=uuid.UUID(profile["id"]), provider="scoretech", issuer="https://identity.test/identity/auth/realms/score",
+        subject="verified-sub",
         attributes={},
     ))
     await db_session.flush()

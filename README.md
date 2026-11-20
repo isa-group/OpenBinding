@@ -14,7 +14,7 @@ Its layers stay deliberately separate:
 - BIM packages compile through installed Profiles and Dialects into a canonical
   IR before any engine sees them.
 - PostgreSQL owns users, collaboration, jobs, provenance and release metadata;
-  Redis delivers durable work and one-use CAS state.
+  Redis delivers durable work, the one-use sign-in state and the renewal lock.
 - OpenBinding's own pricing lives in SPHERE and is operated by SPACE, which
   follows SPHERE's permanent link. OpenBinding talks to SPACE only through its
   official clients (`space-python-client`, `space-react-client`), reads SPHERE
@@ -29,8 +29,12 @@ Its layers stay deliberately separate:
   per-account concurrency cap (`MAX_CONCURRENT_JOBS_PER_USER`, answered with
   `429 concurrency_limit_exceeded`). The former automatic Engine selection was
   retired and has no replacement.
-- Universidad de Sevilla CAS accounts receive the `RESEARCH` contract and a
-  compact institutional mark. No identity is ever linked by email alone.
+- People sign in with SCORETech Identity (`AUTH_PROVIDER=scoretech`; local
+  accounts remain for development, labs and rollback), through one HttpOnly
+  session cookie the gateway turns into short in-memory tokens
+  ([`docs/IDENTITY.md`](docs/IDENTITY.md)). A verified `us.es` or `alum.us.es`
+  email receives the `RESEARCH` contract and a compact institutional mark. No
+  identity is ever linked by email.
 
 For the target layers of the gateway and the BIM/platform boundary, see
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); for the guarantees of job

@@ -12,7 +12,7 @@ Summary:
 
 | | 0.1.5 (in SPHERE since 2026-09-23) | 0.2.0 (proposed) |
 |---|---|---|
-| Plans | BASIC (0), ADVANCED (contact us), RESEARCH (0, US CAS), PRO (contact us) | FREE (0), RESEARCH (0, US CAS), LAB (contact us) |
+| Plans | BASIC (0), ADVANCED (contact us), RESEARCH (0, verified institutional e-mail or an administrator), PRO (contact us) | FREE (0), RESEARCH (0, verified institutional e-mail or an administrator), LAB (contact us) |
 | Add-ons | 6, all "contact us" | none |
 | Features | 11 | 7 |
 | Usage limits | 19, 4 of them renewable | 12, 2 renewable (solver hours and generated instances per month) |
@@ -91,7 +91,7 @@ The 0.1.5 features end as follows:
 of them. The segments are:
 
 - any researcher;
-- Universidad de Sevilla members, identified by CAS;
+- Universidad de Sevilla members, identified by a verified `us.es` or `alum.us.es` e-mail (or an administrator's grant);
 - groups that run benchmark campaigns or operate engines, by agreement.
 
 Add-ons are rejected, because nothing can be bought and every add-on would have to add a key feature that a plan
@@ -147,7 +147,10 @@ with `pricing4ts` 0.12.1, the library SPACE 1.7.1 uses (3 plans, 0 add-ons, 7 fe
 ## 5. Stage 3: prices
 
 - **Strategy.** FREE uses penetration pricing (price 0): adoption by researchers is the goal. RESEARCH is
-  institutional (price 0): Universidad de Sevilla runs the platform, and CAS proves eligibility. LAB is set by
+  institutional (price 0): Universidad de Sevilla runs the platform; eligibility is a `us.es` or `alum.us.es` e-mail that
+  SCORETech Identity verified, or an administrator's grant. The published 0.2.0 YAML still describes RESEARCH by the
+  university's former single sign-on; a published version is immutable, so the next pricing version carries the
+  corrected sentence. LAB is set by
   agreement and should cover at least the OpEx of a fully-utilizing LAB account. Nothing is charged inside OpenBinding.
   Demand-driven pricing needs data on perceived value that does not exist yet; we revisit after a year of
   SPACE usage data (accounts per plan, hours used against allowance).

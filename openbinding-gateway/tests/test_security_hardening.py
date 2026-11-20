@@ -32,9 +32,7 @@ from openbinding_gateway.security.secrets import CredentialStore, SecretsUnavail
 from openbinding_gateway.security.tokens import (
     TokenError,
     issue_access_token,
-    issue_refresh_token,
     read_access_token,
-    read_refresh_token,
 )
 
 LONG_SECRET = "a-signing-secret-of-more-than-32-characters"
@@ -323,7 +321,7 @@ async def test_one_address_cannot_spray_many_identifiers(api_client, monkeypatch
     assert statuses == [401, 401, 401, 429, 429]
 
 
-async def test_registration_and_refresh_are_limited_too(api_client, monkeypatch, registration):
+async def test_registration_is_limited_too(api_client, monkeypatch, registration):
     tight_limits(monkeypatch, attempts=2, multiplier=2)
     set_auth_limiter(AuthRateLimiter(primary=RedisBackend(FakeRedis())))
 
@@ -333,13 +331,6 @@ async def test_registration_and_refresh_are_limited_too(api_client, monkeypatch,
         for _ in range(3)
     ]
     assert statuses == [422, 422, 429]
-
-    # A refresh token is not trusted to name a bucket, so only the address counts.
-    refreshes = [
-        (await api_client.post("/v1/auth/refresh", json={"refresh_token": "not-a-token"})).status_code
-        for _ in range(5)
-    ]
-    assert refreshes == [401, 401, 401, 401, 429]
 
 
 async def test_redis_failure_degrades_to_process_counters_and_never_switches_the_limit_off(
@@ -436,20 +427,23 @@ def test_the_token_claims_default_to_the_gateway_name():
     )
 
 
+def _token(user_id, **claims) -> str:
+    """A token bound to a made-up session: what is read here is the signature and the claims, not the session."""
+    return issue_access_token(
+        LONG_SECRET, user_id=user_id, ttl_seconds=60, session_id=uuid.uuid4(), provider="local", **claims
+    )
+
+
 def test_an_access_token_carries_issuer_and_audience_and_both_are_verified():
     user_id = uuid.uuid4()
-    token = issue_access_token(LONG_SECRET, user_id=user_id, ttl_seconds=60)
+    token = _token(user_id)
 
     claims = jwt.decode(token, LONG_SECRET, algorithms=["HS256"], audience="openbinding-gateway")
     assert claims["iss"] == "openbinding-gateway" and claims["aud"] == "openbinding-gateway"
     assert read_access_token(LONG_SECRET, token).user_id == user_id
 
-    foreign_audience = issue_access_token(
-        LONG_SECRET, user_id=user_id, ttl_seconds=60, audience="another-service"
-    )
-    foreign_issuer = issue_access_token(
-        LONG_SECRET, user_id=user_id, ttl_seconds=60, issuer="another-issuer"
-    )
+    foreign_audience = _token(user_id, audience="another-service")
+    foreign_issuer = _token(user_id, issuer="another-issuer")
     for rejected in (foreign_audience, foreign_issuer):
         with pytest.raises(TokenError):
             read_access_token(LONG_SECRET, rejected)
@@ -466,12 +460,17 @@ def test_a_token_without_issuer_or_audience_is_refused():
         read_access_token(LONG_SECRET, bare)
 
 
-def test_refresh_tokens_carry_and_verify_the_same_claims():
-    user_id, jti = uuid.uuid4(), uuid.uuid4()
-    token = issue_refresh_token(LONG_SECRET, user_id=user_id, jti=jti, ttl_seconds=60)
-    assert read_refresh_token(LONG_SECRET, token).jti == jti
+def test_a_token_that_names_no_session_is_refused():
+    # Every gateway token is minted from a browser session; one without ``sid`` (or its provider) names nobody.
+    now = 4_000_000_000
+    base = {"sub": str(uuid.uuid4()), "kind": "access", "iss": "openbinding-gateway", "aud": "openbinding-gateway",
+            "iat": 1, "exp": now}
+    for claims in (base, {**base, "sid": str(uuid.uuid4())}, {**base, "sid": "not-a-uuid", "prv": "local"}):
+        with pytest.raises(TokenError):
+            read_access_token(LONG_SECRET, jwt.encode(claims, LONG_SECRET, algorithm="HS256"))
+    refresh_kind = {**base, "sid": str(uuid.uuid4()), "prv": "local", "kind": "refresh"}
     with pytest.raises(TokenError):
-        read_refresh_token(LONG_SECRET, token, audience="another-service")
+        read_access_token(LONG_SECRET, jwt.encode(refresh_kind, LONG_SECRET, algorithm="HS256"))
 
 
 def test_the_configured_issuer_and_audience_are_what_gets_issued_and_read(monkeypatch):
@@ -479,7 +478,7 @@ def test_the_configured_issuer_and_audience_are_what_gets_issued_and_read(monkey
     monkeypatch.setattr(get_settings(), "gateway_jwt_audience", "acme-clients")
     user_id = uuid.uuid4()
 
-    token = issue_access_token(LONG_SECRET, user_id=user_id, ttl_seconds=60)
+    token = _token(user_id)
 
     claims = jwt.decode(token, LONG_SECRET, algorithms=["HS256"], audience="acme-clients")
     assert claims["iss"] == "acme-gateway"
@@ -487,20 +486,12 @@ def test_the_configured_issuer_and_audience_are_what_gets_issued_and_read(monkey
 
 
 async def test_the_api_refuses_a_correctly_signed_token_for_another_audience(
-    api_client, registration
+    api_client, registration, session_token
 ):
     details = registration()
     created = await api_client.post("/v1/auth/register", json=details)
-    secret = get_settings().gateway_jwt_secret
-    good = issue_access_token(
-        secret, user_id=uuid.UUID(created.json()["id"]), ttl_seconds=60
-    )
-    forged = issue_access_token(
-        secret,
-        user_id=uuid.UUID(created.json()["id"]),
-        ttl_seconds=60,
-        audience="another-service",
-    )
+    good = await session_token(uuid.UUID(created.json()["id"]))
+    forged = await session_token(uuid.UUID(created.json()["id"]), audience="another-service")
 
     assert (await api_client.get("/v1/users/me", headers={"Authorization": f"Bearer {good}"})).status_code == 200
     assert (await api_client.get("/v1/users/me", headers={"Authorization": f"Bearer {forged}"})).status_code == 401

@@ -158,7 +158,6 @@ NO_CREDENTIAL_ROUTES = {
     ("GET", "/health"),
     ("GET", "/health/live"),
     ("GET", "/health/ready"),
-    ("GET", "/v1/auth/cas/callback"),
     ("GET", "/v1/auth/config"),
     ("GET", "/v1/auth/identity/callback"),
     ("GET", "/v1/auth/identity/login"),
@@ -172,15 +171,12 @@ NO_CREDENTIAL_ROUTES = {
     ("GET", "/v1/notifications/stream"),
     ("GET", "/v1/organizations/{org}/avatar/{digest}"),
     ("GET", "/v1/plans/pricing"),
-    ("POST", "/v1/auth/cas/exchange"),
     ("POST", "/v1/auth/identity/complete"),
     ("POST", "/v1/auth/identity/logout"),
     ("POST", "/v1/auth/identity/session"),
     ("POST", "/v1/auth/login"),
-    ("POST", "/v1/auth/logout"),
     ("POST", "/v1/auth/password-reset/complete"),
     ("POST", "/v1/auth/password-reset/request"),
-    ("POST", "/v1/auth/refresh"),
     ("POST", "/v1/auth/register"),
 }
 #: The only route that accepts an environment key: its feed.

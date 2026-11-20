@@ -1,4 +1,4 @@
-"""B2 #10, #11, #12: real ``cas_verified``, audited admin actions, org events in the platform log.
+"""B2 #11, #12: audited admin actions, org events in the platform log.
 
 The audit assertions count rows in ``audit_events`` rather than trusting a
 response: "exactly one event per action, and none for a refusal" is a statement
@@ -11,10 +11,10 @@ import json
 import uuid
 
 import pytest_asyncio
-from sqlalchemy import event, func, select
+from sqlalchemy import func, select
 
 from openbinding_gateway import space_client
-from openbinding_gateway.db.models import ApiKey, AuditEvent, AuthIdentity, User, UserRole
+from openbinding_gateway.db.models import ApiKey, AuditEvent, User, UserRole
 from _pricing import fake_pricing_gate, largest_plan
 
 
@@ -66,103 +66,6 @@ async def create_key(client, headers) -> dict:
     )
     assert created.status_code == 201, created.text
     return created.json()
-
-
-# -- #10: cas_verified is the real value -----------------------------------
-
-
-async def test_cas_verified_reflects_the_linked_identity_in_the_listing(
-    api_client, registration, gate, db_session
-):
-    linked, _ = await account(api_client, registration)
-    plain, _ = await account(api_client, registration)
-    other_provider, _ = await account(api_client, registration)
-    _, admin = await account(api_client, registration, db_session, admin=True)
-    db_session.add(AuthIdentity(
-        user_id=uuid.UUID(linked["id"]), provider="us-cas", issuer="https://sso.us.es/CAS", subject="uvus-1", attributes={}
-    ))
-    db_session.add(AuthIdentity(
-        user_id=uuid.UUID(other_provider["id"]), provider="somewhere-else", issuer="https://elsewhere.example", subject="x", attributes={}
-    ))
-    await db_session.flush()
-
-    listing = await api_client.get("/v1/admin/users?limit=200", headers=admin)
-
-    assert listing.status_code == 200
-    by_id = {user["id"]: user for user in listing.json()["users"]}
-    assert by_id[linked["id"]]["cas_verified"] is True
-    assert by_id[plain["id"]]["cas_verified"] is False
-    # An identity from another provider is not an institutional verification.
-    assert by_id[other_provider["id"]]["cas_verified"] is False
-
-
-async def test_cas_verified_is_loaded_in_one_query_for_the_whole_page(
-    api_client, registration, gate, db_session
-):
-    for _ in range(5):
-        profile, _ = await account(api_client, registration)
-        db_session.add(AuthIdentity(
-            user_id=uuid.UUID(profile["id"]), provider="us-cas", issuer="https://sso.us.es/CAS", subject=f"s-{profile['id']}", attributes={}
-        ))
-    _, admin = await account(api_client, registration, db_session, admin=True)
-    await db_session.flush()
-
-    statements: list[str] = []
-
-    def record(conn, cursor, statement, parameters, context, executemany):
-        if "auth_identities" in statement:
-            statements.append(statement)
-
-    engine = db_session.bind.sync_engine
-    event.listen(engine, "before_cursor_execute", record)
-    try:
-        listing = await api_client.get("/v1/admin/users?limit=200", headers=admin)
-    finally:
-        event.remove(engine, "before_cursor_execute", record)
-
-    assert listing.status_code == 200
-    assert sum(user["cas_verified"] for user in listing.json()["users"]) == 5
-    assert len(listing.json()["users"]) == 6
-    # Six accounts, one identity query: no per-row lookups.
-    assert len(statements) == 1
-
-
-async def test_cas_verified_is_real_in_the_other_admin_views(
-    api_client, registration, gate, db_session
-):
-    linked, _ = await account(api_client, registration)
-    _, admin = await account(api_client, registration, db_session, admin=True)
-    db_session.add(AuthIdentity(
-        user_id=uuid.UUID(linked["id"]), provider="us-cas", issuer="https://sso.us.es/CAS", subject="uvus-2", attributes={}
-    ))
-    await db_session.flush()
-
-    patched = await api_client.patch(
-        f"/v1/admin/users/{linked['id']}", headers=admin, json={"is_active": True}
-    )
-    subscription = await api_client.get(f"/v1/admin/users/{linked['id']}/subscription", headers=admin)
-    plan = await api_client.post(
-        f"/v1/admin/users/{linked['id']}/plan", headers=admin, json={"plan": largest_plan()}
-    )
-
-    assert patched.json()["cas_verified"] is True
-    assert subscription.json()["user"]["cas_verified"] is True
-    assert plan.json()["cas_verified"] is True
-
-
-async def test_an_account_without_cas_is_not_verified_in_the_detail_views(
-    api_client, registration, gate, db_session
-):
-    plain, _ = await account(api_client, registration)
-    _, admin = await account(api_client, registration, db_session, admin=True)
-
-    patched = await api_client.patch(
-        f"/v1/admin/users/{plain['id']}", headers=admin, json={"is_active": True}
-    )
-    subscription = await api_client.get(f"/v1/admin/users/{plain['id']}/subscription", headers=admin)
-
-    assert patched.json()["cas_verified"] is False
-    assert subscription.json()["user"]["cas_verified"] is False
 
 
 # -- #11: audited administrator actions -------------------------------------
