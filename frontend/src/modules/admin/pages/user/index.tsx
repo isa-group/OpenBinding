@@ -354,20 +354,6 @@ function DetailScreen({ param, tab }: { param: string; tab: AdminUserTab }) {
                         : 'No sign-in method'}
                   </dd>
                 </div>
-                {user.identity && (
-                  <div className="sm:col-span-2">
-                    <dt>Identity issuer</dt>
-                    <dd className="break-all">{user.identity.issuer}</dd>
-                  </div>
-                )}
-                {user.identity && (
-                  <div className="sm:col-span-2">
-                    <dt>Identity subject</dt>
-                    <dd>
-                      <CopyField value={user.identity.subject} label="Identity subject" />
-                    </dd>
-                  </div>
-                )}
                 <div>
                   <dt>Last Identity sign-in</dt>
                   <dd>{formatDateTime(user.last_identity_refresh_at) ?? 'Never'}</dd>
@@ -386,6 +372,20 @@ function DetailScreen({ param, tab }: { param: string; tab: AdminUserTab }) {
                         : 'Never granted'}
                   </dd>
                 </div>
+                {user.identity && (
+                  <div className="sm:col-span-2">
+                    <dt>Identity issuer</dt>
+                    <dd className="break-all">{user.identity.issuer}</dd>
+                  </div>
+                )}
+                {user.identity && (
+                  <div className="sm:col-span-2">
+                    <dt>Identity subject</dt>
+                    <dd>
+                      <CopyField value={user.identity.subject} label="Identity subject" />
+                    </dd>
+                  </div>
+                )}
                 <div>
                   <dt>Contract</dt>
                   <dd>
