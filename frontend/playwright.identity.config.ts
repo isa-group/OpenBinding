@@ -5,7 +5,8 @@ import { defineConfig } from '@playwright/test';
  * compose.lab-identity.json, against the OB lab on http://localhost:18198 and the SCORETech Identity lab on
  * http://localhost:18000 (host networking: Identity's issuer and return origins are loopback ones). No web server and no
  * mocked project; one worker, because the users, their email codes and Identity's code limits are shared. The phases of a
- * walk are separate runs selected by tag (`@bootstrap`, the untagged main phase, `@signup`, `@granted`, `@rollback`);
+ * walk are separate runs selected by tag (`@bootstrap`, the untagged main phase, `@screens`, `@signup`, `@granted`, `@account`,
+ * `@orphan`, `@rollback`);
  * what one phase learns for the next is kept in `walk-state.json` under the results.
  */
 const results = process.env.E2E_RESULTS_DIR ?? '/results';

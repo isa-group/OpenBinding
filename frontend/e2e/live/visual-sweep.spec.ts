@@ -132,6 +132,7 @@ async function stops(page: Page, token: string): Promise<Stop[]> {
     { id: 'study-builder', path: `/studies/new?org=${ORG}` },
     { id: 'study-detail', path: `/studies/${ORG}/${study}` },
     { id: 'acct-settings', path: '/me/settings' },
+    { id: 'acct-settings-profile', path: '/me/settings?section=profile' },
     { id: 'acct-api-keys', path: '/me/api-keys' },
     { id: 'notifications', path: '/notifications' },
     { id: 'eng-registrations', path: '/me/engines' },

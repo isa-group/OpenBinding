@@ -71,9 +71,24 @@ def test_the_walk_cleans_up_always_and_reads_the_lab_admin_from_the_container():
     assert "trap cleanup EXIT" in walk
     assert "KC_BOOTSTRAP_ADMIN_PASSWORD" in walk and "docker inspect" in walk
     assert "--volumes" in walk and "lab/identity/down.sh" in walk
-    for phase in ("--grep @bootstrap", "--grep @screens", "--grep @signup", "--grep @granted", "--grep @rollback"):
+    for phase in (
+        "--grep @bootstrap", "--grep @screens", "--grep @signup", "--grep @granted", "--grep @account", "--grep @orphan",
+        "--grep @rollback",
+    ):
         assert phase in walk, phase
     assert "OB_AUTH_PROVIDER=local" in walk
+
+
+def test_the_orphan_phase_runs_after_the_post_checks_and_ages_only_the_member():
+    """F5-C: `@account`, then member's last renewal 31 days back, then `@orphan` (which deletes member), all after the
+    psql post-checks that read member's sessions and before the rollback."""
+    walk = WALK.read_text(encoding="utf-8")
+    order = [walk.index(marker) for marker in (
+        "== post-checks", "--grep @account", "interval '31 days' where username = '${MEMBER}'", "--grep @orphan",
+        "MEMBER_IDENTITY_LEFT", "== rollback",
+    )]
+    assert order == sorted(order)
+    assert "@account|@orphan" in walk  # kept out of the main phase
 
 
 def test_the_fixture_client_mirrors_a_managed_application():

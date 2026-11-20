@@ -426,6 +426,28 @@ const OWNER_STOPS: Stop[] = [
       page.locator('main').getByRole('heading', { level: 2, name: 'Plan & permissions' }),
   },
   {
+    // F5-C: the display name and the avatar, editable in local mode; the editor's dialog in its icon choice.
+    slug: 'public-profile',
+    path: '/me/settings?section=profile',
+    ready: page => page.locator('main').getByRole('heading', { level: 2, name: 'Public profile' }),
+  },
+  {
+    slug: 'avatar-editor',
+    path: '/me/settings?section=profile',
+    ready: page => page.locator('main').getByRole('button', { name: 'Change avatar' }),
+    extra: async (page, label) => {
+      await page.locator('main').getByRole('button', { name: 'Change avatar' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Edit avatar' });
+      await dialog.getByRole('button', { name: 'Icons' }).click();
+      await expect
+        .soft(
+          dialog.getByRole('button', { name: 'Leaf' }),
+          `${label}: the icons of the avatar editor`
+        )
+        .toBeVisible();
+    },
+  },
+  {
     slug: 'team-organization',
     path: `/orgs/${ORG}/members`,
     ready: page => page.locator('main').getByRole('heading', { level: 1 }),

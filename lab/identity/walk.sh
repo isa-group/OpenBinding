@@ -7,7 +7,9 @@
 # Order: Identity up -> fixtures -> the OB lab (project obf5id, port 18198) on an empty database -> @bootstrap (the
 # administrator by sub, before any administrator exists) -> seed_lab -> the main phase (the gateway, 01) -> @screens
 # (OpenBinding's screens, 02) -> @signup, Keycloak's view of the native registration, @granted -> post-checks in psql ->
-# the gateway in local mode and @rollback (01 and 02) -> cleanup, always.
+# @account (Settings, avatars, a key, the admin Identity tab; 03) -> member's last renewal 31 days back -> @orphan (the
+# suspended key, a sign-in, the account deleted; 03) and its post-checks -> the gateway in local mode and @rollback (01
+# and 02) -> cleanup, always.
 # Nothing printed carries a token, a secret, a code or an address: ids, counts and booleans only.
 set -Eeuo pipefail
 
@@ -152,7 +154,7 @@ echo "== seed_lab"
 $OB run --rm --no-deps seed > "$LOGS/seed.log" 2>&1; echo "SEED_EXIT=$?"
 sql "update users set email_verified = true where username = 'lab-orgadmin'" > /dev/null
 
-phase main --grep-invert "@bootstrap|@screens|@signup|@granted|@rollback" || failed=1
+phase main --grep-invert "@bootstrap|@screens|@signup|@granted|@account|@orphan|@rollback" || failed=1
 phase screens --grep @screens || failed=1
 
 phase signup --grep @signup || failed=1
@@ -175,6 +177,17 @@ for action in account.signed_in account.signed_out account.identity.provisioned 
   echo "AUDIT ${action}=$(sql "select count(*) from audit_events where action = '${action}'")"
 done
 echo "RELEASED_UNVERIFIED_HOLDER=$(sql "select count(*) from audit_events where action = 'account.email.released' and detail->>'reason' = 'unverified_holder'")"
+
+phase account --grep @account || failed=1
+echo "== member's last Identity renewal 31 days back (and its upstream token kept, so no renewal moves it first)"
+sql "update users set last_identity_refresh_at = now() - interval '31 days' where username = '${MEMBER}'" > /dev/null
+sql "update identity_sessions set access_expires_at = now() + interval '1 hour' where revoked_at is null and user_id = (select id from users where username = '${MEMBER}')" > /dev/null
+phase orphan --grep @orphan || failed=1
+MEMBER_SUB=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["users"]["member"]["sub"])' "$LOGS/identity-fixtures.json")
+echo "MEMBER_ACCOUNT_LEFT=$(sql "select count(*) from users where username = '${MEMBER}'")"
+echo "MEMBER_IDENTITY_LEFT=$(sql "select count(*) from auth_identities where subject = '${MEMBER_SUB}'")"
+echo "MEMBER_LIVE_KEYS=$(sql "select count(*) from api_keys where name = 'walk orphan key' and revoked_at is null")"
+echo "MEMBER_LIVE_SESSIONS=$(sql "select count(*) from identity_sessions s join auth_identities i on i.id = s.identity_id where i.subject = '${MEMBER_SUB}' and s.revoked_at is null")"
 
 echo "== rollback: the gateway in local mode"
 $OB logs --no-color gateway > "$LOGS/gateway-scoretech.log" 2>&1
