@@ -106,3 +106,27 @@ def test_the_fixture_client_mirrors_a_managed_application():
         "firstName: 'Walk'",
     ):
         assert needle in fixtures, needle
+
+
+def test_f4s_operation_walk_runs_behind_identity_after_the_seed():
+    """F5-C C8: three fixture users sign in once (`@operation-setup`), lab-main's seeded memberships move to them, and
+    e2e/live/13-operation.spec.ts runs unchanged from e2e-identity, signing in through Identity, reading the lab Mailpit
+    through its read-only location and the feed consumer on a loopback port only this overlay publishes."""
+    services = overlay()["services"]
+    assert services["feed-consumer"] == {"ports": ["127.0.0.1:18197:8090"]}
+    env = services["e2e-identity"]["environment"]
+    assert env["LAB_SIGN_IN"] == "identity"
+    assert env["LAB_MAILPIT_URL"] == "http://localhost:${DEMO_LAB_PORT:-18198}/mailpit"
+    assert env["LAB_FEED_CONSUMER_URL"] == "http://localhost:18197"
+    assert env["DEMO_SEED_PASSWORD"] == "${DEMO_SEED_PASSWORD:-}"
+    walk = WALK.read_text(encoding="utf-8")
+    order = [walk.index(marker) for marker in (
+        "run --rm --no-deps seed", "--grep @operation-setup", "OPERATION_MEMBERSHIPS_MOVED",
+        "-c playwright.live.config.ts --project=desktop", "COMBINED_MEM_USED_MIB", "phase main --grep-invert",
+    )]
+    assert order == sorted(order)
+    assert "@bootstrap|@operation-setup|" in walk  # kept out of the main phase
+    for role in ("opowner", "opmember", "opviewer"):
+        assert f"$(email {role})" in walk, role  # deleted in the cleanup
+        assert f'"{role}"' in walk, role  # created with the fixtures
+        assert f"('lab-{role[2:]}', '{role}')" in walk, role

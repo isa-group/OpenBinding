@@ -5,7 +5,10 @@
 #   WALK_LOGS=<dir> IDENTITY_SECRET_DIR=<private dir> BIM_TOOLCHAIN_TOKEN=... lab/identity/walk.sh
 #
 # Order: Identity up -> fixtures -> the OB lab (project obf5id, port 18198) on an empty database -> @bootstrap (the
-# administrator by sub, before any administrator exists) -> seed_lab -> the main phase (the gateway, 01) -> @screens
+# administrator by sub, before any administrator exists) -> seed_lab -> @operation-setup (three users for F4's
+# operation sign in once; 04) -> psql moves lab-main's seeded owner, member and viewer memberships to them ->
+# e2e/live/13-operation.spec.ts unchanged behind Identity (LAB_SIGN_IN=identity), and the combined stack's memory ->
+# the main phase (the gateway, 01) -> @screens
 # (OpenBinding's screens, 02) -> @signup, Keycloak's view of the native registration, @granted -> post-checks in psql ->
 # @account (Settings, avatars, a key, the admin Identity tab; 03) -> member's last renewal 31 days back -> @orphan (the
 # suspended key, a sign-in, the account deleted; 03) and its post-checks -> the gateway in local mode and @rollback (01
@@ -83,7 +86,7 @@ cleanup() {
   set +e
   echo "== cleanup"
   if [ -n "$(identity_container account-api)" ]; then
-    fixtures "{\"action\": \"delete\", \"emails\": [\"$(email admin)\", \"$(email member)\", \"$(email research)\", \"$(email norole)\", \"$(email clash)\", \"$(email squat)\", \"$(email screens)\", \"$(email new)\"]}" \
+    fixtures "{\"action\": \"delete\", \"emails\": [\"$(email admin)\", \"$(email member)\", \"$(email research)\", \"$(email norole)\", \"$(email clash)\", \"$(email squat)\", \"$(email screens)\", \"$(email new)\", \"$(email opowner)\", \"$(email opmember)\", \"$(email opviewer)\"]}" \
       > "$LOGS/identity-fixtures-deleted.json" 2>&1
     echo "FIXTURES_DELETE=$?"
   fi
@@ -115,7 +118,7 @@ def email(role):
     return {"research": f"ob-walk-{run}-research@research.example", "clash": "lab-orgadmin@example.org",
             "squat": "lab-outsider@example.org"}.get(role, f"ob-walk-{run}-{role}@example.invalid")
 users = []
-for role in ("admin", "member", "research", "norole", "clash", "squat", "screens"):
+for role in ("admin", "member", "research", "norole", "clash", "squat", "screens", "opowner", "opmember", "opviewer"):
     user = {"role": role, "email": email(role), "emailVerified": role != "member", "permission": role != "norole",
             "displayName": f"Walk {role}"}
     if role == "member":
@@ -154,7 +157,27 @@ echo "== seed_lab"
 $OB run --rm --no-deps seed > "$LOGS/seed.log" 2>&1; echo "SEED_EXIT=$?"
 sql "update users set email_verified = true where username = 'lab-orgadmin'" > /dev/null
 
-phase main --grep-invert "@bootstrap|@screens|@signup|@granted|@account|@orphan|@rollback" || failed=1
+phase operation-setup --grep @operation-setup || failed=1
+echo "== lab-main's seeded memberships moved to the operation users (the owner moved, not duplicated)"
+echo "OPERATION_MEMBERSHIPS_MOVED=$(sql "with moved as (update organization_memberships m set user_id = f.id
+  from (values ('lab-owner', 'opowner'), ('lab-member', 'opmember'), ('lab-viewer', 'opviewer')) as moves(lab, role)
+  join users l on l.username = moves.lab join users f on f.username = 'ob-walk-${RUN}-' || moves.role
+  where m.user_id = l.id and m.organization_id = (select id from organizations where slug = 'lab-main') returning 1)
+  select count(*) from moved")"
+echo "LAB_MAIN_OWNERS=$(sql "select count(*) from organization_memberships m join organizations o on o.id = m.organization_id where o.slug = 'lab-main' and lower(m.role::text) = 'owner'")"
+echo "== F4's operation behind Identity (e2e/live/13-operation.spec.ts, unchanged)"
+operation=0
+$OB --profile identity-walk run --rm e2e-identity pnpm exec playwright test -c playwright.live.config.ts --project=desktop \
+  13-operation.spec.ts > "$LOGS/operation.log" 2>&1 || operation=$?
+grep -E "✓|✘|passed|failed|skipped|flaky" "$LOGS/operation.log" | tail -15
+echo "OPERATION=$operation"
+[ "$operation" = 0 ] || failed=1
+echo "COMBINED_MEM_USED_MIB=$(docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' | awk -v p="^${PROJECT}-|^scoretech-identity-lab-" '
+  $1 ~ p { u = $2; f = 1; if (u ~ /GiB/) f = 1024; else if (u ~ /KiB/) f = 1 / 1024; gsub(/[A-Za-z]/, "", u); s += u * f }
+  END { printf "%d", s }')"
+echo "MEM_AVAILABLE_MIB=$(awk '/MemAvailable/ { print int($2 / 1024) }' /proc/meminfo)"
+
+phase main --grep-invert "@bootstrap|@operation-setup|@screens|@signup|@granted|@account|@orphan|@rollback" || failed=1
 phase screens --grep @screens || failed=1
 
 phase signup --grep @signup || failed=1

@@ -132,6 +132,7 @@ describe('the Playwright specs', () => {
         '01-gateway.spec.ts',
         '02-screens.spec.ts',
         '03-account.spec.ts',
+        '04-operation.spec.ts',
       ]);
       const config = read(`${root}/playwright.identity.config.ts`);
       expect(config).toContain("testDir: './e2e/identity'");
@@ -174,6 +175,19 @@ describe('the Playwright specs', () => {
         expect(spec).toContain(`'${stop}'`);
       for (const stop of ['keys-notice', 'keys-suspended', 'admin-identity-tab'])
         expect(spec).toContain(`'${stop}'`);
+    });
+
+    it('walk F4’s operation behind Identity: three users sign in once, then 13-operation runs unchanged', () => {
+      const setup = read(`${identity}/04-operation.spec.ts`);
+      expect(setup).toContain('`@operation-setup ${role}');
+      for (const role of ['opowner', 'opmember', 'opviewer']) expect(setup).toContain(`'${role}'`);
+      const support = read(`${live}/support.ts`);
+      expect(support).toContain("process.env.LAB_SIGN_IN === 'identity'");
+      expect(support).toContain('signInReturning(page, fixture)');
+      const feed = read(`${live}/feedKey.ts`);
+      expect(feed).toContain("process.env.LAB_MAILPIT_URL ?? 'http://mailpit:8025/mailpit'");
+      expect(feed).toContain("process.env.LAB_FEED_CONSUMER_URL ?? 'http://feed-consumer:8090'");
+      expect(read(`${identity}/support.ts`)).toMatch(/!\/\^\(__Host-\)\?ob_\/\.test/);
     });
 
     it('read codes from the lab Mailpit and never type a literal password or address of a real domain', () => {

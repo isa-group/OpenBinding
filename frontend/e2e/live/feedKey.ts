@@ -19,8 +19,14 @@ export function labFeedKey(
   return `obe_${digest.slice(0, 8)}_${digest.slice(8)}`;
 }
 
-/** Mailpit's web root inside the lab's compose network (the `e2e` service reaches it by name; it publishes no port). */
-export const MAILPIT = 'http://mailpit:8025/mailpit';
+/**
+ * Mailpit's web root inside the lab's compose network (the `e2e` service reaches it by name; it publishes no port), or
+ * `LAB_MAILPIT_URL`: the Identity walk, on the host's network, reads it through the lab's read-only `/mailpit/` location.
+ */
+export const MAILPIT = process.env.LAB_MAILPIT_URL ?? 'http://mailpit:8025/mailpit';
 
-/** The lab's feed consumer, TomatoMeter's stand-in, inside the compose network: `GET /state`, `POST /send`. */
-export const FEED_CONSUMER = 'http://feed-consumer:8090';
+/**
+ * The lab's feed consumer, TomatoMeter's stand-in, inside the compose network: `GET /state`, `POST /send`; or
+ * `LAB_FEED_CONSUMER_URL`, where compose.lab-identity.json publishes it on the loopback for the Identity walk.
+ */
+export const FEED_CONSUMER = process.env.LAB_FEED_CONSUMER_URL ?? 'http://feed-consumer:8090';
