@@ -160,12 +160,26 @@ async function stops(page: Page, token: string): Promise<Stop[]> {
     { id: 'sphere-wizard-mapping', path: `${wizard}?sphereStep=mapping&sphereUpdate=1` },
     { id: 'sphere-wizard-preview', path: `${wizard}?sphereStep=preview&sphereUpdate=1` },
     { id: 'sphere-wizard-generate', path: `${wizard}?sphereStep=generate&sphereUpdate=1` },
-    { id: 'sphere-composition-upstream', path: `/compositions/${ORG}/tomatometer` },
+    { id: 'sphere-composition-upstream', path: `/compositions/${ORG}/tomatometer?version=1.0.0` },
     {
       id: 'sphere-composition-compare',
       path: `/compositions/${ORG}/tomatometer/versions`,
     },
     { id: 'org-connections', path: `/orgs/${ORG}/connections` },
+    // F4: the operation of TomatoMeter (environment cards, production with its margin table, history and feed keys, staging
+    // with nothing adopted), the calculator's demand and margins, and the template cards of "New composition". The dialogs
+    // (adopt, key reveal, check report, run adoption, instantiation) are opened and captured by walks 13 and 14.
+    { id: 'composition-operation', path: `/compositions/${ORG}/tomatometer/operation` },
+    {
+      id: 'margin-table',
+      path: `/compositions/${ORG}/tomatometer/operation?environment=production`,
+    },
+    {
+      id: 'operation-nothing-adopted',
+      path: `/compositions/${ORG}/tomatometer/operation?environment=staging`,
+    },
+    { id: 'calculator-margins', path: `/compositions/${ORG}/tomatometer/configuration` },
+    { id: 'template-cards', path: `/compositions/new?org=${ORG}` },
   ];
 }
 

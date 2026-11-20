@@ -34,6 +34,11 @@ const GLOSSARY = [
   'Visibility',
   'Showcase',
   'Catalog',
+  'Adoption',
+  'In effect',
+  'Feed',
+  'Feed key',
+  'Margin',
 ] as const;
 
 const sources = import.meta.glob('/src/**/*.{ts,tsx}', {

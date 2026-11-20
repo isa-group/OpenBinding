@@ -1,8 +1,9 @@
 // The deep links of SPHERE's notification item (frontend/src/modules/notification/components/notification-item, revision
 // 73779a8a), https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández. MIT licence: the full
 // text is in THIRD_PARTY_NOTICES.md. Adapted: OpenBinding's kinds and payload (an invitation opens its join page, a new
-// version its composition at that version, an adoption its composition, a finished or failed run the run); the icon of each kind; the time as date-fns
-// says it (SPHERE's two copies of `timeAgo` are gone).
+// version its composition at that version, an adoption the composition's Operation tab on that environment, a finished or
+// failed run the run); the icon of each kind; an adoption's line said from its payload; the time as date-fns says it
+// (SPHERE's two copies of `timeAgo` are gone).
 
 import { formatDistanceStrict } from 'date-fns';
 import { compositionPath } from '../../../routes/paths/compositions';
@@ -48,10 +49,13 @@ export function notificationLink(
         : null;
     }
     case 'CompositionAdopted': {
-      // The composition's Overview until the Operation tab exists (F4-C).
+      // The composition's Operation tab, on the environment adopted in.
       const adoptedOrg = text(payload.organization);
       const composition = text(payload.composition);
-      return adoptedOrg && composition ? compositionPath(adoptedOrg, composition) : null;
+      const environment = text(payload.environment) ?? undefined;
+      return adoptedOrg && composition
+        ? compositionPath(adoptedOrg, composition, 'operation', { environment })
+        : null;
     }
     case 'RunFinished':
     case 'RunFailed': {
@@ -61,6 +65,20 @@ export function notificationLink(
     default:
       return org ? `/orgs/${encodeURIComponent(org)}` : null;
   }
+}
+
+/** The line under a notification's subject: an adoption says who adopted what where; any other kind, the gateway's body. */
+export function notificationBody(
+  notification: Pick<Notification, 'kind' | 'payload' | 'body'>
+): string {
+  const payload = notification.payload ?? {};
+  if (notification.kind === 'CompositionAdopted') {
+    const actor = text(payload.actor);
+    const version = text(payload.version);
+    const environment = text(payload.environment);
+    if (actor && version && environment) return `${actor} adopted ${version} in ${environment}`;
+  }
+  return notification.body;
 }
 
 /** "5 minutes ago", "just now" under a minute. */

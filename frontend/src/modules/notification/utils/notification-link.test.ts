@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { notificationLink, timeAgo } from './notification-link';
+import { notificationBody, notificationLink, timeAgo } from './notification-link';
 
 describe('notificationLink', () => {
   it('leads each kind to its page', () => {
@@ -27,12 +27,28 @@ describe('notificationLink', () => {
           environment: 'production',
         },
       })
-    ).toBe('/compositions/lab-main/tomatometer');
+    ).toBe('/compositions/lab-main/tomatometer/operation?environment=production');
     expect(notificationLink({ kind: 'CompositionAdopted', payload: {} })).toBeNull();
     expect(notificationLink({ kind: 'System', payload: { organization_slug: 'isa-demo' } })).toBe(
       '/orgs/isa-demo'
     );
     expect(notificationLink({ kind: 'System', payload: {} })).toBeNull();
+  });
+
+  it('says who adopted which version in which environment, and the gateway’s body otherwise', () => {
+    expect(
+      notificationBody({
+        kind: 'CompositionAdopted',
+        body: '@lab-owner adopted version 1.1.0 of "TomatoMeter" in Production (it was 1.0.0).',
+        payload: { actor: 'lab-owner', version: '1.1.0', environment: 'production' },
+      })
+    ).toBe('lab-owner adopted 1.1.0 in production');
+    expect(notificationBody({ kind: 'CompositionAdopted', body: 'as sent', payload: {} })).toBe(
+      'as sent'
+    );
+    expect(notificationBody({ kind: 'RunFinished', body: 'Run done.', payload: {} })).toBe(
+      'Run done.'
+    );
   });
 
   it('says how long ago', () => {

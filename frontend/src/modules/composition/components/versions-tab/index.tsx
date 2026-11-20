@@ -9,7 +9,7 @@
 
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useMemo, useState } from 'react';
-import { FiColumns, FiCopy, FiDownload, FiEdit2, FiRefreshCw } from 'react-icons/fi';
+import { FiColumns, FiCopy, FiDownload, FiEdit2, FiRefreshCw, FiSend } from 'react-icons/fi';
 import { Link, useSearchParams } from 'react-router-dom';
 import { problemsApi } from '../../../problem/api/problemsClient';
 import { useResource } from '../../../core/hooks/useResource';
@@ -55,6 +55,8 @@ interface RowProps {
   canReevaluate: boolean;
   onCompare: (from: CompositionVersionView, to: CompositionVersionView) => void;
   onReevaluated: (message: string) => void;
+  /** Adopt this version in an environment; absent when the reader may adopt in none. */
+  onAdopt?: (version: CompositionVersionView) => void;
 }
 
 function VersionRow({
@@ -68,6 +70,7 @@ function VersionRow({
   canReevaluate,
   onCompare,
   onReevaluated,
+  onAdopt,
 }: RowProps) {
   const [busy, setBusy] = useState<'download' | 'reevaluate' | null>(null);
   const [failure, setFailure] = useState('');
@@ -258,6 +261,12 @@ function VersionRow({
               ? 'Copy failed'
               : 'Copy link'}
         </button>
+        {onAdopt && (
+          <button type="button" onClick={() => onAdopt(version)} className={iconButton}>
+            <FiSend className="h-4 w-4" aria-hidden="true" />
+            Adopt…
+          </button>
+        )}
         {canReevaluate && (
           <button
             type="button"
@@ -287,6 +296,8 @@ interface VersionsTabProps {
   member: boolean;
   /** The composition and its versions must be read again (a re-evaluation changed a current evaluation). */
   onChanged: (message: string) => void;
+  /** Adopt a version in an environment (the adopt dialog): given when the reader may adopt in some environment. */
+  onAdopt?: (version: CompositionVersionView) => void;
 }
 
 export default function CompositionVersionsTab({
@@ -297,6 +308,7 @@ export default function CompositionVersionsTab({
   canCreate,
   member,
   onChanged,
+  onAdopt,
 }: VersionsTabProps) {
   const [query, setQuery] = useSearchParams();
   const fromParam = query.get('from');
@@ -450,6 +462,7 @@ export default function CompositionVersionsTab({
               canReevaluate={needsEvaluation(version)}
               onCompare={(from, to) => setPair(from.id, to.id)}
               onReevaluated={onChanged}
+              onAdopt={onAdopt}
             />
           ))}
         </ol>

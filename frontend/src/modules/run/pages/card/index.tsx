@@ -29,6 +29,14 @@ import { orgPath } from '../../../organization/types/paths';
 import { runPath, runsPath } from '../../../../routes/paths/runs';
 import { useRunsApi } from '../../api/runsApi';
 import { DeriveCompositionDialog } from '../../components/derive/DeriveCompositionDialog';
+import type { CompositionView } from '../../../core/api/types';
+import { useResource } from '../../../core/hooks/useResource';
+import { compositionsApi } from '../../../core/utils/composition/api';
+import { SYSTEM_TOAST } from '../../../core/contexts/toastKinds';
+import { useToast } from '../../../core/contexts/useToast';
+import AdoptDialog from '../../../composition/components/adopt-dialog';
+import { useEnvironmentsApi } from '../../../composition/api/environmentsApi';
+import { roleAtLeast } from '../../../composition/hooks/useCompositionRole';
 import GetRunMenu, {
   type RunDownloadKind,
   type RunDownloadState,
@@ -97,6 +105,31 @@ function RunCard({
   const [busy, setBusy] = useState<'cancel' | 'retry' | null>(null);
   const [asked, setAsked] = useState(false);
   const [deriving, setDeriving] = useState(false);
+  // The versions derived from this run, by composition, where the reader may adopt in some environment (F4): "Adopt in
+  // environment" opens the adopt dialog on one of them. Deriving and adopting stay two human steps.
+  const { listEnvironments } = useEnvironmentsApi();
+  const { addToast } = useToast();
+  const [adopting, setAdopting] = useState<CompositionView | null>(null);
+  const [adoptions, setAdoptions] = useState(0);
+  const adoptable = useResource<CompositionView[]>(
+    `run-adoptable:${org}/${jobId}:${canWork}:${adoptions}`,
+    async () => {
+      if (!canWork) return [];
+      const listed = await compositionsApi.list(org, { run: jobId }).catch(() => null);
+      const derived = (listed?.compositions ?? []).filter(
+        item => (item.derivedVersions ?? []).length > 0 && !item.archived
+      );
+      const allowed = await Promise.all(
+        derived.map(async item =>
+          (await listEnvironments(org, item.slug).catch(() => [])).some(environment =>
+            roleAtLeast(organization.effective_role, environment.adoptRole)
+          )
+        )
+      );
+      return derived.filter((_, index) => allowed[index]);
+    }
+  );
+  const adoptFrom = adoptable.data ?? [];
   const [downloads, setDownloads] = useState<Partial<Record<RunDownloadKind, RunDownloadState>>>(
     {}
   );
@@ -243,6 +276,11 @@ function RunCard({
     ...(canCancel ? [{ label: 'Cancel run', onSelect: () => void cancel() }] : []),
     ...(canRetry ? [{ label: 'Retry', onSelect: () => void retry() }] : []),
     ...(canDerive ? [{ label: 'Keep as composition', onSelect: () => setDeriving(true) }] : []),
+    ...adoptFrom.map(composition => ({
+      label:
+        adoptFrom.length > 1 ? `Adopt ${composition.name} in environment` : 'Adopt in environment',
+      onSelect: () => setAdopting(composition),
+    })),
   ];
 
   const subtitle = (
@@ -302,6 +340,17 @@ function RunCard({
             {canDerive && (
               <button type="button" onClick={() => setDeriving(true)} className={actionClass}>
                 Keep as composition
+              </button>
+            )}
+            {adoptFrom.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setAdopting(adoptFrom[0])}
+                className={actionClass}
+              >
+                {adoptFrom.length > 1
+                  ? `Adopt ${adoptFrom[0].name} in environment`
+                  : 'Adopt in environment'}
               </button>
             )}
           </>
@@ -402,6 +451,26 @@ function RunCard({
           org={org}
           source={{ run: jobId, solutions: listed }}
           onClose={() => setDeriving(false)}
+          role={organization.effective_role}
+        />
+      )}
+      {adopting && (
+        <AdoptDialog
+          org={org}
+          composition={adopting}
+          versions={adopting.derivedVersions ?? []}
+          role={organization.effective_role}
+          version={adopting.derivedVersions?.[0]?.id}
+          onClose={() => setAdopting(null)}
+          onAdopted={result => {
+            setAdopting(null);
+            setAdoptions(count => count + 1);
+            addToast({
+              kind: SYSTEM_TOAST,
+              title: `Version ${result.adoption.version.label} of ${adopting.name} adopted in ${result.environment.name}`,
+              message: `Adoption #${result.adoption.ordinal}. The application reads it on its next poll.`,
+            });
+          }}
         />
       )}
     </>

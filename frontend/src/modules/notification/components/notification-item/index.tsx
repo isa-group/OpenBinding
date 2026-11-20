@@ -8,7 +8,12 @@ import { useNavigate } from 'react-router-dom';
 import Iconify from '../../../core/components/iconify';
 import type { Notification } from '../../api/notificationsApi';
 import { useNotificationsContext } from '../../hooks/useNotificationsContext';
-import { KIND_ICONS, notificationLink, timeAgo } from '../../utils/notification-link';
+import {
+  KIND_ICONS,
+  notificationBody,
+  notificationLink,
+  timeAgo,
+} from '../../utils/notification-link';
 
 interface NotificationItemProps {
   notification: Notification;
@@ -56,7 +61,7 @@ export default function NotificationItem({ notification, onClose }: Notification
             <span aria-hidden="true" className="mt-1 h-2 w-2 shrink-0 rounded-full bg-tp-primary" />
           )}
         </div>
-        <p className="mt-0.5 truncate text-xs text-tp-steel">{notification.body}</p>
+        <p className="mt-0.5 truncate text-xs text-tp-steel">{notificationBody(notification)}</p>
         <p className="mt-1 text-[10px] text-tp-steel">{timeAgo(notification.created_at)}</p>
       </div>
     </button>

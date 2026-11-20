@@ -127,6 +127,37 @@ describe('the composition card page', () => {
     expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
   });
 
+  it('shows the Operation tab to every member and to nobody else, who gets the in-place 404 there', async () => {
+    const gateway = fakeGateway({
+      'GET /v1/organizations/isa-demo/compositions/fleet-routing/environments': {
+        body: { environments: [] },
+      },
+    });
+    const member = renderCompositionPage(<CompositionCardPage />, {
+      url: '/compositions/isa-demo/fleet-routing/operation',
+      organizations: [orgNode('isa-demo', { effective_role: 'VIEWER' })],
+      gateway,
+    });
+    const tabs = await screen.findByRole('navigation', { name: 'Composition sections' });
+    const names = within(tabs)
+      .getAllByRole('link')
+      .map(link => link.textContent);
+    // Between Versions and Settings; a VIEWER has no Settings.
+    expect(names.slice(-2)).toEqual(['Versions', 'Operation']);
+    expect(within(tabs).getByRole('link', { name: 'Operation' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    expect(await screen.findByText('No environments yet')).toBeInTheDocument();
+    member.unmount();
+
+    renderCompositionPage(<CompositionCardPage />, {
+      url: '/compositions/isa-demo/fleet-routing/operation',
+      user: null,
+    });
+    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+  });
+
   it('is the in-place 404 for a tab the page does not have', () => {
     renderCompositionPage(<CompositionCardPage />, {
       url: '/compositions/isa-demo/fleet-routing/nonsense',

@@ -136,3 +136,5 @@ export async function capture(page: Page, testInfo: TestInfo, name: string): Pro
   }
   if (before) await page.setViewportSize(before);
 }
+
+export { FEED_CONSUMER, MAILPIT, labFeedKey } from './feedKey';

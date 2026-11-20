@@ -13,6 +13,7 @@ import {
   type SchedulerStatus,
 } from '../../../editor/lintScheduler';
 import { CandidateMatrix } from '../../candidate-matrix/CandidateMatrix';
+import { MarginTable } from '../../margin-table';
 import { ValueBadge } from '../../value-badge/ValueBadge';
 import type { Section } from '../presets';
 import { RendererSection } from '../RendererSection';
@@ -62,6 +63,16 @@ type Answer =
 
 const keyOf = (binding: WrittenBinding) =>
   JSON.stringify(Object.entries(binding).sort(([a], [b]) => (a < b ? -1 : 1)));
+
+/** What one evaluation is asked: the tasks bound otherwise, and the demand (users, a revision of the problem). */
+interface Asked {
+  binding: WrittenBinding;
+  users?: number;
+  revision?: number;
+}
+
+const askedKey = (asked: Asked) =>
+  JSON.stringify([keyOf(asked.binding), asked.users ?? null, asked.revision ?? null]);
 
 function FindingList({ findings, label }: { findings: Finding[]; label: string }) {
   if (findings.length === 0) return null;
@@ -134,25 +145,48 @@ function Configurator({
   );
   const [status, setStatus] = useState<SchedulerStatus>({ state: 'idle' });
   const [answer, setAnswer] = useState<Answer | null>(null);
-  const scheduler = useRef<Scheduler<WrittenBinding> | null>(null);
+  const scheduler = useRef<Scheduler<Asked> | null>(null);
   const notLinked = useRef(actions.onNotLinked);
   useEffect(() => {
     notLinked.current = actions.onNotLinked;
   });
 
   const changed = changedBinding(matrix, base, selection);
-  const key = keyOf(changed);
-  const pending = Object.keys(changed).length > 0;
+  const rebound = Object.keys(changed).length > 0;
+  const demand = actions.demand ?? {};
+  const asked: Asked = { binding: changed, users: demand.users, revision: demand.revision };
+  const key = askedKey(asked);
+  // A demand (users, a revision) has the toolchain evaluate even the version's own binding.
+  const pending = rebound || demand.users !== undefined || demand.revision !== undefined;
+  const demandRefused = useRef(actions.onDemandRefused);
+  useEffect(() => {
+    demandRefused.current = actions.onDemandRefused;
+  });
 
   useEffect(() => {
-    const created = createScheduler<WrittenBinding, EvaluateResult>({
+    const created = createScheduler<Asked, EvaluateResult>({
       delay: EVALUATE_DELAY,
-      run: (binding, signal) => compositionsApi.evaluate(org, slug, { version, binding }, signal),
-      onResult: (result, binding) => setAnswer({ key: keyOf(binding), state: 'ready', result }),
-      onError: (caught, binding) => {
+      run: (payload, signal) =>
+        compositionsApi.evaluate(
+          org,
+          slug,
+          {
+            version,
+            binding: payload.binding,
+            ...(payload.users !== undefined ? { users: payload.users } : {}),
+            ...(payload.revision !== undefined ? { revision: payload.revision } : {}),
+          },
+          signal
+        ),
+      onResult: (result, payload) => setAnswer({ key: askedKey(payload), state: 'ready', result }),
+      onError: (caught, payload) => {
         const refusal = analysisRefusal(caught, 'This binding couldn’t be evaluated');
-        setAnswer({ key: keyOf(binding), state: 'refused', refusal });
+        setAnswer({ key: askedKey(payload), state: 'refused', refusal });
         if (refusal.notLinked) notLinked.current?.();
+        else if (payload.revision !== undefined)
+          demandRefused.current?.(
+            [refusal.message, ...refusal.findings.map(finding => finding.message)].join(' ')
+          );
       },
       onStatus: setStatus,
     });
@@ -166,9 +200,16 @@ function Configurator({
   useEffect(() => {
     const current = scheduler.current;
     if (!current) return;
-    const binding = JSON.parse(key) as Array<[string, string]>;
-    if (binding.length === 0) current.cancel();
-    else current.schedule(Object.fromEntries(binding));
+    const [bindingKey, users, revision] = JSON.parse(key) as [string, number | null, number | null];
+    const now: Asked = {
+      binding: Object.fromEntries(JSON.parse(bindingKey) as Array<[string, string]>),
+      ...(users !== null ? { users } : {}),
+      ...(revision !== null ? { revision } : {}),
+    };
+    const active =
+      Object.keys(now.binding).length > 0 || now.users !== undefined || now.revision !== undefined;
+    if (!active) current.cancel();
+    else current.schedule(now);
   }, [key]);
 
   const shown = answer && answer.key === key && pending ? answer : null;
@@ -197,6 +238,11 @@ function Configurator({
         <p className="cr-muted m-0 text-[13px] text-tp-steel">
           This is the version’s binding. Choose another candidate for a task to have the toolchain
           evaluate it.
+        </p>
+      )}
+      {pending && !rebound && (
+        <p className="cr-muted m-0 text-[13px] text-tp-steel">
+          The version’s binding, evaluated under the demand chosen above.
         </p>
       )}
       {pending && status.state === 'paused' && (
@@ -242,9 +288,33 @@ function Configurator({
             </Notice>
           )}
           <Values model={model} result={shown.result} />
+          {shown.result.revision && (
+            <div className="flex min-w-0 flex-col gap-1">
+              <p className="m-0 text-[13px] font-semibold text-tp-ink">
+                {`Demand of problem version ${shown.result.revision.number}`}
+              </p>
+              {shown.result.revision.demand.length === 0 ? (
+                <p className="cr-muted m-0 text-[13px] text-tp-steel">
+                  This problem version was not generated from SPHERE, so it states no demand.
+                </p>
+              ) : (
+                <ul
+                  aria-label="Demand evaluated"
+                  className="m-0 flex list-none flex-col gap-0.5 p-0 text-[13px] text-tp-slate"
+                >
+                  {shown.result.revision.demand.map(item => (
+                    <li key={item.name}>
+                      {`${item.name}: ${item.value === null ? '—' : String(item.value)} ${item.unit}`}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          {shown.result.margins && <MarginTable margins={shown.result.margins} />}
         </div>
       )}
-      {pending && (
+      {rebound && (
         <div className="flex flex-wrap gap-2">
           <Action variant="secondary" onClick={() => setSelection(base)}>
             Back to the version’s binding

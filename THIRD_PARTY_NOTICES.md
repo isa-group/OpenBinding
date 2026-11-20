@@ -135,7 +135,9 @@ The frontend files of the move to SPHERE's frontend (`docs/adr/0053-frontend-on-
 `73779a8a` of `main` (and `694f292b03` of its `feat/pricing-renderer` branch, for the pricing-renderer bridge, `/pricing`,
 the configuration compare tray, the study front and the SPHERE wizard's plan picker and selection mapping, as each header says), each with its reuse class: **verbatim** (copied; only imports, wording and types changed), **adapted**
 (copied, with logic changed; the header says what) or **pattern-only** (the layout followed, the code written here).
-Generated from the origin header of each file.
+Generated from the origin header of each file. The F4 screens (the Operation tab, the environment and template cards,
+the adopt dialog, the adoption history and the feed key panel) copy SPHERE at `fc776b4d`, where those files are unchanged
+since `73779a8a`; their rows say so.
 
 | File | SPHERE origin | Class |
 |---|---|---|
@@ -184,6 +186,8 @@ Generated from the origin header of each file.
 | `frontend/src/modules/composition-editor/services/snippets/templates.ts` | `frontend/src/modules/pricing-editor/pages/pricing2yaml-editor/templates/snippets.ts` | pattern-only |
 | `frontend/src/modules/composition-editor/services/snippets/types.ts` | `frontend/src/modules/pricing-editor/services/pricing2yaml/snippets/types.ts` | adapted |
 | `frontend/src/modules/composition/api/compositionsApi.ts` | `frontend/src/modules/pricing/api/pricingsApi.ts` | adapted |
+| `frontend/src/modules/composition/components/adopt-dialog/index.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` (at `fc776b4d`) | pattern-only |
+| `frontend/src/modules/composition/components/adoption-history/index.tsx` | `frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx` (at `fc776b4d`) | adapted |
 | `frontend/src/modules/composition/components/analytics-tab/index.tsx` | `frontend/src/modules/pricing/components/pricing-analytics-tab/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/composition-card/index.tsx` | `frontend/src/modules/pricing/components/pricing-card/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/composition-import-modal/index.tsx` | `frontend/src/modules/pricing/components/pricing-import-modal/index.tsx` | adapted |
@@ -198,11 +202,15 @@ Generated from the origin header of each file.
 | `frontend/src/modules/composition/components/configuration-space-view/index.tsx` | `frontend/src/modules/pricing/components/configuration-space-view/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/create-composition-form/index.tsx` | `frontend/src/modules/pricing/components/create-pricing-form/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/follow-button/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/environment-card/index.tsx` | `frontend/src/modules/pricing/components/collection-card/index.tsx` (at `fc776b4d`) | adapted |
+| `frontend/src/modules/composition/components/environment-key-panel/index.tsx` | `frontend/src/modules/api-keys/pages/ApiKeysPage.tsx` (at `fc776b4d`; the reveal-once block, through OpenBinding's API keys page) | adapted |
 | `frontend/src/modules/composition/components/fork-composition-modal/index.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/get-composition-menu/index.tsx` | `frontend/src/modules/pricing/components/get-pricing-menu/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/new-version-menu/index.tsx` | `frontend/src/modules/pricing/components/new-version-menu/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/operation-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/CollectionsTab.tsx` (at `fc776b4d`) | adapted |
 | `frontend/src/modules/composition/components/pricing-link-modal/index.tsx` | `frontend/src/modules/pricing/components/pricing-link-modal/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/stats/index.tsx` | `frontend/src/modules/pricing/components/stats/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/template-card/index.tsx` | `frontend/src/modules/pricing/components/collection-card/index.tsx` (at `fc776b4d`) | adapted |
 | `frontend/src/modules/composition/components/version-diff/file-diff-view.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/file-diff-view.tsx` | adapted |
 | `frontend/src/modules/composition/components/version-diff/index.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/version-graph/change-summary-card.tsx` | `frontend/src/modules/pricing/components/pricing-version-graph/change-summary-card.tsx` | adapted |

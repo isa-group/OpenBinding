@@ -41,7 +41,9 @@ export async function loadUpstream(
 }
 
 /** The offering version the current evaluation read, or why it could not be read, in words. */
-export function offeringReadText(offering: UpstreamOffering | null | undefined): string | null {
+export function offeringReadText(
+  offering: Pick<UpstreamOffering, 'status' | 'versionName'> | null | undefined
+): string | null {
   if (!offering?.status) return null;
   if (offering.status === 'read')
     return offering.versionName

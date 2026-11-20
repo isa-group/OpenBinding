@@ -95,6 +95,21 @@ describe('the Playwright specs', () => {
       expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
   });
 
+  it('walks each F4 journey closed so far in a mocked spec of its own: J1, J2 and J3 operation; J4 adopt from a run; J5 templates; J6 calculator margins', () => {
+    const journeys = ts.sys
+      .readDirectory(e2e, ['.ts'], undefined, undefined, 1)
+      .map(name => name.replace(`${e2e}/`, ''))
+      .filter(name => name.startsWith('f4-'));
+    expect(journeys.sort()).toEqual([
+      'f4-margins.spec.ts',
+      'f4-operation.spec.ts',
+      'f4-run-adopt.spec.ts',
+      'f4-templates.spec.ts',
+    ]);
+    for (const name of journeys)
+      expect(read(`${e2e}/${name}`), name).toMatch(/\btest\.describe\('J\d+ · /);
+  });
+
   it('walks each F2b journey in a mocked spec of its own: J3 the problem editor; J4 study front to compositions', () => {
     const journeys = ts.sys
       .readDirectory(e2e, ['.ts'], undefined, undefined, 1)
@@ -157,7 +172,7 @@ describe('the Playwright specs', () => {
   describe('the live project', () => {
     const specs = liveFiles.filter(name => name.endsWith('.spec.ts'));
 
-    it('covers login, navigation, the upload-run-study walk, a job, the viewer, the outsider, the plan page, J1 to J4, SPHERE candidates, the visual QA and the palette sweep', () => {
+    it('covers login, navigation, the upload-run-study walk, a job, the viewer, the outsider, the plan page, J1 to J4, SPHERE candidates, the operation of TomatoMeter, the run-to-adoption chain and templates, the visual QA and the palette sweep', () => {
       expect(specs.map(name => name.replace(`${live}/`, ''))).toEqual([
         '01-login.spec.ts',
         '02-navigation.spec.ts',
@@ -171,6 +186,8 @@ describe('the Playwright specs', () => {
         '10-problem-editor.spec.ts',
         '11-study-front.spec.ts',
         '12-sphere-candidates.spec.ts',
+        '13-operation.spec.ts',
+        '14-run-and-templates.spec.ts',
         'visual-qa.spec.ts',
         'visual-sweep.spec.ts',
       ]);

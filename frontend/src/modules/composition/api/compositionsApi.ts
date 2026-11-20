@@ -121,6 +121,61 @@ export function useCompositionsApi() {
     [fetchWithInterceptor]
   );
 
+  /**
+   * The margin per offering plan of a version (`GET …/versions/{version}/margins`), from one of its evaluations (the current
+   * one by default) and a number of users (without one, margins come back empty, `users_required`). Members only.
+   */
+  const getVersionMargins = useCallback(
+    async (
+      org: string,
+      composition: string,
+      version: string,
+      options: { users?: string; evaluation?: string },
+      signal?: AbortSignal
+    ) =>
+      readResponse<Schemas['CompositionMargins']>(
+        await fetchWithInterceptor(
+          `/v1/organizations/${enc(org)}/compositions/${enc(composition)}/versions/${enc(version)}/margins${query({ users: options.users, evaluation: options.evaluation })}`,
+          { signal }
+        )
+      ),
+    [fetchWithInterceptor]
+  );
+
+  /** The composition templates of the catalog (`GET /v1/compositions/templates`); anybody may list them. */
+  const listTemplates = useCallback(
+    async (signal?: AbortSignal) =>
+      readResponse<Schemas['CompositionTemplateList']>(
+        await fetchWithInterceptor('/v1/compositions/templates', { signal })
+      ),
+    [fetchWithInterceptor]
+  );
+
+  /** One template with its workflow and binding (`GET /v1/compositions/templates/{template}`). */
+  const getTemplate = useCallback(
+    async (template: string, signal?: AbortSignal) =>
+      readResponse<Schemas['CompositionTemplateView']>(
+        await fetchWithInterceptor(`/v1/compositions/templates/${enc(template)}`, { signal })
+      ),
+    [fetchWithInterceptor]
+  );
+
+  /**
+   * A composition started from a template (`POST …/compositions/from-template`, MEMBER): its problem is created and its
+   * recipes applied, then the composition and its first version are sealed, in one human action.
+   */
+  const instantiateTemplate = useCallback(
+    async (org: string, body: Schemas['CompositionFromTemplate']) =>
+      readResponse<Schemas['CompositionInstantiated']>(
+        await fetchWithInterceptor(`/v1/organizations/${enc(org)}/compositions/from-template`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      ),
+    [fetchWithInterceptor]
+  );
+
   /** Every version of a composition the account reads, zipped (`GET …/download`). */
   const downloadVersions = useCallback(
     async (org: string, composition: string) => {
@@ -142,6 +197,10 @@ export function useCompositionsApi() {
       setFollow,
       getGraph,
       resolvePermalink,
+      getVersionMargins,
+      listTemplates,
+      getTemplate,
+      instantiateTemplate,
       downloadVersions,
     }),
     [
@@ -152,6 +211,10 @@ export function useCompositionsApi() {
       setFollow,
       getGraph,
       resolvePermalink,
+      getVersionMargins,
+      listTemplates,
+      getTemplate,
+      instantiateTemplate,
       downloadVersions,
     ]
   );

@@ -172,7 +172,7 @@ describe('compositionViewModel for a member', () => {
     expect(model.evidence).toEqual(fmsVersion.document.evidence);
   });
 
-  it('offers the calculator and the configurator on a linked problem it may read', () => {
+  it('offers the calculator and the configurator on a linked problem it may read, and a member the operations', () => {
     expect(model.modes).toEqual([
       'catalog',
       'architecture',
@@ -180,6 +180,7 @@ describe('compositionViewModel for a member', () => {
       'comparison',
       'calculator',
       'configurator',
+      'operations',
     ]);
   });
 

@@ -25,6 +25,14 @@ export interface AnalysisActions {
   onNotLinked?: () => void;
   /** The binding the configurator starts from; the version's when none is given. */
   start?: WrittenBinding;
+  /**
+   * The demand the binding is evaluated under (F4, the calculator's margins): a number of users, for the gateway's margins, and
+   * another revision of the linked problem (a demand variant). Either one has the toolchain evaluate even the version's own
+   * binding; nothing is stored.
+   */
+  demand?: { users?: number; revision?: number };
+  /** The gateway refused the demand variant (a candidate the revision lacks): its words, so the page resets the choice. */
+  onDemandRefused?: (message: string) => void;
 }
 
 /** Why the analysis modes are not shown, on a version they cannot work on. */

@@ -262,8 +262,9 @@ header and its 33-screen budget).
   a beta tab as SPHERE marks them: only with Settings → Beta features on; the organization's SPHERE key). `/me/orgs`,
   `/organizations`, `/orgs/new` and `/orgs/join/:code` list, explore, create and join.
 - **Resources of an organization** render outside its page, on the card shell, with the breadcrumb "Org / Name":
-  `/compositions/:org/:composition/:tab?` (Overview · Analytics · Configuration · Versions · Settings; the version
-  graph and diff in Versions; `/p/:id` resolves a permanent link), `/problems/:org/:problem/:tab?` (Overview ·
+  `/compositions/:org/:composition/:tab?` (Overview · Analytics · Configuration · Versions · Operation · Settings; the
+  version graph and diff in Versions; Operation is the members' tab of composition environments, the one opened in
+  `?environment=<slug>`; `/p/:id` resolves a permanent link), `/problems/:org/:problem/:tab?` (Overview ·
   Candidates · Versions · Runs · Compositions · Source · Settings), `/runs/:org/:run` (Result · Settings · Provenance ·
   Timeline) and `/studies/:org/:study/:tab?` (Setup · Progress · Results · Front · Settings). Creation forms:
   `/compositions/new`, `/runs/new`, `/studies/new`, each with `?org=`.
@@ -294,7 +295,9 @@ header and its 33-screen budget).
   journey has a Playwright walk, mocked (`e2e/f2a-*.spec.ts`, `e2e/f2b-*.spec.ts`, `e2e/f3-*.spec.ts`) and live against
   the lab (`e2e/live/08-derive-seal-compare.spec.ts`, `09-public-fork.spec.ts`, `10-problem-editor.spec.ts`,
   `11-study-front.spec.ts`, and `12-sphere-candidates.spec.ts` against live SPHERE). F3 adds a dialog and a tab, no
-  route. `e2e/live/visual-sweep.spec.ts` sweeps every screen of the route table in both palettes at 1440×900 and
+  route. F4 adds the Operation tab and its dialogs (environment, adopt, feed key, instantiate a template), no route, so
+  the budget stays 38; its walks are `e2e/f4-*.spec.ts` (mocked) and `e2e/live/13-operation.spec.ts` and
+  `14-run-and-templates.spec.ts` (the lab, with its feed consumer and Mailpit). `e2e/live/visual-sweep.spec.ts` sweeps every screen of the route table in both palettes at 1440×900 and
   390×844, a 375 px pass and a dark operating system.
 
 ### 5.3 Rendering catalogue
@@ -314,6 +317,7 @@ composition.
 | `calculator` | every one-task move with the gateway's comparison word and deltas | `GET …/neighborhood` | Configuration |
 | `configurator` | another binding chosen per task and what the toolchain makes of it | `POST …/evaluate` | Configuration |
 | `showcase` | what a visitor reads: what it does, value status, values, workflow, providers, plans, the problem's reference, and the offering's storefront from the version the evaluation read | the redacted public reads, `GET …/upstream` (public snapshots only) | Overview, for a visitor |
+| `operations` | what an environment's feed serves: the version in effect (`CompositionInEffect`), the margin per plan of its pinned evaluation (`MarginTable`, mounted by the page), and the adoption history (a slot the page fills) | `GET …/environments/{environment}`, `GET …/versions/{version}/margins?evaluation=&users=`, `GET …/upstream`, `GET …/adoptions` | Operation (an environment's detail) |
 
 The editor is a page, not a mode: `/editor` (`modules/composition-editor`: bundled Monaco with the gateway's lint and
 completion from the problem, the visual pane, the Problems panel, the publish dialog) on the draft store.
@@ -331,6 +335,10 @@ completion from the problem, the visual pane, the Problems panel, the publish di
 | analytics tab | structure and values per version over time, verified, declared and unverified apart, problem and compilation changes marked, a table for each chart | Analytics |
 | `MetricCards` | a row of key numbers with units | dashboards, headers |
 | `BindingTable`, `QoSAgainstBounds`, `ObjectiveBreakdown`, `EvaluationDiff`, `TradeOffChart`, `RunResult` | the run result: binding, QoS against bounds, objective terms, claimed against evaluated values, the trade-off set | run page, study cell |
+| `CompositionInEffect` (core) | the version in effect in an environment: its adoption, value badge, the candidate per task with the upstream plan it was read from, the offering version its evaluation read; a slot for F6's upstream badge | Operation |
+| `MarginTable` (core) | the margin per offering plan as the gateway computed it: amounts as the gateway's strings rounded by their text, a loss in words as well as tone, every status worded; a users field that only asks again | Operation, Configuration (the calculator's demand) |
+| environment card, Operation tab, adopt dialog, adoption history, feed key panel, check panel | SPHERE's collections frame and collection card, the versions tab's rows and the API keys page's reveal-once block applied to environments: the version in effect per environment, adoption with the environment's `If-Match`, the history newest first, the feed's address and its `obe_` keys shown once, "Check now" in one sentence per source | Operation, Versions (Adopt…), run page and derive dialog (Adopt in environment) |
+| template card, instantiate dialog | the composition templates of the catalog and starting one (its problem and a sealed first version) | New composition |
 | `VerdictBadge` | OPTIMAL · FEASIBLE · UNSAT · TIMEOUT · INCOMPATIBLE | everywhere a run appears |
 | `BindingSpaceBadge` | the size of the binding space the analysis gives | problem pages, study analytics |
 | code editor | bundled Monaco (YAML, JSON, XML) with located diagnostics as markers and completion | both editors |

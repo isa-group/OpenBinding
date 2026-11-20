@@ -163,3 +163,63 @@ export type ParetoFront = Schemas['ParetoFront'];
 
 /** One point of a Pareto front: its cell, the run it ran as and the solution of that run (`point` of a derivation). */
 export type ParetoPoint = Schemas['ParetoPoint'];
+
+/** A composition environment: where an application reads the version in effect (`GET …/environments/{environment}`). */
+export type CompositionEnvironmentView = Schemas['CompositionEnvironmentView'];
+
+/** A composition's environments (`GET …/environments`). */
+export type CompositionEnvironmentList = Schemas['CompositionEnvironmentList'];
+
+/** What creating a composition environment takes (`POST …/environments`). */
+export type CompositionEnvironmentCreate = Schemas['CompositionEnvironmentCreate'];
+
+/** What a change of a composition environment may name (`PATCH …/environments/{environment}`); its slug never changes. */
+export type CompositionEnvironmentUpdate = Schemas['CompositionEnvironmentUpdate'];
+
+/** The version in effect in an environment: the adoption that put it there, its binding and the evaluation it was judged on. */
+export type EnvironmentInEffect = Schemas['EnvironmentInEffect'];
+
+/** A feed key of an environment as its list shows it: a hint, never the secret. */
+export type EnvironmentKeyView = Schemas['EnvironmentKeyView'];
+
+/** A feed key just made: the only answer that carries its secret (`POST …/environments/{environment}/keys`). */
+export type FeedKeyCreated = Schemas['FeedKeyCreated'];
+
+/** One adoption of an environment's history, newest first (`GET …/environments/{environment}/adoptions`). */
+export type CompositionAdoptionView = Schemas['CompositionAdoptionView'];
+
+/** A page of an environment's adoptions. */
+export type CompositionAdoptionList = Schemas['CompositionAdoptionList'];
+
+/** What adopting a version takes (`POST …/environments/{environment}/adopt`, with `If-Match`). */
+export type EnvironmentAdopt = Schemas['EnvironmentAdopt'];
+
+/** What adopting answers: the environment as it is now and the adoption just recorded. */
+export type EnvironmentAdoptResult = Schemas['EnvironmentAdoptResult'];
+
+/** An environment checked against its sources now, writing nothing (`POST …/environments/{environment}/check`). */
+export type EnvironmentCheck = Schemas['EnvironmentCheck'];
+
+/** One bound task's upstream pricing in a check: the version it pins against the one its source calls latest. */
+export type CheckUpstream = Schemas['CheckUpstream'];
+
+/** The margin per offering plan of a version, from one of its evaluations (`GET …/versions/{version}/margins`). */
+export type CompositionMargins = Schemas['CompositionMargins'];
+
+/** One row of a margin table: a plan, alone or with one add-on, with the gateway's amounts as fixed decimal strings. */
+export type MarginRow = Schemas['MarginRow'];
+
+/** The revision of the linked problem an evaluation was asked against, with its capacity demand. */
+export type EvaluatedRevision = Schemas['EvaluatedRevision'];
+
+/** A version of a composition derived from a run, with the environments that have it in effect (`?run=` lists). */
+export type DerivedVersion = Schemas['DerivedVersion'];
+
+/** A composition template of the catalog (`GET /v1/compositions/templates`). */
+export type CompositionTemplateSummary = Schemas['CompositionTemplateSummary'];
+
+/** A composition template with its workflow and binding (`GET /v1/compositions/templates/{template}`). */
+export type CompositionTemplateView = Schemas['CompositionTemplateView'];
+
+/** What starting a composition from a template takes (`POST …/compositions/from-template`). */
+export type CompositionFromTemplate = Schemas['CompositionFromTemplate'];

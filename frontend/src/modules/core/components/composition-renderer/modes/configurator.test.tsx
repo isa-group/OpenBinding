@@ -6,6 +6,7 @@ import { compositionViewModel } from '../../../utils/composition/viewModel';
 import type { CompositionVersionView, ProblemFacts } from '../../../api/types';
 import { EVALUATED, FMS_COMPOSITION, fmsVersionView } from '../../../../../test/fixtures/analysis';
 import fmsFacts from '../../../../../test/fixtures/core/fms.facts.json';
+import whatIf from '../../../../../test/fixtures/core/tomatometer.evaluate.revision.json';
 import { CompositionRenderer } from '../CompositionRenderer';
 import type { AnalysisActions } from './analysis';
 import { findingTask } from './analysis';
@@ -47,6 +48,47 @@ describe('the configurator mode', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.evaluate.mockResolvedValue(EVALUATED);
+  });
+
+  it('evaluates the version’s own binding under a demand, and shows that revision’s demand and the gateway’s margins', async () => {
+    api.evaluate.mockResolvedValue(whatIf);
+    const onDemandRefused = vi.fn();
+    renderConfigurator({ demand: { users: 1000, revision: 4 }, onDemandRefused });
+    expect(result()).toHaveTextContent(
+      'The version’s binding, evaluated under the demand chosen above.'
+    );
+    await waitFor(() => expect(api.evaluate).toHaveBeenCalledTimes(1), WAIT);
+    expect(api.evaluate.mock.calls[0][2]).toEqual({
+      version: fmsVersionView().id,
+      binding: {},
+      users: 1000,
+      revision: 4,
+    });
+    expect(
+      await within(result()).findByRole('list', { name: 'Demand evaluated' })
+    ).toHaveTextContent('monthlyEmails: 60000 email/month');
+    expect(within(result()).getByRole('region', { name: 'Margin per plan' })).toBeInTheDocument();
+    // Nothing to derive: the binding is the version's.
+    expect(within(result()).queryByRole('button', { name: 'Derive as a new version' })).toBeNull();
+    expect(onDemandRefused).not.toHaveBeenCalled();
+  });
+
+  it('hands a refused demand variant back to the page in the gateway’s words', async () => {
+    api.evaluate.mockRejectedValue(
+      refused(422, 'evaluation_invalid', {
+        diagnostics: [
+          {
+            code: 'c2y_candidate_unknown',
+            message: 'no candidate x in revision 1',
+            pointer: '/binding/T1',
+          },
+        ],
+      })
+    );
+    const onDemandRefused = vi.fn();
+    renderConfigurator({ demand: { revision: 1 }, onDemandRefused });
+    await waitFor(() => expect(onDemandRefused).toHaveBeenCalled(), WAIT);
+    expect(onDemandRefused.mock.calls[0][0]).toContain('no candidate x in revision 1');
   });
 
   it('starts from the version’s binding and evaluates nothing until a task is bound otherwise', () => {

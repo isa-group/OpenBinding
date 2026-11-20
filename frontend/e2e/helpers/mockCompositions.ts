@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { CompositionVersionView, CompositionView } from '../../src/modules/core/api/types';
+import { operationStore, type OperationStore } from './operationMock';
 import { upstreamOf } from './sphereMock';
 
 // The compositions of the shared mock (e2e/helpers/mockApi.ts registers them): in `isa-demo`, a declared composition and one linked
@@ -603,6 +604,8 @@ export interface CompositionRequest {
   body: () => Record<string, unknown>;
   /** The body as text (a Composition2Yaml document). */
   text: () => string;
+  /** A request header, by lower-case name. */
+  header?: (name: string) => string | undefined;
 }
 
 export interface CompositionReply {
@@ -610,6 +613,7 @@ export interface CompositionReply {
   json?: unknown;
   text?: string;
   type?: string;
+  headers?: Record<string, string>;
 }
 
 /** An organization of the account, as `GET /v1/organizations` lists it: where a fork may go. */
@@ -646,6 +650,8 @@ export interface CompositionStore {
   permalink: (request: CompositionRequest) => CompositionReply;
   /** Answers the language services `/v1/compositions/{validate,parse,serialise,schema}`; null for anything else. */
   language: (request: CompositionRequest) => CompositionReply | null;
+  /** TomatoMeter's environments, adoptions, keys, check and margins, when the page seeded it (e2e/helpers/operationMock.ts). */
+  operation: OperationStore | null;
 }
 
 const KINDS = ['application', 'workflow', 'pipeline', 'system'];
@@ -939,7 +945,7 @@ function tomatometerEntry(): Entry {
   };
   const first: CompositionVersionView = {
     ...structuredClone(base),
-    id: uuid(0xe001),
+    id: uuid(0xe0a1),
     created_at: '2026-10-03T09:00:00Z',
     created_by_id: AUTHOR,
     problem,
@@ -954,7 +960,7 @@ function tomatometerEntry(): Entry {
   };
   const second: CompositionVersionView = {
     ...structuredClone(first),
-    id: uuid(0xe002),
+    id: uuid(0xe0a2),
     ordinal: 2,
     label: '1.1.0',
     created_at: '2026-10-04T09:00:00Z',
@@ -992,6 +998,7 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
   const entries = seed();
   if (options.evolution) entries.push(evolutionEntry());
   if (options.tomatometer) entries.push(tomatometerEntry());
+  const operation = options.tomatometer ? operationStore(COMPOSITIONS_ORG, 'tomatometer') : null;
   /** The compositions of the other organizations: lab-other's, and those forks made, by organization slug. */
   const others = new Map<string, Entry[]>([[PUBLIC_ORG, otherEntries()]]);
   const allEntries = () => [...entries, ...[...others.values()].flat()];
@@ -1444,7 +1451,12 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     const needle = (query.get('q') ?? '').toLowerCase();
     // `problem`: the compositions with a version linking a revision of that problem (its slug or id).
     const problem = query.get('problem');
+    // `run` (F4): the compositions with a version derived from that run, each with its `derivedVersions`.
+    const run = query.get('run');
+    const fromRun = (version: CompositionVersionView) =>
+      version.derivation?.source === 'run' && version.derivation.run?.id === run;
     const matched = pool
+      .filter(entry => !run || entry.versions.some(fromRun))
       .filter(
         entry =>
           !problem ||
@@ -1466,7 +1478,22 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       );
     const rows = matched
       .filter(({ view }) => !owners.length || owners.includes(view.organization.slug))
-      .map(listed);
+      .map(entry =>
+        run
+          ? {
+              ...listed(entry),
+              derivedVersions: [...entry.versions]
+                .reverse()
+                .filter(fromRun)
+                .map(version => ({
+                  id: version.id,
+                  label: version.label,
+                  sealedAt: version.created_at,
+                  inEffect: [],
+                })),
+            }
+          : listed(entry)
+      );
     const limit = Number(query.get('limit') ?? 50);
     const offset = Number(query.get('offset') ?? 0);
     return ok({
@@ -1721,6 +1748,56 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     });
   };
 
+  /**
+   * `POST …/compositions/from-template` (F4 J5): TomatoMeter's template makes a composition like the seeded TomatoMeter, under
+   * the address asked, with its first version; FMS's, a copy of an FMS composition. A taken address is 409 `slug_taken`.
+   */
+  const fromTemplate = (request: CompositionRequest, pool: Entry[]): CompositionReply => {
+    const sent = request.body() as {
+      template?: string;
+      slug?: string;
+      name?: string;
+      problemSlug?: string;
+    };
+    const slug = String(sent.slug ?? '');
+    if (pool.some(entry => entry.view.slug === slug))
+      return {
+        status: 409,
+        json: { detail: { code: 'slug_taken', error: 'That address is taken.', field: 'slug' } },
+      };
+    const source =
+      sent.template === 'tomatometer'
+        ? tomatometerEntry()
+        : (seed().find(entry => entry.versions.length) ?? null);
+    if (!source) return missing();
+    const first = {
+      ...structuredClone(source.versions[0]),
+      id: uuid(0xe400 + pool.length),
+      label: '1.0.0',
+      ordinal: 1,
+    };
+    const view = composition(
+      0x40 + pool.length,
+      slug,
+      String(sent.name || source.view.name),
+      { visibility: 'private' },
+      [first]
+    );
+    pool.push({ view, versions: [first] });
+    texts.set(first.id, `${JSON.stringify(first.document, null, 2)}\n`);
+    return ok(
+      {
+        template: sent.template,
+        composition: view,
+        version: first,
+        evaluation: first.evaluations[0] ?? null,
+        problem: { slug: sent.problemSlug, name: 'TomatoMeter e-mail', revision: 3 },
+        operation: { expectedUsers: 1000 },
+      },
+      201
+    );
+  };
+
   /** The answer to a member of `org`. */
   const answer = (
     request: CompositionRequest,
@@ -1729,6 +1806,8 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
   ): CompositionReply => {
     const [, , , , slug, section, ref, tail] = request.parts;
     const pool = poolOf(org);
+    if (slug === 'from-template' && request.method === 'POST' && org === COMPOSITIONS_ORG)
+      return fromTemplate(request, pool);
     if (!slug)
       return request.method === 'POST' && org === COMPOSITIONS_ORG
         ? create(request)
@@ -1747,9 +1826,23 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     if (section === 'graph' && request.method === 'GET') return graphOf(entry);
     if (section === 'download' && request.method === 'GET')
       return { status: 200, text: 'PK', type: 'application/zip' };
-    if (section === 'evaluate' && request.method === 'POST') return evaluate(entry, request);
+    if (section === 'evaluate' && request.method === 'POST') {
+      // TomatoMeter's calculator asks with users or a demand variant (F4 J6): the gateway's what-if fixtures answer.
+      const sent = request.body() as { version?: string };
+      const version =
+        entry.versions.find(item => item.id === sent.version) ?? entry.versions.at(-1);
+      const demand =
+        operation && slug === 'tomatometer' && version
+          ? operation.evaluate(request, version)
+          : null;
+      return demand ?? evaluate(entry, request);
+    }
     if (section === 'neighborhood' && request.method === 'GET')
       return neighbourhood(entry, request);
+    if (section === 'environments')
+      return operation && slug === 'tomatometer'
+        ? operation.route(request, entry.versions)
+        : ok({ environments: [] });
     const find = (value: string | null) =>
       entry.versions.find(
         item => item.id === value || item.label === value || String(item.ordinal) === value
@@ -1814,6 +1907,24 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       };
     if (tail === 'content')
       return { status: 200, text: texts.get(version.id) ?? '', type: 'application/yaml' };
+    if (tail === 'margins' && request.method === 'GET')
+      return operation && slug === 'tomatometer'
+        ? operation.margins(request, version)
+        : ok({
+            version: { id: version.id, label: version.label },
+            evaluation: null,
+            offering: null,
+            cost: null,
+            users: null,
+            billing: null,
+            apportionment: 'uniform',
+            status: 'no_offering',
+            currency: null,
+            costPerUser: null,
+            rowsTruncated: false,
+            rows: [],
+            warnings: [],
+          });
     // The installed toolchain has evaluated every version already: its evaluation, 200.
     if (tail === 'evaluations' && request.method === 'POST') return ok(version.evaluations[0]);
     return ok(
@@ -1966,5 +2077,6 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
           return null;
       }
     },
+    operation,
   };
 }

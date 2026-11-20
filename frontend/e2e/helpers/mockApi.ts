@@ -53,7 +53,14 @@ import {
 } from '../../src/test/fixtures/studies';
 import { presetPage } from '../../src/test/fixtures/presets';
 import { compositionStore, type CompositionSeed, type CompositionStore } from './mockCompositions';
-import { snapshotRoutes, sphereProblemRoutes, sphereRoutes, tomatometerListed } from './sphereMock';
+import type { OperationStore } from './operationMock';
+import {
+  fixture,
+  snapshotRoutes,
+  sphereProblemRoutes,
+  sphereRoutes,
+  tomatometerListed,
+} from './sphereMock';
 import { authConfigBody } from './session';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
@@ -76,6 +83,8 @@ export type Session = 'admin' | 'none' | 'visitor';
 export interface MockHandle {
   /** Requests the mock did not recognise, as `METHOD /path`. */
   unmocked: string[];
+  /** TomatoMeter's operation (environments, adoptions, keys, check, margins), when the page seeded it. */
+  operation?: OperationStore | null;
 }
 
 // -- People and organizations
@@ -778,6 +787,7 @@ interface Reply {
   text?: string;
   bytes?: Buffer;
   type?: string;
+  headers?: Record<string, string>;
 }
 
 const ok = (body: unknown, status = 200): Reply => ({ status, json: body });
@@ -800,6 +810,8 @@ interface Request {
   compositions: CompositionStore;
   /** The request carries a session. */
   signedIn: boolean;
+  /** A request header, by lower-case name. */
+  header: (name: string) => string | undefined;
 }
 
 /** `/v1/organizations/{org}/studies/…`: the studies of `isa-demo`, the one run of the first and its cells; another organization has none. */
@@ -1244,6 +1256,13 @@ function route(request: Request): Reply | null {
         });
       return null;
     case 'compositions':
+      // The composition templates (F4): the gateway's catalog fixtures; anybody reads them.
+      if (second === 'templates')
+        return parts[3]
+          ? parts[3] === 'tomatometer'
+            ? ok(fixture('core', 'template.tomatometer.json'))
+            : notFound('Composition template not found.')
+          : ok(fixture('core', 'templates.json'));
       return second
         ? request.compositions.language(request)
         : request.compositions.publicList(request);
@@ -1329,6 +1348,7 @@ export async function installMockApi(
   zip.file('application.json', '{"kind":"Application"}');
   const archive = await zip.generateAsync({ type: 'nodebuffer' });
   const compositions = compositionStore(seed);
+  handle.operation = compositions.operation;
 
   await page.route(`${API}/**`, async (call: Route) => {
     const request = call.request();
@@ -1343,6 +1363,7 @@ export async function installMockApi(
       archive,
       compositions,
       signedIn,
+      header: name => request.headers()[name],
       text: () => request.postData() ?? '',
       body: () => {
         try {
@@ -1414,7 +1435,14 @@ export async function installMockApi(
       });
       return;
     }
-    const reply = route(known);
+    const answered = route(known);
+    // A header the page reads (an `ETag`) crosses from the API origin only when it is exposed.
+    const reply = answered?.headers
+      ? {
+          ...answered,
+          headers: { 'Access-Control-Expose-Headers': 'ETag', ...answered.headers },
+        }
+      : answered;
     if (!reply) {
       handle.unmocked.push(`${known.method} ${url.pathname}`);
       await call.fulfill({ status: 404, json: { detail: 'not mocked' } });
@@ -1425,15 +1453,17 @@ export async function installMockApi(
         status: reply.status ?? 200,
         contentType: reply.type ?? 'application/octet-stream',
         body: reply.bytes,
+        headers: reply.headers,
       });
     } else if (reply.text !== undefined) {
       await call.fulfill({
         status: reply.status ?? 200,
         contentType: reply.type ?? 'text/plain',
         body: reply.text,
+        headers: reply.headers,
       });
     } else {
-      await call.fulfill({ status: reply.status ?? 200, json: reply.json });
+      await call.fulfill({ status: reply.status ?? 200, json: reply.json, headers: reply.headers });
     }
   });
   return handle;
@@ -1963,6 +1993,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
       archive: template,
       compositions,
       signedIn: Boolean(request.headers().authorization),
+      header: name => request.headers()[name],
       text: () => request.postData() ?? '',
       body: () => {
         try {

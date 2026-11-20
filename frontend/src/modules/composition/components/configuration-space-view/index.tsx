@@ -42,7 +42,9 @@ import ConfigurationDetailsModal from '../configuration-details-modal';
 import ConfigurationSpaceItem from '../configuration-space-item';
 import CompareTray from './compare-tray';
 import { captureLabel, nextSlot, type CompareSide, type CompareSlots } from './compare-slots';
+import type { OrgRole } from '../../../organization/api/organizationsApi';
 import ConfigurationComparison from './configuration-comparison';
+import DemandControls from './demand-controls';
 import { configurationsOf, type ExplorerConfiguration } from './configurations';
 
 /** How many moves the toolchain evaluates at most for one look. */
@@ -64,6 +66,8 @@ interface Props {
   candidates?: { status: 'loading' | 'error'; marker: string; retry: () => void } | null;
   /** The gateway says the shown version links no problem after all: the page hides the tab. */
   onNotLinked: () => void;
+  /** The reader's role: after a seal, the derive dialog offers adopting where this role may (F4). */
+  role?: OrgRole | null;
 }
 
 const smallButton =
@@ -76,6 +80,7 @@ export default function ConfigurationSpaceView({
   canDerive,
   candidates = null,
   onNotLinked,
+  role = null,
 }: Props) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -91,6 +96,15 @@ export default function ConfigurationSpaceView({
   const [tried, setTried] = useState<{ binding: WrittenBinding; attempt: number } | null>(null);
   const [deriving, setDeriving] = useState<BindingDerivation | null>(null);
   const [draft, setDraft] = useState<{ busy: boolean; error: string }>({ busy: false, error: '' });
+  // The calculator's demand (F4): users typed (asked after a pause) and a revision of the linked problem; nothing is saved.
+  const [usersTyped, setUsersTyped] = useState('');
+  const [usersAsked, setUsersAsked] = useState('');
+  useEffect(() => {
+    const timer = window.setTimeout(() => setUsersAsked(usersTyped), 500);
+    return () => window.clearTimeout(timer);
+  }, [usersTyped]);
+  const [demandRevision, setDemandRevision] = useState<number | null>(null);
+  const [demandRefusal, setDemandRefusal] = useState<string | null>(null);
   const configurator = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLLIElement>(null);
   const key = `${org}/${slug}/${version}/${attempt}`;
@@ -306,7 +320,7 @@ export default function ConfigurationSpaceView({
         ))}
 
       {neighbourhood.state === 'ready' && (
-        <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
           {/* Explorer */}
           <motion.section
             initial={{ opacity: 0, x: -10 }}
@@ -529,7 +543,7 @@ export default function ConfigurationSpaceView({
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.2 }}
             aria-label="Quick browse"
-            className="rounded-xl border border-tp-hairline bg-tp-canvas p-3"
+            className="min-w-0 rounded-xl border border-tp-hairline bg-tp-canvas p-3"
           >
             <h3 className="text-xs font-medium text-tp-steel">Quick Browse</h3>
             <p className="mt-0.5 text-[11px] text-tp-steel">Scroll to load more configurations.</p>
@@ -570,6 +584,21 @@ export default function ConfigurationSpaceView({
         </div>
       )}
 
+      {model.status.problemRevision && (
+        <DemandControls
+          org={org}
+          problemRef={model.status.problemRevision}
+          users={usersTyped}
+          onUsers={setUsersTyped}
+          revision={demandRevision}
+          onRevision={value => {
+            setDemandRevision(value);
+            setDemandRefusal(null);
+          }}
+          refusal={demandRefusal}
+        />
+      )}
+
       <div ref={configurator} className="rounded-xl border border-tp-hairline bg-tp-canvas p-4">
         {candidates?.status === 'loading' && (
           <p className="text-xs text-tp-steel" role="status">
@@ -591,7 +620,18 @@ export default function ConfigurationSpaceView({
           key={tried?.attempt ?? 0}
           model={model}
           mode="configurator"
-          analysis={{ ...actions, start: tried?.binding }}
+          analysis={{
+            ...actions,
+            start: tried?.binding,
+            demand: {
+              ...(/^[1-9]\d{0,9}$/.test(usersAsked) ? { users: Math.trunc(+usersAsked) } : {}),
+              ...(demandRevision !== null ? { revision: demandRevision } : {}),
+            },
+            onDemandRefused: message => {
+              setDemandRevision(null);
+              setDemandRefusal(message);
+            },
+          }}
         />
       </div>
 
@@ -603,6 +643,7 @@ export default function ConfigurationSpaceView({
           org={org}
           source={{ ...deriving, composition }}
           onClose={() => setDeriving(null)}
+          role={role}
         />
       )}
     </div>

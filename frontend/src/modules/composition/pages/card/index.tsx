@@ -15,7 +15,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { config } from '../../../../config';
 import { useResource } from '../../../core/hooks/useResource';
 import { classifyAuthError, marker, readApiError } from '../../../core/api/errors';
 import type { CompositionVersionView, ProblemFacts } from '../../../core/api/types';
@@ -37,6 +36,7 @@ import {
   type CompositionViewModel,
 } from '../../../core/utils/composition/viewModel';
 import customAlert from '../../../core/utils/custom-alert';
+import { gatewayUrl } from '../../../core/utils/gatewayUrl';
 import { problemFactsApi } from '../../../core/utils/problem/facts';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { orgPath } from '../../../organization/types/paths';
@@ -65,6 +65,9 @@ import CompositionVersionGraph from '../../components/version-graph';
 import CompositionVersionsTab from '../../components/versions-tab';
 import CompositionAnalyticsTab from '../../components/analytics-tab';
 import ConfigurationSpaceView from '../../components/configuration-space-view';
+import AdoptDialog from '../../components/adopt-dialog';
+import OperationTab from '../../components/operation-tab';
+import { useEnvironmentsApi } from '../../api/environmentsApi';
 import { roleAtLeast, useCompositionRole } from '../../hooks/useCompositionRole';
 import { saveBlob, saveText } from '../../utils/download';
 import { useCardComposition, type LoadedComposition } from './hooks';
@@ -83,13 +86,6 @@ const shortId = (id: string) => id.slice(0, 8);
 
 const actionClass =
   'flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-tp-input-border bg-tp-input-bg px-3 text-xs text-tp-ink transition-colors hover:bg-tp-surface focus:border-tp-primary focus:outline-none';
-
-/** An absolute address for a gateway path (the API base may be relative to this page). */
-function gatewayUrl(path: string): string {
-  const base = config.apiBaseUrl.replace(/\/$/, '');
-  const absolute = /^https?:\/\//.test(base) ? base : `${window.location.origin}${base}`;
-  return `${absolute}${path}`;
-}
 
 /**
  * Where the shown version comes from, in SPHERE's dotted line: the composition it was forked from (a link while the reader
@@ -508,6 +504,21 @@ function CardBody({
 
   const [forking, setForking] = useState(false);
   const [importing, setImporting] = useState(false);
+  // An adoption being chosen (an environment or a version picked first), and how many were made: the Operation tab and the
+  // Versions tab read the environments again after each.
+  const [adopting, setAdopting] = useState<{ environment?: string; version?: string } | null>(null);
+  const [adoptions, setAdoptions] = useState(0);
+  const { listEnvironments } = useEnvironmentsApi();
+  // Whether the reader may adopt in some environment: then each row of the Versions tab offers "Adopt…".
+  const adoptable = useResource<boolean>(
+    `composition-adoptable:${reader}:${org}/${slug}:${tab === 'versions'}:${adoptions}`,
+    async () =>
+      member && tab === 'versions' && !composition.archived
+        ? (await listEnvironments(org, slug).catch(() => [])).some(environment =>
+            roleAtLeast(role, environment.adoptRole)
+          )
+        : false
+  );
   const [link, setLink] = useState<{ url: string; description?: string } | null>(null);
 
   // A visitor who asked to fork comes back signed in with `?fork=1`: the modal opens once and the address forgets it.
@@ -616,6 +627,7 @@ function CardBody({
         shown: analysable || tab === 'configuration',
       },
       { id: 'versions', label: 'Versions', shown: true },
+      { id: 'operation', label: 'Operation', shown: member },
       { id: 'settings', label: 'Settings', shown: canWrite || tab === 'settings' },
     ];
     return list
@@ -623,7 +635,7 @@ function CardBody({
       .map(item => ({ id: item.id, label: item.label, to: tabTo(item.id) }));
     // `tabTo` reads only the address and the composition.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canWrite, analysable, tab, org, slug, versionQuery]);
+  }, [canWrite, member, analysable, tab, org, slug, versionQuery]);
 
   const overflow: OverflowAction[] = [
     ...(version ? [{ label: 'Fork', onSelect: fork }] : []),
@@ -695,6 +707,9 @@ function CardBody({
       )}
     </>
   );
+
+  // The Operation tab is the members': anybody else naming it gets the same in-place 404 as a tab the page does not have.
+  if (tab === 'operation' && !member) return <NotFoundPage />;
 
   const versionFailure = shown.status === 'error' ? classifyAuthError(shown.error) : null;
   const reading =
@@ -808,6 +823,7 @@ function CardBody({
             composition={composition}
             model={analysisModel}
             canDerive={canWrite}
+            role={role}
             candidates={candidates}
             onNotLinked={() => setUnlinked(version?.id ?? null)}
           />
@@ -847,8 +863,19 @@ function CardBody({
                 shown.reload();
                 reload();
               }}
+              onAdopt={adoptable.data ? version => setAdopting({ version: version.id }) : undefined}
             />
           </div>
+        )}
+        {tab === 'operation' && (
+          <OperationTab
+            org={org}
+            composition={composition}
+            versions={versions}
+            role={role}
+            refresh={adoptions}
+            onAdopt={environment => setAdopting({ environment: environment.slug })}
+          />
         )}
         {tab === 'settings' && (
           <CompositionSettingsTab
@@ -871,6 +898,26 @@ function CardBody({
         )}
       </ResourceCardShell>
 
+      {adopting && (
+        <AdoptDialog
+          org={org}
+          composition={composition}
+          versions={versions}
+          role={role}
+          environment={adopting.environment}
+          version={adopting.version}
+          onClose={() => setAdopting(null)}
+          onAdopted={result => {
+            setAdopting(null);
+            setAdoptions(count => count + 1);
+            addToast({
+              kind: SYSTEM_TOAST,
+              title: `Version ${result.adoption.version.label} adopted in ${result.environment.name}`,
+              message: `Adoption #${result.adoption.ordinal}. The application reads it on its next poll.`,
+            });
+          }}
+        />
+      )}
       {link && (
         <PricingLinkModal
           linkUrl={link.url}

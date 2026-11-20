@@ -593,8 +593,8 @@ diagnostic guide, not a list of verified results.
 
 The flagship demo of the composition redesign, in at most 20 minutes: a real application's back end composed from
 real SPHERE plans, operated in an environment, and switched to another e-mail provider by one human adoption, which
-the application follows on its next poll. Until the Operation tab exists (F4-C) the operation steps are API calls; the
-problem, run and composition steps are screens already.
+the application follows on its next poll. Every step is a screen; the feed, the consumer and Mailpit are what an
+application sees, so they stay commands (each screen step names its API equivalent, for a demo without a browser).
 
 What the lab seeds for it (`openbinding-gateway/tools/seed_lab.py`, through the TomatoMeter composition template
 `examples/templates/tomatometer.json`, the same function as `POST /v1/organizations/{org}/compositions/from-template`):
@@ -623,17 +623,17 @@ FEED_KEY=$(python3 -c 'import hashlib,hmac,os; d=hmac.new(os.environ["DEMO_SEED_
 | --- | --- | --- | --- |
 | 0-2 | Start | `$C up --build --wait`, then `seed` (section "Running it with lab_compose") | the services healthy; the seed's report names `tomatometer`, `production`, `staging` and the feed key (never its value) |
 | 2-5 | The problem | `/problems/lab-main/tomatometer-email/candidates` | three revisions; every e-mail and Dropbox plan with where each value comes from (priced from SPHERE, a limit, set by hand) |
-| 5-8 | A run, kept as a composition | a run of revision 3 on random search, then "Keep as composition" into `tomatometer` | the optimum binds the built-in quotes and an e-mail plan the engines agree on; a version derived from the run (1.2.0 on a fresh lab) |
-| 8-10 | In effect | `curl -sS -H "$OWNER" $T/environments/production` | 1.0.0 in effect, adoption #1, operator `lab-owner`, Brevo PROFESSIONAL bound to `dailySummary` |
-| 10-11 | Margins at 1000 users | `curl -sS -H "$OWNER" "$T/versions/1.0.0/margins?users=1000&evaluation=<inEffect.evaluation.id>"` | 508.99 USD a month is 0.508990 per user; basic loses that much, premium with exportAsJson earns 11.481010 |
-| 11-12 | Check now | `curl -sS -X POST -H "$OWNER" $T/environments/production/check` | the binding valid; Brevo 2026-10, Dropbox 2021 and the offering 1.0.0 the latest of their sources; nothing written |
-| 12-14 | Adopt 1.1.0 | `ETAG=$(curl -sSI -H "$OWNER" $T/environments/production \| sed -n 's/^etag: //Ip' \| tr -d '\r')`, then `curl -sS -X POST -H "$OWNER" -H "If-Match: $ETAG" -H 'Content-Type: application/json' -d '{"version": "1.1.0", "note": "Switch to Resend"}' $T/environments/production/adopt` | adoption #2; without `If-Match` the answer is 428, and `lab-member` gets 403 (ADMIN adopts in production) |
+| 5-8 | A run, kept as a composition | `/runs/new?org=lab-main&problem=tomatometer-email&revision=3`, random search, then "Keep as composition" into `tomatometer` | the optimum binds the built-in quotes and an e-mail plan the engines agree on; the seal offers "Adopt in environment" beside "Open versions" (a second step: nothing is adopted yet) |
+| 8-10 | In effect | `/compositions/lab-main/tomatometer/operation`, then the `Production` card | the cards: production with 1.0.0 in effect (adoption #1, operator `lab-owner`), staging with nothing; the detail: Brevo PROFESSIONAL bound to `dailySummary`, the offering version its evaluation read (API: `GET $T/environments/production`) |
+| 10-11 | Margins at 1000 users | the same detail, "Margin per plan" | 508.99 USD a month is 0.51 per user; basic shows a loss, premium with exportAsJson earns 11.48; typing 3 users asks again and saves nothing (API: `GET $T/versions/1.0.0/margins?users=1000&evaluation=…`) |
+| 11-12 | Check now | "Sources" → "Check now" | the binding valid; Brevo 2026-10, Dropbox 2021 and the offering 1.0.0 the latest of their sources; "Nothing was changed" (API: `POST $T/environments/production/check`) |
+| 12-14 | Adopt 1.1.0 | "Adopt…" on the card, version 1.1.0, a note | "The feed changes when you adopt"; the card says 1.1.0, adoption #2; a member is not offered Adopt in production (API: `POST …/adopt` with `If-Match`, 428 without it, 403 for `lab-member`) |
 | 14-15 | The feed changes | `curl -sSi -H "X-API-Key: $FEED_KEY" $T/environments/production/composition` | the YAML of 1.1.0 with 1.1.0's content `ETag`; with `If-None-Match` set to it, 304 |
 | 15-16 | The application follows | `$C exec feed-consumer curl -s localhost:8090/state`, then `$C exec feed-consumer curl -s -X POST localhost:8090/send` | within one poll (3 s) the consumer follows `email.resend.pro` and mails the daily summary through Resend |
 | 16-17 | Mailpit | `http://localhost:18100/mailpit/` (read-only) | the summary sent before the adoption tagged `provider-brevo`, the one after tagged `provider-resend`, each with `X-OpenBinding-Provider` and `X-OpenBinding-Composition-Version` |
-| 17-18 | Margins compared, history | margins of 1.1.0 at 1000 users; `curl -sS -H "$OWNER" $T/environments/production/adoptions` | per user 0.508990 becomes 0.029990: every plan earns 0.479000 more; the history says 1.0.0 → 1.1.0 by `lab-owner` with the note |
-| 18-19 | The template | `curl -sS $API/v1/compositions/templates`, then `POST $API/v1/organizations/<org>/compositions/from-template {"template": "tomatometer"}` in another organization | the same problem and composition made in one action for anyone with the `repository` feature |
-| 19-20 | Restore | adopt 1.0.0 again (the walks and the next demo start from it) | adoption #3; the next summary goes through Brevo |
+| 17-18 | Margins compared, history | the detail again; "Adoption history" | per user 0.51 becomes 0.03; the history says 1.0.0 → 1.1.0 by `lab-owner` with the note, and "Compare previous" opens the Versions tab on the pair; the operator's notification links here |
+| 18-19 | The template | `/compositions/new?org=<another org>` → "Start from a template" → TomatoMeter composite | the same problem and composition made in one action for anyone with the `repository` feature; its Operation tab empty until an admin creates an environment |
+| 19-20 | Restore | "Adopt…" 1.0.0 in production (the walks and the next demo start from it) | adoption #3; the next summary goes through Brevo |
 
 `tools/smoke_lab.py` steps 16 to 18 (`environment_feed`, `adopt_switches_provider`, `restore_operation`) run this
 middle part unattended and restore the seed's state.

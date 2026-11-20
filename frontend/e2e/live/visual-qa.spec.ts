@@ -549,13 +549,55 @@ function sphereStops(): Stop[] {
     wizard('preview', '&sphereUpdate=1'),
     {
       slug: 'sphere-composition',
-      path: `/compositions/${ORG}/tomatometer`,
+      // The seeded version: walk 14 seals later ones, derived from a run, which pin no upstream plan.
+      path: `/compositions/${ORG}/tomatometer?version=1.0.0`,
       ready: page =>
         page
           .locator('main')
           .getByRole('region', { name: 'Upstream plans', exact: true })
           .getByRole('article')
           .first(),
+    },
+    // F4: TomatoMeter's operation (environments, production's detail with its margins, the adopt dialog, the feed keys).
+    {
+      slug: 'composition-operation',
+      path: `/compositions/${ORG}/tomatometer/operation`,
+      ready: page => page.locator('main').getByRole('article', { name: 'Environment Production' }),
+    },
+    {
+      slug: 'composition-operation-detail',
+      path: `/compositions/${ORG}/tomatometer/operation?environment=production`,
+      ready: page =>
+        page
+          .locator('main')
+          .getByRole('region', { name: 'Margin per plan' })
+          .getByRole('row')
+          .nth(1),
+    },
+    {
+      slug: 'adopt-dialog',
+      path: `/compositions/${ORG}/tomatometer/operation?environment=production`,
+      ready: page => page.locator('main').getByRole('button', { name: 'Adopt…' }),
+      extra: async (page, label) => {
+        await page.locator('main').getByRole('button', { name: 'Adopt…' }).click();
+        await expect
+          .soft(
+            page.getByRole('dialog', { name: 'Adopt a version' }).getByText(/In effect now/),
+            `${label}: the adopt dialog did not read the environment`
+          )
+          .toBeVisible({ timeout: 30_000 });
+      },
+    },
+    {
+      slug: 'key-panel',
+      path: `/compositions/${ORG}/tomatometer/operation?environment=production`,
+      ready: page => page.getByRole('list', { name: 'Feed keys' }),
+      extra: async (page, label) => {
+        await page.getByRole('region', { name: 'Feed', exact: true }).scrollIntoViewIfNeeded();
+        await expect
+          .soft(page.getByLabel('Secret'), `${label}: a secret is on screen without being made`)
+          .toHaveCount(0);
+      },
     },
     {
       slug: 'connections',
@@ -740,7 +782,21 @@ const VISITOR_STOPS: Stop[] = [
           `${label}: a visitor sees the problem's candidates`
         )
         .toHaveCount(0);
+      await expect
+        .soft(
+          page
+            .getByRole('navigation', { name: 'Composition sections' })
+            .getByRole('link', { name: 'Operation' }),
+          `${label}: a visitor sees the Operation tab`
+        )
+        .toHaveCount(0);
     },
+  },
+  {
+    // The Operation tab of a public composition, named by a visitor: the in-place 404, as a tab the page does not have.
+    slug: 'visitor-operation',
+    path: `/compositions/${OTHER_ORG}/sequential-workflow/operation`,
+    ready: page => page.getByRole('heading', { name: 'Page not found' }),
   },
   {
     slug: 'language',
@@ -806,6 +862,22 @@ const VIEWER_STOPS: Stop[] = [
         .soft(
           page.getByRole('link', { name: 'New composition' }),
           `${label}: a viewer sees "New composition"`
+        )
+        .toHaveCount(0);
+    },
+  },
+  {
+    slug: 'viewer-operation',
+    path: `/compositions/${ORG}/tomatometer/operation?environment=production`,
+    ready: page => page.locator('main').getByRole('region', { name: 'Margin per plan' }),
+    extra: async (page, label) => {
+      await expect
+        .soft(page.getByRole('button', { name: 'Adopt…' }), `${label}: a viewer sees "Adopt"`)
+        .toHaveCount(0);
+      await expect
+        .soft(
+          page.getByRole('list', { name: 'Feed keys' }),
+          `${label}: a viewer sees the feed keys`
         )
         .toHaveCount(0);
     },
