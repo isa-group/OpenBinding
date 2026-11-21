@@ -379,6 +379,40 @@ async def test_an_unresolved_ref_is_resolved_once_the_family_is_readable(api_cli
     assert resolved is not None and resolved.tasks == ["extra"] and resolved.pinned_snapshot_id is not None
 
 
+MAILGUN_VERSION = "6ade36454b2b5b01c587db3d"
+
+
+def _unresolved(found, sphere_ref: str, task: str, pinned: str = MAILGUN_VERSION) -> PricingWatchRef:
+    return PricingWatchRef(organization_id=found.organization.id, composition_id=found.composition.id,
+                           version_id=found.v110.id, watch_id=None, subject="binding", via="from",
+                           sphere_ref=sphere_ref, pinned_version_id=pinned, tasks=[task],
+                           selection={task: {"plan": "FOUNDATION"}}, ref_key=f"unresolved:{sphere_ref}|binding|{pinned}")
+
+
+async def test_a_second_pin_of_a_family_is_resolved_beside_the_first(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
+    from openbinding_gateway.modules.compositions.application import watches
+
+    found = await seeded(api_client, registration, db_session, gate, production=False)
+    elsewhere = PricingWatch(source_kind="sphere", pricing_id="6b0000000000000000000001", scope_key="public",
+                             watch_key="sphere|6b0000000000000000000001|public")
+    db_session.add(elsewhere)
+    await db_session.flush()
+    sphere.not_found("/api/v1/public/pricings/6b0000000000000000000001")
+    # The version pins the family twice: one pin resolved at seal, the other waiting for SPHERE.
+    db_session.add(PricingWatchRef(organization_id=found.organization.id, composition_id=found.composition.id,
+                                   version_id=found.v110.id, watch_id=elsewhere.id, subject="binding", via="from",
+                                   sphere_ref="danruilop1/mailgun", pinned_version_id="6ade3645000000000000aaaa",
+                                   tasks=["first"], selection={"first": {"plan": "FOUNDATION"}},
+                                   ref_key=f"{elsewhere.id}|binding|6ade3645000000000000aaaa"))
+    db_session.add(_unresolved(found, "danruilop1/mailgun", "extra"))
+    await watches.ensure_attempt(db_session, found.organization.id, "danruilop1/mailgun", MAILGUN_VERSION)
+    report = await _cycle(db_session, source)
+    assert report.refs_resolved == 1 and await db_session.scalar(select(PricingRefAttempt)) is None
+    resolved = await db_session.scalar(select(PricingWatchRef).where(
+        PricingWatchRef.pinned_version_id == MAILGUN_VERSION, PricingWatchRef.watch_id.is_not(None)))
+    assert resolved is not None and resolved.tasks == ["extra"]
+
+
 async def test_with_sphere_off_the_cycle_is_skipped(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
     await seeded(api_client, registration, db_session, gate, production=False)
     before = len(sphere.requests)

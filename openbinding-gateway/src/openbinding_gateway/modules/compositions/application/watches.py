@@ -295,7 +295,8 @@ def live_ref_exists(watch_id: Any) -> Any:
 
 async def unresolved_refs(session: AsyncSession, organization_id: uuid.UUID, sphere_ref: str,
                           pinned: str | None) -> list[PricingWatchRef]:
-    """The unresolved refs of an organization naming ``sphere_ref`` at ``pinned`` that no resolved sibling covers."""
+    """The unresolved refs of an organization naming ``sphere_ref`` at ``pinned`` that no resolved sibling (the same
+    version, family and pinned version) covers."""
     resolved = aliased(PricingWatchRef)
     query = select(PricingWatchRef).where(
         PricingWatchRef.organization_id == organization_id,
@@ -305,6 +306,7 @@ async def unresolved_refs(session: AsyncSession, organization_id: uuid.UUID, sph
         ~select(resolved.id).where(
             resolved.version_id == PricingWatchRef.version_id, resolved.watch_id.is_not(None),
             resolved.sphere_ref == PricingWatchRef.sphere_ref,
+            resolved.pinned_version_id.is_not_distinct_from(PricingWatchRef.pinned_version_id),
         ).exists(),
     )
     return list((await session.scalars(query.order_by(PricingWatchRef.created_at))).all())
