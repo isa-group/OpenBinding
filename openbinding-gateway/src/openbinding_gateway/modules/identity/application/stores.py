@@ -1,4 +1,5 @@
-"""The registry of the identity module's ports: the one-time store, the lock and the Identity client.
+"""The registry of the identity module's ports: the one-time store, the lock, the Identity client and the
+account hook.
 
 ``application`` never imports ``adapters`` (the module-inside contract), so the composition root installs the
 adapters here (``main._lifespan``, by ``IDENTITY_STORE_BACKEND``) and the tests install memory ones
@@ -7,7 +8,7 @@ adapters here (``main._lifespan``, by ``IDENTITY_STORE_BACKEND``) and the tests 
 
 from __future__ import annotations
 
-from .ports import OidcClient, OneTimeStore, SessionLock
+from .ports import AccountHook, OidcClient, OneTimeStore, SessionLock
 
 
 class IdentityStoreNotConfigured(RuntimeError):
@@ -17,6 +18,7 @@ class IdentityStoreNotConfigured(RuntimeError):
 _store: OneTimeStore | None = None
 _oidc: OidcClient | None = None
 _lock: SessionLock | None = None
+_account_hook: AccountHook | None = None
 
 
 def set_store(store: OneTimeStore | None) -> None:
@@ -50,3 +52,16 @@ def get_oidc() -> OidcClient:
     if _oidc is None:
         raise IdentityStoreNotConfigured("no SCORETech Identity client is installed")
     return _oidc
+
+
+def set_account_hook(hook: AccountHook | None) -> None:
+    global _account_hook
+    _account_hook = hook
+
+
+def get_account_hook() -> AccountHook:
+    """The hook ``main`` installs when it is imported; without it no account is provisioned, since an account
+    must not exist without its personal organization."""
+    if _account_hook is None:
+        raise IdentityStoreNotConfigured("no account hook is installed")
+    return _account_hook

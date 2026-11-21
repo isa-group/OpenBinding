@@ -168,6 +168,25 @@ class AccountDeleteRequest(BaseModel):
     current_password: Optional[str] = None
 
 
+class PersonalOrganizationLoss(BaseModel):
+    """What deleting the account deletes with its personal organization (the Danger Zone says it before asking)."""
+
+    slug: str
+    name: str
+    compositions: int
+    public_compositions: int
+    problems: int
+    runs: int
+    #: Environments with a live feed key: an application reading their feed stops being answered.
+    feed_environments: int
+
+
+class AccountDeletionPreview(BaseModel):
+    """``GET /v1/users/me/deletion``: what ``DELETE /v1/users/me`` would delete beyond the account itself."""
+
+    personal_organization: Optional[PersonalOrganizationLoss] = None
+
+
 class UpdateProfileRequest(BaseModel):
     email: Optional[EmailStr] = None
     current_password: Optional[str] = Field(

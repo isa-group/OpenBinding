@@ -20,7 +20,7 @@ from datetime import timedelta
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Request, Response, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,6 +47,7 @@ from ..models.errors import (
     api_error,
 )
 from ..security.passwords import hash_password, password_complaint, verify_password
+from ..services import organizations as organization_profiles
 from .users import profile_of
 from ..modules.identity.application import (
     access_token_for,
@@ -143,6 +144,18 @@ async def register(
         )
     if await username_reserved(session, request.username):
         raise username_unavailable()
+    # "Alice" beside "alice" is the same name, already registered (uq_users_username_lower), before it is a name whose
+    # personal organization's slug is taken.
+    if await session.scalar(
+        select(User.id).where(func.lower(User.username) == request.username.casefold()).limit(1)
+    ) is not None:
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            "already_registered",
+            "That username or email is already in use.",
+        )
+    if not await organization_profiles.personal_slug_free(session, request.username):
+        raise username_unavailable()
 
     # The plan a sign-up starts on is configuration (SPACE_DEFAULT_PLAN). Unset,
     # the account is created without one and SPACE assigns the contract's plan.
@@ -171,6 +184,11 @@ async def register(
             "already_registered",
             "That username or email is already in use.",
         ) from None
+    # Every account has a personal organization (SPHERE's rule), created with it: a refusal rolls both back.
+    try:
+        await organization_profiles.ensure_personal_organization(session, user)
+    except organization_profiles.PersonalSlugTaken:
+        raise username_unavailable() from None
 
     # A contract is what entitles the account to anything, but registration
     # does not depend on SPACE being up: the account is created either way and

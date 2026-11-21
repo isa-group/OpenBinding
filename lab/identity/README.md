@@ -30,8 +30,8 @@ phases selected by tag; and F4's `e2e/live/13-operation.spec.ts`, unchanged):
    then `e2e/live/13-operation.spec.ts` runs unchanged with `playwright.live.config.ts`, its `signInByApi` signing each role
    in through Identity (Keycloak's SSO cookies kept from the setup, so no further code), Mailpit read through the lab's
    read-only `/mailpit/` location and the feed consumer on `localhost:18197`. The memory the combined stack uses is printed.
-5. The main phase: `member`'s first sign-in (a taken username, then its own; its email verified by the code sign-in),
-   its return without a code, five parallel renewals after 35 s, logout (the captured token refused, Identity asking for
+5. The main phase: `member`'s first sign-in (a taken username, then its own; its email verified by the code sign-in;
+   it owns `<username> PERSONAL`, its personal organization), its return without a code, five parallel renewals after 35 s, logout (the captured token refused, Identity asking for
    an email again); `research` on RESEARCH; `clash` refused (`account_not_linked`); `squat` provisioned with the address an
    unverified seeded account held; `norole` refused (`access_denied`); the account page answering.
 6. `@screens`: `screens` signs in from the header, meets a taken username on `/sso/identity/username`, lands on the

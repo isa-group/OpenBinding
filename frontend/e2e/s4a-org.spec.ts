@@ -59,6 +59,7 @@ interface Org {
   slug: string;
   name: string;
   parent_id: string | null;
+  is_personal: boolean;
   effective_role: Role;
   created_at: string;
 }
@@ -68,6 +69,7 @@ const org = (n: number, slug: string, name: string, role: Role, over: Partial<Or
   slug,
   name,
   parent_id: null,
+  is_personal: false,
   effective_role: role,
   created_at: '2026-03-03T00:00:00Z',
   ...over,
@@ -86,6 +88,11 @@ const researchHub = org(4, 'research-hub', 'Research Hub', 'ADMIN', {
 });
 const partnerLab = org(5, 'partner-lab', 'Partner Lab', 'OWNER', {
   created_at: '2026-07-01T00:00:00Z',
+});
+// The account's personal organization (F5-D): named after it, never moved, left, handed over or deleted.
+const personal = org(6, 'lucia-vega', 'lucia.vega PERSONAL', 'OWNER', {
+  is_personal: true,
+  created_at: '2026-03-01T00:00:00Z',
 });
 
 interface Member {
@@ -138,6 +145,10 @@ const membersOf = (): Record<string, Member[]> => ({
     person(isaDemo, 'sofia', 'user-sofia', 'VIEWER', '2026-05-20T00:00:00Z'),
   ],
   'qos-lab': [person(qosLab, 'marco', 'user-marco', 'ADMIN', '2026-04-15T00:00:00Z')],
+  'lucia-vega': [
+    person(personal, 'lucia.vega', 'user-1', 'OWNER'),
+    person(personal, 'marco', 'user-marco', 'ADMIN', '2026-04-15T00:00:00Z'),
+  ],
   'consultora-demo': [
     person(consultora, 'nora', 'user-nora', 'OWNER'),
     person(consultora, 'lucia.vega', 'user-1', 'VIEWER'),
@@ -528,6 +539,7 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
         name: item.name,
         avatar: {},
         parent_id: item.parent_id,
+        is_personal: item.is_personal,
         has_access: true,
         effective_role: item.effective_role,
       }))
@@ -806,6 +818,53 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const owner = request(page, 'PUT', '/v1/organizations/isa-demo/owner');
       await page.getByRole('dialog').getByRole('button', { name: 'Transfer ownership' }).click();
       expect((await owner).postDataJSON()).toEqual({ user_id: 'user-marco' });
+      expect(critical).toEqual([]);
+    });
+
+    test('org-personal: the Personal section and a personal organization’s page', async ({
+      page,
+    }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(page, {
+        organizations: [isaDemo, qosLab, consultora, researchHub, partnerLab, personal],
+      });
+      await page.goto('/me/orgs');
+      const main = page.locator('main');
+
+      // SPHERE's sections: the personal organization apart from the teams, and never moved.
+      const mine = main.getByRole('region', { name: 'Personal' });
+      await expect(mine.getByRole('link', { name: 'lucia.vega PERSONAL' })).toBeVisible();
+      const teams = main.getByRole('region', { name: 'Teams' });
+      await expect(teams.getByRole('link', { name: 'ISA Demo Group' })).toBeVisible();
+      await expect(teams.getByRole('link', { name: 'lucia.vega PERSONAL' })).toHaveCount(0);
+      await expect(main.getByText('6 organizations')).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Move lucia.vega PERSONAL to…' })).toHaveCount(
+        0
+      );
+      if (!isMobile) {
+        await expect(main.getByRole('button', { name: 'Move Partner Lab to…' })).toBeVisible();
+      }
+      await capture(page, testInfo, `orgs-${name}-personal`);
+
+      // Its page: no Leave or Delete, no crown, no sub-organization.
+      await page.goto('/orgs/lucia-vega');
+      await expect(
+        main.getByRole('heading', { level: 1, name: 'lucia.vega PERSONAL' })
+      ).toBeVisible();
+      await expect(main.getByRole('button', { name: /^(Leave|Delete) organization$/ })).toHaveCount(
+        0
+      );
+      await capture(page, testInfo, `org-${name}-personal`);
+      await page.goto('/orgs/lucia-vega/members');
+      const members = main.getByRole('region', { name: 'Members' });
+      await expect(members.getByText('@marco')).toBeVisible();
+      await expect(members.getByRole('button', { name: /^Transfer ownership/ })).toHaveCount(0);
+      await expect(members.getByRole('button', { name: 'Leave organization' })).toHaveCount(0);
+      await page.goto('/orgs/lucia-vega/hierarchy');
+      await expect(
+        main.getByText('A personal organization has no sub-organizations.')
+      ).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Add child' })).toHaveCount(0);
       expect(critical).toEqual([]);
     });
 

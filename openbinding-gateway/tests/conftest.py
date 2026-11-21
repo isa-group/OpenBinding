@@ -204,15 +204,19 @@ def identity_stores():
     """The identity module's one-time store and session lock, in this test's own memory.
 
     The lifespan installs Redis ones (``IDENTITY_STORE_BACKEND``); the unit suite has no Redis and runs no
-    lifespan, so every test starts with empty memory adapters. Yields ``(store, lock)``.
+    lifespan, so every test starts with empty memory adapters, and with the account hook ``main`` installs.
+    Yields ``(store, lock)``.
     """
     if not GATEWAY_INSTALLED:
         yield None
         return
     from openbinding_gateway.modules.identity.adapters.stores import MemoryOneTimeStore, MemorySessionLock
-    from openbinding_gateway.modules.identity.application import set_lock, set_store
+    from openbinding_gateway.modules.identity.application import set_account_hook, set_lock, set_store
+    from openbinding_gateway.services.organizations import PersonalOrganizationHook
 
     store, lock = MemoryOneTimeStore(), MemorySessionLock()
+    # main installs it on import; a test that drives provisioning without the app gets the same one.
+    set_account_hook(PersonalOrganizationHook())
     set_store(store)
     set_lock(lock)
     yield store, lock

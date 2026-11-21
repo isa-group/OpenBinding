@@ -87,6 +87,9 @@ from typing import Any
 GATEWAY_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(os.environ.get("OPENBINDING_REPO_ROOT", Path(__file__).resolve().parents[2])).resolve()
 FIXTURES = REPO_ROOT / "frontend" / "src" / "test" / "fixtures" / "core"
+#: The account that makes the fixtures. Not ``fixtures``: that is the organization's slug, and organizations and
+#: usernames share one namespace (every account owns a personal organization named after it).
+FIXTURES_USER = "fixture-author"
 SPHERE_FIXTURES = FIXTURES.parent / "sphere"
 SFX = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "sphere"
 DEMO = REPO_ROOT / "examples" / "demo"
@@ -470,7 +473,7 @@ async def _derived_from_a_run(client, headers: dict[str, str], session) -> Any:
     version = _ok(await client.get(f"{compositions}/simple-seq/versions/1.0.0", headers=headers), 200).json()
     derivation = await session.scalar(select(CompositionDerivation).where(
         CompositionDerivation.version_id == uuid.UUID(version["id"])))
-    user = await session.scalar(select(User).where(User.username == "fixtures"))
+    user = await session.scalar(select(User).where(User.username == FIXTURES_USER))
     organization_id = (await client.get("/v1/organizations/fixtures", headers=headers)).json()["id"]
     job = Job(
         created_by_id=user.id, engine_id="random-search", engine_job_id="fixtures-run", service_url="http://engine",
@@ -531,9 +534,9 @@ async def _versions(client, headers: dict[str, str], name: str, facts: dict[str,
 
 
 async def _sign_in(client) -> dict[str, str]:
-    details = {"username": "fixtures", "email": "fixtures@example.org", "password": "fixtures-throwaway-password"}
+    details = {"username": FIXTURES_USER, "email": "fixtures@example.org", "password": "fixtures-throwaway-password"}
     _ok(await client.post("/v1/auth/register", json=details), 201)
-    login = await client.post("/v1/auth/login", json={"username_or_email": "fixtures", "password": details["password"]})
+    login = await client.post("/v1/auth/login", json={"username_or_email": FIXTURES_USER, "password": details["password"]})
     return {"Authorization": f"Bearer {_ok(login, 200).json()['access_token']}"}
 
 

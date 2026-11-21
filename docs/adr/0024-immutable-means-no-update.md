@@ -18,6 +18,10 @@ revision or compilation that no run or study cell references is allowed. History
 first and answer `409` instead of letting PostgreSQL answer 500; a race that slips past the check is still caught by
 the foreign key and mapped to the same 409.
 
+Addendum (F5-D): the two retain triggers make one exception, the personal organization of a deleted account (its
+`personal_owner_id` names a user with `deleted_at`), which `DELETE /v1/users/me` deletes whole after pseudonymising the
+account, as SPHERE deletes it ([ADR 0056](0056-identity-bff-session.md) addendum).
+
 ## Consequences
 
 - A problem nobody ran can be deleted; one with runs is kept as their evidence (`409 problem_has_runs`).

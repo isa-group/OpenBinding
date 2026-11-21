@@ -36,10 +36,12 @@ EXAMPLES = REPO_ROOT / "examples"
 
 
 async def roles_by_membership(session) -> dict[tuple[str, str], OrganizationRole]:
+    """The roles in the lab's shared organizations (the personal ones apart)."""
     rows = (await session.execute(
         select(User.username, Organization.slug, OrganizationMembership.role)
         .join(OrganizationMembership, OrganizationMembership.user_id == User.id)
         .join(Organization, Organization.id == OrganizationMembership.organization_id)
+        .where(Organization.personal_owner_id.is_(None))
     )).all()
     return {(username, slug): role for username, slug, role in rows}
 
@@ -47,8 +49,8 @@ async def roles_by_membership(session) -> dict[tuple[str, str], OrganizationRole
 async def test_first_run_creates_the_lab_with_the_real_roles(db_session):
     result = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
     assert result["counts"] == {
-        "users": 6, "apiKeys": 6, "organizations": 2, "memberships": 5, "cases": 2, "caseRevisions": 2,
-        "compilations": 2, "compositions": 4, "compositionVersions": 5,
+        "users": 6, "apiKeys": 6, "organizations": 2, "memberships": 5, "personalOrganizations": 6, "cases": 2,
+        "caseRevisions": 2, "compilations": 2, "compositions": 4, "compositionVersions": 5,
     }
 
     users = {user.username: user for user in (await db_session.scalars(select(User))).all()}
@@ -64,6 +66,19 @@ async def test_first_run_creates_the_lab_with_the_real_roles(db_session):
     assert {role for _, role, _ in seed_lab.SYNTHETIC_USERS} == {UserRole.ADMIN, UserRole.USER}
     assert set((await roles_by_membership(db_session)).values()) == set(OrganizationRole)  # all four roles are exercised
     assert all(user.email.endswith("@example.org") and verify_password(PASSWORD, user.password_hash) for user in users.values())
+    # Every seeded user owns its personal organization, named after it, and nobody else is a member of one.
+    personal = (await db_session.execute(
+        select(Organization.slug, Organization.name, Organization.parent_id, User.username, OrganizationMembership.role)
+        .join(OrganizationMembership, OrganizationMembership.organization_id == Organization.id)
+        .join(User, User.id == OrganizationMembership.user_id)
+        .where(Organization.personal_owner_id.is_not(None))
+    )).all()
+    assert sorted(personal) == sorted(
+        (name, f"{name} PERSONAL", None, name, OrganizationRole.OWNER) for name, _, _ in seed_lab.SYNTHETIC_USERS
+    )
+    assert sorted(item for item in result["created"] if item.startswith("personal-organization:")) == sorted(
+        f"personal-organization:{name}" for name, _, _ in seed_lab.SYNTHETIC_USERS
+    )
 
     # The same example is the problem simple-seq of each organization, one revision and one compilation each.
     problems = (await db_session.execute(

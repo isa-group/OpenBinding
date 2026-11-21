@@ -14,6 +14,9 @@ from openbinding_gateway.db.models import (
     AuthIdentity,
     EngineRevision,
     IdentitySession,
+    Organization,
+    OrganizationMembership,
+    OrganizationRole,
     User,
     UserRole,
 )
@@ -138,6 +141,80 @@ async def test_an_engine_namespace_is_unavailable(browser, fake_issuer, db_sessi
     refused = await choose(browser, "Acme")
     assert refused.json()["detail"]["code"] == "username_unavailable"
     assert EngineRevision.namespace is not None
+
+
+async def test_a_first_sign_in_owns_its_personal_organization(browser, fake_issuer, db_session) -> None:
+    await first_sign_in(browser, fake_issuer, fake_issuer.user())
+    assert (await choose(browser, "Rosa.M")).status_code == 201
+    user = (await db_session.execute(select(User).where(User.username == "Rosa.M"))).scalars().one()
+    personal = (await db_session.execute(
+        select(Organization).where(Organization.personal_owner_id == user.id)
+    )).scalars().one()
+    assert (personal.slug, personal.name, personal.parent_id) == ("rosa-m", "Rosa.M PERSONAL", None)
+    seat = (await db_session.execute(
+        select(OrganizationMembership).where(OrganizationMembership.organization_id == personal.id)
+    )).scalars().one()
+    assert (seat.user_id, seat.role) == (user.id, OrganizationRole.OWNER)
+
+
+async def test_a_username_that_names_an_organization_is_unavailable_and_can_be_retried(
+    browser, fake_issuer, db_session
+) -> None:
+    holder = await _holder(db_session, "o@example.invalid", verified=False)
+    db_session.add(Organization(slug="acme-labs", name="Acme Labs", created_by_id=holder.id))
+    await db_session.flush()
+    await first_sign_in(browser, fake_issuer, fake_issuer.user())
+    for name in ("acme-labs", "Acme.Labs", "acme_labs", "public"):
+        refused = await choose(browser, name)
+        assert refused.status_code == 409 and refused.json()["detail"]["code"] == "username_unavailable", name
+    assert (await choose(browser, "acme-person")).status_code == 201
+
+
+async def test_the_name_of_an_account_with_its_personal_organization_is_taken_not_unavailable(
+    browser, fake_issuer, db_session
+) -> None:
+    await first_sign_in(browser, fake_issuer, fake_issuer.user())
+    assert (await choose(browser, "first-one")).status_code == 201
+    await first_sign_in(browser, fake_issuer, fake_issuer.user())
+    refused = await choose(browser, "First-One")
+    assert refused.status_code == 409 and refused.json()["detail"]["code"] == "username_taken"
+
+
+async def test_the_account_is_rolled_back_when_its_personal_organization_fails(pooled, fake_issuer, monkeypatch) -> None:
+    from openbinding_gateway.modules.identity.application import get_account_hook
+
+    factory, browser = pooled
+    hook = get_account_hook()
+
+    async def free(db, username):
+        return True
+
+    async def lost(db, user):
+        return False  # the slug was taken between the check and the insert
+
+    monkeypatch.setattr(hook, "name_free", free)
+    monkeypatch.setattr(hook, "created", lost)
+    person = fake_issuer.user()
+    await first_sign_in(browser, fake_issuer, person)
+    refused = await choose(browser, "late-name")
+    assert refused.status_code == 409 and refused.json()["detail"]["code"] == "username_unavailable"
+    async with factory() as db:
+        assert (await db.execute(select(User.id).where(User.username == "late-name"))).first() is None
+        assert (await db.execute(select(AuthIdentity.id).where(AuthIdentity.subject == person.sub))).first() is None
+    monkeypatch.setattr(hook, "name_free", type(hook).name_free.__get__(hook))
+    monkeypatch.setattr(hook, "created", type(hook).created.__get__(hook))
+    assert (await choose(browser, "late-name")).status_code == 201
+    async with factory() as db:
+        user = (await db.execute(select(User).where(User.username == "late-name"))).scalars().one()
+        assert (await db.execute(select(Organization.slug).where(Organization.personal_owner_id == user.id))).scalar() == "late-name"
+
+
+async def test_the_suggestion_steps_around_an_organization_slug(browser, fake_issuer, db_session) -> None:
+    holder = await _holder(db_session, "h@example.invalid", verified=False)
+    db_session.add(Organization(slug="lucia", name="Lucia's team", created_by_id=holder.id))
+    await db_session.flush()
+    await first_sign_in(browser, fake_issuer, fake_issuer.user(email="lucia@example.invalid"))
+    assert (await browser.get("/v1/auth/identity/pending")).json()["suggested_username"] == "lucia-2"
 
 
 @pytest.mark.parametrize("name", ["ab", "-leading", "has space", "x" * 65])

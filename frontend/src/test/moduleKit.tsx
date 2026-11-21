@@ -81,6 +81,7 @@ export function orgNode(slug: string, over: Partial<Organization> = {}): Organiz
       .map(word => word[0].toUpperCase() + word.slice(1))
       .join(' '),
     parent_id: null,
+    is_personal: false,
     effective_role: 'OWNER',
     description: '',
     avatar: { url: null, kind: null, bg_color: null, fg_color: null },

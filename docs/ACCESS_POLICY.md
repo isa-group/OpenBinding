@@ -129,7 +129,9 @@ compositions, the members-only rule of [ADR 0034](adr/0034-no-public-read-in-f0b
 
 `DELETE /v1/organizations/{org}` needs ADMIN (or OWNER) of the organization, or a
 platform administrator. It takes the organization and every organization below it in
-one transaction. Runs and study runs are history: a subtree that holds any is refused
+one transaction. An account's personal organization is never deleted this way (`409
+personal_organization`): it goes with its account, runs included
+([ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md)). Runs and study runs are history: a subtree that holds any is refused
 with `409 historical_references`, including a run or study run that starts while the
 delete is in progress (the subtree's studies, compositions, problems and organizations
 are locked before the check). Otherwise its studies, run presets, compositions, problems (revisions and

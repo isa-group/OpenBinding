@@ -19,6 +19,7 @@ const organization = (slug: string, role: Organization['effective_role']): Organ
   slug,
   name: slug,
   parent_id: null,
+  is_personal: false,
   effective_role: role,
   description: '',
   created_at: '2026-03-03T00:00:00Z',

@@ -58,7 +58,8 @@ async def test_only_root_organizations_with_a_public_composition_are_listed(
     assert [item["slug"] for item in body["items"]] == [shown["slug"]]
     assert body["items"][0] == {
         "id": shown["id"], "slug": shown["slug"], "name": f"Shown {tag}", "description": "We publish.",
-        "avatar": {"url": None, "kind": None, "bg_color": None, "fg_color": None}, "public_compositions": 2,
+        "avatar": {"url": None, "kind": None, "bg_color": None, "fg_color": None}, "is_personal": False,
+        "public_compositions": 2,
     }
     assert listed.headers["vary"] == "Authorization, X-API-Key"
     by_description = await api_client.get("/v1/organizations/public", params={"q": "we publish", "limit": 50})
@@ -144,8 +145,10 @@ async def test_the_hierarchy_is_the_whole_branch_with_access_marked(
 async def test_the_tree_nests_the_callers_organizations_with_the_source_of_each_role(
     api_client, registration, db_session, gate,  # noqa: F811
 ):
-    _, owner = await make_account(api_client, registration, db_session, gate)
+    owner_account, owner = await make_account(api_client, registration, db_session, gate)
     member_account, member = await make_account(api_client, registration, db_session, gate)
+    # Each account also owns its personal organization, a root named "user… PERSONAL" (after every "Tree …" by name).
+    owner_personal, member_personal = owner_account["username"], member_account["username"]
     root = await org(api_client, owner, "Tree root")
     a = await org(api_client, owner, "Tree a", parent=root["id"])
     b = await org(api_client, owner, "Tree b", parent=root["id"])
@@ -159,11 +162,12 @@ async def test_the_tree_nests_the_callers_organizations_with_the_source_of_each_
     flat = await api_client.get("/v1/organizations", headers=member)
     tree = await api_client.get("/v1/organizations", headers=member, params={"tree": "true"})
 
-    assert [row["slug"] for row in flat.json()] == [a["slug"], a1["slug"], a2["slug"], solo["slug"]]
-    assert flat.headers["x-total-count"] == "4"
-    assert tree.headers["x-total-count"] == "2"
+    assert [row["slug"] for row in flat.json()] == [a["slug"], a1["slug"], a2["slug"], solo["slug"], member_personal]
+    assert flat.headers["x-total-count"] == "5"
+    assert tree.headers["x-total-count"] == "3"
     top = {row["slug"]: row for row in tree.json()}
-    assert set(top) == {a["slug"], solo["slug"]}
+    assert set(top) == {a["slug"], solo["slug"], member_personal}
+    assert top[member_personal]["is_personal"] is True and top[member_personal]["children"] == []
     assert top[a["slug"]]["effective_role"] == "VIEWER"
     assert top[a["slug"]]["role_source"]["slug"] == a["slug"]
     nested, inherited = top[a["slug"]]["children"]
@@ -176,7 +180,7 @@ async def test_the_tree_nests_the_callers_organizations_with_the_source_of_each_
     # The owner reaches everything from the root.
     owned = (await api_client.get("/v1/organizations", headers=owner, params={"tree": "true"})).json()
     by_slug = {row["slug"]: row for row in owned}
-    assert set(by_slug) == {root["slug"], solo["slug"]}
+    assert set(by_slug) == {root["slug"], solo["slug"], owner_personal}
     children = {row["slug"]: row for row in by_slug[root["slug"]]["children"]}
     assert set(children) == {a["slug"], b["slug"]}
     assert children[a["slug"]]["effective_role"] == "OWNER"
@@ -184,4 +188,4 @@ async def test_the_tree_nests_the_callers_organizations_with_the_source_of_each_
         "/v1/organizations", headers=owner, params={"tree": "true", "limit": 1, "offset": 1},
     )
     assert [row["slug"] for row in paged.json()] == [by_slug[sorted(by_slug, key=lambda s: by_slug[s]["name"])[1]]["slug"]]
-    assert paged.headers["x-total-count"] == "2"
+    assert paged.headers["x-total-count"] == "3"

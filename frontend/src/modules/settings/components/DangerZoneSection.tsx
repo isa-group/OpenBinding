@@ -4,9 +4,11 @@
 // Changes: OpenBinding's deletion (`DELETE /v1/users/me` with the typed username and the current password) and its refusals
 // (the last owner of an organization hands it over first); the confirmation is OpenBinding's accessible Modal instead of
 // SPHERE's portaled motion overlay; the browser leaves with a clean session; the current password is asked only of an
-// account that has one (`password_enabled`); SPHERE's SCORETech wording (the Identity account stays) in Identity mode.
+// account that has one (`password_enabled`); SPHERE's SCORETech wording (the Identity account stays) in Identity mode;
+// before asking, the dialog says what goes with the personal organization (`GET /v1/users/me/deletion`), which SPHERE
+// deletes with the account without saying, and a deletion that waits for its runs to stop says so.
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiAlertTriangle, FiLoader, FiShield, FiTrash2 } from 'react-icons/fi';
@@ -17,11 +19,31 @@ import { useAuthConfig } from '../../auth/contexts/authConfigContext';
 import { classifyAuthError, marker } from '../../core/api/errors';
 import { FormField } from '../../core/components/form-field';
 import { Modal } from '../../core/components/modal';
-import { useUserSettingsApi } from '../api/userSettingsApi';
+import { useUserSettingsApi, type AccountDeletionPreview } from '../api/userSettingsApi';
 import { fallbackMessage } from '../../core/utils/account-errors';
 
 const WRONG_PASSWORD = 'That isn’t your current password (401 · invalid_credentials).';
 const MISMATCH = 'The text doesn’t match your username (422 · confirmation_mismatch).';
+
+function plural(count: number, one: string, many = `${one}s`) {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+type Loss = NonNullable<AccountDeletionPreview['personal_organization']>;
+
+/** What goes with the personal organization: "2 compositions (1 public), 3 problems, 12 runs and 1 environment with a feed". */
+function lossSummary(loss: Loss): string {
+  const compositions = `${plural(loss.compositions, 'composition')}${
+    loss.public_compositions > 0 ? ` (${loss.public_compositions} public)` : ''
+  }`;
+  const parts = [
+    compositions,
+    plural(loss.problems, 'problem'),
+    plural(loss.runs, 'run'),
+    plural(loss.feed_environments, 'environment with a feed', 'environments with a feed'),
+  ];
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+}
 
 interface Refusal {
   text: string;
@@ -40,6 +62,24 @@ export default function DangerZoneSection() {
   const [passwordError, setPasswordError] = useState<string>();
   const [confirmText, setConfirmText] = useState('');
   const [password, setPassword] = useState('');
+  /** undefined while it loads (or when it could not be read), null without a personal organization. */
+  const [loss, setLoss] = useState<Loss | null | undefined>(undefined);
+  const { getDeletionPreview } = api;
+
+  useEffect(() => {
+    if (!showConfirm) return;
+    let current = true;
+    getDeletionPreview()
+      .then(preview => {
+        if (current) setLoss(preview.personal_organization ?? null);
+      })
+      .catch(() => {
+        if (current) setLoss(undefined);
+      });
+    return () => {
+      current = false;
+    };
+  }, [showConfirm, getDeletionPreview]);
 
   const username = user?.username ?? '';
   const isConfirmed = username !== '' && confirmText === username;
@@ -76,6 +116,10 @@ export default function DangerZoneSection() {
           text: 'You own an organization (409 · last_owner). Hand the organization over to another member, or delete it, first.',
           orgs: true,
         });
+      else if (failure.kind === 'conflict' && failure.code === 'personal_runs_stopping')
+        setError({
+          text: 'Runs of your personal organization were still running (409 · personal_runs_stopping). They are being cancelled; delete the account again in a moment.',
+        });
       else if (failure.kind === 'conflict' && failure.code === 'last_pricing_admin')
         setError({
           text: 'You’re the last pricing administrator (409 · last_pricing_admin). Another admin must exist before this account can go.',
@@ -106,9 +150,10 @@ export default function DangerZoneSection() {
               {centralized ? 'Delete OpenBinding account' : 'Delete account'}
             </h3>
             <p className="mt-1 text-sm text-tp-steel">
-              Permanently deletes your account, its API keys, memberships and notifications. The
-              runs and engines you created stay without your name, and your federated engines are
-              deactivated. Organizations you own must be handed over first.
+              Permanently deletes your account, its API keys, memberships and notifications, and
+              your personal organization with everything in it. The runs and engines you created
+              elsewhere stay without your name, and your federated engines are deactivated. Other
+              organizations you own must be handed over first.
             </p>
             {centralized && (
               <p className="mt-2 text-sm text-tp-steel">
@@ -146,6 +191,22 @@ export default function DangerZoneSection() {
                 </p>
               </div>
             </div>
+
+            {loss && (
+              <div
+                role="note"
+                aria-label="Your personal organization"
+                className="rounded-[8px] border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800"
+              >
+                Your personal organization <span className="font-medium">{loss.name}</span> (
+                <span className="font-mono">@{loss.slug}</span>) is deleted with it:{' '}
+                {lossSummary(loss)}.
+                {loss.public_compositions > 0 &&
+                  ' Its public compositions stop being shown; forks others made keep their copy.'}
+                {loss.feed_environments > 0 &&
+                  ' Applications reading its feeds stop being answered.'}
+              </div>
+            )}
 
             <FormField
               label={`Type ${username} to confirm`}

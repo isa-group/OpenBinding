@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
   CASE,
+  LAB_USERS,
   ORG,
   ORG_PAGE,
   PROBLEM_PAGES,
@@ -19,7 +20,15 @@ test.describe('live · the organization lab-main and its problems', () => {
     await page.goto('/me/orgs');
 
     const organizations = page.locator('main');
-    const main = organizations.locator(`a[href="/orgs/${ORG}"]`);
+    // The seed gives every account its personal organization (F5-D): apart, under Personal; lab-main is a team.
+    const personal = organizations.getByRole('region', { name: 'Personal' });
+    await expect(
+      personal.locator(`a[href="/orgs/${LAB_USERS.owner}"]`, {
+        hasText: `${LAB_USERS.owner} PERSONAL`,
+      })
+    ).toBeVisible();
+    const teams = organizations.getByRole('region', { name: 'Teams' });
+    const main = teams.locator(`a[href="/orgs/${ORG}"]`);
     await expect(main).toBeVisible();
     await expect(organizations.getByText('Owner', { exact: true }).first()).toBeVisible();
     await capture(page, testInfo, 'navigation-home');

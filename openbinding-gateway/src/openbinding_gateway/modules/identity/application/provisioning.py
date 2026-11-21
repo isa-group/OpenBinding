@@ -32,7 +32,7 @@ from ....security.passwords import hash_password
 from ....security.secrets import CredentialStore, SecretsUnavailable
 from ..domain.claims import IdentityClaims, TokenSet
 from . import sessions
-from .stores import get_lock, get_store
+from .stores import get_account_hook, get_lock, get_store
 
 PENDING_NAMESPACE = "identity-pending"
 PENDING_TTL_S = 900
@@ -75,7 +75,8 @@ def username_unavailable() -> Exception:
     return api_error(
         status.HTTP_409_CONFLICT,
         "username_unavailable",
-        "That username is reserved: it names published engines, belongs to a deleted account, or is the platform's own.",
+        "That username is reserved: it names published engines or an organization, belongs to a deleted account, "
+        "or is the platform's own.",
     )
 
 
@@ -197,6 +198,7 @@ async def suggestion(db: AsyncSession, record: dict) -> str:
             and candidate not in RESERVED_USERNAMES
             and not await username_reserved(db, candidate)
             and not await username_taken(db, candidate)
+            and await get_account_hook().name_free(db, candidate)
         ):
             return candidate
     return base
@@ -250,6 +252,10 @@ async def complete(db: AsyncSession, settings: Settings, cookie_value: str | Non
             raise username_unavailable()
         if await username_taken(db, username):
             raise _conflict("username_taken", "That username is taken.")
+        # After the taken check: an account's own name is taken, not unavailable, though its personal organization
+        # holds the slug too.
+        if not await get_account_hook().name_free(db, username):
+            raise username_unavailable()
         if await email_refusal(db, claims):
             from .flows import end_upstream
 
@@ -325,6 +331,10 @@ async def _create(
                 "identity_already_provisioned", "This SCORETech account already has an OpenBinding account; start signing in again."
             ) from None
         raise _conflict("username_taken", "That username is taken.") from None
+    # Every account has a personal organization (SPHERE's rule), in this transaction: a refusal rolls the account
+    # back with it, and the pending sign-up stays for a retry.
+    if not await get_account_hook().created(db, user):
+        raise username_unavailable()
     if released is not None:
         sessions.audit(db, "account.email.released", actor=user.id, target=released[0].id, detail={"reason": released[1]})
     await create_contract_or_mark_pending(user, plan, settings)

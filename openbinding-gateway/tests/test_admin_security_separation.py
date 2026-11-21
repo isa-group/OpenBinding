@@ -254,8 +254,10 @@ async def test_audit_separation_between_platform_and_tenants(
     assert admin_audit.status_code == 200
     events = admin_audit.json()["events"]
     assert any(ev["action"] == "platform.maintenance.performed" and ev["organizationId"] is None for ev in events)
-    created = [ev for ev in events if ev["action"] == "organization.created"]
+    # Registering created each account's personal organization too (detail {"personal": true}).
+    created = [ev for ev in events if ev["action"] == "organization.created" and not (ev["detail"] or {}).get("personal")]
     assert len(created) == 1
+    assert len([ev for ev in events if (ev["detail"] or {}).get("personal")]) == 2
     assert created[0]["organizationId"] == org_id
     assert created[0]["organizationSlug"] == org_slug
     for ev in events:

@@ -3,7 +3,8 @@
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: the gateway derives the slug from the name (with a suffix when it is taken) and the reserved slugs apply; an
 // optional parent organization where the account is an admin, preselected by `?parent=`; the new organization's page opens
-// afterwards; SPHERE's undefined `sphere-grey` classes become the theme's tokens; the refusal shows in place, labelled.
+// afterwards; SPHERE's undefined `sphere-grey` classes become the theme's tokens; the refusal shows in place, labelled; a
+// personal organization is never offered as the parent.
 
 import { useState, type FormEvent } from 'react';
 import { Helmet } from 'react-helmet-async';
@@ -24,6 +25,8 @@ const DESCRIPTION_LIMIT = 500;
 /** The sentence a refused creation shows. */
 function createRefusal(error: unknown): string {
   const refusal = readApiError(error);
+  if (refusal.code === 'personal_organization')
+    return 'A personal organization takes no sub-organizations. Choose another parent, or none.';
   if (refusal.code === 'slug_conflict' || refusal.status === 409)
     return 'That name is taken. Try another one.';
   if (refusal.code === 'slug_reserved' || refusal.code === 'slug_underivable')
@@ -123,6 +126,7 @@ export default function CreateOrganizationPage() {
           onChange={setParent}
           initialSlug={params.get('parent')}
           minRole="ADMIN"
+          excludePersonal
         />
 
         <div className="flex items-center justify-center gap-3 pt-2">

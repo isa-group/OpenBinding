@@ -73,9 +73,26 @@ test('member: a first sign-in chooses its username, returns as the same account,
   const done = await api(page).complete(username('member'));
   expect(done.status()).toBe(201);
   expect((await done.json()).return_to).toBe('/compositions');
-  const first = await (await api(page).me(await tokenOf(await api(page).session()))).json();
+  const token = await tokenOf(await api(page).session());
+  const first = await (await api(page).me(token)).json();
   expect(first.username).toBe(username('member'));
   expect(first.email_verified).toBe(true);
+  // Every account owns its personal organization from its first sign-in, named after it (F5-D, SPHERE's rule).
+  const owned = (await (await api(page).organizations(token)).json()) as {
+    slug: string;
+    name: string;
+    is_personal: boolean;
+    effective_role: string;
+    parent_id: string | null;
+  }[];
+  expect(owned.filter(org => org.is_personal)).toEqual([
+    expect.objectContaining({
+      slug: username('member').toLowerCase().replace(/[._]/g, '-'),
+      name: `${username('member')} PERSONAL`,
+      effective_role: 'OWNER',
+      parent_id: null,
+    }),
+  ]);
 
   // Returning: Identity's SSO session answers at once (no code), and the account is the same.
   await startSignIn(page);

@@ -64,6 +64,21 @@ describe('the dashboard', () => {
     expect(screen.getByRole('link', { name: /Start a run/ })).toBeInTheDocument();
   });
 
+  it('marks a personal organization Personal and a team Team, as SPHERE’s cards do', async () => {
+    const mine = orgNode('alex-rivera', { name: 'alex.rivera PERSONAL', is_personal: true });
+    runs.list.mockResolvedValue({ runs: [], total: 0 });
+    renderModule(<DashboardPage />, {
+      tree: [group, mine],
+      gateway: fakeGateway({
+        'GET /v1/users/me/compositions': { body: { compositions: [], total: 0 } },
+      }),
+    });
+    const recent = await screen.findByRole('region', { name: 'Recent organizations' });
+    const card = (name: RegExp) => within(recent).getByRole('link', { name });
+    expect(within(card(/alex\.rivera PERSONAL/)).getByText('Personal')).toBeInTheDocument();
+    expect(within(card(/ISA Demo Group/)).getByText('Team')).toBeInTheDocument();
+  });
+
   it('shows the first steps to an account without organizations', async () => {
     renderModule(<DashboardPage />, {
       tree: [],

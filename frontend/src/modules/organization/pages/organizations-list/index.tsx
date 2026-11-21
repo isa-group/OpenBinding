@@ -1,9 +1,9 @@
-// Adapted from SPHERE frontend/src/modules/organization/pages/organizations-list/index.tsx (revision 73779a8a),
-// https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
-// MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
+// Adapted from SPHERE frontend/src/modules/organization/pages/organizations-list/index.tsx (revisions 73779a8a and
+// fc776b4d, its Personal and Teams sections), https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García
+// Fernández. MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's organizations (slugs, VIEWER, the gateway's `role_source` shown as "inherited from"); an admin of both
-// ends moves an organization, as the gateway rules; a "Move to…" dialog beside the drag, for phones and keyboards; no Personal
-// section (personal organizations are decided in F5); a Helmet title; the load error with Retry; the page of top-level nodes.
+// ends moves an organization, as the gateway rules, and a personal one never moves nor takes a branch; a "Move to…" dialog
+// beside the drag, for phones and keyboards; a Helmet title; the load error with Retry; the page of top-level nodes.
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useMemo, useState } from 'react';
@@ -59,7 +59,8 @@ function OrgTreeNode({
   const hasChildren = children.length > 0;
   const isExpanded = expandedIds.has(org.id);
 
-  const isManaged = canManage(org.effective_role);
+  // Personal organizations stand outside the hierarchy altogether (SPHERE).
+  const isManaged = canManage(org.effective_role) && !org.is_personal;
   const canDrag = isDragEnabled && isManaged;
   const canDrop = canDrag && isDragActive && !blockedTargetIds?.has(org.id);
   const { setNodeRef, dragHandleProps, isOver, isDragging } = useOrgRowDnd({
@@ -85,7 +86,11 @@ function OrgTreeNode({
             <OrgDragHandle
               dragHandleProps={dragHandleProps}
               isDisabled={!canDrag}
-              disabledReason="Only an admin can move this organization"
+              disabledReason={
+                org.is_personal
+                  ? 'Personal organizations cannot be moved'
+                  : 'Only an admin can move this organization'
+              }
             />
           )}
           {hasChildren ? (
@@ -261,6 +266,21 @@ export default function OrganizationsListPage() {
   );
 
   const totalOrgCount = organizations.length;
+  // SPHERE's sections: the personal organizations first, then the teams.
+  const personalOrgs = useMemo(() => shown.filter(org => org.is_personal), [shown]);
+  const otherOrgs = useMemo(() => shown.filter(org => !org.is_personal), [shown]);
+  const renderNode = (org: Organization) => (
+    <OrgTreeNode
+      key={org.id}
+      org={org}
+      expandedIds={expandedIds}
+      onToggle={handleToggle}
+      onMoveRequest={setMoving}
+      isDragEnabled={!isMoving && !searching}
+      blockedTargetIds={blockedTargetIds}
+      isDragActive={draggedId !== null}
+    />
+  );
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -425,20 +445,36 @@ export default function OrganizationsListPage() {
             initial="hidden"
             animate="visible"
             variants={staggerContainer}
-            className={`space-y-2 ${isMoving ? 'pointer-events-none opacity-60' : ''}`}
+            className={`space-y-8 ${isMoving ? 'pointer-events-none opacity-60' : ''}`}
           >
-            {shown.map(org => (
-              <OrgTreeNode
-                key={org.id}
-                org={org}
-                expandedIds={expandedIds}
-                onToggle={handleToggle}
-                onMoveRequest={setMoving}
-                isDragEnabled={!isMoving && !searching}
-                blockedTargetIds={blockedTargetIds}
-                isDragActive={draggedId !== null}
-              />
-            ))}
+            {personalOrgs.length > 0 && (
+              <section aria-labelledby="orgs-personal">
+                <motion.div variants={fadeInUp}>
+                  <h2
+                    id="orgs-personal"
+                    className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-wider text-tp-stone uppercase dark:text-tp-muted"
+                  >
+                    <Iconify icon="mdi:account-outline" width={14} />
+                    Personal
+                  </h2>
+                </motion.div>
+                <div className="space-y-2">{personalOrgs.map(renderNode)}</div>
+              </section>
+            )}
+            {otherOrgs.length > 0 && (
+              <section aria-labelledby="orgs-teams">
+                <motion.div variants={fadeInUp}>
+                  <h2
+                    id="orgs-teams"
+                    className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-wider text-tp-stone uppercase dark:text-tp-muted"
+                  >
+                    <Iconify icon="mdi:account-group-outline" width={14} />
+                    Teams
+                  </h2>
+                </motion.div>
+                <div className="space-y-2">{otherOrgs.map(renderNode)}</div>
+              </section>
+            )}
           </motion.div>
         </OrgDndProvider>
       )}
@@ -454,7 +490,13 @@ export default function OrganizationsListPage() {
         <MoveOrganizationModal
           organization={moving}
           organizations={organizations}
-          blockedIds={collectBranchIds(moving, childrenOf)}
+          blockedIds={
+            new Set([
+              ...collectBranchIds(moving, childrenOf),
+              // A personal organization takes no sub-organization.
+              ...organizations.filter(org => org.is_personal).map(org => org.id),
+            ])
+          }
           onClose={() => setMoving(null)}
           onMove={parentId => {
             setMoving(null);

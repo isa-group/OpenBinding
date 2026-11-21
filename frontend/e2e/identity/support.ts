@@ -191,6 +191,10 @@ export function api(page: Page) {
       page.request.post(`${OB}/api/v1/auth/identity/logout`, { data: { scope }, headers }),
     me: (token: string) =>
       page.request.get(`${OB}/api/v1/users/me`, { headers: { Authorization: `Bearer ${token}` } }),
+    organizations: (token: string) =>
+      page.request.get(`${OB}/api/v1/organizations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
     config: () => page.request.get(`${OB}/api/v1/auth/config`),
   };
 }

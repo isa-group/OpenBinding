@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { readScreenLines } from '../helpers/galleryRoutes';
-import { API, CASE, ORG, OTHER_ORG, RESULTS_DIR, signInByApi } from './support';
+import { API, CASE, LAB_USERS, ORG, OTHER_ORG, RESULTS_DIR, signInByApi } from './support';
 
 /**
  * The palette × size sweep of the lab (F2c described it, F3 commits it), measured by the page itself:
@@ -181,6 +181,10 @@ async function stops(page: Page, token: string): Promise<Stop[]> {
     },
     { id: 'calculator-margins', path: `/compositions/${ORG}/tomatometer/configuration` },
     { id: 'template-cards', path: `/compositions/new?org=${ORG}` },
+    // F5-D: the owner's personal organization (its list's Personal section is `org-list`): no Leave, no Transfer, in the
+    // header or in Members.
+    { id: 'org-personal', path: `/orgs/${LAB_USERS.owner}` },
+    { id: 'org-personal-members', path: `/orgs/${LAB_USERS.owner}/members` },
   ];
 }
 

@@ -7,13 +7,15 @@ import uuid
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
-    ApiKey, AuditEvent, AuthIdentity, IdentitySession, Notification, NotificationStreamTicket, OrganizationInvitationCode, OrganizationMembership,
-    OrganizationRole, PasswordResetToken, User, UserRole, utcnow,
+    ApiKey, AuditEvent, AuthIdentity, BindingCase, Composition, CompositionEnvironment, CompositionEnvironmentKey,
+    IdentitySession, Job, JobEngineAttempt, Notification, NotificationStreamTicket, Organization,
+    OrganizationInvitationCode, OrganizationMembership, OrganizationRole, PasswordResetToken, Study, StudyRun, User,
+    UserRole, utcnow,
 )
 from ..modules.identity.application import PSEUDONYM_PREFIX, end_all, institutional_email, managed_by_identity, owner_may_use_keys
 from ..models.accounts import (
@@ -23,6 +25,8 @@ from ..models.accounts import (
     ApiKeyEngineRef,
     ApiKeySummary,
     AccountDeleteRequest,
+    AccountDeletionPreview,
+    PersonalOrganizationLoss,
     CreateApiKeyRequest,
     CreatedApiKey,
     PricingTokenView,
@@ -58,6 +62,11 @@ from ..core import revision
 from ..core.settings import get_settings
 from ..core.public_errors import pricing_unavailable_error
 from ..services import engine_registry
+from ..db.platform_models import RunState
+from ..jobs import lifecycle
+from ..jobs import remote_attempts
+from ..study_jobs import StudyRunTerminal, cancel_run as cancel_study_run
+from .organizations import delete_personal_organization, lock_personal_organization
 from ..services.entitlements import entitlement_service
 from ..space_client import PricingUnavailable, get_gate
 
@@ -575,7 +584,9 @@ async def read_own_pricing_token(user: User = Depends(get_current_user)) -> Pric
         401: UNAUTHORIZED_RESPONSE,
         409: {
             "model": ErrorResponse,
-            "description": "The account is the last OWNER of an organization (`last_owner`).",
+            "description": "`last_owner` (the account is the last OWNER of an organization other than its personal "
+            "one) and `personal_runs_stopping` (runs of its personal organization were running: they are being "
+            "cancelled; delete again once they have stopped).",
         },
         422: {"description": "The confirmation is not the username (`confirmation_mismatch`)."},
         503: {**UNAVAILABLE_RESPONSE, "description": "The contract could not be removed; nothing was changed."},
@@ -594,7 +605,11 @@ async def delete_own_account(
     are emptied and ``deleted_at`` is set. Every credential, membership,
     identity, notification and invitation of the account is deleted, its
     federated engines are deactivated and an administrator becomes an ordinary
-    (inactive) user. The SPACE contract is removed last, before the commit; if
+    (inactive) user. Its personal organization is deleted with everything it
+    holds, runs included, as SPHERE deletes it: its queued runs and study runs
+    are cancelled first, and while a run of it is still running (or an engine
+    attempt is still being told to stop) the cancellation is committed and the
+    answer is ``409 personal_runs_stopping``, so no solver is left orphaned. The SPACE contract is removed last, before the commit; if
     that fails, nothing is changed (503).
     """
     if payload.confirmation != user.username:
@@ -604,9 +619,13 @@ async def delete_own_account(
     ):
         raise api_error(status.HTTP_401_UNAUTHORIZED, "invalid_credentials", "The current password is required.")
 
-    owner_memberships = (await session.execute(select(OrganizationMembership).where(
+    # The personal organization does not count: it is deleted with the account.
+    owner_memberships = (await session.execute(select(OrganizationMembership).join(
+        Organization, Organization.id == OrganizationMembership.organization_id,
+    ).where(
         OrganizationMembership.user_id == user.id,
         OrganizationMembership.role == OrganizationRole.OWNER,
+        or_(Organization.personal_owner_id.is_(None), Organization.personal_owner_id != user.id),
     ))).scalars().all()
     for membership in owner_memberships:
         owners = int(await session.scalar(select(func.count(OrganizationMembership.id)).where(
@@ -619,6 +638,20 @@ async def delete_own_account(
                 "Transfer or delete every organization for which this is the last owner.",
             )
 
+    personal = await session.scalar(select(Organization).where(Organization.personal_owner_id == user.id))
+    if personal is not None:
+        # Locked before its runs are counted, and until the commit: no run can be added (by a member, or by a key or
+        # session of this account) between the count and the delete.
+        await lock_personal_organization(session, personal)
+    if personal is not None and await _stop_personal_runs(session, personal.id):
+        # The cancellations stand (the workers carry them to the engines); the account waits for them.
+        await session.commit()
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            "personal_runs_stopping",
+            "Runs of your personal organization are being cancelled; delete the account again once they have stopped.",
+        )
+
     # Every browser session ends now, and the SCORETech sessions behind them (best effort); pseudonymise
     # then deletes the rows. The access token of this very request stops working with them.
     await end_all(session, get_settings(), user, "deleted")
@@ -626,6 +659,9 @@ async def delete_own_account(
     # pseudonym, a RESTRICT) stops the deletion while the contract still exists;
     # a contract that cannot be removed then rolls the whole request back.
     await pseudonymise(session, user)
+    if personal is not None:
+        # After the pseudonymisation: a deleted account's personal organization is the one whose study runs may go.
+        await delete_personal_organization(session, personal)
     try:
         await get_gate().remove_contract(user.id)
     except PricingUnavailable as exc:
@@ -676,3 +712,87 @@ async def pseudonymise(session: AsyncSession, user: User) -> None:
     await session.flush()
     # The bulk deletes bypassed the session; forget the collections it may hold.
     session.expire(user, ["api_keys"])
+
+
+async def _stop_personal_runs(session: AsyncSession, organization_id: uuid.UUID) -> int:
+    """Cancel every run of the personal organization through the usual paths; how many have not stopped yet.
+
+    Study runs first (``study_jobs.cancel_run``: the run, its cells, then their jobs, the order every writer takes),
+    then the organization's other live runs (``lifecycle.request_cancellation``: a queued run is cancelled on the spot,
+    a running one is left to its worker, which sees the request and stops the engine). What is left counts: a run still
+    running, or an engine attempt whose cancellation is still being sent and has claims left
+    (``REMOTE_CANCEL_MAX_ATTEMPTS``). The caller holds the organization's lock. Its rows must outlive them, or the worker and
+    the reconciler would lose what they need to stop the solver.
+    """
+    live_study_runs = (await session.scalars(
+        select(StudyRun.id).join(Study, Study.id == StudyRun.study_id)
+        .where(Study.organization_id == organization_id, StudyRun.state.in_([RunState.QUEUED, RunState.RUNNING]))
+        .order_by(StudyRun.id)
+    )).all()
+    for run_id in live_study_runs:
+        try:
+            await cancel_study_run(session, run_id)
+        except (LookupError, StudyRunTerminal):
+            pass
+    live = (await session.scalars(
+        select(Job).where(Job.organization_id == organization_id, Job.state.not_in(lifecycle.TERMINAL_STATES))
+        .order_by(Job.id).with_for_update()
+    )).all()
+    for job in live:
+        await lifecycle.request_cancellation(session, job)
+    await session.flush()
+    running = int(await session.scalar(
+        select(func.count(Job.id)).where(
+            Job.organization_id == organization_id, Job.state.not_in(lifecycle.TERMINAL_STATES)
+        )
+    ) or 0)
+    stopping = int(await session.scalar(
+        select(func.count(JobEngineAttempt.id)).join(Job, Job.id == JobEngineAttempt.job_id).where(
+            Job.organization_id == organization_id,
+            # Pending or failed, while its claims last: one whose claims ran out (a replica that died after claiming,
+            # an outcome that could not be recorded) is given up by the sweep too, and must not block the deletion.
+            JobEngineAttempt.cancel_state.in_([remote_attempts.PENDING, remote_attempts.FAILED]),
+            JobEngineAttempt.cancel_attempts < get_settings().remote_cancel_max_attempts,
+        )
+    ) or 0)
+    return running + stopping
+
+
+@router.get(
+    "/me/deletion",
+    response_model=AccountDeletionPreview,
+    operation_id="previewOwnAccountDeletion",
+    summary="What deleting the account deletes with it",
+    responses={401: UNAUTHORIZED_RESPONSE},
+)
+async def preview_own_account_deletion(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> AccountDeletionPreview:
+    """The personal organization ``DELETE /v1/users/me`` deletes, with what it holds; nothing is changed."""
+    personal = await session.scalar(select(Organization).where(Organization.personal_owner_id == user.id))
+    if personal is None:
+        return AccountDeletionPreview()
+
+    async def count(column, *conditions) -> int:
+        return int(await session.scalar(select(func.count(column)).where(*conditions)) or 0)
+
+    live_key = (
+        select(CompositionEnvironmentKey.id)
+        .where(CompositionEnvironmentKey.environment_id == CompositionEnvironment.id,
+               CompositionEnvironmentKey.revoked_at.is_(None))
+        .exists()
+    )
+    return AccountDeletionPreview(personal_organization=PersonalOrganizationLoss(
+        slug=personal.slug,
+        name=personal.name,
+        compositions=await count(Composition.id, Composition.organization_id == personal.id),
+        public_compositions=await count(
+            Composition.id, Composition.organization_id == personal.id, Composition.visibility == "public"
+        ),
+        problems=await count(BindingCase.id, BindingCase.organization_id == personal.id),
+        runs=await count(Job.id, Job.organization_id == personal.id),
+        feed_environments=await count(
+            CompositionEnvironment.id, CompositionEnvironment.organization_id == personal.id, live_key
+        ),
+    ))

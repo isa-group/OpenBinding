@@ -80,7 +80,9 @@ browser                       gateway                                       Iden
   its old email. Nothing is ever merged.
 - **A chosen username.** A first sign-in becomes a pending sign-up (15 minutes); the person chooses a username at
   `/sso/identity/username` (`GET /api/v1/auth/identity/pending`, `POST /api/v1/auth/identity/complete`). Usernames are
-  unique whatever their case; reserved names and engine namespaces are refused.
+  unique whatever their case; reserved names, engine namespaces and names whose slug an organization holds are
+  refused. The new account owns its personal organization, `<username> PERSONAL`, from that moment
+  ([ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md)).
 - **Claims.** Each sign-in and each renewal that returns an ID token stores the verified email (or
   `<id>@identity.openbinding.invalid` when Identity verified none), `email_verified`, the display name and the avatar
   descriptor; nothing else (no names, phone, bio, links or birthdate). Identity roles never become OpenBinding roles.

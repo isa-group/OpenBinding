@@ -83,6 +83,7 @@ from .modules.identity.application import owner_may_use_keys
 from .modules.identity.application import set_oidc as set_identity_oidc
 from .modules.identity.application import startup_warnings as identity_startup_warnings
 from .modules.identity.application import set_store as set_identity_store
+from .modules.identity.application import set_account_hook as set_identity_account_hook
 from .modules.execution.adapters.routes import router as runs_router
 from .modules.problems.adapters.bim_routes import router as bim_router
 from .modules.problems.adapters.routes import router as problems_router
@@ -99,8 +100,35 @@ from .security.apikeys import (
     required_permissions,
 )
 from .security.bodylimit import BodyLimitMiddleware
+from .services.organizations import PersonalOrganizationHook
 from .telemetry import ErrorTelemetryMiddleware
 
+# Identity provisioning gives every new account its personal organization through this hook, so that the identity
+# module imports nothing above it. Installed on import: no account may be created without it.
+set_identity_account_hook(PersonalOrganizationHook())
+
+
+
+async def _give_administrators_personal_organizations(session, settings: Settings) -> None:
+    """The bootstrap administrators are accounts too: each gets its personal organization, as every account does
+    (``ensure_personal_organization`` creates it once). One whose username names an organization already keeps
+    none, with a warning."""
+    from sqlalchemy import select
+
+    from .db.models import User
+    from .services.organizations import PersonalSlugTaken, ensure_personal_organization
+
+    names = {name for name in ((settings.bootstrap_admin_username or "").strip(), DEFAULT_ADMIN_USERNAME) if name}
+    for user in (await session.scalars(select(User).where(User.username.in_(names), User.deleted_at.is_(None)))).all():
+        try:
+            await ensure_personal_organization(session, user)
+        except PersonalSlugTaken as taken:
+            await session.rollback()
+            logging.getLogger(__name__).warning(
+                "personal_organization_skipped: the organization '%s' exists, so '%s' has no personal organization",
+                taken, user.username,
+            )
+            return
 
 
 def load_environment_file() -> None:
@@ -211,6 +239,8 @@ async def _lifespan(settings: Settings):
                     "delete this account.",
                     DEFAULT_ADMIN_USERNAME,
                 )
+            await session.commit()
+            await _give_administrators_personal_organizations(session, settings)
             await session.commit()
 
     reconciler = None

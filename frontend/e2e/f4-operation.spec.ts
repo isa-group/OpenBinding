@@ -36,7 +36,7 @@ test.describe('J1 · operate a composition, J2 · switch the provider', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Environments' })).toBeVisible();
     await expect(card(page, 'Production')).toContainText('In effect1.0.0');
     await expect(card(page, 'Production')).toContainText('Adoption #3');
-    await expect(card(page, 'Production')).toContainText('Operator: fixtures');
+    await expect(card(page, 'Production')).toContainText('Operator: fixture-author');
     await expect(card(page, 'Staging')).toContainText('Nothing adopted yet');
 
     // J2: adopt 1.1.0 in production, from the card.

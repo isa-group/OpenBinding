@@ -34,6 +34,9 @@ from openbinding_gateway.db.bootstrap import (  # noqa: E402
     DEFAULT_ADMIN_USERNAME,
     seed_default_administrator,
 )
+from openbinding_gateway.db.models import User  # noqa: E402
+from openbinding_gateway.services.organizations import ensure_personal_organization  # noqa: E402
+from sqlalchemy import select  # noqa: E402
 
 BANNER = "=" * 68
 
@@ -57,6 +60,10 @@ async def main() -> int:
     try:
         async with session_factory()() as session:
             seeded = await seed_default_administrator(session, settings, password)
+            if seeded:
+                # The first account of an empty database: its personal organization cannot be taken.
+                admin = await session.scalar(select(User).where(User.username == DEFAULT_ADMIN_USERNAME))
+                await ensure_personal_organization(session, admin)
             await session.commit()
     except Exception as error:  # noqa: BLE001 - the message is the whole point
         print(f"The database could not be seeded: {error}", file=sys.stderr)

@@ -265,6 +265,60 @@ describe('/me/settings', () => {
     });
   });
 
+  it('says what goes with the personal organization before asking, and waits for its runs to stop', async () => {
+    const gateway = fakeGateway({
+      'GET /v1/users/me/deletion': {
+        body: {
+          personal_organization: {
+            slug: 'alex-rivera',
+            name: 'alex.rivera PERSONAL',
+            compositions: 2,
+            public_compositions: 1,
+            problems: 3,
+            runs: 12,
+            feed_environments: 1,
+          },
+        },
+      },
+      'DELETE /v1/users/me': {
+        status: 409,
+        body: {
+          code: 'personal_runs_stopping',
+          detail: { code: 'personal_runs_stopping', error: 'Runs are being cancelled.' },
+        },
+      },
+    });
+    renderSettings('/me/settings?section=danger', gateway);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete my account' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Confirm deletion' });
+    const note = await within(dialog).findByRole('note', { name: 'Your personal organization' });
+    expect(note).toHaveTextContent(
+      'Your personal organization alex.rivera PERSONAL (@alex-rivera) is deleted with it: 2 compositions (1 public), 3 problems, 12 runs and 1 environment with a feed.'
+    );
+    expect(note).toHaveTextContent('forks others made keep their copy');
+    expect(note).toHaveTextContent('Applications reading its feeds stop being answered.');
+    fireEvent.change(within(dialog).getByLabelText(`Type ${ME.username} to confirm`), {
+      target: { value: ME.username },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete account' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      /personal_runs_stopping.*delete the account again in a moment/
+    );
+  });
+
+  it('shows no personal organization note when there is none', async () => {
+    const gateway = fakeGateway({
+      'GET /v1/users/me/deletion': { body: { personal_organization: null } },
+    });
+    renderSettings('/me/settings?section=danger', gateway);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete my account' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Confirm deletion' });
+    await waitFor(() =>
+      expect(gateway.mock.calls.some(([path]) => path === '/v1/users/me/deletion')).toBe(true)
+    );
+    expect(within(dialog).queryByRole('note')).not.toBeInTheDocument();
+  });
+
   it('asks the current password at deletion only of an account that has one', async () => {
     const gateway = fakeGateway({ 'DELETE /v1/users/me': { status: 204 } });
     renderModule(<SettingsPage />, {

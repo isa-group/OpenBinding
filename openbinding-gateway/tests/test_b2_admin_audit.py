@@ -290,9 +290,12 @@ async def test_the_new_events_are_listed_in_the_platform_audit(
     actions = [item["action"] for item in listing.json()["events"]]
     assert actions.count("admin.user.updated") == 1
     assert actions.count("admin.api_key.revoked") == 1
+    # The administrators' own events name no organization (registering created each account's personal organization,
+    # an organization event of its own).
     for item in listing.json()["events"]:
-        assert item["organizationId"] is None
-        assert item["organizationSlug"] is None
+        if item["action"].startswith("admin."):
+            assert item["organizationId"] is None
+            assert item["organizationSlug"] is None
 
 
 # -- #12: organization events in the platform audit --------------------------

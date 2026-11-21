@@ -3,6 +3,10 @@
 organizations, a small BIM package from ``examples/`` as a problem of each, and the
 compositions the walks and the showcase read.
 
+Every synthetic user also gets its personal organization (``<username> PERSONAL``, slug = the username, the user
+its OWNER), as every account does (``services.organizations.ensure_personal_organization``); the walks and the
+showcase use ``lab-main`` and ``lab-other`` only.
+
 Safe to run on an empty or an already seeded database: every row is looked up by
 a stable key (UUIDv5 ids by username/slug, the problem by its slug and package digest,
 a composition by its organization and slug, a version by its bytes) and created only
@@ -128,6 +132,7 @@ from openbinding_gateway.modules.problems.application import (
     compile_or_get,
     create_problem,
 )
+from openbinding_gateway.services.organizations import ensure_personal_organization, personal_slug
 from openbinding_gateway.space_client import OpenGate
 from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSIONS, MintedKey, hash_key
 from openbinding_gateway.security.passwords import hash_password, password_complaint, verify_password
@@ -322,6 +327,9 @@ async def ensure_users(session: AsyncSession, password: str, plan: str, created:
             user.password_hash = hash_password(password)
             await session.flush()
         users[username] = user
+        if await session.scalar(select(Organization.id).where(Organization.personal_owner_id == user.id)) is None:
+            await ensure_personal_organization(session, user)
+            created.append(f"personal-organization:{personal_slug(username)}")
 
         full, prefix, secret_hash = api_key_for(password, username)
         permissions = list(ALL_PERMISSIONS) if role is UserRole.ADMIN else sorted(set(ALL_PERMISSIONS) - ADMIN_PERMISSIONS)
@@ -671,6 +679,7 @@ async def count_rows(session: AsyncSession, users: dict[str, User], organization
         "apiKeys": await count(ApiKey, ApiKey.user_id.in_(user_ids)),
         "organizations": await count(Organization, Organization.id.in_(org_ids)),
         "memberships": await count(OrganizationMembership, OrganizationMembership.organization_id.in_(org_ids)),
+        "personalOrganizations": await count(Organization, Organization.personal_owner_id.in_(user_ids)),
         "cases": await count(BindingCase, BindingCase.organization_id.in_(org_ids)),
         "caseRevisions": await count(BindingCaseRevision, BindingCaseRevision.created_by_id.in_(user_ids)),
         "compilations": await count(

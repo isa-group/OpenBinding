@@ -50,6 +50,39 @@ describe('/orgs/new', () => {
     expect(screen.queryByRole('option', { name: /Read Lab/ })).not.toBeInTheDocument();
   });
 
+  it('never offers a personal organization as the parent, and says why the gateway refuses one', async () => {
+    const mine = orgNode('alex-rivera', { name: 'alex.rivera PERSONAL', is_personal: true });
+    const gateway = fakeGateway({
+      'POST /v1/organizations': {
+        status: 409,
+        body: {
+          code: 'personal_organization',
+          detail: { code: 'personal_organization', error: 'cannot be given sub-organizations' },
+        },
+      },
+    });
+    renderModule(<CreateOrganizationPage />, {
+      entry: '/orgs/new?parent=alex-rivera',
+      path: '/orgs/new',
+      tree: [group, mine],
+      gateway,
+    });
+    // Named by the address or not, it is never chosen nor listed.
+    expect(screen.getByRole('button', { name: /Parent organization/ })).not.toHaveTextContent(
+      'alex.rivera PERSONAL'
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Parent organization/ }));
+    expect(screen.getByRole('option', { name: /ISA Demo Group/ })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /alex\.rivera PERSONAL/ })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/^Name/), { target: { value: 'Under Mine' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create organization' }));
+    expect(
+      await screen.findByText(
+        'A personal organization takes no sub-organizations. Choose another parent, or none.'
+      )
+    ).toBeInTheDocument();
+  });
+
   it('says a taken name is taken', async () => {
     const gateway = fakeGateway({
       'POST /v1/organizations': { status: 409, body: { code: 'slug_conflict', detail: 'taken' } },

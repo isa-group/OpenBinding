@@ -88,6 +88,9 @@ class OrganizationView(BaseModel):
     description: str = ""
     avatar: OrganizationAvatar = Field(default_factory=OrganizationAvatar)
     parent_id: Optional[uuid.UUID]
+    #: An account's personal organization (named after its username): it cannot be transferred, left by its
+    #: owner, moved, renamed or deleted on its own (409 ``personal_organization``).
+    is_personal: bool
     effective_role: Optional[Role] = None
     #: The organization whose membership gives ``effective_role``: this one, or an ancestor (``tree=true``).
     role_source: Optional[OrganizationRef] = None
@@ -105,6 +108,7 @@ class PublicOrganizationView(BaseModel):
     name: str
     description: str
     avatar: OrganizationAvatar
+    is_personal: bool
     public_compositions: int
 
 
@@ -121,6 +125,7 @@ class HierarchyNode(BaseModel):
     name: str
     avatar: OrganizationAvatar
     parent_id: Optional[uuid.UUID]
+    is_personal: bool
     has_access: bool
     effective_role: Optional[Role] = None
 

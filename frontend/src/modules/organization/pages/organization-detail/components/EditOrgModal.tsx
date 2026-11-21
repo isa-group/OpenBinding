@@ -2,7 +2,7 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: the name and the description of an OpenBinding organization (its slug never changes); OpenBinding's
-// accessible dialog; the refusal shows in place.
+// accessible dialog; the refusal shows in place; a personal organization keeps its account's name.
 
 import { useState, type FormEvent } from 'react';
 import { readApiError } from '../../../../core/api/errors';
@@ -52,11 +52,22 @@ export default function EditOrgModal({ org, onClose, onSaved }: Props) {
             value={name}
             onChange={e => setName(e.target.value)}
             required
+            readOnly={org.is_personal}
+            aria-describedby="edit-org-name-hint"
             maxLength={255}
             className="rounded-lg border border-tp-input-border bg-tp-input-bg px-3 py-2.5 text-sm text-tp-ink transition-colors outline-none focus:border-tp-primary focus:ring-1 focus:ring-tp-primary/20"
           />
-          <p className="text-xs text-tp-steel">
-            The address stays <span className="font-mono">@{org.slug}</span>.
+          <p id="edit-org-name-hint" className="text-xs text-tp-steel">
+            {org.is_personal ? (
+              <>
+                A personal organization keeps its account&rsquo;s name and address,{' '}
+                <span className="font-mono">@{org.slug}</span>.
+              </>
+            ) : (
+              <>
+                The address stays <span className="font-mono">@{org.slug}</span>.
+              </>
+            )}
           </p>
         </div>
         <div className="flex flex-col gap-1.5">

@@ -2,7 +2,7 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's tabs (the resources an organization holds, presets, the audit log and the beta Connections; no
-// pricings, collections, services or permissions); the tree is named by slug.
+// pricings, collections, services or permissions); the tree is named by slug. `isPersonal` as SPHERE's at fc776b4d.
 
 export interface TreeNode {
   id: string;
@@ -12,6 +12,7 @@ export interface TreeNode {
   parentId: string | null;
   children: TreeNode[];
   hasAccess: boolean;
+  isPersonal: boolean;
   isAncestor?: boolean;
   isCurrent?: boolean;
 }

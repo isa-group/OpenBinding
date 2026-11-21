@@ -337,6 +337,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       ).toHaveAttribute('href', '/forgot-password');
       await capture(page, testInfo, `register-${name}-409`);
 
+      // A name an account does not hold but that is reserved, or an organization's address (F5-D), is its own refusal.
+      await page.route(
+        `${API}/v1/auth/register`,
+        detail(409, 'username_unavailable', 'That username is reserved.')
+      );
+      await main.getByRole('button', { name: 'Create account' }).click();
+      await expect(
+        main.getByText(
+          'That username isn’t available: it is reserved or names an organization. Choose another one.'
+        )
+      ).toBeVisible();
+      await expect(main.getByText(/already registered/)).toHaveCount(0);
+
       await page.route(
         `${API}/v1/auth/register`,
         detail(422, 'weak_password', 'That password is on the list of common passwords.')

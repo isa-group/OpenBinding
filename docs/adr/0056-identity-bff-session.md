@@ -36,7 +36,7 @@ its frontend copied; what it lacks or gets wrong is decided here. Nothing is in 
 - **D-i. The chosen username is its own screen** (`/sso/identity/username`), shaped after SPACE's pending/complete.
 - **D-j. The orphan rule hangs off the owner** (`users.last_identity_refresh_at` within `API_KEY_ORPHAN_DAYS`) and
   governs personal `obk_` keys only; F4's environment-owned keys are outside it.
-- **D-k. Personal organizations follow SPHERE** (owner, Q3), as their own pull request (F5-D).
+- **D-k. Personal organizations follow SPHERE** (owner, Q3), as their own pull request (F5-D; see the addendum).
 - **D-l. RESEARCH by email is granted, never withdrawn automatically**; administrators change it.
 - **Single-flight renewal** (plan §10): an in-process coalescing map, a Redis lock with an owner token and a
   compare-and-delete, a bounded wait that re-reads the row, a compare-and-swap on the generation committed before the
@@ -60,5 +60,30 @@ its frontend copied; what it lacks or gets wrong is decided here. Nothing is in 
   data worth keeping goes to the owner as a migration before switching.
 - The CI never reaches the real issuer: an in-process fake issuer with Identity's token shapes covers the gateway, and
   the SCORETech Identity lab at a pinned revision covers the walks.
+
+## Addendum: personal organizations (F5-D)
+
+Open question 3 kept its default, SPHERE's shape. Every account owns an organization named `<username> PERSONAL`, its
+slug the username lower-cased (`.` and `_` become `-`, since a slug holds neither), created in the account's
+transaction at a first SCORETech sign-in, at local registration, for the bootstrap administrators and by the seeds.
+`complete` reaches it through an account hook that `main` installs (`identity.application.AccountHook`,
+implemented by `services.organizations.PersonalOrganizationHook`), so the identity module imports nothing above it;
+a refusal rolls the account back and leaves the pending sign-up for a retry.
+
+- `organizations.personal_owner_id` (unique, `RESTRICT`, a CHECK keeping the organization a root) marks it; the views
+  carry `is_personal`.
+- It is not transferred, left by its owner, moved, given sub-organizations, renamed or deleted on its own
+  (`409 personal_organization`), as SPHERE's screens and ORBIT refuse; members and invitations work as anywhere.
+- Organizations and usernames share one namespace: `complete` and registration answer `username_unavailable` for a
+  name whose slug an organization holds (after `username_taken`, so an account's own name stays "taken"), and an
+  organization cannot take a username's slug.
+- Deletion follows SPHERE too (owner's decision, replacing the design's pseudonymisation): `DELETE /v1/users/me`
+  no longer counts the personal organization in `last_owner` and deletes it with everything it holds, its runs
+  included, in the transaction that pseudonymises the account. It is the one exception to runs being history; a team
+  organization that holds runs is still refused. Its runs are cancelled first through the usual paths, and while one
+  is still running (or an engine is still being told to stop one) the answer is `409 personal_runs_stopping`, so no
+  solver is orphaned. Nothing outside it refers to what it holds, so no foreign key stops the delete, and a fork
+  elsewhere keeps its `forked_from` snapshot. Settings › Danger Zone says beforehand what goes
+  (`GET /v1/users/me/deletion`).
 
 See [IDENTITY.md](../IDENTITY.md).

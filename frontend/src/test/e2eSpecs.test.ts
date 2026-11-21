@@ -309,6 +309,8 @@ describe('the Playwright specs', () => {
         'sphere-wizard-preview',
         'org-connections',
         'acct-settings-profile',
+        'org-personal',
+        'org-personal-members',
       ])
         expect(sweep, screen).toContain(screen);
     });
@@ -403,6 +405,8 @@ describe('the Playwright specs', () => {
         "slug: 'case'",
         "slug: 'jobs'",
         "slug: 'job-result'",
+        "slug: 'organizations-personal'",
+        "slug: 'organization-personal'",
         "slug: 'plan-permissions'",
         "slug: 'public-profile'",
         "slug: 'avatar-editor'",

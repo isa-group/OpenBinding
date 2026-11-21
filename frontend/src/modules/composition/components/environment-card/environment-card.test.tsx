@@ -13,8 +13,8 @@ describe('the environment card', () => {
     const card = screen.getByRole('article', { name: 'Environment Production' });
     expect(card).toHaveTextContent('In effect1.0.0');
     expect(card).toHaveTextContent('Adoption #3');
-    expect(card).toHaveTextContent(/adopted .* ago by fixtures/);
-    expect(card).toHaveTextContent('Operator: fixtures');
+    expect(card).toHaveTextContent(/adopted .* ago by fixture-author/);
+    expect(card).toHaveTextContent('Operator: fixture-author');
     expect(card).toHaveTextContent('Admins adopt');
     expect(screen.getByRole('link', { name: 'Production' })).toHaveAttribute(
       'href',

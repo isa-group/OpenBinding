@@ -3,7 +3,8 @@
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's account fields and rules (username, email and a password of at least ten characters, with its strength
 // meter) instead of names, phone and address; no SSO buttons (SCORETech Identity has its own sign-up); a new account is
-// signed in at once and sent where it was heading, with no e-mail verification; the refusal wording and the free-plan note.
+// signed in at once and sent where it was heading, with no e-mail verification; the refusal wording (an unavailable username on its field,
+// apart from an account already registered) and the free-plan note.
 
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
@@ -113,7 +114,13 @@ export default function RegisterForm() {
     } catch (caught) {
       clearSignInNote();
       const result = classifyAuthError(caught);
-      if (result.kind === 'conflict') {
+      if (result.kind === 'conflict' && result.code === 'username_unavailable') {
+        // Not taken by an account: reserved (engines, a deleted account, the platform) or an organization's address.
+        setServerFields({
+          username:
+            'That username isn’t available: it is reserved or names an organization. Choose another one.',
+        });
+      } else if (result.kind === 'conflict') {
         setFailure('conflict');
       } else if (result.kind === 'invalid') {
         const fields = fieldErrorsFrom(caught);

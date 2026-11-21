@@ -3,7 +3,7 @@
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: each row is a link to the organization's page (middle-click works) instead of a clickable div; a node the
 // viewer cannot open is shown locked, without a link; a node is moved by an admin of it (OpenBinding's rule); the drag
-// props are taken apart for React 19's compiler.
+// props are taken apart for React 19's compiler. A personal organization is never dragged (SPHERE at fc776b4d).
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -41,7 +41,8 @@ export default function OrgTreeNode({
 }: Props) {
   const hasChildren = node.children.length > 0;
   const isExpanded = expandedIds.has(node.id);
-  const isMovable = isDragEnabled && node.hasAccess && managedIds.has(node.id);
+  // Personal organizations stand outside the hierarchy (SPHERE): they neither move nor take a branch.
+  const isMovable = isDragEnabled && node.hasAccess && managedIds.has(node.id) && !node.isPersonal;
   const canDrop = isMovable && isDragActive && !blockedTargetIds?.has(node.id);
   const { setNodeRef, dragHandleProps, isOver, isDragging } = useOrgRowDnd({
     id: node.id,
@@ -66,7 +67,11 @@ export default function OrgTreeNode({
           <OrgDragHandle
             dragHandleProps={dragHandleProps}
             isDisabled={!isMovable}
-            disabledReason="You need to be an admin of this organization to move it"
+            disabledReason={
+              node.isPersonal
+                ? 'Personal organizations cannot be moved'
+                : 'You need to be an admin of this organization to move it'
+            }
           />
         )}
         {hasChildren ? (

@@ -3101,7 +3101,11 @@ export interface paths {
          *     are emptied and ``deleted_at`` is set. Every credential, membership,
          *     identity, notification and invitation of the account is deleted, its
          *     federated engines are deactivated and an administrator becomes an ordinary
-         *     (inactive) user. The SPACE contract is removed last, before the commit; if
+         *     (inactive) user. Its personal organization is deleted with everything it
+         *     holds, runs included, as SPHERE deletes it: its queued runs and study runs
+         *     are cancelled first, and while a run of it is still running (or an engine
+         *     attempt is still being told to stop) the cancellation is committed and the
+         *     answer is ``409 personal_runs_stopping``, so no solver is left orphaned. The SPACE contract is removed last, before the commit; if
          *     that fails, nothing is changed (503).
          */
         delete: operations["deleteOwnAccount"];
@@ -3216,6 +3220,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/users/me/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What deleting the account deletes with it
+         * @description The personal organization ``DELETE /v1/users/me`` deletes, with what it holds; nothing is changed.
+         */
+        get: operations["previewOwnAccountDeletion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/users/me/pricing-token": {
         parameters: {
             query?: never;
@@ -3316,6 +3340,13 @@ export interface components {
             confirmation: string;
             /** Current Password */
             current_password?: string | null;
+        };
+        /**
+         * AccountDeletionPreview
+         * @description ``GET /v1/users/me/deletion``: what ``DELETE /v1/users/me`` would delete beyond the account itself.
+         */
+        AccountDeletionPreview: {
+            personal_organization?: components["schemas"]["PersonalOrganizationLoss"] | null;
         };
         /** AdminAuditEventView */
         AdminAuditEventView: {
@@ -6693,6 +6724,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Is Personal */
+            is_personal: boolean;
             /** Name */
             name: string;
             /** Parent Id */
@@ -7447,6 +7480,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Is Personal */
+            is_personal: boolean;
             /** Name */
             name: string;
             /** Parent Id */
@@ -7605,6 +7640,26 @@ export interface components {
              * @description The application path of the composition (`/compositions/{org}/{composition}`), with `?version=` when the link names a version the caller reads.
              */
             location: string;
+        };
+        /**
+         * PersonalOrganizationLoss
+         * @description What deleting the account deletes with its personal organization (the Danger Zone says it before asking).
+         */
+        PersonalOrganizationLoss: {
+            /** Compositions */
+            compositions: number;
+            /** Feed Environments */
+            feed_environments: number;
+            /** Name */
+            name: string;
+            /** Problems */
+            problems: number;
+            /** Public Compositions */
+            public_compositions: number;
+            /** Runs */
+            runs: number;
+            /** Slug */
+            slug: string;
         };
         /**
          * PlansPricingView
@@ -8205,6 +8260,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Is Personal */
+            is_personal: boolean;
             /** Name */
             name: string;
             /** Public Compositions */
@@ -14641,7 +14698,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description `slug_conflict`: the slug is in use. */
+            /** @description `slug_conflict` (the slug is in use, by an organization or as a username) and `personal_organization` (the parent is a personal organization). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14838,7 +14895,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description `historical_references`: the organization or one below it has runs or study runs. */
+            /** @description `historical_references` (the organization or one below it has runs or study runs) and `personal_organization` (it goes with its account). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14921,6 +14978,15 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `personal_organization`: an account's personal organization is not transferred, left by its owner, moved, given sub-organizations, renamed or deleted on its own. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description `If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision. */
@@ -19077,7 +19143,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The change names the owner (code `owner_transfer_required`): an organization has one owner, and the seat moves only by `PUT .../owner`. */
+            /** @description `owner_transfer_required` (the change names the owner, whose seat moves only by `PUT .../owner`) and `personal_organization` (the owner of a personal organization leaving it). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19150,6 +19216,15 @@ export interface operations {
             };
             /** @description No such organization, the caller is not a member of it, or the recipient is not (code `not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `personal_organization`: an account's personal organization is not transferred, left by its owner, moved, given sub-organizations, renamed or deleted on its own. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -23178,7 +23253,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The account is the last OWNER of an organization (`last_owner`). */
+            /** @description `last_owner` (the account is the last OWNER of an organization other than its personal one) and `personal_runs_stopping` (runs of its personal organization were running: they are being cancelled; delete again once they have stopped). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -23613,6 +23688,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    previewOwnAccountDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDeletionPreview"];
+                };
+            };
+            /** @description No usable credential was supplied. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             /** @description Account authentication is not configured on this deployment. */

@@ -3,7 +3,8 @@
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's roles (VIEWER, MEMBER, ADMIN; the owner seat moves only by the crown); the drafted role changes
 // and removals are saved together through the gateway's atomic batch (at most MEMBER_BATCH_LIMIT), with OpenBinding's
-// wording for a refused batch; members are named by username and email.
+// wording for a refused batch; members are named by username and email; no crown in a personal organization (it is
+// never handed over), and no Leave for its owner.
 
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
@@ -292,7 +293,7 @@ export default function MembersTab({
                 </span>
               )}
 
-              {canManage && managerRole === 'OWNER' && !isMe && (
+              {canManage && managerRole === 'OWNER' && !isMe && !org.is_personal && (
                 <button
                   type="button"
                   onClick={() => handleTransferOwnership(member)}
@@ -316,7 +317,8 @@ export default function MembersTab({
                   <Iconify icon={removed ? 'mdi:undo' : 'mdi:account-remove-outline'} width={18} />
                 </button>
               )}
-              {isMe && (
+              {/* A personal organization's owner never leaves it: it goes with the account. */}
+              {isMe && !(org.is_personal && member.role === 'OWNER') && (
                 <button
                   type="button"
                   onClick={handleLeave}

@@ -260,7 +260,10 @@ header and its 33-screen budget).
 - **Organization:** `/orgs/:org/:tab?`, SPHERE's hero with tabs Overview · Compositions · Problems · Runs · Studies ·
   Members · Invitations · Hierarchy · Presets · Audit, each from the least role that may see it, and Connections (ADMIN,
   a beta tab as SPHERE marks them: only with Settings → Beta features on; the organization's SPHERE key). `/me/orgs`,
-  `/organizations`, `/orgs/new` and `/orgs/join/:code` list, explore, create and join.
+  `/organizations`, `/orgs/new` and `/orgs/join/:code` list, explore, create and join; `/me/orgs` shows the account's
+  personal organization under Personal and the rest under Teams, as SPHERE does, and cards say Personal or Team. A
+  personal organization's page offers its owner no Leave, Delete, Transfer, Add child or rename, and it is never
+  dragged.
 - **Resources of an organization** render outside its page, on the card shell, with the breadcrumb "Org / Name":
   `/compositions/:org/:composition/:tab?` (Overview · Analytics · Configuration · Versions · Operation · Settings; the
   version graph and diff in Versions; Operation is the members' tab of composition environments, the one opened in
@@ -452,6 +455,12 @@ problem link:
 | `composition_environment_keys` | an environment's feed keys (`obe_…`): prefix, SHA-256 of the key, label, creator, last use, revocation | secret, prefix, owner and creation `protect`ed; a revoked key stays revoked; deleted with its environment |
 
 A composition with environments is not deleted (`409 composition_in_operation`).
+
+**As built after F5-D.** `organizations.personal_owner_id` marks an account's personal organization (SPHERE's
+`isPersonal`): unique, `RESTRICT` on `users`, and a CHECK that keeps it a root. Every account gets one in the
+transaction that creates it, and account deletion deletes it with everything it holds, runs included (the one
+exception to runs being history)
+([ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md), [ADR 0056](adr/0056-identity-bff-session.md) addendum).
 
 Versions, evaluations and derivations name problem compilations (and runs) through `RESTRICT` foreign keys, so a
 problem a composition links answers `409 problem_has_compositions` on delete, and the admin purge keeps the terminal

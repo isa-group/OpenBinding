@@ -1,7 +1,8 @@
 // Adapted from SPHERE frontend/src/modules/organization/pages/organization-detail/components/OrganizationExitButton.tsx (revision 73779a8a),
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
-// Changes: Delete is offered to the owner who is the only member, and asks OpenBinding's typed confirmation (the slug) with
+// Changes: nothing for the owner of a personal organization (SPHERE at fc776b4d shows nothing for one; its other
+// members still leave, as the gateway allows); Delete is offered to the owner who is the only member, and asks OpenBinding's typed confirmation (the slug) with
 // the counts of what goes with the organization; an owner with others hands it over first; a member, an admin or a viewer
 // leaves through the self-leave route; refusals (an organization that holds runs) read with readApiError.
 
@@ -136,6 +137,9 @@ export default function OrganizationExitButton({
         members[0].role === 'OWNER'));
   const label = canDelete ? 'Delete organization' : 'Leave organization';
 
+  // A personal organization goes with its account: its owner neither deletes nor leaves it. Its other members leave
+  // as from any organization.
+  if (org.is_personal && myRole === 'OWNER') return null;
   // A role inherited from a parent is left there, not here.
   if (!currentUserId || (!canDelete && !isDirectMember)) return null;
 

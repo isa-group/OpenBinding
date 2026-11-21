@@ -44,6 +44,7 @@ const memberRoutes = (over: Parameters<typeof fakeGateway>[0] = {}) =>
           name: 'ISA Demo Group',
           avatar: {},
           parent_id: null,
+          is_personal: false,
           has_access: true,
         },
       ],
@@ -204,5 +205,90 @@ describe('/orgs/:org', () => {
     fireEvent.click(confirm);
     await waitFor(() => expect(addressNow()).toBe('/me/orgs'));
     expect(organizations.refresh).toHaveBeenCalled();
+  });
+});
+
+describe('/orgs/:org of a personal organization', () => {
+  const mine = orgNode(ME.username, {
+    name: `${ME.username} PERSONAL`,
+    is_personal: true,
+    stats: { members: 2, sub_organizations: 0, compositions: 0, problems: 0, runs: 0, studies: 0 },
+  });
+  const personalRoutes = () =>
+    fakeGateway({
+      [`GET /v1/organizations/${mine.slug}`]: { body: mine },
+      [`GET /v1/organizations/${mine.slug}/members`]: {
+        body: [
+          { ...member(ME.id, ME.username, 'OWNER'), organization_id: mine.id },
+          { ...member('u-marco', 'marco', 'ADMIN'), organization_id: mine.id },
+        ],
+      },
+      [`GET /v1/organizations/${mine.slug}/invitations`]: { body: [] },
+      [`GET /v1/organizations/${mine.slug}/hierarchy`]: {
+        body: [
+          {
+            id: mine.id,
+            slug: mine.slug,
+            name: mine.name,
+            avatar: {},
+            parent_id: null,
+            is_personal: true,
+            has_access: true,
+          },
+        ],
+      },
+      [`GET /v1/organizations/${mine.slug}/compositions`]: {
+        body: { compositions: [], total: 0, limit: 6, offset: 0 },
+      },
+    });
+
+  it('offers its owner neither Leave nor Delete, and keeps its name in Edit', async () => {
+    renderPage(`/orgs/${mine.slug}`, { tree: [mine], gateway: personalRoutes() });
+    expect(await screen.findByRole('heading', { level: 1, name: mine.name })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /^(Leave|Delete) organization$/ })
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit organization' });
+    expect(within(dialog).getByLabelText('Name')).toHaveAttribute('readonly');
+    expect(dialog).toHaveTextContent(
+      'A personal organization keeps its account’s name and address'
+    );
+  });
+
+  it('has no crown and takes no sub-organization', async () => {
+    renderPage(`/orgs/${mine.slug}/members`, { tree: [mine], gateway: personalRoutes() });
+    expect(await screen.findByText('@marco')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Transfer ownership/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Leave organization' })).not.toBeInTheDocument();
+  });
+
+  it('shows no Add child in its hierarchy', async () => {
+    renderPage(`/orgs/${mine.slug}/hierarchy`, { tree: [mine], gateway: personalRoutes() });
+    expect(
+      await screen.findByText('A personal organization has no sub-organizations.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add child' })).not.toBeInTheDocument();
+  });
+
+  it('lets another member leave it', async () => {
+    const theirs = { ...mine, effective_role: 'ADMIN' as const };
+    renderPage(`/orgs/${mine.slug}`, {
+      tree: [theirs],
+      gateway: fakeGateway({
+        [`GET /v1/organizations/${mine.slug}`]: { body: theirs },
+        [`GET /v1/organizations/${mine.slug}/members`]: {
+          body: [
+            { ...member('u-marco', 'marco', 'OWNER'), organization_id: mine.id },
+            { ...member(ME.id, ME.username, 'ADMIN'), organization_id: mine.id },
+          ],
+        },
+        [`GET /v1/organizations/${mine.slug}/compositions`]: {
+          body: { compositions: [], total: 0, limit: 6, offset: 0 },
+        },
+      }),
+    });
+    expect(await screen.findByRole('heading', { level: 1, name: mine.name })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Leave organization' }).length).toBeGreaterThan(0);
   });
 });
