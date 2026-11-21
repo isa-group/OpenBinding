@@ -78,6 +78,17 @@ def test_an_add_on_already_priced_as_a_quote_is_not_invalidated_again() -> None:
     assert [r["code"] for r in became["reasons"]] == ["price_not_numeric"]
 
 
+def test_a_selected_add_on_changing_period_at_the_same_amount_is_a_value_change() -> None:
+    base = {"scenario": "brevo-addon"}
+    yearly = {"scenario": "brevo-addon", "edits": [["set", "addOns.samlSso.unit", "account/year"]],
+              "versionId": "6fff0000000000000000a005", "label": "2026-11-addon (yearly)"}
+    found = _run("G06-bound-add-on", old=base, new=yearly)
+    price = found["diff"]["entries"][0]["comparison"]["price"]
+    assert price["before"]["subtotal"] == price["after"]["subtotal"]
+    assert found["category"] == "values_changed" and found["notify"] is True
+    assert _run("G06-bound-add-on", old=base, new=dict(base, versionId="6fff0000000000000000a006"))["category"] == "no_impact"
+
+
 def test_a_guarantee_changes_without_a_delta() -> None:
     found = _run("G04-guarantee")
     (attribute,) = [a for a in found["diff"]["entries"][0]["attributes"] if a["target"] == "availability"]

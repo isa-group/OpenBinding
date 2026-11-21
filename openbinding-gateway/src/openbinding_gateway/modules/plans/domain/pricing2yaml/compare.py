@@ -189,6 +189,9 @@ class SelectionComparison:
     catalog: dict[str, Any]
     #: Ids whose two values are both Unlimited from numbers that differ (the 1e8 sentinel).
     sentinel: tuple[str, ...] = ()
+    #: ``plan:<id>``/``addOn:<id>`` parts selected on both sides whose unit changed period (not in the renderer's
+    #: answer; the same amount for another period is another price).
+    period_changed: tuple[str, ...] = ()
 
     @property
     def empty(self) -> bool:
@@ -200,6 +203,7 @@ class SelectionComparison:
             and not (self.features["gained"] or self.features["lost"] or self.features["changed"])
             and not self.usage_limits
             and not price["billingPeriodChanged"]
+            and not self.period_changed
             # The same number for another period (``account/month`` -> ``account/year``) is another price; a unit
             # spelt otherwise for the same period is not (``unit`` is ``<currency>/<period>``).
             and price["before"].get("unit") == price["after"].get("unit")
@@ -313,7 +317,25 @@ def compare_selections(
         with money_context():
             price["difference"] = str(quantize6(Decimal(price_after["subtotal"]) - Decimal(price_before["subtotal"])))
 
-    return SelectionComparison(plan, add_ons, features, limits, price, catalog_diff(old, new), tuple(sentinel))
+    periods_before, periods_after = _periods(before_side), _periods(after_side)
+    period_changed = tuple(sorted(
+        f"{kind}:{name}" for (kind, name), period in periods_before.items()
+        if (kind, name) in periods_after and periods_after[(kind, name)] != period
+    ))
+    return SelectionComparison(plan, add_ons, features, limits, price, catalog_diff(old, new), tuple(sentinel),
+                               period_changed)
+
+
+def _periods(side: _Side) -> dict[tuple[str, str], str | None]:
+    """The period of every selected part's unit (the plan's and each add-on's)."""
+    if side.result is None:
+        return {}
+    pricing = side.pricing
+    return {
+        (part.kind, part.id): units.period_of(
+            pricing.plans[part.id].unit if part.kind == "plan" else pricing.add_ons[part.id].unit)
+        for part in side.result.parts
+    }
 
 
 def catalog_diff(old: NormalisedPricing, new: NormalisedPricing) -> dict[str, Any]:
