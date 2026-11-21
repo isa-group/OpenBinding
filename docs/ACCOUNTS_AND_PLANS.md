@@ -181,6 +181,30 @@ stays on as an ADMIN.
 * Invitations are shareable codes that join as MEMBER (`POST .../invitations`,
   `POST /v1/invitations/{code}/join`); managers adjust the role afterwards.
 
+### Every account has a personal organization
+
+As in SPHERE (`OrganizationService.ensurePersonalOrganizationForUser`), every account
+owns an organization named after it from the moment it exists, so a new account can
+create problems, compositions and runs at once. Its name is `<username> PERSONAL`, its
+slug the username lower-cased (a slug holds no `.` or `_`, so each becomes `-`), the
+account its OWNER, and the views mark it `is_personal`. It is created in the same
+transaction as the account — at local registration, at a first SCORETech sign-in, for
+the bootstrap administrators and by the seeds — and a refusal rolls both back
+(`services/organizations.py`, `ensure_personal_organization`;
+`organizations.personal_owner_id`, unique, with a CHECK that keeps it a root).
+
+* It is not transferred, left by its owner, given a parent or sub-organizations,
+  renamed or deleted on its own: each answers `409 personal_organization`, a platform
+  administrator's delete included. Its description and avatar change as in any
+  organization.
+* Members and invitations work as in any organization: its owner adds people, and
+  they leave when they like.
+* Organizations and usernames share one namespace: a username whose personal slug
+  names an organization (or a reserved address such as `public`) is `409
+  username_unavailable`, and an organization cannot take a username's slug (`409
+  slug_conflict`).
+* Deleting the account deletes it with everything it holds, as SPHERE does (below).
+
 ### What each role may do with work
 
 VIEWER is a read role. It reads the authorized results of an organization and
@@ -208,7 +232,8 @@ another organization is `409 revision_not_in_organization`. Retrying a teammate'
 run on that teammate's private engine is refused when it is dispatched
 (`registration_changed`): a private engine resolves for the caller only.
 
-Every run belongs to the organization of its problem: there is no personal work.
+Every run belongs to the organization of its problem: personal work is the work of the
+account's personal organization.
 Checking a package without storing it (`POST /v1/bim/validate`) needs no account.
 
 An API key inherits the role of its user and adds its permissions on top; neither
@@ -356,11 +381,16 @@ that holds the account's row lock and asks whether one more fits. A refusal is
 storage is the sum of the blobs the account uploaded (an interim count); then it
 becomes the sum of the account's problem revisions.
 
-## Deleting an account pseudonymises it
+## Deleting an account pseudonymises it and deletes its personal organization
 
 `DELETE /v1/users/me` needs the exact username as confirmation and, for a
-password account, the current password; the last OWNER of an organization is
-refused with `409 last_owner`. Then, in one transaction (`routes/users.py`,
+password account, the current password; the last OWNER of an organization other
+than its personal one is refused with `409 last_owner`. The runs of its personal
+organization are cancelled first, through the usual paths (a queued run at once, a
+running one by its worker, which tells the engine to stop): while one is still
+running, or an engine is still being told to stop one, the cancellations are kept
+and the answer is `409 personal_runs_stopping`, so the person deletes again a
+moment later and no solver is left orphaned. Then, in one transaction (`routes/users.py`,
 `pseudonymise`), with the SPACE contract removed last, just before the commit:
 if the removal fails (`503 pricing_unavailable`), or the database refuses any
 step, nothing is changed and the contract stays.
@@ -377,6 +407,20 @@ step, nothing is changed and the contract stays.
 - each of its active federated engine registrations is deactivated, as the
   `deactivate` route does, so no new run selects it; the engine and registration
   revisions stay, because past runs name them in their provenance;
+- its personal organization is **deleted** with everything it holds, as SPHERE
+  deletes it (`UserService.ts:281-285`, owner's decision): runs and study runs
+  with their evidence, attempts and cells, studies, compositions with their
+  versions, evaluations and derivations, problems with their revisions and
+  compilations, run presets, environments with their feed keys and adoptions,
+  memberships, invitation codes, blob rows and its audit events
+  (`routes/organizations.py`, `delete_personal_organization`). It is the one
+  exception to runs being history: a team organization that holds runs is still
+  refused. Nothing outside it refers to what it holds (problems are private to
+  their organization, and a fork elsewhere keeps a `forked_from` snapshot of its
+  source), so no foreign key stops the delete, and the username's namespace is
+  free again. Settings › Danger Zone says beforehand what goes with it
+  (`GET /v1/users/me/deletion`: its compositions and how many are public, its
+  problems, its runs, its environments with a live feed key);
 - `account.deleted` is audited with no personal data.
 
 Nothing is reassigned to another person. The foreign keys that history holds on

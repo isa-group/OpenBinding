@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   API,
   CASE,
+  LAB_USERS,
   ORG,
   OTHER_ORG,
   LAUNCH_PATH,
@@ -15,13 +16,22 @@ import {
 // lab-outsider owns lab-other and has no role in lab-main: the interface must show nothing of lab-main and must not even say that it exists.
 
 test.describe('live · lab-outsider has no access to lab-main', () => {
-  test('Home lists only the organization of the outsider', async ({ page }, testInfo) => {
+  test('Home lists only the organizations of the outsider', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'outsider');
     await page.goto('/me/orgs');
 
     const organizations = page.locator('main');
-    await expect(organizations.locator(`a[href="/orgs/${OTHER_ORG}"]`)).toBeVisible();
+    // Its team and its personal organization (F5-D), nothing else: two in all.
+    await expect(organizations.getByText('2 organizations')).toBeVisible();
+    await expect(
+      organizations.getByRole('region', { name: 'Teams' }).locator(`a[href="/orgs/${OTHER_ORG}"]`)
+    ).toBeVisible();
+    await expect(
+      organizations
+        .getByRole('region', { name: 'Personal' })
+        .locator(`a[href="/orgs/${LAB_USERS.outsider}"]`)
+    ).toBeVisible();
     await expect(organizations.locator(`a[href="/orgs/${ORG}"]`)).toHaveCount(0);
     await capture(page, testInfo, 'outsider-home');
     expect(errors).toEqual([]);

@@ -4,6 +4,7 @@ import { measurePage, prepareCapture, waitUntilSettled } from '../helpers/pageCh
 import {
   API,
   CASE,
+  LAB_USERS,
   ORG,
   PROBLEMS_TAB,
   OTHER_ORG,
@@ -418,6 +419,22 @@ const OWNER_STOPS: Stop[] = [
     path: `${RUNS_PATH}`,
     ready: page =>
       page.getByRole('region', { name: 'Runs' }).getByRole('heading', { level: 2, name: /Runs/ }),
+  },
+  {
+    // F5-D: the Personal section of the list, and the owner's personal organization without Leave or Transfer.
+    slug: 'organizations-personal',
+    path: '/me/orgs',
+    ready: page =>
+      page
+        .locator('main')
+        .getByRole('region', { name: 'Personal' })
+        .getByRole('link', { name: `${LAB_USERS.owner} PERSONAL` }),
+  },
+  {
+    slug: 'organization-personal',
+    path: `/orgs/${LAB_USERS.owner}`,
+    ready: page =>
+      page.locator('main').getByRole('heading', { level: 1, name: `${LAB_USERS.owner} PERSONAL` }),
   },
   {
     slug: 'plan-permissions',
