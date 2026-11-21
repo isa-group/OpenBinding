@@ -64,6 +64,20 @@ def test_a_selection_already_private_is_not_invalidated_again() -> None:
     assert _run("G11a-plan-private", old=case["new"], new=later)["category"] == "no_impact"
 
 
+def test_an_add_on_already_priced_as_a_quote_is_not_invalidated_again() -> None:
+    case = CASES["G06-bound-add-on"]
+    entries = [{key: value for key, value in entry.items() if key not in ("origins", "recipe")}
+               for entry in case["entries"]]
+    quote = [["set", "addOns.samlSso.price", "Contact sales"]]
+    old = dict(case["old"], edits=quote)
+    new = dict(case["new"], edits=quote)
+    found = _run("G06-bound-add-on", old=old, new=new, entries=entries)
+    assert found["category"] != "binding_invalid" and found["reasons"] == []
+    became = _run("G06-bound-add-on", new=new, entries=entries)  # a number before, a quote now
+    assert became["category"] == "binding_invalid"
+    assert [r["code"] for r in became["reasons"]] == ["price_not_numeric"]
+
+
 def test_a_guarantee_changes_without_a_delta() -> None:
     found = _run("G04-guarantee")
     (attribute,) = [a for a in found["diff"]["entries"][0]["attributes"] if a["target"] == "availability"]

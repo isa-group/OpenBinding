@@ -280,7 +280,8 @@ def _structural(entry: EntryInput, old: pricing2yaml.NormalisedPricing | None,
             if pinned is None or not _not_subscription(pinned):
                 reasons.append(_reason(Reason.ADDON_NOT_SUBSCRIPTION, addOn=name))
         elif reads_price and _price_not_numeric(add_on.price):
-            reasons.append(_reason(Reason.PRICE_NOT_NUMERIC, addOn=name))
+            if pinned is None or not _price_not_numeric(pinned.price):
+                reasons.append(_reason(Reason.PRICE_NOT_NUMERIC, addOn=name))
     if old is not None and reads_price and old.currency != new.currency:
         reasons.append(_reason(Reason.CURRENCY_CHANGED, before=old.currency, after=new.currency))
     if selection.billing is not None and selection.billing not in {b.id for b in new.billing}:
