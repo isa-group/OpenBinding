@@ -555,11 +555,22 @@ async def attach_resolved(session: AsyncSession, organization_id: uuid.UUID, sph
     """Give the organization's unresolved refs naming ``sphere_ref`` at ``pinned`` a resolved sibling on the
     snapshot's watch; how many were written (the caller commits).
 
-    A ref whose key the version already holds (the same pinned version reached under another family name) is
-    skipped."""
+    Their compositions are share-locked first, as ``deleteOrganization`` locks a composition before its organization
+    (the watch's insert key-shares the organization); a ref whose key the version already holds (the same pinned
+    version reached under another family name) is skipped."""
+    from ....db.models import Composition
+
     refs = await watches.unresolved_refs(session, organization_id, sphere_ref, pinned)
     if not refs:
         return 0
+    if clock.uses_db_clock(session):
+        await session.execute(
+            select(Composition.id).where(Composition.id.in_({ref.composition_id for ref in refs}))
+            .order_by(Composition.id).with_for_update(key_share=True)
+        )
+        refs = await watches.unresolved_refs(session, organization_id, sphere_ref, pinned)
+        if not refs:
+            return 0
     watch = await watches.watch_of_snapshot(session, snapshot)
     taken = {(row.version_id, row.ref_key) for row in (await session.execute(
         select(PricingWatchRef.version_id, PricingWatchRef.ref_key).where(

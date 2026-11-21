@@ -163,3 +163,47 @@ async def test_an_organization_deleted_while_a_cycle_records_leaves_no_orphan(pg
     async with pg.session() as check:
         assert (await check.scalars(select(CompositionUpstreamEvent))).all() == []
         assert await check.get(PricingWatch, watch_id) is not None  # a public watch stays
+
+
+async def test_resolving_a_ref_takes_the_composition_before_the_organization(pg) -> None:
+    """``deleteOrganization`` locks a composition, then its organization. Resolving an unresolved ref inserts an
+    organization's watch (a key share on the organization) only once it holds the ref's composition, so it waits at
+    the composition holding nothing of the organization: the delete goes through, and nothing is written."""
+    import asyncio
+
+    from sqlalchemy import text
+
+    from openbinding_gateway.db.models import Composition, Organization, PricingSnapshot, PricingWatchRef
+    from openbinding_gateway.routes.organizations import _delete_subtree
+
+    async with pg.session() as setup:
+        w = await world(setup)
+        await ref(setup, w, None, sphere_ref="acme/thing", pinned=BREVO_2026_11)
+        snapshot = PricingSnapshot(
+            source_key="sphere:6c0000000000000000000001", scope_key=str(w.organization_id),
+            organization_id=w.organization_id, pricing_id="6c0000000000000000000001", version_id=BREVO_2026_11,
+            sha256="0" * 64, size_bytes=1, content_hash="0" * 64, content_hash_verified=True, source_kind="sphere",
+            title="Thing", valid=True,
+        )
+        setup.add(snapshot)
+        await setup.flush()
+        snapshot_id = snapshot.id
+        await setup.commit()
+    async with pg.session() as deleting, pg.session() as cycle:
+        await deleting.execute(select(Composition.id).where(Composition.organization_id == w.organization_id)
+                               .order_by(Composition.id).with_for_update())
+        snapshot = await cycle.get(PricingSnapshot, snapshot_id)
+        task = asyncio.create_task(uw.attach_resolved(cycle, w.organization_id, "acme/thing", BREVO_2026_11, snapshot))
+        await asyncio.sleep(0.5)
+        assert not task.done()  # waiting at the composition
+        await deleting.execute(text("SET LOCAL lock_timeout = '5s'"))
+        await deleting.execute(select(Organization.id).where(Organization.id == w.organization_id).with_for_update())
+        await _delete_subtree(deleting, await deleting.get(Organization, w.organization_id), [w.organization_id])
+        await deleting.commit()
+        assert await task == 0
+        await cycle.commit()
+    async with pg.session() as check:
+        assert (await check.scalars(select(PricingWatch).where(PricingWatch.organization_id == w.organization_id))
+                ).all() == []
+        assert (await check.scalars(select(PricingWatchRef).where(PricingWatchRef.organization_id == w.organization_id))
+                ).all() == []

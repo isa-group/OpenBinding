@@ -719,7 +719,8 @@ async def _lock_subtree(session: AsyncSession, unique_descendants: list[uuid.UUI
         (BindingCaseRevision, BindingCaseRevision.binding_case_id.in_(cases)),
         (ProblemCompilation, ProblemCompilation.revision_id.in_(revisions)),
         # F6: the subtree's own watches (a watcher cycle claims a watch, then shares its composition, in separate
-        # transactions; an event's insert shares the composition before the watch, as this order does).
+        # transactions; an event's insert shares the composition before the watch, and resolving a ref shares its
+        # composition before inserting an organization's watch, as this order does).
         (PricingWatch, PricingWatch.organization_id.in_(unique_descendants)),
         (Organization, Organization.id.in_(unique_descendants)),
     ):
