@@ -137,3 +137,29 @@ async def test_a_cycle_holding_the_composition_makes_the_seal_resolve_the_event(
     async with pg.session() as check:
         event = await check.get(CompositionUpstreamEvent, event_id)
         assert event.state == "resolved"
+
+
+async def test_an_organization_deleted_while_a_cycle_records_leaves_no_orphan(pg) -> None:
+    """The delete locks the composition; the cycle's ``FOR SHARE`` waits, then finds it gone and writes nothing."""
+    import asyncio
+
+    from openbinding_gateway.db.models import CompositionUpstreamEvent, Organization
+    from openbinding_gateway.routes.organizations import _delete_subtree, _lock_subtree
+
+    async with pg.session() as setup:
+        w = await world(setup)
+        watch_id = await watch(setup, version_order=[BREVO_2026_11, BREVO_2026_10])
+        ref_id = await ref(setup, w, watch_id)
+        await setup.commit()
+    async with pg.session() as deleting, pg.session() as cycle:
+        await _lock_subtree(deleting, [w.organization_id])
+        task = asyncio.create_task(_write_event(cycle, w, watch_id, ref_id))
+        await asyncio.sleep(0.5)
+        assert not task.done()
+        organization = await deleting.get(Organization, w.organization_id)
+        await _delete_subtree(deleting, organization, [w.organization_id])
+        await deleting.commit()
+        assert await task is False
+    async with pg.session() as check:
+        assert (await check.scalars(select(CompositionUpstreamEvent))).all() == []
+        assert await check.get(PricingWatch, watch_id) is not None  # a public watch stays
