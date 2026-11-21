@@ -23,8 +23,13 @@ deriving again answers the version that holds them.
    derivation never stores bytes its own language refuses.
 
 A refusal is 422 ``derivation_invalid`` with the ``c2y_*`` findings; those about the request point into it
-(``/point``, ``/binding/<task>``, ``/offering/url``), the others into the derived document. Storing is the
-caller's (:func:`~.seal.persist` with the :class:`~..domain.records.DerivationDraft`).
+(``/point``, ``/binding/<task>``, ``/offering/url``), the others into the derived document.
+
+:func:`derive_and_seal` is the one sequence that stores a derivation (``derive_version`` -> the seal pre-phase
+``offering.before_seal`` -> ``seal.persist`` with the :class:`~..domain.records.DerivationDraft`): the derive route
+and a proposal's ``seal_derived`` step both call it, so they cannot diverge. Given the digest of the document a
+person was shown, it refuses a derivation that no longer gives those bytes (409 ``derivation_changed``) before
+anything is stored.
 """
 
 from __future__ import annotations
@@ -68,6 +73,8 @@ from ...problems.application import problem_by_ref, revision_by_ref
 from ..domain.records import DerivationDraft
 from .assess import Assessment, StoredLink, assess, installed_compilation, recorded_provenance, resolve_link
 from .language import diagnostic_view
+from .offering import before_seal
+from .seal import Sealed, persist
 from .slots import language_slot
 
 _POINT = Path(("point",))
@@ -406,4 +413,55 @@ async def derive_version(
     )
 
 
-__all__ = ["DerivationBug", "Derived", "derive_version"]
+@dataclass(frozen=True, slots=True)
+class DerivedSeal:
+    """A derivation sealed: the stored version (``sealed``) and the assessment the seal stored, offering read."""
+
+    sealed: Sealed
+    assessment: Assessment
+
+
+def derivation_changed(expected: str, found: str | None) -> HTTPException:
+    return api_error(
+        status.HTTP_409_CONFLICT, "derivation_changed",
+        "Deriving this binding no longer gives the document that was shown; nothing was sealed.",
+        expected=expected, found=found,
+    )
+
+
+async def derive_and_seal(
+    session: AsyncSession,
+    organization: Organization,
+    composition: Composition,
+    *,
+    caller: User,
+    label: str,
+    kind: str | None = None,
+    offering: Mapping[str, Any] | None = None,
+    run: uuid.UUID | None = None,
+    point: int = 0,
+    revision: str | None = None,
+    binding: Mapping[str, str] | None = None,
+    expect_digest: str | None = None,
+    derived: Derived | None = None,
+) -> DerivedSeal:
+    """Derive the version ``label`` of ``composition`` and seal it, committed: the derive route's sequence, which a
+    proposal's ``seal_derived`` step runs too. ``derived`` is a derivation already made for these arguments (a
+    proposal's pre-flight); with ``expect_digest``, bytes with another digest are 409 ``derivation_changed`` and
+    nothing is stored. The seal's refusals are its own (409 ``version_label_taken``, 422)."""
+    if derived is None:
+        derived = await derive_version(
+            session, organization, composition, caller=caller, label=label, kind=kind, offering=offering,
+            run=run, point=point, revision=revision, binding=binding,
+        )
+    if expect_digest is not None and derived.assessment.content_digest != expect_digest:
+        raise derivation_changed(expect_digest, derived.assessment.content_digest)
+    # A derivation that seals reads the offering like a seal: only when an evaluation row will be created.
+    assessment = await before_seal(
+        session, organization, derived.assessment, caller, source=derived.content, composition_id=composition.id,
+    )
+    sealed = await persist(session, composition, assessment, actor=caller, derivation=derived.derivation)
+    return DerivedSeal(sealed, assessment)
+
+
+__all__ = ["DerivationBug", "Derived", "DerivedSeal", "derivation_changed", "derive_and_seal", "derive_version"]

@@ -23,8 +23,7 @@ from openbinding_gateway.db.models import (
     User,
 )
 from openbinding_gateway.core import revision as etags
-from openbinding_gateway.modules.compositions.application import adoption, derive_version, persist, templates
-from openbinding_gateway.modules.compositions.application.offering import before_seal
+from openbinding_gateway.modules.compositions.application import adoption, derive, templates
 from problems._sphere_helpers import member
 
 BREVO = "6ade2d4440e55445692b07f1"
@@ -52,15 +51,12 @@ class Seeded:
 async def derive_and_seal(session, organization, composition, user, label: str, binding: dict, revision: int,
                           offering=None) -> CompositionVersion:
     spec = templates.template("tomatometer").composition
-    derived = await derive_version(
+    stored = await derive.derive_and_seal(
         session, organization, composition, caller=user, label=label,
         offering=spec["offering"] if offering is None else offering,
         revision=f"tomatometer-email@{revision}", binding={**spec["binding"], **binding},
     )
-    assessment = await before_seal(session, organization, derived.assessment, user, source=derived.content,
-                                   composition_id=composition.id)
-    sealed = await persist(session, composition, assessment, actor=user, derivation=derived.derivation)
-    return sealed.version
+    return stored.sealed.version
 
 
 async def fresh(session, found: "Seeded") -> tuple[Organization, Composition, User]:

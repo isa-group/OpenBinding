@@ -1276,12 +1276,10 @@ async def derive_composition(
             diagnostics=diagnostics,
         )
         return JSONResponse(status_code=status.HTTP_200_OK, content=draft.model_dump(mode="json"))
-    # A derivation that seals reads the offering like a seal: only when an evaluation row will be created.
-    assessment = await offering.before_seal(
-        session, organization, derived.assessment, user, source=derived.content, composition_id=found.id,
-    )
-    diagnostics = [diagnostic_view(item) for item in assessment.diagnostics]
-    sealed = await seal.persist(session, found, assessment, actor=user, derivation=derived.derivation)
+    stored = await derive.derive_and_seal(session, organization, found, caller=user, label=payload.version,
+                                          derived=derived)
+    diagnostics = [diagnostic_view(item) for item in stored.assessment.diagnostics]
+    sealed = stored.sealed
     assert sealed.derivation is not None
     (detail,) = await versions.details(session, [sealed.version])
     response.status_code = status.HTTP_201_CREATED if sealed.created else status.HTTP_200_OK
