@@ -162,6 +162,26 @@ async def test_an_offering_version_is_one_event_on_the_composition_with_margins(
     assert len(await _events(db_session, subject="offering")) == 1
 
 
+async def test_an_offering_change_is_judged_on_the_versions_that_offer_it(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
+    found = await seeded(api_client, registration, db_session, gate)
+    # The latest, 1.2.0, offers nothing; production keeps 1.0.0, which offers TomatoMeter.
+    base = f"/v1/organizations/{found.org}/compositions/tomatometer"
+    document = yaml.safe_load((await api_client.get(f"{base}/versions/1.1.0/content", headers=found.headers)).text)
+    document["version"] = "1.2.0"
+    document.pop("offering")
+    sealed = await api_client.post(f"{base}/versions", content=yaml.safe_dump(document, sort_keys=False).encode(),
+                                   headers={**found.headers, **YAML})
+    assert sealed.status_code == 201, sealed.text
+    await cycle(db_session, source)
+    sphere.publish("tomatometer-1.2.0")
+    clocks.advance(30)
+    await cycle(db_session, source)
+    (event,) = await _events(db_session, subject="offering")
+    assert event.version_id == found.ids["v100"] and event.category == "offering_changed"
+    assert [e["environment"] for e in event.diff["margins"]["environments"]] == ["production"]
+    assert event.diff["margins"]["latest"]["version"] == "1.0.0"
+
+
 async def test_an_offering_version_with_no_effective_change_is_not_told(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
     await _ready(api_client, registration, db_session, gate, source)
     recorded = (sphere.root / TOMATOMETER / "6921867e7004563bd918e7e8.yml").read_text()

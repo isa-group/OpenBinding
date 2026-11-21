@@ -103,8 +103,19 @@ def _scope_organization(scope_key: str) -> uuid.UUID | None:
     return uuid.UUID(scope_key)
 
 
+def _kind_of(snapshot: PricingSnapshot) -> str:
+    return "registry" if snapshot.registry else ("url" if snapshot.source_kind == "url" else "sphere")
+
+
+def snapshot_watch_key(snapshot: PricingSnapshot) -> str:
+    """The ``watch_key`` of the watch ``snapshot`` belongs to, without inserting it."""
+    kind = _kind_of(snapshot)
+    url_key = url_source_key(canonical_url(snapshot.url or "")).removeprefix("url:") if kind == "url" else None
+    return watch_key(kind, snapshot.registry, snapshot.pricing_id, url_key, snapshot.scope_key)
+
+
 async def watch_of_snapshot(session: AsyncSession, snapshot: PricingSnapshot) -> PricingWatch:
-    kind = "registry" if snapshot.registry else ("url" if snapshot.source_kind == "url" else "sphere")
+    kind = _kind_of(snapshot)
     return await watch_for(
         session, kind, snapshot.registry, snapshot.pricing_id, snapshot.scope_key,
         _scope_organization(snapshot.scope_key), url=snapshot.url if kind == "url" else None,
@@ -328,6 +339,7 @@ __all__ = [
     "live_ref_exists",
     "live_versions",
     "register_version",
+    "snapshot_watch_key",
     "unresolved_refs",
     "url_key_of",
     "watch_for",

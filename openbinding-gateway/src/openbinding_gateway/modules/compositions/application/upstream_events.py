@@ -60,7 +60,7 @@ from ...problems.application import origins_for, recipe_of_revision
 from ..domain.upstream import GONE, at_least_as_new
 from . import upstream_classify as uc
 from .versions import current_of, installed_basis
-from .watches import live_versions
+from .watches import live_versions, snapshot_watch_key
 
 logger = logging.getLogger(__name__)
 #: How long a watch whose classification failed waits before it is classified again.
@@ -369,9 +369,17 @@ async def _record_binding(session: AsyncSession, watch: PricingWatch, ref: Prici
 async def _record_offering(session: AsyncSession, watch: PricingWatch, ref: PricingWatchRef, target: str,
                            budget: list[int]) -> tuple[uuid.UUID, int] | None | bool:
     composition_id = ref.composition_id
+    # Only versions offering this watch's pricing count: the reference is the newest live one, the environments are
+    # those adopting one, and the baseline is a snapshot of this watch (two versions may offer different pricings).
+    offered = select(PricingWatchRef.version_id).where(
+        PricingWatchRef.composition_id == composition_id, PricingWatchRef.watch_id == watch.id,
+        PricingWatchRef.subject == "offering",
+    )
     reference = await session.scalar(
-        select(CompositionVersion).where(CompositionVersion.composition_id == composition_id)
-        .order_by(CompositionVersion.ordinal.desc()).limit(1)
+        select(CompositionVersion).where(
+            CompositionVersion.composition_id == composition_id, CompositionVersion.id.in_(offered),
+            CompositionVersion.id.in_(live_versions()),
+        ).order_by(CompositionVersion.ordinal.desc()).limit(1)
     )
     if reference is None:
         return None
@@ -389,7 +397,7 @@ async def _record_offering(session: AsyncSession, watch: PricingWatch, ref: Pric
         candidates.append(await session.get(PricingSnapshot, last_event.new_snapshot_id))
     if evaluation is not None and evaluation.offering_snapshot_id is not None:
         candidates.append(await session.get(PricingSnapshot, evaluation.offering_snapshot_id))
-    candidates = [c for c in candidates if c is not None]
+    candidates = [c for c in candidates if c is not None and snapshot_watch_key(c) == watch.watch_key]
     baseline = max(candidates, key=lambda s: s.fetched_at) if candidates else None
     new_snapshot = await session.get(PricingSnapshot, watch.latest_snapshot_id) if (
         not gone and watch.latest_snapshot_id) else None
@@ -408,7 +416,7 @@ async def _record_offering(session: AsyncSession, watch: PricingWatch, ref: Pric
             CompositionAdoption, (CompositionAdoption.environment_id == CompositionEnvironment.id)
             & (CompositionAdoption.ordinal == CompositionEnvironment.adoption_ordinal)
         ).where(CompositionEnvironment.composition_id == composition_id,
-                CompositionEnvironment.adopted_version_id.is_not(None))
+                CompositionEnvironment.adopted_version_id.in_(offered))
         .order_by(CompositionEnvironment.slug)
     )).all()
     for environment, adoption in environments:
