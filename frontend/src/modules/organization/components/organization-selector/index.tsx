@@ -2,7 +2,7 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: the account's organizations come from the OrganizationContext instead of a second request, and may be limited to
-// a minimum role; preselected by slug (`?org=`, `?parent=`) instead of a fetch by id; a labelled button and a listbox; the
+// a minimum role, and without personal organizations where a parent is chosen; preselected by slug (`?org=`, `?parent=`) instead of a fetch by id; a labelled button and a listbox; the
 // theme's tokens; Spanish comments translated.
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
@@ -19,6 +19,8 @@ interface OrganizationSelectorProps {
   initialSlug?: string | null;
   /** Only organizations where the account holds at least this role. */
   minRole?: OrgRole;
+  /** Leave personal organizations out: a parent is chosen, and a personal organization takes no sub-organization. */
+  excludePersonal?: boolean;
   label?: string;
   placeholder?: string;
 }
@@ -28,6 +30,7 @@ export default function OrganizationSelector({
   onChange,
   initialSlug,
   minRole,
+  excludePersonal = false,
   label = 'Organization',
   placeholder = 'Select an organization',
 }: OrganizationSelectorProps) {
@@ -40,7 +43,9 @@ export default function OrganizationSelector({
   const listId = useId();
 
   const organizations = all.filter(
-    org => !minRole || (org.effective_role ? RANK[org.effective_role] >= RANK[minRole] : false)
+    org =>
+      (!minRole || (org.effective_role ? RANK[org.effective_role] >= RANK[minRole] : false)) &&
+      !(excludePersonal && org.is_personal)
   );
 
   // The address names an organization: choose it once it is known. If it is not one of the account's, the person chooses.
