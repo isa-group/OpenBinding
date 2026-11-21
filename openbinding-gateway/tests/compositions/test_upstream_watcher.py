@@ -413,6 +413,24 @@ async def test_a_second_pin_of_a_family_is_resolved_beside_the_first(api_client,
     assert resolved is not None and resolved.tasks == ["extra"]
 
 
+async def test_one_pinned_version_under_two_family_names_resolves_once_and_stalls_nothing(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
+    from openbinding_gateway.modules.compositions.application import watches
+
+    found = await seeded(api_client, registration, db_session, gate, production=False)
+    for sphere_ref, task in (("danruilop1/mailgun", "extra"), ("danruilop1/mailgun-old", "spare")):
+        db_session.add(_unresolved(found, sphere_ref, task))
+        await watches.ensure_attempt(db_session, found.organization.id, sphere_ref, MAILGUN_VERSION)
+    resolved = 0
+    for _ in range(3):
+        report = await _cycle(db_session, source)
+        resolved += report.refs_resolved
+        clocks.advance(3600)
+    assert resolved == 1 and await db_session.scalar(select(PricingRefAttempt)) is None
+    rows = (await db_session.scalars(select(PricingWatchRef).where(
+        PricingWatchRef.pinned_version_id == MAILGUN_VERSION, PricingWatchRef.watch_id.is_not(None)))).all()
+    assert len(rows) == 1
+
+
 async def test_with_sphere_off_the_cycle_is_skipped(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
     await seeded(api_client, registration, db_session, gate, production=False)
     before = len(sphere.requests)

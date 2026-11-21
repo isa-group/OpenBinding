@@ -530,27 +530,56 @@ async def resolve_attempts(factory, settings: Settings, report: CycleReport, bud
             except Exception:  # noqa: BLE001 - resolve_provenance already swallows what SPHERE answers
                 logger.warning("upstream_ref_attempt_failed attempt=%s", attempt_id, exc_info=True)
             snapshot = await session.get(PricingSnapshot, found[pinned]) if pinned in found else None
+            error = "not_found"
             if snapshot is not None and snapshot.pricing_id:
-                watch = await watches.watch_of_snapshot(session, snapshot)
-                for ref in await watches.unresolved_refs(session, organization_id, sphere_ref, pinned):
-                    resolved = PricingWatchRef(
-                        organization_id=ref.organization_id, composition_id=ref.composition_id,
-                        version_id=ref.version_id, watch_id=watch.id, subject=ref.subject, via=ref.via,
-                        sphere_ref=ref.sphere_ref, tasks=list(ref.tasks), pinned_version_id=ref.pinned_version_id,
-                        pinned_snapshot_id=snapshot.id, selection=dict(ref.selection),
-                        ref_key=f"{watch.id}|{ref.subject}|{ref.pinned_version_id or '-'}"[:200],
-                    )
-                    session.add(resolved)
-                    report.refs_resolved += 1
-                await session.execute(delete(PricingRefAttempt).where(PricingRefAttempt.id == attempt_id))
-                await session.commit()
-                continue
+                try:
+                    written = await attach_resolved(session, organization_id, sphere_ref, pinned, snapshot)
+                    await session.execute(delete(PricingRefAttempt).where(PricingRefAttempt.id == attempt_id))
+                    await session.commit()
+                    report.refs_resolved += written
+                    continue
+                except Exception:  # noqa: BLE001 - one attempt never stops the others; it backs off like a miss
+                    await session.rollback()
+                    logger.warning("upstream_ref_attempt_failed attempt=%s", attempt_id, exc_info=True)
+                    error = "resolve_failed"
             delay = min(settings.upstream_poll_interval_s * 2 ** (failures + 1), settings.upstream_resolve_backoff_max_s)
             await session.execute(update(PricingRefAttempt).where(PricingRefAttempt.id == attempt_id).values(
-                failures=PricingRefAttempt.failures + 1, last_error="not_found",
+                failures=PricingRefAttempt.failures + 1, last_error=error,
                 next_attempt_at=clock.after(session, delay),
             ).execution_options(synchronize_session=False))
             await session.commit()
+
+
+async def attach_resolved(session: AsyncSession, organization_id: uuid.UUID, sphere_ref: str, pinned: str | None,
+                          snapshot: PricingSnapshot) -> int:
+    """Give the organization's unresolved refs naming ``sphere_ref`` at ``pinned`` a resolved sibling on the
+    snapshot's watch; how many were written (the caller commits).
+
+    A ref whose key the version already holds (the same pinned version reached under another family name) is
+    skipped."""
+    refs = await watches.unresolved_refs(session, organization_id, sphere_ref, pinned)
+    if not refs:
+        return 0
+    watch = await watches.watch_of_snapshot(session, snapshot)
+    taken = {(row.version_id, row.ref_key) for row in (await session.execute(
+        select(PricingWatchRef.version_id, PricingWatchRef.ref_key).where(
+            PricingWatchRef.version_id.in_({ref.version_id for ref in refs}), PricingWatchRef.watch_id == watch.id)
+    )).all()}
+    written = 0
+    for ref in refs:
+        key = f"{watch.id}|{ref.subject}|{ref.pinned_version_id or '-'}"[:200]
+        if (ref.version_id, key) in taken:
+            continue
+        taken.add((ref.version_id, key))
+        session.add(PricingWatchRef(
+            organization_id=ref.organization_id, composition_id=ref.composition_id, version_id=ref.version_id,
+            watch_id=watch.id, subject=ref.subject, via=ref.via, sphere_ref=ref.sphere_ref, tasks=list(ref.tasks),
+            pinned_version_id=ref.pinned_version_id, pinned_snapshot_id=snapshot.id, selection=dict(ref.selection),
+            ref_key=key,
+        ))
+        written += 1
+    await session.flush()
+    return written
 
 
 # -- The cycle -------------------------------------------------------------------------------------------------------
