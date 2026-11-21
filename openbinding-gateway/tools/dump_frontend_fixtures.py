@@ -24,7 +24,7 @@ response **bodies** (never headers) of the routes the frontend reads:
   (``getCompositionUpstream``);
 * ``upstream.*``: F6's upstream events, notifications and badges for ``tomatometer`` (see :func:`_upstream`);
 * ``zproposals.*``: F6's proposals on ``tomatometer``: a pending derive-and-adopt with its preview and diff, the one it
-  superseded, its ``completed`` answer, the events it resolved and the adoption history with ``source: proposal``, a
+  superseded, its ``completed`` answer, the event it resolved and the adoption history with ``source: proposal``, a
   ``stale`` refusal, a ``partial`` answer, the composition's list and the caller's (see :func:`_proposals`).
 
 The packages are ``simple-seq`` (``examples/demo/01_simple_seq``), ``fms`` (``13_fms``: an
@@ -503,6 +503,9 @@ async def _proposals(client, headers: dict[str, str], session) -> dict[str, Any]
     event. Then an adoption proposal made stale by a direct adoption, a derive-and-adopt whose adoption is raced
     between its steps (a hook of this tool only: ``partial``), and a pending one for the caller's list.
     """
+    from sqlalchemy import select as _select
+
+    from openbinding_gateway.db.models import CompositionUpstreamEvent
     from openbinding_gateway.modules.compositions.application import proposals
 
     out: dict[str, Any] = {}
@@ -548,9 +551,11 @@ async def _proposals(client, headers: dict[str, str], session) -> dict[str, Any]
             await client.get(f"{organization_proposals}/{superseded['id']}", headers=headers), 200).json()
         out["zproposals.completed.json"] = _ok(
             await client.post(f"{organization_proposals}/{pending['id']}/confirm", headers=headers), 200).json()
-        out["zproposals.upstream-events.resolved.json"] = _ok(
-            await client.get(f"{compositions}/upstream-events", params={"subject": "binding"}, headers=headers),
-            200).json()
+        # The event the confirmed seal resolved (one event: a list's order ties on events detected in one cycle).
+        resolved = await session.scalar(_select(CompositionUpstreamEvent.id).where(
+            CompositionUpstreamEvent.state == "resolved").execution_options(populate_existing=True))
+        out["zproposals.upstream-event.resolved.json"] = _ok(
+            await client.get(f"{compositions}/upstream-events/{resolved}", headers=headers), 200).json()
         out["zproposals.adoptions.production.json"] = _ok(
             await client.get(f"{environments}/production/adoptions", headers=headers), 200).json()
 
