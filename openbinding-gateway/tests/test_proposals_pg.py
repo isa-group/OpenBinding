@@ -368,3 +368,22 @@ async def test_deleting_an_environment_while_its_organization_is_deleted_closes_
         await holder.__aexit__(None, None, None)
     assert await asyncio.wait_for(racing, timeout=10) == "404"
 
+
+async def test_cancelling_an_accounts_proposals_does_not_wait_on_one_an_organization_delete_holds(pg) -> None:
+    from openbinding_gateway.db.models import User
+    from openbinding_gateway.routes.users import cancel_pending_proposals
+
+    w, _ = await _operated(pg)
+    proposal_id = await _adopt_proposal(pg, w)
+    holder, held = await _held_by_an_organization_delete(pg, w)
+    try:
+        async with pg.session() as session:
+            cancelled = await asyncio.wait_for(
+                cancel_pending_proposals(session, await session.get(User, w.user_id), None), timeout=10)
+            await session.commit()
+    finally:
+        await held.rollback()
+        await holder.__aexit__(None, None, None)
+    assert cancelled == 0
+    async with pg.session() as session:
+        assert (await session.get(Proposal, proposal_id)).status == "pending"

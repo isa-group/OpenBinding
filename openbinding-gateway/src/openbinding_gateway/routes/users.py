@@ -658,8 +658,10 @@ async def delete_own_account(
     # Pseudonymised and flushed first, so that a database refusal (a taken
     # pseudonym, a RESTRICT) stops the deletion while the contract still exists;
     # a contract that cannot be removed then rolls the whole request back.
-    await pseudonymise(session, user)
+    # Before the pseudonymisation deletes the account's memberships: deleting a team organization locks its proposals
+    # before its memberships, so the cancellation must not wait on a proposal while holding a membership row.
     await cancel_pending_proposals(session, user, personal)
+    await pseudonymise(session, user)
     if personal is not None:
         # After the pseudonymisation: a deleted account's personal organization is the one whose study runs may go.
         await delete_personal_organization(session, personal)
@@ -673,14 +675,18 @@ async def delete_own_account(
 
 async def cancel_pending_proposals(session: AsyncSession, user: User, personal: Organization | None) -> int:
     """F6-B: the account's pending proposals in every other organization become ``cancelled`` (audited there), in the
-    caller's transaction; its personal organization's go with it. How many."""
+    caller's transaction; its personal organization's go with it. How many. A proposal another transaction holds is
+    skipped (``SKIP LOCKED``): an organization delete that holds it deletes it, and the executor's claim holds it only
+    while it moves it out of ``pending``."""
     query = select(Proposal.id, Proposal.organization_id).where(
         Proposal.proposed_by_id == user.id, Proposal.status == "pending",
     )
     if personal is not None:
         query = query.where(Proposal.organization_id != personal.id)
     cancelled = 0
-    for proposal_id, organization_id in (await session.execute(query.order_by(Proposal.id))).all():
+    for proposal_id, organization_id in (await session.execute(
+        query.order_by(Proposal.id).with_for_update(skip_locked=True)
+    )).all():
         changed = await session.execute(
             update(Proposal).where(Proposal.id == proposal_id, Proposal.status == "pending")
             .values(status="cancelled").execution_options(synchronize_session=False)
