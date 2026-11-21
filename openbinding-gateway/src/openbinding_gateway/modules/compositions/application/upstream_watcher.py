@@ -14,12 +14,13 @@ skips the cycle. It reads through the process's one pricing source, sharing its 
 2. an organization-scoped watch reads with the organization's key; a missing key, or one rejected during the read
    (the adapter would answer anonymously), is ``credential_missing``: our configuration, not an upstream change;
 3. read the manifest with ``If-None-Match`` and ``revalidate=True`` (a ``url`` watch: ``snapshot_url``);
-4. write each outcome in a short transaction: ``NotModified`` refreshes ``observed_at``; a manifest stores the ETag,
-   the whole version order and the latest version, then snapshots a new latest in a fresh session (passing the
-   manifest already read), then points ``latest_snapshot_id`` at it; a 429 closes the watch's **bucket** (all public
-   watches, one registry's, or one organization's) until ``Retry-After`` in the database; a failure backs off
-   exponentially; a 404 from a request actually sent counts towards ``gone``, confirmed only by a second one at least
-   an interval later by the database clock (``not_found_since``; ``gone_epoch`` + 1 in the same conditional UPDATE);
+4. write each outcome in a short transaction: ``NotModified`` refreshes ``observed_at``; a manifest with a new
+   latest snapshots it in a fresh session (passing the manifest already read), then stores the ETag, the whole version
+   order, the latest version and ``latest_snapshot_id`` together, so a failed snapshot is read again; a 429 closes the
+   watch's **bucket** (all public watches, one registry's, or one organization's) until ``Retry-After`` in the
+   database; a failure backs off exponentially; a 404 from a request actually sent counts towards ``gone``, confirmed
+   only by a second one at least an interval later by the database clock (``not_found_since``; ``gone_epoch`` + 1 in
+   the same conditional UPDATE);
 5. at most ``UPSTREAM_READS_PER_CYCLE`` requests are sent; the rest of the claim is handed back due;
 6. classify (``upstream_events.record``, A10);
 6b. resolve due unresolved references (``pricing_ref_attempts``), at most ``UPSTREAM_RESOLVE_PER_CYCLE``, one family
@@ -404,15 +405,17 @@ async def _manifest(
     order = [entry.version_id for entry in manifest.newest_first()]
     rewritten = await _rewritten(factory, watch, manifest)
     previous = watch.latest_version_id
-    # 1. The manifest's facts, committed before any snapshot read (snapshot_version manages its own transactions).
-    await _observed(
-        factory, watch, settings.upstream_poll_interval_s, manifest_etag=(manifest.etag or "")[:200] or None,
-        version_order=order, latest_version_id=manifest.latest_version_id,
-        last_error="content_rewritten" if rewritten else None,
-    )
     latest = manifest.latest_version_id
-    if latest == previous and watch.latest_snapshot_id is not None:
-        return  # the same latest: a rename of the family, or nothing at all
+    facts = dict(manifest_etag=(manifest.etag or "")[:200] or None, version_order=order, latest_version_id=latest)
+    last_error = "content_rewritten" if rewritten else None
+    if await _snapshotted(factory, watch, latest):
+        # The same latest, already snapshotted: a rename of the family, or nothing at all.
+        await _observed(factory, watch, settings.upstream_poll_interval_s, last_error=last_error, **facts)
+        return
+    # 1. Observed, committed before any snapshot read (snapshot_version manages its own transactions). The ETag, the
+    #    order and the latest move only with the snapshot (3.), so a failed snapshot is read again on the next poll
+    #    (the old ETag gets a 200) and nothing is ever classified against a snapshot of an older version.
+    await _observed(factory, watch, settings.upstream_poll_interval_s, last_error=last_error)
     if previous is not None and latest != previous:
         report.new_versions += 1
     # 2. Snapshot the latest in a fresh session, with the manifest already read (no second manifest request).
@@ -433,11 +436,23 @@ async def _manifest(
         await _failed(factory, watch, settings, f"snapshot_{getattr(exc, 'reason', 'not_found')}")
         return
     except PricingInvalid:
-        # The snapshot is not stored: the classifier says ``pricing_unreadable`` from the manifest's facts.
+        # Bytes that are no pricing at all store no snapshot (a Pricing2Yaml 2.x one is stored ``valid = false``):
+        # the watch keeps its last snapshot and reads the manifest again on the next poll.
+        report.unavailable += 1
         await _write(factory, watch.id, last_error="invalid")
         return
-    # 3. The watch points at it.
-    await _write(factory, watch.id, latest_snapshot_id=snapshot_id)
+    # 3. The watch points at it, with the manifest's facts.
+    await _write(factory, watch.id, latest_snapshot_id=snapshot_id, **facts)
+
+
+async def _snapshotted(factory, watch: PricingWatch, latest: str) -> bool:
+    """Whether the watch's snapshot is of the manifest's latest version."""
+    if watch.latest_snapshot_id is None or watch.latest_version_id != latest:
+        return False
+    async with factory() as session:
+        version_id = await session.scalar(
+            select(PricingSnapshot.version_id).where(PricingSnapshot.id == watch.latest_snapshot_id))
+    return version_id == latest
 
 
 async def _poll_url(factory, source: _Counting, watch: PricingWatch, settings: Settings, report: CycleReport) -> None:

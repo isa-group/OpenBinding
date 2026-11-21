@@ -84,6 +84,31 @@ async def test_a_published_version_is_snapshotted_with_one_manifest_and_one_yaml
     assert (snapshot.version_id, snapshot.scope_key, snapshot.fetched_by_id) == (entry["versionId"], "public", None)
 
 
+async def test_a_failed_snapshot_is_read_again_and_nothing_points_at_an_older_one(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
+    await _first(db_session, source, api_client, registration, gate)
+    before = await _watch(db_session, BREVO)
+    etag, snapshot_id = before.manifest_etag, before.latest_snapshot_id
+    entry = sphere.publish("brevo-professional-up")
+    yaml_path = sphere.yaml_path(BREVO, entry["versionId"])
+    sphere.unavailable(yaml_path, status=503)
+    clocks.advance(30)
+    failed = await _cycle(db_session, source)
+    brevo = await _watch(db_session, BREVO)
+    assert failed.unavailable == 1 and brevo.status == "unavailable"
+    # The manifest's facts wait for the snapshot: the watch still names the version its snapshot holds.
+    assert (brevo.manifest_etag, brevo.latest_version_id, brevo.latest_snapshot_id) == (etag, BREVO_2026_10,
+                                                                                        snapshot_id)
+    sphere.scripts.clear()
+    clocks.advance(4000)
+    sent = len(sphere.sent(yaml_path))
+    again = await _cycle(db_session, source)
+    brevo = await _watch(db_session, BREVO)
+    assert again.new_versions == 1 and len(sphere.sent(yaml_path)) == sent + 1  # the old ETag got a 200
+    assert brevo.status == "active" and brevo.latest_version_id == entry["versionId"]
+    snapshot = await _get(db_session, PricingSnapshot, brevo.latest_snapshot_id)
+    assert snapshot.version_id == entry["versionId"] and brevo.manifest_etag != etag
+
+
 async def test_a_family_rename_updates_the_etag_only(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
     await _first(db_session, source, api_client, registration, gate)
     brevo = await _watch(db_session, BREVO)
