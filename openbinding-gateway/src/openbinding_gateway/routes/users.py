@@ -720,7 +720,8 @@ async def _stop_personal_runs(session: AsyncSession, organization_id: uuid.UUID)
     Study runs first (``study_jobs.cancel_run``: the run, its cells, then their jobs, the order every writer takes),
     then the organization's other live runs (``lifecycle.request_cancellation``: a queued run is cancelled on the spot,
     a running one is left to its worker, which sees the request and stops the engine). What is left counts: a run still
-    running, or an engine attempt whose cancellation is still being sent. Its rows must outlive them, or the worker and
+    running, or an engine attempt whose cancellation is still being sent and has claims left
+    (``REMOTE_CANCEL_MAX_ATTEMPTS``). The caller holds the organization's lock. Its rows must outlive them, or the worker and
     the reconciler would lose what they need to stop the solver.
     """
     live_study_runs = (await session.scalars(
@@ -748,11 +749,10 @@ async def _stop_personal_runs(session: AsyncSession, organization_id: uuid.UUID)
     stopping = int(await session.scalar(
         select(func.count(JobEngineAttempt.id)).join(Job, Job.id == JobEngineAttempt.job_id).where(
             Job.organization_id == organization_id,
-            or_(
-                JobEngineAttempt.cancel_state == remote_attempts.PENDING,
-                (JobEngineAttempt.cancel_state == remote_attempts.FAILED)
-                & (JobEngineAttempt.cancel_attempts < get_settings().remote_cancel_max_attempts),
-            ),
+            # Pending or failed, while its claims last: one whose claims ran out (a replica that died after claiming,
+            # an outcome that could not be recorded) is given up by the sweep too, and must not block the deletion.
+            JobEngineAttempt.cancel_state.in_([remote_attempts.PENDING, remote_attempts.FAILED]),
+            JobEngineAttempt.cancel_attempts < get_settings().remote_cancel_max_attempts,
         )
     ) or 0)
     return running + stopping

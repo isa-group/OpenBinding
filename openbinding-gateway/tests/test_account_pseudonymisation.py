@@ -33,6 +33,7 @@ from openbinding_gateway.db.models import (
     EngineRegistrationRevision,
     EngineRevision,
     Job,
+    JobEngineAttempt,
     JobState,
     Composition,
     CompositionVersion,
@@ -333,6 +334,34 @@ async def test_a_running_run_of_the_personal_organization_is_stopped_before_the_
     assert (await delete(api_client, profile, headers)).status_code == 204
     db_session.expire_all()
     assert await db_session.get(Organization, personal_id) is None
+
+
+@pytest.mark.parametrize(("state", "claims", "waits"), [
+    ("pending", 0, True), ("failed", 3, True), ("pending", 8, False), ("failed", 8, False), ("sent", 1, False),
+])
+async def test_an_engine_attempt_still_being_stopped_makes_the_deletion_wait_while_its_claims_last(
+    api_client, registration, db_session, state, claims, waits,
+):
+    profile, headers, _ = await signed_in(api_client, registration)
+    user_id = uuid.UUID(profile["id"])
+    personal = next(row for row in (await api_client.get("/v1/organizations", headers=headers)).json() if row["is_personal"])
+    personal_id = uuid.UUID(personal["id"])
+    job = Job(created_by_id=user_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="inline",
+              state=JobState.FAILED, original_request={}, options={}, provenance={},
+              **{**placeholder_refs(), "organization_id": personal_id})
+    db_session.add(job)
+    await db_session.flush()
+    # REMOTE_CANCEL_MAX_ATTEMPTS is 8: an attempt whose claims ran out is given up, whatever state it was left in.
+    db_session.add(JobEngineAttempt(job_id=job.id, attempt=1, engine_job_id="e-1", endpoint="http://engine",
+                                    cancel_state=state, cancel_attempts=claims))
+    await db_session.commit()
+
+    answered = await delete(api_client, profile, headers)
+
+    if waits:
+        assert answered.status_code == 409 and answered.json()["detail"]["code"] == "personal_runs_stopping"
+    else:
+        assert answered.status_code == 204, answered.text
 
 
 async def test_a_team_organization_with_runs_is_still_refused(api_client, registration, db_session):
