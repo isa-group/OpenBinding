@@ -10,11 +10,18 @@ Each test may script failures and extra answers: ``rate_limited``, ``unavailable
 ``unauthorized``, ``oversize``, ``encoded``, ``slow``, ``redirect``, ``wrong_etag``, ``private``,
 ``rate_limit_headers`` and ``serve``. Every request is logged with its headers in ``requests``, so a test can
 assert what was (and was not) sent.
+
+``publish(scenario)`` publishes one synthetic upstream version of ``scenarios.json`` (F6): the family's manifest
+gains the version first (new ``latestVersionId``, a new body and an ``ETag`` that is the body's SHA-256, and the
+scenario's name change), and the version's YAML is served with ``ETag`` = the SHA-256 of its bytes. It is
+idempotent, refuses a scenario whose ``after`` predecessor is not published yet, and conditional requests
+(``If-None-Match``, the watcher's ``revalidate``) get 304 on the current tag. ``scenario(name)`` reads one entry.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import socket
 import urllib.parse
@@ -71,6 +78,7 @@ class RecordedSphere:
         self.scripts: list[_Script] = []
         self.ratelimit: dict[str, str] | None = None
         self.private_versions: list[dict[str, Any]] = []
+        self.published: list[str] = []
 
     # -- plumbing -------------------------------------------------------------------------------------------------
 
@@ -234,6 +242,56 @@ class RecordedSphere:
                 "etag": '"' + hashlib.sha256(yaml).hexdigest() + '"',
             }
         )
+
+    # -- scenarios (F6) -------------------------------------------------------------------------------------------
+
+    def scenario(self, name: str) -> dict[str, Any]:
+        """One entry of ``scenarios.json``."""
+        for entry in json.loads((self.root / "scenarios.json").read_text()):
+            if entry["scenario"] == name:
+                return entry
+        raise KeyError(name)
+
+    def manifest(self, pricing_id: str) -> dict[str, Any]:
+        """The manifest this recording serves now (recorded, or as published since)."""
+        path = f"/api/v1/public/pricings/{pricing_id}"
+        if (path, "") in self.extra:
+            return json.loads(self.extra[(path, "")][0])
+        return json.loads((self.root / pricing_id / "manifest.json").read_text())
+
+    def serve_manifest(self, pricing_id: str, manifest: dict[str, Any]) -> str:
+        """Serve ``manifest`` for ``pricing_id`` with an ``ETag`` that is its body's SHA-256; returns the tag."""
+        body = json.dumps(manifest, indent=1).encode()
+        headers = json.loads((self.root / pricing_id / "manifest.headers.json").read_text())
+        headers["etag"] = '"' + hashlib.sha256(body).hexdigest() + '"'
+        self.serve(f"/api/v1/public/pricings/{pricing_id}", body, headers)
+        return headers["etag"]
+
+    def publish(self, name: str) -> dict[str, Any]:
+        entry = self.scenario(name)
+        if name in self.published:
+            return entry
+        if entry["after"] and entry["after"] not in self.published:
+            raise ValueError(f"{name} follows {entry['after']}, which is not published")
+        pricing_id, version_id = entry["pricingId"], entry["versionId"]
+        manifest = self.manifest(pricing_id)
+        if not any(v["versionId"] == version_id for v in manifest["versions"]):
+            manifest["versions"] = [{
+                "versionId": version_id, "version": entry["label"], "createdAt": entry["createdAt"],
+                "contentHash": entry["contentHash"],
+            }] + list(manifest["versions"])
+            manifest["latestVersionId"] = version_id
+        if entry["manifest"].get("nameChange"):
+            manifest["name"] = entry["manifest"]["nameChange"]
+        self.serve_manifest(pricing_id, manifest)
+        data = (self.root / entry["file"]).read_bytes()
+        self.serve(
+            f"/api/v1/public/pricings/{pricing_id}/versions/{version_id}/yaml", data,
+            {"content-type": "application/yaml", "cache-control": "private, no-cache",
+             "etag": '"' + hashlib.sha256(data).hexdigest() + '"'},
+        )
+        self.published.append(name)
+        return entry
 
     # -- answering ------------------------------------------------------------------------------------------------
 

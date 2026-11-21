@@ -46,7 +46,7 @@ def test_dropbox_plus_2021_to_2024() -> None:
 
 def test_a_professional_price_raise() -> None:
     old = pricing(BREVO, BREVO_2026_10)
-    new = brevo(("'150000': 499", "'150000': 549"))
+    new = _scenario("brevo-professional-up")
     comparison = compare_selections(old, new, PROFESSIONAL)
     price = comparison.price
     assert (price["before"]["subtotal"], price["after"]["subtotal"], price["difference"]) == (
@@ -59,7 +59,7 @@ def test_a_professional_price_raise() -> None:
 
 def test_annual_billing_applies_the_multiplier() -> None:
     old = pricing(BREVO, BREVO_2026_10)
-    new = brevo(("'150000': 499", "'150000': 549"))
+    new = _scenario("brevo-professional-up")
     comparison = compare_selections(old, new, Selection.of("PROFESSIONAL", billing="annual"))
     assert comparison.price["before"]["subtotal"] == "449.100000"
     assert comparison.price["difference"] == "45.000000"
@@ -75,12 +75,20 @@ def test_seats_multiply_a_per_seat_add_on() -> None:
 
 def test_a_retired_plan_is_not_known() -> None:
     old = pricing(BREVO, BREVO_2026_10)
-    new = brevo(("  PROFESSIONAL:\n    description:", "  PROFESSIONAL_GONE:\n    description:"))
+    new = _scenario("brevo-professional-retired")
     comparison = compare_selections(old, new, PROFESSIONAL)
     assert comparison.plan["after"]["known"] is False and comparison.price["differenceOmitted"] == "plan"
     assert comparison.catalog["onlyInBefore"]["plans"] == ["PROFESSIONAL"]
-    assert comparison.catalog["onlyInAfter"]["plans"] == ["PROFESSIONAL_GONE"]
-    assert identical_plan("PROFESSIONAL", "PROFESSIONAL_GONE", old, new) is False  # no add-on follows the rename
+    assert comparison.catalog["onlyInAfter"]["plans"] == []
+
+
+def test_a_renamed_identical_plan_is_recognised() -> None:
+    old = pricing(BREVO, BREVO_2026_10)
+    new = _scenario("brevo-professional-renamed")
+    assert compare_selections(old, new, PROFESSIONAL).plan["after"]["known"] is False
+    assert identical_plan("PROFESSIONAL", "PROFESSIONAL_PLUS", old, new)
+    lone = brevo(("  PROFESSIONAL:\n    description:", "  PROFESSIONAL_GONE:\n    description:"))
+    assert identical_plan("PROFESSIONAL", "PROFESSIONAL_GONE", old, lone) is False  # no add-on follows the rename
 
 
 def test_add_on_reconciliation_reasons() -> None:

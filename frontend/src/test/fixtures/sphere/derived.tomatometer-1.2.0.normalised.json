@@ -1,0 +1,550 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.0",
+    "title": "TomatoMeter",
+    "version": "1.2.0",
+    "createdAt": "2026-11-20",
+    "currency": "USD",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": true
+      }
+    ],
+    "features": [
+      {
+        "id": "pomodoroTimer",
+        "name": "pomodoroTimer",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "soundNotifications",
+        "name": "soundNotifications",
+        "type": "AUTOMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "basicAnalytics",
+        "name": "basicAnalytics",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "motivationalQuotes",
+        "name": "motivationalQuotes",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "dailySummary",
+        "name": "dailySummary",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "darkMode",
+        "name": "darkMode",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "customPomodoroDuration",
+        "name": "customPomodoroDuration",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "advancedAnalytics",
+        "name": "advancedAnalytics",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "exportDataToJson",
+        "name": "exportDataToJson",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": false
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "maxPomodoroTimers",
+        "name": "maxPomodoroTimers",
+        "valueType": "NUMERIC",
+        "unit": "timer",
+        "default": 3,
+        "linkedFeatures": [
+          "pomodoroTimer"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "basic",
+        "name": "basic",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.99
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "pomodoroTimer": true,
+          "soundNotifications": true,
+          "basicAnalytics": true,
+          "motivationalQuotes": false,
+          "dailySummary": true,
+          "darkMode": false,
+          "customPomodoroDuration": false,
+          "advancedAnalytics": false,
+          "exportDataToJson": false
+        },
+        "usageLimits": {
+          "maxPomodoroTimers": 5
+        }
+      },
+      {
+        "id": "advanced",
+        "name": "advanced",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 3.99
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "pomodoroTimer": true,
+          "soundNotifications": true,
+          "basicAnalytics": true,
+          "motivationalQuotes": true,
+          "dailySummary": true,
+          "darkMode": true,
+          "customPomodoroDuration": false,
+          "advancedAnalytics": false,
+          "exportDataToJson": false
+        },
+        "usageLimits": {
+          "maxPomodoroTimers": 10
+        }
+      },
+      {
+        "id": "premium",
+        "name": "premium",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 9.99
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "pomodoroTimer": true,
+          "soundNotifications": true,
+          "basicAnalytics": true,
+          "motivationalQuotes": true,
+          "dailySummary": true,
+          "darkMode": true,
+          "customPomodoroDuration": true,
+          "advancedAnalytics": true,
+          "exportDataToJson": false
+        },
+        "usageLimits": {
+          "maxPomodoroTimers": 15
+        }
+      }
+    ],
+    "addOns": [
+      {
+        "id": "extraTimers",
+        "name": "extraTimers",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 1.0
+        },
+        "unit": "/month",
+        "period": "month",
+        "availableFor": [
+          "basic",
+          "advanced",
+          "premium"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "maxPomodoroTimers": 5.0
+        },
+        "metered": false
+      },
+      {
+        "id": "exportAsJson",
+        "name": "exportAsJson",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 2.0
+        },
+        "unit": "/month",
+        "period": "month",
+        "availableFor": [
+          "premium"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {
+          "exportDataToJson": true
+        },
+        "usageLimits": {},
+        "usageLimitsExtensions": {},
+        "metered": false
+      }
+    ],
+    "diagnostics": [
+      {
+        "code": "p2y_syntax_read_as_3_1",
+        "severity": "info",
+        "message": "Pricing2Yaml 3.0 is read as 3.1.",
+        "at": "/syntaxVersion"
+      }
+    ],
+    "variables": {}
+  },
+  "effective": {
+    "basic": {
+      "plan": "basic",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "basic",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.99
+          },
+          "unitAmount": 0.99,
+          "amount": 0.99
+        }
+      ],
+      "subtotal": 0.99,
+      "requiresQuote": false,
+      "features": {
+        "pomodoroTimer": true,
+        "soundNotifications": true,
+        "basicAnalytics": true,
+        "motivationalQuotes": false,
+        "dailySummary": true,
+        "darkMode": false,
+        "customPomodoroDuration": false,
+        "advancedAnalytics": false,
+        "exportDataToJson": false
+      },
+      "usageLimits": {
+        "maxPomodoroTimers": 5
+      }
+    },
+    "basic+extraTimers": {
+      "plan": "basic",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "extraTimers": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "basic",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.99
+          },
+          "unitAmount": 0.99,
+          "amount": 0.99
+        },
+        {
+          "kind": "addOn",
+          "id": "extraTimers",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 1.0
+          },
+          "unitAmount": 1.0,
+          "amount": 1.0
+        }
+      ],
+      "subtotal": 1.99,
+      "requiresQuote": false,
+      "features": {
+        "pomodoroTimer": true,
+        "soundNotifications": true,
+        "basicAnalytics": true,
+        "motivationalQuotes": false,
+        "dailySummary": true,
+        "darkMode": false,
+        "customPomodoroDuration": false,
+        "advancedAnalytics": false,
+        "exportDataToJson": false
+      },
+      "usageLimits": {
+        "maxPomodoroTimers": 10.0
+      }
+    },
+    "advanced": {
+      "plan": "advanced",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "advanced",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 3.99
+          },
+          "unitAmount": 3.99,
+          "amount": 3.99
+        }
+      ],
+      "subtotal": 3.99,
+      "requiresQuote": false,
+      "features": {
+        "pomodoroTimer": true,
+        "soundNotifications": true,
+        "basicAnalytics": true,
+        "motivationalQuotes": true,
+        "dailySummary": true,
+        "darkMode": true,
+        "customPomodoroDuration": false,
+        "advancedAnalytics": false,
+        "exportDataToJson": false
+      },
+      "usageLimits": {
+        "maxPomodoroTimers": 10
+      }
+    },
+    "advanced+extraTimers": {
+      "plan": "advanced",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "extraTimers": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "advanced",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 3.99
+          },
+          "unitAmount": 3.99,
+          "amount": 3.99
+        },
+        {
+          "kind": "addOn",
+          "id": "extraTimers",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 1.0
+          },
+          "unitAmount": 1.0,
+          "amount": 1.0
+        }
+      ],
+      "subtotal": 4.99,
+      "requiresQuote": false,
+      "features": {
+        "pomodoroTimer": true,
+        "soundNotifications": true,
+        "basicAnalytics": true,
+        "motivationalQuotes": true,
+        "dailySummary": true,
+        "darkMode": true,
+        "customPomodoroDuration": false,
+        "advancedAnalytics": false,
+        "exportDataToJson": false
+      },
+      "usageLimits": {
+        "maxPomodoroTimers": 15.0
+      }
+    },
+    "premium": {
+      "plan": "premium",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "premium",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 9.99
+          },
+          "unitAmount": 9.99,
+          "amount": 9.99
+        }
+      ],
+      "subtotal": 9.99,
+      "requiresQuote": false,
+      "features": {
+        "pomodoroTimer": true,
+        "soundNotifications": true,
+        "basicAnalytics": true,
+        "motivationalQuotes": true,
+        "dailySummary": true,
+        "darkMode": true,
+        "customPomodoroDuration": true,
+        "advancedAnalytics": true,
+        "exportDataToJson": false
+      },
+      "usageLimits": {
+        "maxPomodoroTimers": 15
+      }
+    },
+    "premium+extraTimers": {
+      "plan": "premium",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "extraTimers": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "premium",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 9.99
+          },
+          "unitAmount": 9.99,
+          "amount": 9.99
+        },
+        {
+          "kind": "addOn",
+          "id": "extraTimers",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 1.0
+          },
+          "unitAmount": 1.0,
+          "amount": 1.0
+        }
+      ],
+      "subtotal": 10.99,
+      "requiresQuote": false,
+      "features": {
+        "pomodoroTimer": true,
+        "soundNotifications": true,
+        "basicAnalytics": true,
+        "motivationalQuotes": true,
+        "dailySummary": true,
+        "darkMode": true,
+        "customPomodoroDuration": true,
+        "advancedAnalytics": true,
+        "exportDataToJson": false
+      },
+      "usageLimits": {
+        "maxPomodoroTimers": 20.0
+      }
+    },
+    "premium+exportAsJson": {
+      "plan": "premium",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "exportAsJson": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "premium",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 9.99
+          },
+          "unitAmount": 9.99,
+          "amount": 9.99
+        },
+        {
+          "kind": "addOn",
+          "id": "exportAsJson",
+          "quantity": 1.0,
+          "price": {
+            "kind": "fixed",
+            "amount": 2.0
+          },
+          "unitAmount": 2.0,
+          "amount": 2.0
+        }
+      ],
+      "subtotal": 11.99,
+      "requiresQuote": false,
+      "features": {
+        "pomodoroTimer": true,
+        "soundNotifications": true,
+        "basicAnalytics": true,
+        "motivationalQuotes": true,
+        "dailySummary": true,
+        "darkMode": true,
+        "customPomodoroDuration": true,
+        "advancedAnalytics": true,
+        "exportDataToJson": true
+      },
+      "usageLimits": {
+        "maxPomodoroTimers": 15
+      }
+    }
+  }
+}

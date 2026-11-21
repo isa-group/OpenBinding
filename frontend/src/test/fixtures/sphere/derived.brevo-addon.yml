@@ -1,0 +1,1696 @@
+saasName: brevo
+syntaxVersion: '3.1'
+version: '2026-11-addon'
+createdAt: '2026-11-16'
+url: https://www.brevo.com/pricing/
+currency: USD
+tags:
+  - Key features
+  - Email marketing
+  - Multichannel marketing
+  - Marketing automation
+  - Commerce
+  - Audience & data management
+  - Transactional messaging
+  - Integrations
+  - Analytics studio
+  - Admin
+  - Customer support
+  - Sales - Key features
+  - Sales - Pipeline management
+  - Sales - Sales automation
+  - Sales - Sales activities
+  - Sales - Inbox and messaging
+  - Sales - Sales engagement chat
+  - Sales - VoIP phone
+billing:
+  monthly: 1
+  annual: 0.9
+variables:
+  starterVolume: 5000
+  starterPrices:
+    '5000': 9
+    '10000': 17
+    '15000': 25
+    '20000': 32
+    '30000': 39
+    '40000': 46
+    '50000': 56
+    '60000': 65
+    '80000': 74
+    '100000': 82
+  standardVolume: 5000
+  standardPrices:
+    '5000': 18
+    '10000': 35
+    '15000': 49
+    '20000': 69
+    '30000': 79
+    '40000': 89
+    '50000': 97
+    '60000': 104
+    '80000': 119
+    '100000': 139
+    '150000': 179
+    '250000': 249
+    '350000': 309
+    '500000': 429
+  professionalVolume: 150000
+  professionalPrices:
+    '150000': 499
+    '250000': 599
+    '500000': 699
+    '1000000': 999
+    '2000000': 1479
+    '3000000': 1863
+    '4000000': 2170
+    '5000000': 2447
+    '6000000': 2866
+    '7000000': 3285
+    '8000000': 3705
+    '10000000': 4543
+  pushVolume: 40000
+  pushPrices:
+    '40000': 108
+    '60000': 162
+    '100000': 270
+    '150000': 405
+    '300000': 810
+    '400000': 1080
+    '500000': 1350
+    '600000': 1620
+    '700000': 1890
+    '800000': 2160
+    '900000': 2430
+    '1000000': 2700
+features:
+  emailAndSmsCampaigns:
+    description: Send personalized email and SMS campaigns.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Key features
+  userAccounts:
+    description: Team members who can access the marketing account.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Key features
+  auraAi:
+    description: Aura AI agents that draft copy, summarize chats and optimize campaigns.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Key features
+    automationType: BOT
+  mcpForAiAssistants:
+    description: Manage campaigns and contacts from ChatGPT, Claude and other AI tools via MCP.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Key features
+    integrationType: API
+  advancedReporting:
+    description: Reporting beyond basic opens and clicks (Basic / Advanced / Analytics studio, depending on plan).
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Key features
+  dragAndDropEmailEditor:
+    description: Design on-brand emails without code.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email marketing
+  emailTemplates:
+    description: 40+ responsive email templates.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email marketing
+  mobileOptimization:
+    description: Customizable mobile views for emails.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email marketing
+  abTesting:
+    description: Test subject lines or content variants.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email marketing
+  removeBrevoBranding:
+    description: Remove the 'Sent with Brevo' footer from emails.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email marketing
+  aiContentGenerator:
+    description: Draft subject lines and email copy with AI.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email marketing
+    automationType: TASK_AUTOMATION
+  dynamicContent:
+    description: Show different content to different audiences based on rules.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email marketing
+  aiSendTimeOptimization:
+    description: Send each email when the contact is most likely to engage.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email marketing
+    automationType: TASK_AUTOMATION
+  contentFeeds:
+    description: Enrich campaigns with real-time data such as best sellers.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email marketing
+  emailFrequencyManagement:
+    description: Frequency caps on marketing emails per contact.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email marketing
+  reusableContentSections:
+    description: Save and sync content sections across campaigns.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email marketing
+  openAndClickReports:
+    description: Open and click statistics for every campaign.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email marketing
+  clickHeatmaps:
+    description: See where recipients click inside emails.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email marketing
+  geographyAndDeviceReports:
+    description: Recipient location and device reports.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email marketing
+  dedicatedIp:
+    description: Send from a dedicated IP to control sending reputation.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email marketing
+  smsCampaigns:
+    description: Send SMS to 180+ countries; credits sold separately.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Multichannel marketing
+  landingPages:
+    description: Standalone campaign pages without a developer.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Multichannel marketing
+  popups:
+    description: Signup popups on your website.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Multichannel marketing
+  adsRetargetingAndLookalikes:
+    description: Sync contacts to Google and Meta for retargeting and lookalikes.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Multichannel marketing
+    integrationType: WEB_SAAS
+    pricingUrls:
+      - https://ads.google.com
+      - https://www.facebook.com/business/ads
+  webPushNotifications:
+    description: Browser push notifications to subscribers.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Multichannel marketing
+  mobilePushNotifications:
+    description: iOS and Android app push notifications.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Multichannel marketing
+  whatsappCampaigns:
+    description: Bulk WhatsApp messages and 1:1 chat (pricing varies by country).
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Multichannel marketing
+  brevoWallet:
+    description: Mobile wallet passes (loyalty cards, vouchers, tickets) and notifications.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Multichannel marketing
+  multichannelAttribution:
+    description: Track which channels and campaigns drive conversions.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Multichannel marketing
+  multichannelAutomation:
+    description: Multi-step marketing automations across email, SMS and more.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Marketing automation
+    automationType: TASK_AUTOMATION
+  realTimeEventTriggers:
+    description: Trigger automations when a contact meets conditions.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Marketing automation
+    automationType: TRACKING
+  multipleEntryPoints:
+    description: Workflows with multiple starting points.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Marketing automation
+    automationType: TASK_AUTOMATION
+  multiBranchTesting:
+    description: Split contacts across automation branches by percentage.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Marketing automation
+    automationType: TASK_AUTOMATION
+  pathwayReporting:
+    description: Per-step performance metrics inside each automation.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Marketing automation
+  ecommerceIntegrations:
+    description: Sync sales and customer data from ecommerce platforms.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Commerce
+    integrationType: MARKETPLACE
+  abandonedCartRecovery:
+    description: Multichannel cart reminders.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Commerce
+    automationType: TRACKING
+  aiProductRecommendations:
+    description: Personalized product suggestions per shopper.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Commerce
+    automationType: BOT
+  backInStockAlerts:
+    description: Notify customers when items are back in stock.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Commerce
+    automationType: TRACKING
+  priceDropAlerts:
+    description: Email shoppers when a viewed product's price drops.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Commerce
+    automationType: TRACKING
+  dynamicCoupons:
+    description: Personalized discount codes.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Commerce
+  loyalty:
+    description: Integrated loyalty program with points, tiers and rewards.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Commerce
+  contactStorage:
+    description: Store marketing contacts; the cap depends on plan and email volume.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Audience & data management
+  customSignupForms:
+    description: Branded signup forms with follow-up emails.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Audience & data management
+  contactTimeline:
+    description: Full contact history across marketing and sales.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Audience & data management
+  advancedSegmentation:
+    description: Unlimited segments with demographic, behavioural and event filters.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Audience & data management
+  unlimitedCustomFields:
+    description: Unlimited contact attributes.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Audience & data management
+  webAndEventTracking:
+    description: Track on-site behaviour and custom events.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Audience & data management
+    automationType: TRACKING
+  identityResolution:
+    description: Merge data across touchpoints into one contact profile.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Audience & data management
+  contactScoring:
+    description: Engagement, purchase and behaviour scores (RFM, CLV...).
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Audience & data management
+  aiSegmentation:
+    description: Aura AI suggests audience groups.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Audience & data management
+    automationType: BOT
+  randomizedListSplits:
+    description: Randomly split segments for testing.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Audience & data management
+  gdprCompliance:
+    description: Built-in tools for data-privacy compliance.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Audience & data management
+  multiLevelDataModel:
+    description: Relate standard objects such as companies and deals to contacts.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Audience & data management
+  unlimitedCompanies:
+    description: Organize contacts by company.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Audience & data management
+  customObjects:
+    description: Import custom data objects for personalization.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Audience & data management
+  transactionalEmail:
+    description: Triggered emails via Email API or SMTP relay.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Transactional messaging
+  transactionalSms:
+    description: Triggered SMS via SMS API (pricing varies by country).
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Transactional messaging
+  transactionalWhatsapp:
+    description: Triggered WhatsApp messages via API (pricing varies by country).
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Transactional messaging
+  realTimeEmailStatistics:
+    description: Real-time dashboard of transactional sends, opens and clicks.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Transactional messaging
+  customizedLogRetention:
+    description: Control how long data is stored.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Transactional messaging
+  websiteAndCmsIntegrations:
+    description: Add Brevo to any site via iframe code or built-in tools.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Integrations
+    integrationType: EXTENSION
+  plugins:
+    description: Plugins for 500+ platforms (WordPress, Shopify, Prestashop...).
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Integrations
+    integrationType: MARKETPLACE
+  zapierConnector:
+    description: Integrate Brevo with other apps through Zapier.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Integrations
+    integrationType: WEB_SAAS
+    pricingUrls:
+      - https://zapier.com/pricing
+  apis:
+    description: APIs to manage contacts, deals, tasks, notes and more.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Integrations
+    integrationType: API
+  outboundWebhooks:
+    description: Send real-time events from Brevo to your systems.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Integrations
+    integrationType: API
+  inboundWebhooks:
+    description: Receive external events to update data and trigger automations.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Integrations
+    integrationType: API
+  salesforcePlugin:
+    description: Sync Brevo with Salesforce.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Integrations
+    integrationType: WEB_SAAS
+    pricingUrls:
+      - https://www.salesforce.com/pricing/
+  dataWarehouseAndSftp:
+    description: Sync data with your data warehouse via connectors or SFTP.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Integrations
+    integrationType: API
+  dataTransformation:
+    description: Apply formulas to clean and format raw data.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Integrations
+  preBuiltDashboards:
+    description: Ready-made performance and customer dashboards.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Analytics studio
+  dashboardBuilder:
+    description: Custom dashboards across KPIs.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Analytics studio
+  aiDataAnalyst:
+    description: Ask plain-language questions about your data with Aura AI.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Analytics studio
+  userPermissions:
+    description: Role- or feature-based access control.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Admin
+  tagsAndFolders:
+    description: Organize assets and contacts with tags and folders.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Admin
+  assetSharing:
+    description: Share assets across subaccounts.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Admin
+  ssoSaml:
+    description: Enterprise-grade single sign-on (SAML).
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Admin
+    integrationType: IDENTITY_PROVIDER
+  subaccountManagement:
+    description: Manage multiple brands or business units under one master account.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Admin
+  sla:
+    description: Formal Service Level Agreement with 99.9% uptime.
+    type: GUARANTEE
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Admin
+    docUrl: https://www.brevo.com/legal/termsofuse/
+  emailSupport:
+    description: Help via email from the support team.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Customer support
+  phoneSupport:
+    description: Speak directly with the support team.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Customer support
+  deliverabilitySpecialist:
+    description: Work with a deliverability specialist (3h/year).
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Customer support
+  tailoredOnboarding:
+    description: Personalized setup support and training.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Customer support
+  customerSuccessManager:
+    description: Recurring strategic support (limited time).
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Customer support
+  salesMultiUserAccess:
+    description: Multiple sales reps collaborate; 1 sales user included, extra seats as add-ons.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Key features
+  openDeals:
+    description: Manage active deals.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Pipeline management
+  salesAutomation:
+    description: Automate sales operations, outreach and follow-ups.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Key features
+    automationType: TASK_AUTOMATION
+  automatedMeetingScheduling:
+    description: Personal meeting booking page.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Key features
+    automationType: TASK_AUTOMATION
+  phoneVoip:
+    description: Cloud telephony via web interface or mobile app.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Key features
+  salesPipelines:
+    description: Sales pipelines for products, regions or teams.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Pipeline management
+  stageRules:
+    description: Rules controlling deal stage changes.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Pipeline management
+  multipleCurrencies:
+    description: Manage deals across currencies.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Pipeline management
+  revenueReport:
+    description: Sales revenue and pipeline value.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Pipeline management
+  salesCycleReport:
+    description: Conversion rates and time-to-close.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Pipeline management
+  teamPerformanceReport:
+    description: Revenue and activity by sales rep.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Pipeline management
+  forecasting:
+    description: Likely revenue from stage win probabilities.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Pipeline management
+  salesWorkflows:
+    description: Automate repetitive sales tasks.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales automation
+    automationType: TASK_AUTOMATION
+  realTimeSalesEventTriggers:
+    description: Trigger sales automations on events.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales automation
+    automationType: TRACKING
+  aiContactAndCompanyEnrichment:
+    description: Fill in missing company and contact details with AI.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales automation
+    automationType: BOT
+  outreachSequences:
+    description: Automated outreach sequences with 1:1 emails and tasks.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales automation
+    automationType: TASK_AUTOMATION
+  taskManagementAndReminders:
+    description: Create, assign and track tasks with alerts.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Sales activities
+  taskNavigator:
+    description: Work through tasks step by step.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales activities
+  notesAndFiles:
+    description: Attach notes and documents to records.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Sales activities
+  connectedCalendars:
+    description: Link calendars for scheduling.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Sales activities
+    integrationType: WEB_SAAS
+    pricingUrls:
+      - https://workspace.google.com/pricing
+  bookingPages:
+    description: Branded booking pages.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Sales activities
+  inBrowserVideoCalling:
+    description: Video calls in the browser or via Zoom, Google Meet...
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Sales activities
+  meetingReminders:
+    description: Automatic meeting reminders.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Sales activities
+    automationType: TASK_AUTOMATION
+  roundRobinScheduling:
+    description: Distribute meeting requests across the team.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales activities
+    automationType: TASK_AUTOMATION
+  brevoPayments:
+    description: Collect payments for services within Brevo (France only).
+    type: PAYMENT
+    valueType: TEXT
+    defaultValue:
+      - GATEWAY
+    tag: Sales - Sales activities
+  mailboxSynchronization:
+    description: Sync mailboxes into a shared inbox.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Inbox and messaging
+    integrationType: WEB_SAAS
+    pricingUrls:
+      - https://workspace.google.com/pricing
+  conversationsMobileApp:
+    description: Respond to messages on the go.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Inbox and messaging
+  instagramDms:
+    description: Manage Instagram DMs in Brevo.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Inbox and messaging
+    integrationType: WEB_SAAS
+    pricingUrls:
+      - https://www.instagram.com
+  facebookMessenger:
+    description: Manage Facebook Messenger chats in Brevo.
+    type: INTEGRATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Inbox and messaging
+    integrationType: WEB_SAAS
+    pricingUrls:
+      - https://www.messenger.com
+  sms1to1Messages:
+    description: Personal SMS to contacts (pricing by country).
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Inbox and messaging
+  whatsapp1to1Messages:
+    description: Personal WhatsApp messages (pricing by country).
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Inbox and messaging
+  liveChat:
+    description: Real-time website chat widget.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Sales engagement chat
+  chatbotScenarios:
+    description: Pre-built chatbot flows.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales engagement chat
+    automationType: BOT
+  targetedChatAndLeadCaptureChatbot:
+    description: Behaviour-based chat popups and lead capture.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales engagement chat
+    automationType: BOT
+  aiChatbot:
+    description: AI-powered answers to open-ended visitor questions.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales engagement chat
+    automationType: BOT
+  aiConversationsAgent:
+    description: Summarize chats and refine replies with AI.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Sales - Sales engagement chat
+    automationType: BOT
+  removeBrevoBrandingOnChat:
+    description: Remove 'Powered by Brevo' from the chat widget.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales engagement chat
+  savedReplies:
+    description: Templated chat responses.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales engagement chat
+  conversationRouting:
+    description: Route conversations to agents or teams.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales engagement chat
+    automationType: FILTERING
+  chatAvailability:
+    description: Chat hours and invisible mode.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales engagement chat
+  chatRatings:
+    description: Visitor feedback at the end of chats.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales engagement chat
+  liveVisitorInsights:
+    description: Real-time visitor location, pages and cart.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales engagement chat
+  conversationsAnalytics:
+    description: Chat volume, responsiveness and CSAT.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - Sales engagement chat
+  worldwideCalling:
+    description: International calls with cloud telephony.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - VoIP phone
+  unlimitedPhoneLines:
+    description: Add as many phone lines as needed.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - VoIP phone
+  callRecordingAndVoicemail:
+    description: Record calls and capture voicemails.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - VoIP phone
+  callMenu:
+    description: Automated menus to route incoming calls.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - VoIP phone
+    automationType: FILTERING
+  callTransfer:
+    description: Transfer live calls to a teammate.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - VoIP phone
+  aiCallTranscriptionsAndSummaries:
+    description: Automatic call transcriptions and summaries.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - VoIP phone
+    automationType: BOT
+  callStatistics:
+    description: Call data and performance metrics.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - VoIP phone
+  aiFollowUpEmails:
+    description: Aura drafts follow-up emails from call transcripts.
+    type: AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - VoIP phone
+    automationType: BOT
+  clickToDial:
+    description: Call contacts with one click.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - VoIP phone
+  phoneMobileApp:
+    description: Make and receive calls in the mobile app.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Sales - VoIP phone
+  multiLanguagePack:
+    description: Multi-language pack (API id international-package); contents are not described in the sources.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Key features
+usageLimits:
+  emailsPerDay:
+    description: Daily email sending cap.
+    valueType: NUMERIC
+    defaultValue: 300
+    unit: email
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: DAY
+    linkedFeatures:
+      - emailAndSmsCampaigns
+      - transactionalEmail
+  emailsPerMonth:
+    description: 'Monthly email sends included at the selected volume tier (default: lowest tier).'
+    valueType: NUMERIC
+    defaultValue: .inf
+    unit: email
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - emailAndSmsCampaigns
+      - transactionalEmail
+  marketingSeatsLimit:
+    description: Marketing users on the account.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: seat
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - userAccounts
+  contactsLimit:
+    description: 'Marketing contacts that can be stored (default: lowest volume tier).'
+    valueType: NUMERIC
+    defaultValue: 100000
+    unit: contact
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - contactStorage
+  landingPagesLimit:
+    description: Landing pages included.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: page
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - landingPages
+  webPushSubscribersPerCampaign:
+    description: Targeted subscribers per web push campaign.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: subscriber
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - webPushNotifications
+  mobilePushSubscribersPerCampaign:
+    description: Targeted subscribers per mobile push campaign.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: subscriber
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - mobilePushNotifications
+  conversionMetricsLimit:
+    description: Conversion metrics for multichannel attribution.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: metric
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - multichannelAttribution
+  automationContactsLimit:
+    description: Contacts that can go through marketing automations.
+    valueType: NUMERIC
+    defaultValue: 2000
+    unit: contact
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - multichannelAutomation
+  customObjectsLimit:
+    description: Custom objects.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: object
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - customObjects
+  deliverabilitySpecialistHoursPerYear:
+    description: Hours with a deliverability specialist per year.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: hour
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: YEAR
+    linkedFeatures:
+      - deliverabilitySpecialist
+  salesSeatsLimit:
+    description: Sales users (1 included with each sales package; extra seats as add-ons).
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: seat
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - salesMultiUserAccess
+  openDealsLimit:
+    description: Open deals at the same time.
+    valueType: NUMERIC
+    defaultValue: 50
+    unit: deal
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - openDeals
+  salesPipelinesLimit:
+    description: Sales pipelines.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: pipeline
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - salesPipelines
+  connectedCalendarsLimit:
+    description: Connected calendars.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: calendar
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - connectedCalendars
+  syncedMailboxesLimit:
+    description: Mailboxes synchronized to the shared inbox.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: mailbox
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - mailboxSynchronization
+plans:
+  FREE:
+    description: Free forever plan for individuals building an online presence.
+    price: 0
+    unit: account/month
+    features: null
+    usageLimits: null
+  STARTER:
+    description: Single users starting with email and multichannel marketing. Price depends on the monthly email volume tier.
+    price: '#starterPrices[String(#starterVolume)]'
+    unit: account/month
+    features:
+      contentFeeds:
+        value: true
+      webPushNotifications:
+        value: true
+      multichannelAttribution:
+        value: true
+      backInStockAlerts:
+        value: true
+      priceDropAlerts:
+        value: true
+    usageLimits:
+      emailsPerDay:
+        value: .inf
+      emailsPerMonth:
+        value: 5000
+      contactsLimit:
+        value: 500
+      webPushSubscribersPerCampaign:
+        value: 1000
+      conversionMetricsLimit:
+        value: 1
+  STANDARD:
+    description: Small businesses ready to automate and test campaigns. Price depends on the monthly email volume tier.
+    price: '#standardPrices[String(#standardVolume)]'
+    unit: account/month
+    features:
+      advancedReporting:
+        value: true
+      abTesting:
+        value: true
+      removeBrevoBranding:
+        value: true
+      aiSendTimeOptimization:
+        value: true
+      contentFeeds:
+        value: true
+      clickHeatmaps:
+        value: true
+      geographyAndDeviceReports:
+        value: true
+      landingPages:
+        value: true
+      webPushNotifications:
+        value: true
+      multichannelAttribution:
+        value: true
+      backInStockAlerts:
+        value: true
+      priceDropAlerts:
+        value: true
+      userPermissions:
+        value: true
+    usageLimits:
+      emailsPerDay:
+        value: .inf
+      emailsPerMonth:
+        value: 5000
+      contactsLimit:
+        value: 500
+      landingPagesLimit:
+        value: 1
+      webPushSubscribersPerCampaign:
+        value: 10000
+      conversionMetricsLimit:
+        value: 1
+      automationContactsLimit:
+        value: .inf
+  PROFESSIONAL:
+    description: Teams using data and AI across channels. Price depends on the monthly email volume tier.
+    price: '#professionalPrices[String(#professionalVolume)]'
+    unit: account/month
+    features:
+      advancedReporting:
+        value: true
+      abTesting:
+        value: true
+      removeBrevoBranding:
+        value: true
+      aiSendTimeOptimization:
+        value: true
+      contentFeeds:
+        value: true
+      emailFrequencyManagement:
+        value: true
+      reusableContentSections:
+        value: true
+      clickHeatmaps:
+        value: true
+      geographyAndDeviceReports:
+        value: true
+      landingPages:
+        value: true
+      popups:
+        value: true
+      webPushNotifications:
+        value: true
+      mobilePushNotifications:
+        value: true
+      whatsappCampaigns:
+        value: true
+      multichannelAttribution:
+        value: true
+      multiBranchTesting:
+        value: true
+      aiProductRecommendations:
+        value: true
+      backInStockAlerts:
+        value: true
+      priceDropAlerts:
+        value: true
+      dynamicCoupons:
+        value: true
+      contactScoring:
+        value: true
+      aiSegmentation:
+        value: true
+      randomizedListSplits:
+        value: true
+      customObjects:
+        value: true
+      transactionalWhatsapp:
+        value: true
+      inboundWebhooks:
+        value: true
+      salesforcePlugin:
+        value: true
+      preBuiltDashboards:
+        value: true
+      dashboardBuilder:
+        value: true
+      aiDataAnalyst:
+        value: true
+      userPermissions:
+        value: true
+      tagsAndFolders:
+        value: true
+      phoneSupport:
+        value: true
+      deliverabilitySpecialist:
+        value: true
+      tailoredOnboarding:
+        value: true
+    usageLimits:
+      emailsPerDay:
+        value: .inf
+      emailsPerMonth:
+        value: 150000
+      marketingSeatsLimit:
+        value: 10
+      contactsLimit:
+        value: 2000000
+      landingPagesLimit:
+        value: 10
+      webPushSubscribersPerCampaign:
+        value: 20000
+      mobilePushSubscribersPerCampaign:
+        value: 20000
+      conversionMetricsLimit:
+        value: .inf
+      automationContactsLimit:
+        value: .inf
+      customObjectsLimit:
+        value: 1
+      deliverabilitySpecialistHoursPerYear:
+        value: 3
+  ENTERPRISE:
+    description: Companies with 1M+ contacts needing custom solutions and full data control.
+    price: Contact Sales
+    unit: account/month
+    private: true
+    features:
+      advancedReporting:
+        value: true
+      abTesting:
+        value: true
+      removeBrevoBranding:
+        value: true
+      aiSendTimeOptimization:
+        value: true
+      contentFeeds:
+        value: true
+      emailFrequencyManagement:
+        value: true
+      reusableContentSections:
+        value: true
+      clickHeatmaps:
+        value: true
+      geographyAndDeviceReports:
+        value: true
+      dedicatedIp:
+        value: true
+      landingPages:
+        value: true
+      popups:
+        value: true
+      webPushNotifications:
+        value: true
+      mobilePushNotifications:
+        value: true
+      whatsappCampaigns:
+        value: true
+      brevoWallet:
+        value: true
+      multichannelAttribution:
+        value: true
+      multiBranchTesting:
+        value: true
+      aiProductRecommendations:
+        value: true
+      backInStockAlerts:
+        value: true
+      priceDropAlerts:
+        value: true
+      dynamicCoupons:
+        value: true
+      loyalty:
+        value: true
+      contactScoring:
+        value: true
+      aiSegmentation:
+        value: true
+      randomizedListSplits:
+        value: true
+      customObjects:
+        value: true
+      transactionalWhatsapp:
+        value: true
+      inboundWebhooks:
+        value: true
+      salesforcePlugin:
+        value: true
+      dataWarehouseAndSftp:
+        value: true
+      dataTransformation:
+        value: true
+      preBuiltDashboards:
+        value: true
+      dashboardBuilder:
+        value: true
+      aiDataAnalyst:
+        value: true
+      userPermissions:
+        value: true
+      tagsAndFolders:
+        value: true
+      assetSharing:
+        value: true
+      ssoSaml:
+        value: true
+      subaccountManagement:
+        value: true
+      sla:
+        value: true
+      phoneSupport:
+        value: true
+      deliverabilitySpecialist:
+        value: true
+      tailoredOnboarding:
+        value: true
+      customerSuccessManager:
+        value: true
+    usageLimits:
+      emailsPerDay:
+        value: .inf
+      marketingSeatsLimit:
+        value: .inf
+      contactsLimit:
+        value: .inf
+      landingPagesLimit:
+        value: 10
+      webPushSubscribersPerCampaign:
+        value: 40000
+      mobilePushSubscribersPerCampaign:
+        value: 40000
+      conversionMetricsLimit:
+        value: .inf
+      automationContactsLimit:
+        value: .inf
+      customObjectsLimit:
+        value: .inf
+      deliverabilitySpecialistHoursPerYear:
+        value: 3
+addOns:
+  removeBrevoLogo:
+    description: Remove the 'Sent with Brevo' logo from emails on the Starter plan.
+    price: 12
+    unit: account/month
+    availableFor:
+      - STARTER
+    features:
+      removeBrevoBranding:
+        value: true
+  extraMarketingSeats:
+    description: Additional marketing seat on the Standard plan (up to 3 users in total).
+    price: 12
+    unit: seat/month
+    availableFor:
+      - STANDARD
+    features: null
+    usageLimitsExtensions:
+      marketingSeatsLimit:
+        value: 1
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 2
+      quantityStep: 1
+  extraLandingPages:
+    description: Additional landing pages on the Standard plan, sold in blocks of 5 (2-6, 7-11, 12-16, 17-21 pages).
+    price: 24
+    unit: 5 pages/month
+    availableFor:
+      - STANDARD
+    features: null
+    usageLimitsExtensions:
+      landingPagesLimit:
+        value: 5
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 4
+      quantityStep: 1
+  extraPushSubscribers:
+    description: Raise the targeted web and mobile push subscribers per campaign on Professional (stairstep tiers 20,001-1,000,000; default tier up to 40,000).
+    price: '#pushPrices[String(#pushVolume)]'
+    unit: account/month
+    availableFor:
+      - PROFESSIONAL
+    features: null
+    usageLimits:
+      webPushSubscribersPerCampaign:
+        value: 40000
+      mobilePushSubscribersPerCampaign:
+        value: 40000
+  dedicatedIpAddOn:
+    description: Dedicated IP for full control of sending reputation (one is included in Enterprise).
+    price: 251
+    unit: dedicated IP/year
+    availableFor:
+      - PROFESSIONAL
+    features:
+      dedicatedIp:
+        value: true
+  samlSso:
+    description: SAML single sign-on on the Professional plan.
+    price: 324
+    unit: account/month
+    availableFor:
+      - PROFESSIONAL
+    features:
+      ssoSaml:
+        value: false
+  multiLanguagePackAddOn:
+    description: Multi-language pack listed for the Professional plan in the pricing API.
+    price: 215
+    unit: account/month
+    availableFor:
+      - PROFESSIONAL
+    features:
+      multiLanguagePack:
+        value: true
+  salesEssentials:
+    description: Sales Essentials package; price per sales seat, 1 seat included in the first unit.
+    price: 31
+    unit: sales seat/month
+    availableFor:
+      - STARTER
+      - STANDARD
+      - PROFESSIONAL
+    excludes:
+      - salesAdvanced
+    features:
+      salesMultiUserAccess:
+        value: true
+      salesAutomation:
+        value: true
+      stageRules:
+        value: true
+      salesWorkflows:
+        value: true
+      realTimeSalesEventTriggers:
+        value: true
+      aiContactAndCompanyEnrichment:
+        value: true
+      taskNavigator:
+        value: true
+      instagramDms:
+        value: true
+      facebookMessenger:
+        value: true
+      chatbotScenarios:
+        value: true
+      targetedChatAndLeadCaptureChatbot:
+        value: true
+      removeBrevoBrandingOnChat:
+        value: true
+      savedReplies:
+        value: true
+      chatAvailability:
+        value: true
+      chatRatings:
+        value: true
+      liveVisitorInsights:
+        value: true
+      conversationsAnalytics:
+        value: true
+    usageLimits:
+      salesSeatsLimit:
+        value: 1
+      openDealsLimit:
+        value: .inf
+      salesPipelinesLimit:
+        value: .inf
+      connectedCalendarsLimit:
+        value: .inf
+      syncedMailboxesLimit:
+        value: .inf
+  extraSalesSeatsEssentials:
+    description: Additional Sales Essentials seat (up to 5 sales users).
+    price: 31
+    unit: sales seat/month
+    availableFor:
+      - STARTER
+      - STANDARD
+      - PROFESSIONAL
+    dependsOn:
+      - salesEssentials
+    features: null
+    usageLimitsExtensions:
+      salesSeatsLimit:
+        value: 1
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 4
+      quantityStep: 1
+  salesAdvanced:
+    description: Sales Advanced package; price per sales seat, 1 seat included in the first unit.
+    price: 65
+    unit: sales seat/month
+    availableFor:
+      - PROFESSIONAL
+      - ENTERPRISE
+    excludes:
+      - salesEssentials
+    features:
+      salesMultiUserAccess:
+        value: true
+      salesAutomation:
+        value: true
+      phoneVoip:
+        value: true
+      stageRules:
+        value: true
+      multipleCurrencies:
+        value: true
+      salesWorkflows:
+        value: true
+      realTimeSalesEventTriggers:
+        value: true
+      aiContactAndCompanyEnrichment:
+        value: true
+      outreachSequences:
+        value: true
+      taskNavigator:
+        value: true
+      roundRobinScheduling:
+        value: true
+      instagramDms:
+        value: true
+      facebookMessenger:
+        value: true
+      sms1to1Messages:
+        value: true
+      whatsapp1to1Messages:
+        value: true
+      chatbotScenarios:
+        value: true
+      targetedChatAndLeadCaptureChatbot:
+        value: true
+      aiChatbot:
+        value: true
+      removeBrevoBrandingOnChat:
+        value: true
+      savedReplies:
+        value: true
+      conversationRouting:
+        value: true
+      chatAvailability:
+        value: true
+      chatRatings:
+        value: true
+      liveVisitorInsights:
+        value: true
+      conversationsAnalytics:
+        value: true
+      worldwideCalling:
+        value: true
+      unlimitedPhoneLines:
+        value: true
+      callRecordingAndVoicemail:
+        value: true
+      callMenu:
+        value: true
+      callTransfer:
+        value: true
+      aiCallTranscriptionsAndSummaries:
+        value: true
+      callStatistics:
+        value: true
+      aiFollowUpEmails:
+        value: true
+      clickToDial:
+        value: true
+      phoneMobileApp:
+        value: true
+    usageLimits:
+      salesSeatsLimit:
+        value: 1
+      openDealsLimit:
+        value: .inf
+      salesPipelinesLimit:
+        value: .inf
+      connectedCalendarsLimit:
+        value: .inf
+      syncedMailboxesLimit:
+        value: .inf
+  extraSalesSeatsAdvanced:
+    description: Additional Sales Advanced seat (up to 50 sales users).
+    price: 65
+    unit: sales seat/month
+    availableFor:
+      - PROFESSIONAL
+      - ENTERPRISE
+    dependsOn:
+      - salesAdvanced
+    features: null
+    usageLimitsExtensions:
+      salesSeatsLimit:
+        value: 1
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 49
+      quantityStep: 1
+custom:
+  unmodeled:
+    - element: Prepaid email credits (pay-as-you-go)
+      source_says: Packs from 5,000 to 1 million emails, never expire, usable for marketing and transactional email, available on all plans; buying them gives Starter features without the Brevo logo. Pack prices are not published in the sources read.
+      why: Non-expiring credit balance has no Pricing2Yaml construct and pack prices are unknown
+    - element: Prepaid SMS and WhatsApp credits
+      source_says: From 100 credits; SMS on all plans, WhatsApp on Professional and Enterprise; price depends on destination country (and template type for WhatsApp).
+      why: Country-dependent unit prices; no price table in the sources read
+    - element: Professional plan fees (API type PRO_FEES)
+      source_says: Flat fee of $109 listed in the pricing API under Starter, Standard and Professional; not explained.
+      why: Meaning and applicability not stated by any source
+    - element: Identity resolution on Enterprise
+      source_says: Custom (add-on)
+      why: Negotiated Enterprise add-on with no published price or definition
+    - element: Contact limit by volume tier
+      source_says: 'Starter/Standard: 500 contacts at 5k emails, 1,500 at 10k, 2,500 at 15k, 500,000 from 20k; automatic upgrade to the next tier when the contact cap is exceeded.'
+      why: Usage limits cannot depend on a variable; the YAML fixes them at the default (lowest) tier
+    - element: Yearly billing with monthly credit top-up
+      source_says: Yearly plans are paid upfront with 10% off; credits renew monthly; yearly plans cannot be paused.
+      why: Billing conditions beyond the multiplier have no construct
