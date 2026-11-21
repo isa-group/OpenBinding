@@ -125,6 +125,10 @@ class Context:
     proposal: Proposal | None = None
     api_key: Any = None
     derived: dict[int, Any] = field(default_factory=dict)
+    #: While building: the labels earlier seal steps claim, and the version an earlier step is known to give (the
+    #: sealed version that already holds its document), by ordinal.
+    labels: dict[int, str] = field(default_factory=dict)
+    known_versions: dict[int, uuid.UUID] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -156,12 +160,12 @@ async def head_version(session: AsyncSession, composition: Composition) -> Compo
 _RELEASE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
 
 
-async def next_label(session: AsyncSession, composition: Composition) -> str:
+async def next_label(session: AsyncSession, composition: Composition, claimed: set[str] | None = None) -> str:
     """The next minor of the composition's highest release (``1.1.0`` -> ``1.2.0``), ``1.0.0`` for none; a label no
-    version holds."""
+    version holds and no earlier step of the proposal claims (``claimed``)."""
     labels = set((await session.scalars(
         select(CompositionVersion.label).where(CompositionVersion.composition_id == composition.id)
-    )).all())
+    )).all()) | set(claimed or ())
     releases = [tuple(int(part) for part in found.groups()) for found in map(_RELEASE.match, labels) if found]
     major, minor, _ = max(releases) if releases else (1, -1, 0)
     candidate = f"{major}.{minor + 1}.0"
@@ -244,7 +248,12 @@ class SealDerivedKind:
         composition = _need_composition(context, ordinal)
         session = context.session
         parsed = SealDerivedParams.model_validate(params)
-        label = parsed.label or await next_label(session, composition)
+        claimed = set(context.labels.values())
+        if parsed.label is not None and parsed.label in claimed:
+            raise ProposalInvalid.one(ordinal, "derivation_invalid",
+                                      f"An earlier step of this proposal already seals {parsed.label}.")
+        label = parsed.label or await next_label(session, composition, claimed)
+        context.labels[ordinal] = label
         head = await head_version(session, composition)
         stored = {**parsed.model_dump(mode="json", exclude_none=True), "label": label}
         source = parsed.source
@@ -290,6 +299,7 @@ class SealDerivedKind:
         warnings = tuple(item.message for item in derived.diagnostics if item.severity == "warning")
         if taken is not None:
             warnings = (f"Version {label} already holds this document: confirming seals nothing new.", *warnings)
+            context.known_versions[ordinal] = taken.id
         return Built(params=stored, base=base, description=description, preview=derived.content, warnings=warnings)
 
     def _source(self, step: Any, outputs: dict[int, dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -421,6 +431,11 @@ class AdoptKind:
             "inEffect": None if environment.adopted_version_id is None else str(environment.adopted_version_id),
         }
         reference = referenced.get("version")
+        if reference is not None and context.known_versions.get(reference.step) == environment.adopted_version_id \
+                and environment.adopted_version_id is not None:
+            raise ProposalInvalid.one(ordinal, "already_in_effect",
+                                      f"The version step {reference.step} seals is already in effect in "
+                                      f"{environment.name}.")
         if reference is not None:
             return Built(
                 params={"environment": str(environment.id), "version": str(reference), "note": parsed.note},
@@ -571,8 +586,12 @@ def _validate(steps: list[StepRequest]) -> list[_Planned]:
         for path, value in domain.references_in(request.params):
             reference = domain.parse_reference(value)
             if path not in kind.referenceable:
-                problem = f"`{path}` does not take an earlier step's output."
-            elif reference is None:
+                # Free text that merely starts with "@s" (a note) is text; a well-formed reference is refused.
+                problem = None if reference is None else f"`{path}` does not take an earlier step's output."
+                if problem is not None:
+                    errors.append({"step": ordinal, "code": "dependency_invalid", "message": problem})
+                continue
+            if reference is None:
                 problem = f"{value!r} is not a reference: `@s<n>.<output>`."
             elif reference.step >= ordinal:
                 problem = f"{reference} names a step that does not come before this one."

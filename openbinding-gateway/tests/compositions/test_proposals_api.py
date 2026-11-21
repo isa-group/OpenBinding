@@ -11,7 +11,7 @@ import hashlib
 import uuid
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from _b1_helpers import gate  # noqa: F401
 from _environment_rows import World, _version
@@ -300,3 +300,45 @@ async def test_making_superseding_or_cancelling_moves_no_feed(api_client, regist
     assert row.adoption_ordinal == 1
     assert await _count(db_session, Proposal) == 2
     assert await _count(db_session, Composition) >= 1
+
+
+async def test_a_note_that_starts_like_a_reference_is_text(api_client, registration, db_session, gate):  # noqa: F811
+    t = await tomato_team(api_client, registration, db_session, gate)
+    made = await api_client.post(t.proposals, headers=t.member, json=adopt("1.1.0", note="@sarah approved this"))
+    assert made.status_code == 201, made.text
+    assert made.json()["steps"][0]["params"]["note"] == "@sarah approved this"
+    # A well-formed reference where none is taken is still refused.
+    refused = await api_client.post(t.proposals, headers=t.member, json=adopt("1.1.0", note="@s1.version"))
+    assert refused.status_code == 422 and [e["code"] for e in errors(refused)] == ["dependency_invalid"]
+
+
+async def test_deriving_the_document_already_in_effect_is_refused_when_proposed(api_client, registration, db_session, gate):  # noqa: F811
+    """1.1.0 (Resend PRO, from revision 3) in production: deriving it again seals nothing new and adopts what is in
+    effect, so the builder refuses it instead of a confirmation ending partial."""
+    t = await tomato_team(api_client, registration, db_session, gate)
+    v110 = await db_session.get(CompositionVersion, t.found.ids["v110"])
+    await db_session.execute(update(CompositionEnvironment).where(CompositionEnvironment.slug == "production").values(
+        adopted_version_id=v110.id, adoption_ordinal=2))
+    await db_session.commit()
+    refused = await api_client.post(t.proposals, headers=t.member, json=derive_and_adopt(t.found, label="1.1.0"))
+    assert refused.status_code == 422, refused.text
+    assert [(e["step"], e["code"]) for e in errors(refused)] == [(2, "already_in_effect")]
+
+
+async def test_two_seal_steps_never_claim_one_label(api_client, registration, db_session, gate):  # noqa: F811
+    from ._proposals import spec
+
+    t = await tomato_team(api_client, registration, db_session, gate)
+    organization, composition, user = await fresh(db_session, t.found)
+    source = {"revision": f"tomatometer-email@{t.found.ids['revision']}"}
+    seal = [proposals.StepRequest("seal_derived", {"source": {**source, "binding": {
+        **spec()["binding"], "dailySummary": provider}}, "offering": spec()["offering"]})
+        for provider in ("email.mailgun.foundation", "email.resend.pro")]
+    made = await proposals.create(db_session, organization, user, seal, role=_owner(), composition=composition)
+    labels = (await db_session.scalars(select(ProposalStep.params).where(ProposalStep.proposal_id == made.id)
+                                       .order_by(ProposalStep.ordinal))).all()
+    assert [params["label"] for params in labels] == ["1.2.0", "1.3.0"]
+    twice = [proposals.StepRequest(step.kind, {**step.params, "label": "2.0.0"}) for step in seal]
+    with pytest.raises(proposals.ProposalInvalid) as raised:
+        await proposals.create(db_session, organization, user, twice, role=_owner(), composition=composition)
+    assert [(e["step"], e["code"]) for e in raised.value.errors] == [(2, "derivation_invalid")]
