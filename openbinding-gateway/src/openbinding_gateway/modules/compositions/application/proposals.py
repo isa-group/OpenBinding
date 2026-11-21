@@ -1,7 +1,8 @@
 """Proposals (F6, plan §8): an organization's typed steps that change nothing until their author confirms them.
 
-A proposal follows SPHERE's ORBIT plan model (``OrbitPlanService.propose``/``build``, ``OrbitPlanRepository``): it is
-built **in code** from a validated request, stored with each step's base revisions, shown, and applied only after its
+Adapted from SPHERE (MIT, SCORELabUS/SPHERE at ``73779a8a``): ``api/src/main/services/orbit/OrbitPlanService.ts``
+(``propose``, ``build``) and ``api/src/main/repositories/mongoose/OrbitPlanRepository.ts`` (``supersedePending``,
+``cancel``). A proposal follows ORBIT's plan model: it is built **in code** from a validated request, stored with each step's base revisions, shown, and applied only after its
 author confirms (``proposal_executor``). Whatever makes the request (a person's form today, F7's tools tomorrow) never
 writes; it only proposes.
 

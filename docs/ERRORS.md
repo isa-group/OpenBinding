@@ -446,6 +446,34 @@ gets for a missing event, or another composition's).
 | `event_not_reviewable` | 409 | `reviewUpstreamEvent` of an event already reviewed or resolved: an event is reviewed once, and only a person's seal resolves it |
 | `precondition_failed` | 412 | `reviewUpstreamEvent` with a stale `If-Match`; the current `ETag` is in the header |
 
+## Proposals
+
+A composition's proposals (`…/compositions/{composition}/proposals`), an organization's proposal
+(`/v1/organizations/{org}/proposals/{proposal}`, `…/confirm`) and the caller's list (`/v1/users/me/proposals`;
+[ADR 0058](adr/0058-proposals-and-the-executor.md)). Every route needs a credential (401 before any lookup); a caller
+without a role gets the composition's 404 parity on a composition's routes, and `Proposal not found.` on a proposal's
+own routes (the body a member gets for a missing proposal or another organization's).
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `not_found` | 404 | no such composition or proposal, or the caller cannot read them (the parity above) |
+| `organization_forbidden` | 403 | `createProposal` by a role weaker than MEMBER; `confirmProposal` when a step's role is no longer the caller's (an environment's `adoptRole` included) |
+| `proposal_not_yours` | 403 | `confirmProposal` or `cancelProposal` by a member who did not make it |
+| `insufficient_api_key_permission` | 403 | `confirmProposal` with a personal key that lacks a step's own permission (`compositions:adopt` for an `adopt` step); `missing_permissions` names it. The proposal stays pending |
+| `composition_archived` | 409 | `createProposal` on an archived composition |
+| `proposal_not_pending` | 409 | `confirmProposal` or `cancelProposal` of a proposal that is not pending (`current` says what it is) |
+| `proposal_stale` | 409 | `confirmProposal` when a step's stored base no longer holds; `stale` lists `{step, kind, reason, base, current}` with `reason` one of `head_version_changed`, `derivation_changed`, `environment_changed`, `environment_missing`, `run_unreadable`, `version_missing`, `composition_archived`. The proposal becomes `stale` and nothing changes |
+| `proposal_conflict` | 409 | `createProposal` raced another proposal of the same author on the same composition twice |
+| `proposal_invalid` | 422 | `createProposal`: `errors` lists `{step, code, message, detail?}` with `code` one of `unknown_kind`, `too_many_steps`, `params_invalid`, `destructive_not_alone`, `environment_not_found`, `version_not_found`, `already_in_effect`, `not_permitted`, `derivation_invalid`, `dependency_invalid`, `event_not_found` (`step` is null for the whole proposal) |
+| `confirmation_required`, `confirmation_mismatch` | 422 | `confirmProposal` of a proposal with a destructive step, without its phrase or with another one (case and spaces aside) |
+
+A confirmed proposal answers 200 whatever its steps did: each step's `status` (`done`, `failed`, `skipped`) and
+`error` say what happened. A step's `error` is the writer's own answer (`status`, `code`, `message`, `detail`: for
+example `412 precondition_failed` from an adoption, `409 version_label_taken` from a seal), or one of
+`skipped_dependency` (a step it needs did not complete), `interrupted` (the run stopped; the step that was running says
+to check whether it was applied), `internal_error` (with the correlation id) and `derivation_changed` (a part decided
+by an earlier step does not hold: deriving gives other bytes, or the earlier step gave nothing usable).
+
 ## Composition templates
 
 The composition template catalog (`GET /v1/compositions/templates[/{template}]`, open to anybody) and

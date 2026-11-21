@@ -40,7 +40,10 @@ documents and screens can use them consistently now.
 | **Watch reference** | Referencia vigilada | What one sealed version reads upstream: a watch, the subject (binding or offering), the pinned version and the bound selection. Written when the version is sealed, never changed | `pricing_watch_refs` |
 | **Rebinding recommended** | Rebinding recomendado | What a `binding_invalid` upstream event says: the pinned plan or add-on is gone, private, not priced, or no longer meets a requirement, so a person should re-solve or rebind | the event's `category` and `reasons` |
 | **No impact** | Sin impacto | An upstream event whose new version changed nothing the bound selection reads (only other plans, the catalog or metadata): stored, never told or badged | `category = no_impact` |
-| **Proposal** *(later)* | Propuesta | A typed change plan (ORBIT's plan): steps with their base revisions, confirmed by a person, executed step by step and audited. "Plan" is kept for pricing plans | `proposals` |
+| **Proposal** | Propuesta | A typed change (ORBIT's plan): steps with their base revisions, shown, confirmed by its author, applied step by step and audited. It changes nothing until then. "Plan" is kept for pricing plans | `proposals`; `POST …/proposals`, `…/proposals/{proposal}/confirm` |
+| **Step** | Paso | One typed action of a proposal (seal a derived version, adopt a version), with its parameters, base revision and, once confirmed, its outcome: done, failed or skipped | `proposal_steps` |
+| **Base revision** | Revisión base | What a step was built against: the head version and the digest of the document shown, or an environment's ETag. Confirming checks it again before anything runs | a step's `base` |
+| **Stale** | Desfasada | A proposal whose base no longer holds when its author confirms it: nothing is applied, and a new proposal is needed | `status = stale` |
 
 ## On screen
 

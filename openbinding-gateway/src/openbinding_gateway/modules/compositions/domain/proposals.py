@@ -9,7 +9,8 @@ writes; it only proposes. This module holds what does not need the database:
   it is destructive, the key permission it needs, and the builder, pre-flight and apply halves), and
   :data:`REGISTRY`, where ``application.proposals`` registers ``seal_derived`` and ``adopt`` and F7 adds its own;
 * references between steps, ``@s<n>.<output>`` (:func:`parse_reference`, :func:`references_in`);
-* :func:`normalise_phrase`, how a typed confirmation phrase is compared (SPHERE's ``plan-card.tsx``).
+* :func:`normalise_phrase`, how a typed confirmation phrase is compared (adapted from SPHERE, MIT, at ``73779a8a``:
+  ``frontend/src/modules/orbit/components/plan-card.tsx``, ``normalizePhrase``).
 
 The plan model, the supersession, the phrase and the executor follow SPHERE's ORBIT (``OrbitPlanService``,
 ``OrbitPlanRepository``, ``OrbitExecutorService``); see ``docs/adr/0058-proposals-and-the-executor.md``.
