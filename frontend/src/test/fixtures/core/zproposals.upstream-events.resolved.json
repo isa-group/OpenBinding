@@ -1,0 +1,278 @@
+{
+  "counts": {
+    "noImpact": 0,
+    "open": 5,
+    "resolved": 1,
+    "reviewed": 0
+  },
+  "events": [
+    {
+      "category": "binding_invalid",
+      "classifier": "1",
+      "detectedAt": "2026-01-01T00:00:42Z",
+      "environments": [],
+      "id": "00000000-0000-4000-8000-000000000056",
+      "new": {
+        "label": "2026-12",
+        "snapshotId": "00000000-0000-4000-8000-000000000055",
+        "url": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6fff0000000000000000d001",
+        "versionId": "6fff0000000000000000d001"
+      },
+      "newVersionWithdrawn": false,
+      "note": "",
+      "notify": true,
+      "old": {
+        "label": "2026-10",
+        "snapshotId": "00000000-0000-4000-8000-000000000029",
+        "url": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+        "versionId": "6ade2d254b2b5b01c587d7ee"
+      },
+      "pricing": {
+        "pricingId": "6ade2d2540e55445692b07c6",
+        "registry": null,
+        "sphere": "danruilop1/resend",
+        "title": "Resend",
+        "url": null
+      },
+      "reasons": [
+        {
+          "code": "source_unavailable",
+          "detail": "version_withdrawn"
+        }
+      ],
+      "rebindingRecommended": true,
+      "resolvedBy": null,
+      "reviewedAt": null,
+      "reviewedBy": null,
+      "state": "open",
+      "subject": "binding",
+      "supersededBy": null,
+      "tasks": [
+        "dailySummary"
+      ],
+      "version": {
+        "id": "00000000-0000-4000-8000-000000000038",
+        "label": "1.1.0"
+      }
+    },
+    {
+      "category": "binding_invalid",
+      "classifier": "1",
+      "detectedAt": "2026-01-01T00:00:41Z",
+      "environments": [],
+      "id": "00000000-0000-4000-8000-000000000066",
+      "new": null,
+      "newVersionWithdrawn": false,
+      "note": "",
+      "notify": true,
+      "old": {
+        "label": "2021",
+        "snapshotId": "00000000-0000-4000-8000-000000000031",
+        "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+        "versionId": "687e4b68102baa50f3a5c7b7"
+      },
+      "pricing": {
+        "pricingId": "6ab0a323697330667ccce9c1",
+        "registry": null,
+        "sphere": "atenea/dropbox",
+        "title": "Dropbox",
+        "url": null
+      },
+      "reasons": [
+        {
+          "code": "source_unavailable",
+          "detail": "family_not_found"
+        }
+      ],
+      "rebindingRecommended": true,
+      "resolvedBy": null,
+      "reviewedAt": null,
+      "reviewedBy": null,
+      "state": "open",
+      "subject": "binding",
+      "supersededBy": null,
+      "tasks": [
+        "export"
+      ],
+      "version": {
+        "id": "00000000-0000-4000-8000-000000000038",
+        "label": "1.1.0"
+      }
+    },
+    {
+      "category": "binding_invalid",
+      "classifier": "1",
+      "detectedAt": "2026-01-01T00:00:41Z",
+      "environments": [],
+      "id": "00000000-0000-4000-8000-000000000054",
+      "new": null,
+      "newVersionWithdrawn": false,
+      "note": "",
+      "notify": true,
+      "old": {
+        "label": "2021",
+        "snapshotId": "00000000-0000-4000-8000-000000000031",
+        "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+        "versionId": "687e4b68102baa50f3a5c7b7"
+      },
+      "pricing": {
+        "pricingId": "6ab0a323697330667ccce9c1",
+        "registry": null,
+        "sphere": "atenea/dropbox",
+        "title": "Dropbox",
+        "url": null
+      },
+      "reasons": [
+        {
+          "code": "source_unavailable",
+          "detail": "family_not_found"
+        }
+      ],
+      "rebindingRecommended": true,
+      "resolvedBy": null,
+      "reviewedAt": null,
+      "reviewedBy": null,
+      "state": "open",
+      "subject": "binding",
+      "supersededBy": null,
+      "tasks": [
+        "export"
+      ],
+      "version": {
+        "id": "00000000-0000-4000-8000-000000000036",
+        "label": "1.0.0"
+      }
+    },
+    {
+      "category": "binding_invalid",
+      "classifier": "1",
+      "detectedAt": "2026-01-01T00:00:37Z",
+      "environments": [],
+      "id": "00000000-0000-4000-8000-000000000051",
+      "new": {
+        "label": "2027-01",
+        "snapshotId": "00000000-0000-4000-8000-000000000050",
+        "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6fff00000000000000000002",
+        "versionId": "6fff00000000000000000002"
+      },
+      "newVersionWithdrawn": false,
+      "note": "",
+      "notify": true,
+      "old": {
+        "label": "2026-10",
+        "snapshotId": "00000000-0000-4000-8000-000000000026",
+        "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+        "versionId": "6ade2d444b2b5b01c587d80d"
+      },
+      "pricing": {
+        "pricingId": "6ade2d4440e55445692b07f1",
+        "registry": null,
+        "sphere": "danruilop1/brevo",
+        "title": "brevo",
+        "url": null
+      },
+      "reasons": [
+        {
+          "code": "plan_removed",
+          "plan": "PROFESSIONAL"
+        }
+      ],
+      "rebindingRecommended": true,
+      "resolvedBy": null,
+      "reviewedAt": null,
+      "reviewedBy": null,
+      "state": "open",
+      "subject": "binding",
+      "supersededBy": null,
+      "tasks": [
+        "dailySummary"
+      ],
+      "version": {
+        "id": "00000000-0000-4000-8000-000000000036",
+        "label": "1.0.0"
+      }
+    },
+    {
+      "category": "values_changed",
+      "classifier": "1",
+      "detectedAt": "2026-01-01T00:00:32Z",
+      "environments": [],
+      "id": "00000000-0000-4000-8000-000000000047",
+      "new": {
+        "label": "2026-11",
+        "snapshotId": "00000000-0000-4000-8000-000000000048",
+        "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6fff00000000000000000001",
+        "versionId": "6fff00000000000000000001"
+      },
+      "newVersionWithdrawn": false,
+      "note": "Seen; re-solving",
+      "notify": true,
+      "old": {
+        "label": "2026-10",
+        "snapshotId": "00000000-0000-4000-8000-000000000026",
+        "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+        "versionId": "6ade2d444b2b5b01c587d80d"
+      },
+      "pricing": {
+        "pricingId": "6ade2d4440e55445692b07f1",
+        "registry": null,
+        "sphere": "danruilop1/brevo",
+        "title": "brevo",
+        "url": null
+      },
+      "reasons": [],
+      "rebindingRecommended": false,
+      "resolvedBy": {
+        "at": "2026-01-01T00:00:58Z",
+        "by": {
+          "username": "fixture-author"
+        },
+        "version": {
+          "id": "00000000-0000-4000-8000-000000000059",
+          "label": "1.2.0"
+        }
+      },
+      "reviewedAt": "2026-01-01T00:00:32Z",
+      "reviewedBy": {
+        "username": "fixture-author"
+      },
+      "state": "resolved",
+      "subject": "binding",
+      "supersededBy": "00000000-0000-4000-8000-000000000051",
+      "tasks": [
+        "dailySummary"
+      ],
+      "version": {
+        "id": "00000000-0000-4000-8000-000000000036",
+        "label": "1.0.0"
+      }
+    }
+  ],
+  "nextBefore": null,
+  "watches": [
+    {
+      "latestLabel": "2026-12",
+      "observedAt": "2026-01-01T00:00:42Z",
+      "pricing": {
+        "pricingId": "6ade2d2540e55445692b07c6",
+        "registry": null,
+        "sphere": "danruilop1/resend",
+        "title": null,
+        "url": null
+      },
+      "status": "active"
+    },
+    {
+      "latestLabel": "1.2.0",
+      "observedAt": "2026-01-01T00:00:42Z",
+      "pricing": {
+        "pricingId": "6ab0a323697330667ccce8cd",
+        "registry": null,
+        "sphere": "sphere/tomatometer",
+        "title": null,
+        "url": null
+      },
+      "status": "active"
+    }
+  ]
+}

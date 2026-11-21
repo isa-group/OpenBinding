@@ -1,0 +1,51 @@
+{
+  "completedAt": null,
+  "composition": {
+    "id": "00000000-0000-4000-8000-000000000046",
+    "name": "TomatoMeter",
+    "slug": "tomatometer"
+  },
+  "confirmationPhrase": null,
+  "confirmedAt": null,
+  "createdAt": "2026-01-01T00:00:57Z",
+  "id": "00000000-0000-4000-8000-000000000065",
+  "mine": true,
+  "organization": {
+    "id": "00000000-0000-4000-8000-000000000045",
+    "name": "Fixtures",
+    "slug": "fixtures"
+  },
+  "origin": "web",
+  "proposedBy": {
+    "username": "fixture-author"
+  },
+  "status": "superseded",
+  "steps": [
+    {
+      "base": {
+        "environmentEtag": "\"00000000000000000000000000000002\"",
+        "inEffect": null
+      },
+      "deferred": [],
+      "dependsOn": [],
+      "description": "Adopt 1.1.0 in Staging",
+      "destructive": false,
+      "error": null,
+      "finishedAt": null,
+      "kind": "adopt",
+      "ordinal": 1,
+      "params": {
+        "environment": "00000000-0000-4000-8000-000000000042",
+        "note": "",
+        "version": "00000000-0000-4000-8000-000000000038"
+      },
+      "preview": null,
+      "result": null,
+      "status": "pending"
+    }
+  ],
+  "summary": "Adopt 1.1.0 in Staging",
+  "supersededBy": "00000000-0000-4000-8000-000000000058",
+  "upstreamEvent": null,
+  "warnings": []
+}

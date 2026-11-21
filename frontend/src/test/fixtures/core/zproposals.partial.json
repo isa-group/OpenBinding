@@ -1,0 +1,212 @@
+{
+  "completedAt": "2026-01-01T00:00:51Z",
+  "composition": {
+    "id": "00000000-0000-4000-8000-000000000046",
+    "name": "TomatoMeter",
+    "slug": "tomatometer"
+  },
+  "confirmationPhrase": null,
+  "confirmedAt": "2026-01-01T00:00:52Z",
+  "createdAt": "2026-01-01T00:00:53Z",
+  "id": "00000000-0000-4000-8000-000000000062",
+  "mine": true,
+  "organization": {
+    "id": "00000000-0000-4000-8000-000000000045",
+    "name": "Fixtures",
+    "slug": "fixtures"
+  },
+  "origin": "web",
+  "proposedBy": {
+    "username": "fixture-author"
+  },
+  "status": "partial",
+  "steps": [
+    {
+      "base": {
+        "contentDigest": "sha256-1b0586fd09d98fe5f483661e121358e16cd84defaab526628be1e3394d6fead0",
+        "headVersionId": "00000000-0000-4000-8000-000000000059",
+        "revisionId": "00000000-0000-4000-8000-000000000060"
+      },
+      "deferred": [],
+      "dependsOn": [],
+      "description": "Seal 1.3.0 from tomatometer-email@5",
+      "destructive": false,
+      "error": null,
+      "finishedAt": "2026-01-01T00:00:54Z",
+      "kind": "seal_derived",
+      "ordinal": 1,
+      "params": {
+        "label": "1.3.0",
+        "offering": {
+          "sphere": "sphere/tomatometer"
+        },
+        "source": {
+          "binding": {
+            "dailySummary": "email.mailgun.foundation",
+            "export": "storage.dropbox.plus",
+            "login": "auth.builtin.local",
+            "quotes": "quotes.zenquotes.free"
+          },
+          "revision": "tomatometer-email@5"
+        }
+      },
+      "preview": {
+        "against": {
+          "environment": {
+            "id": "00000000-0000-4000-8000-000000000040",
+            "name": "Production",
+            "slug": "production"
+          },
+          "version": {
+            "id": "00000000-0000-4000-8000-000000000038",
+            "label": "1.1.0"
+          }
+        },
+        "diff": {
+          "comparison": {
+            "comparable": false,
+            "compilationChanged": true,
+            "problemRefChanged": true,
+            "valueStatus": {
+              "after": "verified",
+              "before": "verified"
+            }
+          },
+          "general": [
+            {
+              "after": "fixtures/problems/tomatometer-email@5",
+              "before": "fixtures/problems/tomatometer-email@3",
+              "path": "problem.ref"
+            },
+            {
+              "after": "sha256-6ccab9f7abe0e0da945439b68fa5d23e242b5a00266a7b6864a44e285d7bd281",
+              "before": "sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c",
+              "path": "problem.compilation"
+            }
+          ],
+          "isEmpty": false,
+          "sections": [
+            {
+              "entries": [
+                {
+                  "changes": [
+                    {
+                      "after": "email.mailgun.foundation",
+                      "before": "email.resend.pro",
+                      "path": "candidate"
+                    },
+                    {
+                      "after": "danruilop1/mailgun",
+                      "before": "danruilop1/resend",
+                      "path": "from.sphere"
+                    },
+                    {
+                      "after": "6ade36454b2b5b01c587db3d",
+                      "before": "6ade2d254b2b5b01c587d7ee",
+                      "path": "from.version"
+                    },
+                    {
+                      "after": "FOUNDATION",
+                      "before": "PRO",
+                      "path": "from.plan"
+                    }
+                  ],
+                  "kind": "changed",
+                  "name": "dailySummary"
+                },
+                {
+                  "changes": [
+                    {
+                      "after": null,
+                      "before": "atenea/dropbox",
+                      "path": "from.sphere"
+                    },
+                    {
+                      "after": null,
+                      "before": "687e4b68102baa50f3a5c7b7",
+                      "path": "from.version"
+                    },
+                    {
+                      "after": null,
+                      "before": "PLUS",
+                      "path": "from.plan"
+                    }
+                  ],
+                  "kind": "changed",
+                  "name": "export"
+                }
+              ],
+              "key": "binding",
+              "label": "Binding"
+            },
+            {
+              "entries": [],
+              "key": "values",
+              "label": "Values"
+            },
+            {
+              "entries": [],
+              "key": "offering",
+              "label": "Offering"
+            }
+          ],
+          "totals": {
+            "added": 0,
+            "changed": 4,
+            "removed": 0
+          }
+        },
+        "document": "syntaxVersion: '1.0'\ncomposition: tomatometer\nversion: 1.3.0\nkind: application\nproblem:\n  ref: fixtures/problems/tomatometer-email@5\n  compilation: sha256-6ccab9f7abe0e0da945439b68fa5d23e242b5a00266a7b6864a44e285d7bd281\nworkflow:\n  seq:\n  - login\n  - and:\n    - dailySummary\n    - export\n  - quotes\nbinding:\n  login:\n    candidate: auth.builtin.local\n  dailySummary:\n    candidate: email.mailgun.foundation\n    from:\n      sphere: danruilop1/mailgun\n      version: 6ade36454b2b5b01c587db3d\n      plan: FOUNDATION\n  export:\n    candidate: storage.dropbox.plus\n  quotes:\n    candidate: quotes.zenquotes.free\nvalues:\n  availability: 0.97755195951\n  latency:\n    value: 515.0\n    unit: ms\n  subscription:\n    value: 44.99\n    unit: USD/month\noffering:\n  sphere: sphere/tomatometer\nevidence:\n  manual: true\n  evaluatedBy: gateway\n  toolchain: bim-core 0.2.0\n"
+      },
+      "result": {
+        "created": true,
+        "version": {
+          "id": "00000000-0000-4000-8000-000000000063",
+          "label": "1.3.0"
+        }
+      },
+      "status": "done"
+    },
+    {
+      "base": {
+        "deferred": [
+          "version"
+        ],
+        "dependsOn": [
+          1
+        ],
+        "environmentEtag": "\"00000000000000000000000000000003\"",
+        "inEffect": "00000000-0000-4000-8000-000000000036"
+      },
+      "deferred": [
+        "version"
+      ],
+      "dependsOn": [
+        1
+      ],
+      "description": "Adopt the version step 1 seals in Production",
+      "destructive": false,
+      "error": {
+        "code": "precondition_failed",
+        "detail": null,
+        "message": "The resource changed since it was read; fetch it again and retry.",
+        "status": 412
+      },
+      "finishedAt": "2026-01-01T00:00:55Z",
+      "kind": "adopt",
+      "ordinal": 2,
+      "params": {
+        "environment": "00000000-0000-4000-8000-000000000040",
+        "note": "Re-solved after Brevo 2026-11",
+        "version": "@s1.version"
+      },
+      "preview": null,
+      "result": null,
+      "status": "failed"
+    }
+  ],
+  "summary": "Seal 1.3.0 from tomatometer-email@5; then Adopt the version step 1 seals in Production",
+  "supersededBy": null,
+  "upstreamEvent": null,
+  "warnings": []
+}
