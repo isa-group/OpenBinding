@@ -44,6 +44,7 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.public_errors import current_correlation_id as correlation_id
@@ -58,7 +59,7 @@ from ....db.models import (
 )
 from ....jobs import clock
 from ....models.errors import api_error
-from ....security.apikeys import permissions_of
+from ....security.apikeys import authenticated_api_key, permissions_of
 from ...shared.application import audit
 from ..domain import proposals as domain
 from . import proposals
@@ -126,13 +127,29 @@ def _error_of(error: HTTPException) -> dict[str, Any]:
     return out
 
 
+async def _refresh(session: AsyncSession, row: Any) -> bool:
+    """Read ``row`` again; ``False`` when it is gone (its composition or organization was deleted meanwhile)."""
+    try:
+        await session.refresh(row)
+    except InvalidRequestError:
+        return False
+    return True
+
+
 async def _reload(context: Context) -> None:
-    """After a rollback (a refused apply), the context's rows are read again; a pre-flight's derivations are dropped,
-    since they hold rows of the rolled-back transaction (a seal step then derives again, held to its digest)."""
+    """After a rollback (a refused apply), the context's rows are read again, the API key that authenticated the
+    request included (a later step may read its grants); a pre-flight's derivations are dropped, since they hold rows of
+    the rolled-back transaction (a seal step then derives again, held to its digest). A row deleted meanwhile stays
+    expired: the next status read finds the proposal gone and the run stops."""
     session = context.session
-    for row in (context.organization, context.composition, context.caller, context.proposal):
+    rows = [context.organization, context.composition, context.caller, context.proposal]
+    key = authenticated_api_key(context.caller) if context.caller is not None else None
+    for candidate in (context.api_key, key):
+        if candidate is not None and candidate in session.sync_session:
+            rows.append(candidate)
+    for row in rows:
         if row is not None:
-            await session.refresh(row)
+            await _refresh(session, row)
     context.derived.clear()
 
 
@@ -288,7 +305,10 @@ async def confirm(
 
 
 async def _finish(session: AsyncSession, row: Proposal, caller: User) -> Proposal:
-    await session.refresh(row)
+    if not await _refresh(session, row):
+        # Deleted with its composition or organization while it ran: what was applied stands, the proposal is gone.
+        await session.rollback()
+        raise proposals.unreadable()
     statuses = list((await session.scalars(select(ProposalStep.status).where(ProposalStep.proposal_id == row.id)
                                            .execution_options(populate_existing=True))).all())
     done = statuses.count("done")

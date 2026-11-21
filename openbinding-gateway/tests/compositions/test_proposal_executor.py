@@ -567,6 +567,42 @@ async def test_a_run_interrupted_after_its_last_outcome_is_closed_completed(api_
     assert (await db_session.get(Proposal, uuid.UUID(made["id"]), populate_existing=True)).status == "completed"
 
 
+async def test_a_refused_step_leaves_the_key_readable_for_a_later_run_step(api_client, registration, db_session, gate, step_kinds, monkeypatch):  # noqa: F811
+    """A refused step rolls the session back; the API key that authenticated the request is read again, so a later
+    seal step from a run (which checks the key's engines) still applies. (On SQLite the key is read in another session,
+    so this holds with or without the reload; the reload is for PostgreSQL's one request session.)"""
+    from test_composition_derive_api import SIMPLE_BINDING, composition_of
+
+    from openbinding_gateway.db.models import Composition, Organization, OrganizationRole, User
+
+    revision_kind, _ = step_kinds
+
+    async def refused(context, step, outputs):
+        from openbinding_gateway.models.errors import api_error
+
+        raise api_error(422, "recipe_invalid", "The recipe no longer applies.")
+
+    monkeypatch.setattr(revision_kind, "apply", refused)
+    headers, linked, base = await composition_of(api_client, registration, db_session, gate)
+    run = await finished_run(db_session, linked, [bim_binding(linked, SIMPLE_BINDING)])
+    await db_session.execute(update(Job).where(Job.id == run.id).values(provenance={"engine": ENGINE}))
+    await db_session.commit()
+    organization = await db_session.get(Organization, linked.organization.id)
+    composition = await db_session.scalar(select(Composition).where(Composition.organization_id == organization.id))
+    user = await db_session.get(User, linked.upload.problem.created_by_id)
+    made = await proposals.create(db_session, organization, user, [
+        proposals.StepRequest("test_revision", {"revision": "simple-seq@1"}),
+        proposals.StepRequest("seal_derived", {"source": {"run": str(run.id)}}),
+    ], role=OrganizationRole.OWNER, composition=composition)
+    key = await make_key(api_client, headers, ["compositions:read", "compositions:write"])
+
+    confirmed = await api_client.post(f"/v1/organizations/{organization.slug}/proposals/{made.id}/confirm",
+                                      headers=key)
+
+    assert confirmed.status_code == 200, confirmed.text
+    assert [s["status"] for s in confirmed.json()["steps"]] == ["failed", "done"]
+
+
 ENGINE = {"namespace": "openbinding", "name": "random-search", "version": "1.0.0", "digest": "sha256-" + "e" * 64}
 
 

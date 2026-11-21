@@ -288,3 +288,33 @@ async def test_a_confirmation_racing_a_composition_delete(pg) -> None:
     outcomes = await asyncio.gather(_confirm(pg, w, proposal_id), remove())
     assert outcomes == ["completed", "composition_in_operation"]
     assert await _adoptions(pg, environment_id) == (1, 1)
+
+
+async def test_an_organization_deleted_while_its_proposal_runs_ends_the_run_with_the_proposals_404(pg, monkeypatch) -> None:
+    """The delete commits between the claim and the adopt step: the step finds the composition gone, the run stops, and
+    confirm answers the proposal's 404 rather than a server error; nothing of the organization is left."""
+    from openbinding_gateway.db.models import Organization, User, UserRole
+    from openbinding_gateway.modules.compositions.application import proposals
+    from openbinding_gateway.routes.organizations import delete_organization
+
+    w, _ = await _operated(pg)
+    async with pg.session() as session:
+        slug = (await session.get(Organization, w.organization_id)).slug
+    proposal_id = await _adopt_proposal(pg, w)
+    real = proposals.ADOPT.apply
+
+    async def after_the_organization_goes(context, step, outputs):
+        async with pg.session() as other:
+            # A platform administrator deletes it (the world's user holds no membership row).
+            admin = User(username=f"a{uuid.uuid4().hex[:8]}", email=f"a{uuid.uuid4().hex[:8]}@example.org",
+                         password_hash="x", plan_cache="FREE", role=UserRole.ADMIN)
+            other.add(admin)
+            await other.flush()
+            await delete_organization(org=slug, user=admin, session=other)
+            await other.commit()
+        return await real(context, step, outputs)
+
+    monkeypatch.setattr(proposals.ADOPT, "apply", after_the_organization_goes)
+    assert await _confirm(pg, w, proposal_id) == "not_found"
+    async with pg.session() as session:
+        assert await session.get(Organization, w.organization_id) is None
