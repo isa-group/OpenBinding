@@ -307,3 +307,41 @@ async def test_an_organization_with_a_sphere_connection_is_deleted_with_it(two_s
 
     assert await _count(reader, OrgConnection, OrgConnection.organization_id.in_(ids)) == 0
     assert await _count(reader, Organization, Organization.id.in_(ids)) == 0
+
+
+async def test_an_organization_with_watches_refs_and_upstream_events_is_deleted(two_sessions):
+    """F6 on the real foreign keys: events, refs and attempts go before the versions, the organization's own watch
+    before its snapshots; a public watch stays."""
+    from _environment_rows import World, _version
+    from _upstream_rows import attempt, event, ref, watch
+    from openbinding_gateway.db.models import CompositionUpstreamEvent, PricingRefAttempt, PricingWatch, PricingWatchRef
+
+    session, reader = two_sessions
+    user = await _user(session)
+    upload = await problem_for(session, user)
+    organization = await session.get(Organization, upload.problem.organization_id)
+    composition = Composition(organization_id=organization.id, slug="tomato", name="Tomato", created_by_id=user.id)
+    session.add(composition)
+    await session.flush()
+    version_id, evaluation_id = await _version(session, composition.id, user.id, 1, "1.0.0")
+    w = World(user.id, organization.id, composition.id, (version_id,), (evaluation_id,), composition.id, version_id,
+              evaluation_id)
+    shared = await watch(session)
+    own = await watch(session, organization_id=organization.id)
+    await ref(session, w, shared)
+    await ref(session, w, own, pinned="c" * 24)
+    await ref(session, w, None, sphere_ref="nobody/nothing")
+    await attempt(session, organization.id)
+    await event(session, w, shared)
+    await event(session, w, own, old="c" * 24)
+    await session.commit()
+    ids, slug = [organization.id], organization.slug
+
+    await delete_organization(org=slug, user=user, session=session)
+    await session.commit()
+
+    assert await _count(reader, Organization, Organization.id.in_(ids)) == 0
+    for model in (CompositionUpstreamEvent, PricingWatchRef, PricingRefAttempt):
+        assert await _count(reader, model, model.organization_id.in_(ids)) == 0
+    assert await _count(reader, PricingWatch, PricingWatch.id == own) == 0
+    assert await _count(reader, PricingWatch, PricingWatch.id == shared) == 1

@@ -30,6 +30,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -852,6 +853,253 @@ class CompositionAdoption(Base):
     )
     note: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class PricingWatch(Base):
+    """One watched upstream pricing source and read scope (F6): mutable system state, shared by every composition
+    that reads it.
+
+    ``watch_key`` (``sphere|<pricing>|<scope>``, ``registry:<alias>|<pricing>|<scope>`` or ``url|<url_key>|<scope>``)
+    is the identity, written by ``watches.watch_for`` (NULLs are distinct in a unique constraint). ``scope_key`` is
+    the snapshot scope of what it reads: ``public``, ``registry:<alias>`` or an organization id, which then sets
+    ``organization_id`` (private keyed reads and URL offerings). The schedule columns move freely; what names the
+    source never changes. ``version_order`` lists every versionId the manifest lists, newest first (membership
+    decides a withdrawn version, so it is never truncated). ``gone_epoch`` grows by one each time the source is
+    confirmed gone (two 404s from requests actually sent, at least one interval apart by the database clock).
+    """
+
+    __tablename__ = "pricing_watches"
+    __table_args__ = (
+        CheckConstraint("source_kind IN ('sphere', 'registry', 'url')", name="source_kind"),
+        CheckConstraint("(source_kind = 'registry') = (registry IS NOT NULL)", name="registry_named"),
+        CheckConstraint("(source_kind = 'url') = (url IS NOT NULL)", name="url_named"),
+        CheckConstraint("source_kind = 'url' OR pricing_id IS NOT NULL", name="pricing_named"),
+        CheckConstraint(
+            "(organization_id IS NULL) = (scope_key = 'public' OR substr(scope_key, 1, 9) = 'registry:')",
+            name="scope_organization",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'active', 'unavailable', 'not_found', 'gone', 'credential_missing', "
+            "'registry_unknown')",
+            name="status",
+        ),
+        CheckConstraint("not_found_count >= 0 AND failures >= 0 AND gone_epoch >= 0", name="counters"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    source_kind: Mapped[str] = mapped_column(String(8), nullable=False)
+    registry: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    pricing_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    url_key: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    scope_key: Mapped[str] = mapped_column(String(60), nullable=False)
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    watch_key: Mapped[str] = mapped_column(String(160), nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
+    manifest_etag: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    last_modified: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    latest_version_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    latest_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("pricing_snapshots.id", ondelete="RESTRICT"), nullable=True
+    )
+    version_order: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    equivalent: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    not_found_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    not_found_since: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    gone_epoch: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    retry_after_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    polled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    observed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_poll_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now(), index=True
+    )
+    classify_after: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class PricingWatchRef(Base):
+    """What one sealed composition version reads upstream (F6): an insert-only index, written in the version's
+    own transaction, so that "every live version that pins pricing X" is a query and no cycle parses a document.
+
+    One row per version x watch x subject x pinned version (``ref_key``). An **unresolved** ref (``watch_id``
+    NULL) names a ``from`` whose family had no stored snapshot at seal; the watcher resolves it later by inserting
+    a second, resolved ref for the same version (``pricing_ref_attempts`` schedules the attempts). Rows are never
+    updated; they go only with their composition or organization.
+    """
+
+    __tablename__ = "pricing_watch_refs"
+    __table_args__ = (
+        UniqueConstraint("version_id", "ref_key", name="uq_pricing_watch_refs_version_key"),
+        CheckConstraint("subject IN ('binding', 'offering')", name="subject"),
+        CheckConstraint("via IN ('from', 'origins', 'offering')", name="via"),
+        CheckConstraint("(subject = 'offering') = (via = 'offering')", name="offering_via"),
+        ForeignKeyConstraint(
+            ["composition_id", "organization_id"],
+            ["compositions.id", "compositions.organization_id"],
+            ondelete="RESTRICT",
+            name="fk_pricing_watch_refs_composition",
+        ),
+        ForeignKeyConstraint(
+            ["version_id", "composition_id"],
+            ["composition_versions.id", "composition_versions.composition_id"],
+            ondelete="RESTRICT",
+            name="fk_pricing_watch_refs_version",
+        ),
+        Index("ix_pricing_watch_refs_unresolved", "version_id",
+              sqlite_where=text("watch_id IS NULL"), postgresql_where=text("watch_id IS NULL")),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    composition_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    version_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    watch_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("pricing_watches.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    subject: Mapped[str] = mapped_column(String(8), nullable=False)
+    via: Mapped[str] = mapped_column(String(8), nullable=False)
+    #: ``owner/slug`` (plus the registry alias) or the canonical URL: for unresolved refs and display.
+    sphere_ref: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    tasks: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    pinned_version_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    pinned_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("pricing_snapshots.id", ondelete="RESTRICT"), nullable=True
+    )
+    #: ``{task: {plan, addOns, billing?, seats?, currency?, candidate?}}`` for a binding; ``{}`` for an offering.
+    selection: Mapped[dict] = mapped_column(JSON, nullable=False)
+    ref_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class PricingRefAttempt(Base):
+    """The persisted schedule of resolving unresolved refs (F6): one row per organization, family and pinned
+    version; exponential back-off by the database clock, deleted when the family is resolved."""
+
+    __tablename__ = "pricing_ref_attempts"
+    __table_args__ = (CheckConstraint("failures >= 0", name="failures_nonnegative"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    sphere_ref: Mapped[str] = mapped_column(String(300), nullable=False)
+    pinned_version_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    attempt_key: Mapped[str] = mapped_column(String(340), nullable=False, unique=True)
+    failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    last_error: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now(), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class CompositionUpstreamEvent(Base):
+    """An upstream event (F6): a classified change of a pricing a live composition version reads. Immutable but
+    for its state, the review note and the review and resolution stamps (``db/triggers``).
+
+    ``open`` -> ``reviewed`` (a member's review, with its note) -> ``resolved`` (only inside ``seal_into``, when a
+    person seals a version that pins the new pricing version or a newer one; or born resolved when such a version
+    already existed). An offering event belongs to the composition (``version_id`` is a reference version) and
+    never resolves. The partial unique indexes are the watcher's idempotency across replicas.
+    """
+
+    __tablename__ = "composition_upstream_events"
+    __table_args__ = (
+        UniqueConstraint("id", "composition_id", name="uq_upstream_events_id_composition"),
+        CheckConstraint("subject IN ('binding', 'offering')", name="subject"),
+        CheckConstraint(
+            "category IN ('no_impact', 'values_changed', 'binding_invalid', 'offering_changed')", name="category",
+        ),
+        CheckConstraint("(subject = 'offering') = (category = 'offering_changed')", name="offering_category"),
+        CheckConstraint("state IN ('open', 'reviewed', 'resolved')", name="state"),
+        CheckConstraint("subject <> 'offering' OR state <> 'resolved'", name="offering_never_resolved"),
+        CheckConstraint("(reviewed_by_id IS NULL) = (reviewed_at IS NULL)", name="reviewed_whole"),
+        CheckConstraint(
+            "(state = 'resolved') = (resolved_by_version_id IS NOT NULL AND resolved_by_id IS NOT NULL "
+            "AND resolved_at IS NOT NULL)",
+            name="resolved_whole",
+        ),
+        CheckConstraint(
+            "(resolved_by_version_id IS NULL) = (resolved_at IS NULL) AND (resolved_by_id IS NULL) = (resolved_at IS NULL)",
+            name="resolved_stamps",
+        ),
+        ForeignKeyConstraint(
+            ["composition_id", "organization_id"],
+            ["compositions.id", "compositions.organization_id"],
+            ondelete="RESTRICT",
+            name="fk_upstream_events_composition",
+        ),
+        ForeignKeyConstraint(
+            ["version_id", "composition_id"],
+            ["composition_versions.id", "composition_versions.composition_id"],
+            ondelete="RESTRICT",
+            name="fk_upstream_events_version",
+        ),
+        ForeignKeyConstraint(
+            ["resolved_by_version_id", "composition_id"],
+            ["composition_versions.id", "composition_versions.composition_id"],
+            ondelete="RESTRICT",
+            name="fk_upstream_events_resolved_by_version",
+        ),
+        Index("uq_upstream_events_binding", "version_id", "watch_id", "old_ref", "new_ref", unique=True,
+              sqlite_where=text("subject = 'binding'"), postgresql_where=text("subject = 'binding'")),
+        Index("uq_upstream_events_offering", "composition_id", "watch_id", "new_ref", unique=True,
+              sqlite_where=text("subject = 'offering'"), postgresql_where=text("subject = 'offering'")),
+        Index("ix_upstream_events_composition_state", "composition_id", "state"),
+        Index("ix_upstream_events_version_state", "version_id", "state"),
+        Index("ix_upstream_events_watch_new", "watch_id", "new_ref"),
+        Index("ix_upstream_events_organization_detected", "organization_id", "detected_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    composition_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    version_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    watch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pricing_watches.id", ondelete="RESTRICT"), nullable=False)
+    subject: Mapped[str] = mapped_column(String(8), nullable=False)
+    tasks: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    category: Mapped[str] = mapped_column(String(20), nullable=False)
+    reasons: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    notify: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    old_ref: Mapped[str] = mapped_column(String(80), nullable=False)
+    new_ref: Mapped[str] = mapped_column(String(80), nullable=False)
+    old_version_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    new_version_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    old_label: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    new_label: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    old_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("pricing_snapshots.id", ondelete="RESTRICT"), nullable=True
+    )
+    new_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("pricing_snapshots.id", ondelete="RESTRICT"), nullable=True
+    )
+    #: ``openbinding/upstream-event-diff@1`` (at most 64 KiB).
+    diff: Mapped[dict] = mapped_column(JSON, nullable=False)
+    classifier: Mapped[str] = mapped_column(String(16), nullable=False)
+    state: Mapped[str] = mapped_column(String(10), nullable=False, default="open", server_default="open")
+    note: Mapped[str] = mapped_column(String(1000), nullable=False, default="", server_default="")
+    reviewed_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_by_version_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True)
+    resolved_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    detected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
     )
 

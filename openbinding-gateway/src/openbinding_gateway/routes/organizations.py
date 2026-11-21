@@ -28,6 +28,9 @@ from ..collaboration import (
     require_role,
 )
 from ..db.models import (
+    PricingRefAttempt,
+    PricingWatch,
+    PricingWatchRef,
     Blob,
     AuditEvent,
     BindingCase,
@@ -39,6 +42,7 @@ from ..db.models import (
     CompositionEnvironmentKey,
     CompositionEvaluation,
     CompositionFollow,
+    CompositionUpstreamEvent,
     CompositionVersion,
     Job,
     Organization,
@@ -714,6 +718,9 @@ async def _lock_subtree(session: AsyncSession, unique_descendants: list[uuid.UUI
         (BindingCase, BindingCase.organization_id.in_(unique_descendants)),
         (BindingCaseRevision, BindingCaseRevision.binding_case_id.in_(cases)),
         (ProblemCompilation, ProblemCompilation.revision_id.in_(revisions)),
+        # F6: the subtree's own watches (a watcher cycle claims a watch, then shares its composition, in separate
+        # transactions; an event's insert shares the composition before the watch, as this order does).
+        (PricingWatch, PricingWatch.organization_id.in_(unique_descendants)),
         (Organization, Organization.id.in_(unique_descendants)),
     ):
         await session.execute(select(model.id).where(condition).order_by(model.id).with_for_update())
@@ -778,6 +785,11 @@ async def _delete_subtree(
             delete(CompositionAdoption).where(CompositionAdoption.environment_id.in_(environments))
         )
         await session.execute(delete(CompositionEnvironment).where(CompositionEnvironment.organization_id == oid))
+        # F6: upstream events, then the watch references, then the attempts to resolve them (they name versions,
+        # watches and snapshots with RESTRICT). Shared watches stay; the organization's own go with its snapshots.
+        await session.execute(delete(CompositionUpstreamEvent).where(CompositionUpstreamEvent.organization_id == oid))
+        await session.execute(delete(PricingWatchRef).where(PricingWatchRef.organization_id == oid))
+        await session.execute(delete(PricingRefAttempt).where(PricingRefAttempt.organization_id == oid))
         await session.execute(delete(CompositionFollow).where(CompositionFollow.composition_id.in_(held)))
         versions = select(CompositionVersion.id).where(CompositionVersion.composition_id.in_(held))
         await session.execute(delete(CompositionDerivation).where(CompositionDerivation.version_id.in_(versions)))
@@ -794,6 +806,8 @@ async def _delete_subtree(
         await session.execute(delete(ProblemCompilation).where(ProblemCompilation.revision_id.in_(revisions)))
         await session.execute(delete(BindingCaseRevision).where(BindingCaseRevision.binding_case_id.in_(cases)))
         await session.execute(delete(BindingCase).where(BindingCase.organization_id == oid))
+        # The organization's own watches (private keyed reads, URL offerings), which point at its snapshots.
+        await session.execute(delete(PricingWatch).where(PricingWatch.organization_id == oid))
         # The organization's own pricing snapshots (private SPHERE versions, URLs), once nothing above refers to
         # them; shared (public, registry) snapshots are never deleted. Their bytes follow the blob store's rule.
         await session.execute(delete(PricingSnapshot).where(PricingSnapshot.organization_id == oid))

@@ -191,3 +191,48 @@ async def test_no_run_can_be_added_while_the_deletion_holds_the_organization(pg)
     async with pg.session() as check:
         assert await check.get(Organization, personal_id) is None
         assert await check.scalar(select(func.count()).select_from(Job).where(Job.organization_id == personal_id)) == 0
+
+
+async def test_an_account_whose_personal_organization_watches_pricings_is_deleted_cleanly(pg) -> None:
+    """F6: a personal organization's watch references, its own watch, an attempt and an upstream event go with it."""
+    from sqlalchemy import func, select
+
+    from _environment_rows import World, _version
+    from _upstream_rows import attempt, event, ref, watch
+    from openbinding_gateway.db.models import (
+        Composition,
+        CompositionUpstreamEvent,
+        PricingRefAttempt,
+        PricingWatch,
+        PricingWatchRef,
+    )
+    from openbinding_gateway.routes.organizations import delete_personal_organization
+
+    async with pg.session() as session:
+        user = await a_user(session)
+        personal = await ensure_personal_organization(session, user)
+        composition = Composition(organization_id=personal.id, slug="tomato", name="Tomato", created_by_id=user.id)
+        session.add(composition)
+        await session.flush()
+        version_id, evaluation_id = await _version(session, composition.id, user.id, 1, "1.0.0")
+        w = World(user.id, personal.id, composition.id, (version_id,), (evaluation_id,), composition.id, version_id,
+                  evaluation_id)
+        shared = await watch(session)
+        own = await watch(session, organization_id=personal.id)
+        await ref(session, w, shared)
+        await ref(session, w, own, pinned="c" * 24)
+        await attempt(session, personal.id)
+        await event(session, w, shared)
+        await session.commit()
+        personal_id, user_id = personal.id, user.id
+
+        await session.execute(update(User).where(User.id == user_id).values(deleted_at=utcnow()))
+        await delete_personal_organization(session, await session.get(Organization, personal_id))
+        await session.commit()
+
+        assert await session.get(Organization, personal_id) is None
+        for model in (CompositionUpstreamEvent, PricingWatchRef, PricingRefAttempt):
+            assert await session.scalar(
+                select(func.count()).select_from(model).where(model.organization_id == personal_id)) == 0, model
+        assert await session.get(PricingWatch, own) is None
+        assert await session.get(PricingWatch, shared) is not None

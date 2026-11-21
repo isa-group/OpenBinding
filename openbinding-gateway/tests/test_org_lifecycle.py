@@ -269,3 +269,44 @@ async def test_deleting_an_organization_takes_its_composition_environments(
         db_session, CompositionEnvironmentKey, CompositionEnvironmentKey.environment_id == environment_id
     ) == 0
     assert await _count(db_session, CompositionVersion, CompositionVersion.composition_id == uuid.UUID(body["id"])) == 0
+
+
+async def test_deleting_an_organization_takes_its_watches_refs_and_upstream_events(
+    api_client, db_session, registration, study_gate  # noqa: F811
+) -> None:
+    """F6: events, refs and attempts go before the versions they name; the organization's own watches go before its
+    snapshots; a shared (public) watch stays for everyone."""
+    from _environment_rows import _version
+    from _upstream_rows import World, attempt, event, ref, watch
+    from openbinding_gateway.db.models import CompositionUpstreamEvent, PricingRefAttempt, PricingWatch, PricingWatchRef
+
+    headers = await _signed_in(api_client, registration, study_gate)
+    created = await api_client.post("/v1/organizations", headers=headers,
+                                    json={"slug": f"o-{uuid.uuid4().hex[:8]}", "name": "O"})
+    org = created.json()["slug"]
+    body = (await api_client.post(
+        f"/v1/organizations/{org}/compositions", headers=headers, json={"slug": "tomato", "name": "Tomato"}
+    )).json()
+    organization_id, composition_id = uuid.UUID(body["organization"]["id"]), uuid.UUID(body["id"])
+    user_id = await _user_id(api_client, headers)
+    version_id, evaluation_id = await _version(db_session, composition_id, user_id, 1, "1.0.0")
+    w = World(user_id, organization_id, composition_id, (version_id,), (evaluation_id,), composition_id, version_id,
+              evaluation_id)
+    shared = await watch(db_session)
+    own = await watch(db_session, organization_id=organization_id)
+    await ref(db_session, w, shared)
+    await ref(db_session, w, own, pinned="c" * 24)
+    await ref(db_session, w, None, sphere_ref="nobody/nothing")
+    await attempt(db_session, organization_id)
+    await event(db_session, w, shared)
+    await db_session.commit()
+
+    deleted = await api_client.delete(f"/v1/organizations/{org}", headers=headers)
+
+    assert deleted.status_code == 204, deleted.text
+    db_session.expire_all()
+    assert await _count(db_session, CompositionUpstreamEvent, CompositionUpstreamEvent.organization_id == organization_id) == 0
+    assert await _count(db_session, PricingWatchRef, PricingWatchRef.organization_id == organization_id) == 0
+    assert await _count(db_session, PricingRefAttempt, PricingRefAttempt.organization_id == organization_id) == 0
+    assert await _count(db_session, PricingWatch, PricingWatch.id == own) == 0
+    assert await _count(db_session, PricingWatch, PricingWatch.id == shared) == 1
