@@ -6,7 +6,7 @@ each and sends each an ``OrganizationInvitation`` notification. Whoever holds a 
 joins (no credential needed) and joins as MEMBER; an unknown, expired, revoked or used up code is the same 404,
 and a member joining again is 409 ``already_member``. A non-member gets 404 on the organization's routes.
 
-User search answers at most twenty users whose username holds four characters or more: id, username and avatar,
+User search answers at most twenty users whose username holds four characters or more: id, username, display name and avatar,
 never an email. The email/token invitations stay until B8.
 """
 
@@ -44,7 +44,7 @@ async def test_a_code_joins_whoever_holds_it_as_member(api_client, registration,
     assert created.status_code == 201, created.text
     invitation = created.json()
     assert invitation["use_count"] == 0 and invitation["max_uses"] == 2
-    assert invitation["created_by"] == {"id": owner_account["id"], "username": owner_account["username"], "avatar": None}
+    assert invitation["created_by"] == {"id": owner_account["id"], "username": owner_account["username"], "display_name": None, "avatar": None}
     assert invitation["expires_at"] is not None and len(invitation["code"]) == 16
     preview = await api_client.get(f"/v1/invitations/{invitation['code']}/preview")
     assert preview.status_code == 200, preview.text
@@ -155,6 +155,6 @@ async def test_user_search_names_users_without_their_email(api_client, registrat
 
     assert found.status_code == 200, found.text
     assert [row["username"] for row in found.json()] == [f"zed{tag}a", f"zed{tag}b"]
-    assert found.json()[0] == {"id": found_account["id"], "username": f"zed{tag}a", "avatar": None}
+    assert found.json()[0] == {"id": found_account["id"], "username": f"zed{tag}a", "display_name": None, "avatar": None}
     assert "@" not in found.text
     assert short.status_code == 422 and anonymous.status_code == 401

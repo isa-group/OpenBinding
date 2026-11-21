@@ -262,7 +262,12 @@ export default function FloatingMorphHeader({ navItems }: Props) {
                   aria-expanded={isUserMenuOpen}
                   className="cursor-pointer overflow-hidden rounded-full border border-black/15 bg-white"
                 >
-                  <UserAvatar username={user.username} size={40} />
+                  <UserAvatar
+                    username={user.username}
+                    displayName={user.display_name}
+                    avatar={user.avatar}
+                    size={40}
+                  />
                 </button>
 
                 <div
@@ -398,7 +403,12 @@ export default function FloatingMorphHeader({ navItems }: Props) {
             >
               <div className="mb-3 flex items-center gap-3">
                 <div className="overflow-hidden rounded-full border border-black/10 bg-white">
-                  <UserAvatar username={user.username} size={40} />
+                  <UserAvatar
+                    username={user.username}
+                    displayName={user.display_name}
+                    avatar={user.avatar}
+                    size={40}
+                  />
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-900">{user.username}</p>

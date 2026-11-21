@@ -100,6 +100,7 @@ const ME = {
   created_at: '2026-01-10T00:00:00Z',
   email_verified: true,
   institutional_email: true,
+  password_enabled: true,
 };
 
 /** The accounts of the administration screens: the ids the audit and overview fixtures point at, on example.org like the rest of the gallery. */

@@ -3,7 +3,8 @@
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's sections (sections.ts); the section is in the address (`?section=`), and the nav entries are links
 // that the dirty guard can hold back; the phone selector is a labelled disclosure that closes on Escape; each section reads
-// and writes its own data through the gateway instead of SPHERE's settings blob in the session.
+// and writes its own data through the gateway instead of SPHERE's settings blob in the session. As in SPHERE, in SCORETech
+// Identity mode Account is IdentityAccountSection and the local email and password are not shown.
 
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Helmet } from 'react-helmet-async';
@@ -13,16 +14,20 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { fadeInUp, transitionDefault } from '../../../core/utils/motion-variants';
 import AccountSection from '../../components/AccountSection';
 import AppearanceSection from '../../components/AppearanceSection';
+import IdentityAccountSection from '../../components/IdentityAccountSection';
+import { useAuthConfig } from '../../../auth/contexts/authConfigContext';
 import BetaFeaturesSection from '../../components/BetaFeaturesSection';
 import DangerZoneSection from '../../components/DangerZoneSection';
 import NotificationsSection from '../../components/NotificationsSection';
 import PlanSection from '../../components/PlanSection';
+import PublicProfileSection from '../../components/PublicProfileSection';
 import UnsavedChangesDialog from '../../components/UnsavedChangesDialog';
 import { SETTINGS_SECTIONS, sectionOf, settingsPath, type SettingsSectionId } from './sections';
 
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const centralized = useAuthConfig().provider === 'scoretech';
   const activeSection = sectionOf(searchParams.get('section'));
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [pendingSection, setPendingSection] = useState<SettingsSectionId | null>(null);
@@ -50,6 +55,7 @@ export default function SettingsPage() {
   };
 
   const accountDirtyChange = useCallback((d: boolean) => markDirty('account', d), [markDirty]);
+  const profileDirtyChange = useCallback((d: boolean) => markDirty('profile', d), [markDirty]);
   const notificationsDirtyChange = useCallback(
     (d: boolean) => markDirty('notifications', d),
     [markDirty]
@@ -193,8 +199,14 @@ export default function SettingsPage() {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
               >
-                {activeSection === 'account' && (
-                  <AccountSection onDirtyChange={accountDirtyChange} />
+                {activeSection === 'account' &&
+                  (centralized ? (
+                    <IdentityAccountSection />
+                  ) : (
+                    <AccountSection onDirtyChange={accountDirtyChange} />
+                  ))}
+                {activeSection === 'profile' && (
+                  <PublicProfileSection onDirtyChange={profileDirtyChange} />
                 )}
                 {activeSection === 'notifications' && (
                   <NotificationsSection onDirtyChange={notificationsDirtyChange} />

@@ -79,11 +79,12 @@ def requires_provider(mode: Provider, *, browser: bool = False):
     return dependency
 
 
-def managed_by_identity(settings: Settings) -> None:
-    """409 ``managed_by_identity`` for a change of email or password in ``scoretech`` mode."""
+def managed_by_identity(settings: Settings, what: str = "Your email and sign-in are") -> None:
+    """409 ``managed_by_identity`` for a change, in ``scoretech`` mode, of what Identity owns: the email and the
+    password, the display name and the avatar."""
     if settings.auth_provider == "scoretech":
         raise api_error(
             status.HTTP_409_CONFLICT,
             "managed_by_identity",
-            "Your email and sign-in are managed in your SCORETech Identity account.",
+            f"{what} managed in your SCORETech Identity account.",
         )

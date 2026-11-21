@@ -18,8 +18,10 @@ const account = (n: number, username: string, role: 'user' | 'admin', plan: stri
   created_at: '2026-03-02T00:00:00Z',
   email_verified: false,
   institutional_email: false,
+  password_enabled: true,
   contract_pending: false,
   api_key_count: 1,
+  active_sessions: 0,
   ...extra,
 });
 
@@ -28,6 +30,16 @@ export const MARIA = account(1, 'maria.santos', 'user', 'RESEARCH', {
   api_key_count: 2,
   email_verified: true,
   institutional_email: true,
+  password_enabled: false,
+  identity: {
+    provider: 'scoretech',
+    issuer: 'https://identity.example.invalid/identity/auth/realms/score',
+    subject: '6f1c2a9e-0b7d-4e55-9a51-2f3c4d5e6a7b',
+    linked_at: '2026-03-02T00:00:00Z',
+  },
+  last_identity_refresh_at: '2026-11-19T08:15:00Z',
+  active_sessions: 2,
+  research_basis: 'email',
 });
 export const SAM = account(2, 'sam.okafor', 'user', 'BASIC', { created_at: '2026-06-15T00:00:00Z' });
 export const JORDAN = account(3, 'jordan.lee', 'user', 'BASIC', { contract_pending: true, api_key_count: 0, created_at: '2026-07-01T00:00:00Z' });

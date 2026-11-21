@@ -31,6 +31,7 @@ from ..models.accounts import (
     UserProfile,
 )
 from ..core.like import LIKE_ESCAPE, like_contains
+from ..models.avatars import avatar_of, stored_avatar
 from ..models.platform import UserRef
 from ..models.errors import (
     CONFLICT_RESPONSE,
@@ -82,6 +83,9 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
         created_at=user.created_at,
         email_verified=user.email_verified,
         institutional_email=institutional_email(user),
+        display_name=user.display_name,
+        avatar=avatar_of(user.avatar),
+        password_enabled=user.password_enabled,
         api_keys_suspended_at=owner_may_use_keys(user, settings=get_settings()).suspended_at,
     )
 
@@ -157,7 +161,7 @@ async def search_users(
             User.id != user.id,
         ).order_by(User.username).limit(USER_SEARCH_LIMIT)
     )).all()
-    return [UserRef(id=row.id, username=row.username) for row in rows]
+    return [UserRef.of(row) for row in rows]
 
 
 @router.get(
@@ -180,7 +184,7 @@ async def read_own_profile(
     "/me",
     response_model=UserProfile,
     operation_id="updateOwnProfile",
-    summary="Change your email or password",
+    summary="Change your email, password, display name or avatar",
     responses={
         **revision.EDIT_RESPONSES,
         401: UNAUTHORIZED_RESPONSE,
@@ -197,22 +201,28 @@ async def update_own_profile(
 ) -> UserProfile:
     """Change what the account holder is allowed to change.
 
-    Both changes need the current password. Email is included in that because
-    the email address is one of the two ways to sign in, so changing it is a
-    change of credential, not of contact details.
+    The email and the password need the current password. Email is included in
+    that because the email address is one of the two ways to sign in, so
+    changing it is a change of credential, not of contact details. The display
+    name and the avatar (local mode) need no password: they are what others see,
+    not a way in. In SCORETech Identity mode all four are Identity's (409).
 
     The revision is the account row's, shared with the notification preferences.
     """
-    if request.new_password is not None or request.email is not None:
+    profile = {"display_name", "avatar"} & request.model_fields_set
+    credentials = request.new_password is not None or request.email is not None
+    if credentials:
         managed_by_identity(get_settings())
-    if request.new_password is None and request.email is None:
+    if profile:
+        managed_by_identity(get_settings(), "Your display name and avatar are")
+    if not credentials and not profile:
         # A read: the tag is still checked, but nothing is stored and the revision stays.
         revision.precondition(user, if_match)
         revision.set_etag(response, user)
         return await profile_of(session, user)
 
-    if not request.current_password or not verify_password(
-        request.current_password, user.password_hash
+    if credentials and (
+        not request.current_password or not verify_password(request.current_password, user.password_hash)
     ):
         raise api_error(
             status.HTTP_401_UNAUTHORIZED,
@@ -221,6 +231,11 @@ async def update_own_profile(
         )
 
     await revision.guard(session, user, if_match)
+
+    if "display_name" in profile:
+        user.display_name = request.display_name
+    if "avatar" in profile:
+        user.avatar = stored_avatar(request.avatar)
 
     if request.email is not None:
         email = request.email.lower()

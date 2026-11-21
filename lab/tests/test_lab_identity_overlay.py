@@ -71,9 +71,24 @@ def test_the_walk_cleans_up_always_and_reads_the_lab_admin_from_the_container():
     assert "trap cleanup EXIT" in walk
     assert "KC_BOOTSTRAP_ADMIN_PASSWORD" in walk and "docker inspect" in walk
     assert "--volumes" in walk and "lab/identity/down.sh" in walk
-    for phase in ("--grep @bootstrap", "--grep @screens", "--grep @signup", "--grep @granted", "--grep @rollback"):
+    for phase in (
+        "--grep @bootstrap", "--grep @screens", "--grep @signup", "--grep @granted", "--grep @account", "--grep @orphan",
+        "--grep @rollback",
+    ):
         assert phase in walk, phase
     assert "OB_AUTH_PROVIDER=local" in walk
+
+
+def test_the_orphan_phase_runs_after_the_post_checks_and_ages_only_the_member():
+    """F5-C: `@account`, then member's last renewal 31 days back, then `@orphan` (which deletes member), all after the
+    psql post-checks that read member's sessions and before the rollback."""
+    walk = WALK.read_text(encoding="utf-8")
+    order = [walk.index(marker) for marker in (
+        "== post-checks", "--grep @account", "interval '31 days' where username = '${MEMBER}'", "--grep @orphan",
+        "MEMBER_IDENTITY_LEFT", "== rollback",
+    )]
+    assert order == sorted(order)
+    assert "@account|@orphan" in walk  # kept out of the main phase
 
 
 def test_the_fixture_client_mirrors_a_managed_application():
@@ -91,3 +106,27 @@ def test_the_fixture_client_mirrors_a_managed_application():
         "firstName: 'Walk'",
     ):
         assert needle in fixtures, needle
+
+
+def test_f4s_operation_walk_runs_behind_identity_after_the_seed():
+    """F5-C C8: three fixture users sign in once (`@operation-setup`), lab-main's seeded memberships move to them, and
+    e2e/live/13-operation.spec.ts runs unchanged from e2e-identity, signing in through Identity, reading the lab Mailpit
+    through its read-only location and the feed consumer on a loopback port only this overlay publishes."""
+    services = overlay()["services"]
+    assert services["feed-consumer"] == {"ports": ["127.0.0.1:18197:8090"]}
+    env = services["e2e-identity"]["environment"]
+    assert env["LAB_SIGN_IN"] == "identity"
+    assert env["LAB_MAILPIT_URL"] == "http://localhost:${DEMO_LAB_PORT:-18198}/mailpit"
+    assert env["LAB_FEED_CONSUMER_URL"] == "http://localhost:18197"
+    assert env["DEMO_SEED_PASSWORD"] == "${DEMO_SEED_PASSWORD:-}"
+    walk = WALK.read_text(encoding="utf-8")
+    order = [walk.index(marker) for marker in (
+        "run --rm --no-deps seed", "--grep @operation-setup", "OPERATION_MEMBERSHIPS_MOVED",
+        "-c playwright.live.config.ts --project=desktop", "COMBINED_MEM_USED_MIB", "phase main --grep-invert",
+    )]
+    assert order == sorted(order)
+    assert "@bootstrap|@operation-setup|" in walk  # kept out of the main phase
+    for role in ("opowner", "opmember", "opviewer"):
+        assert f"$(email {role})" in walk, role  # deleted in the cleanup
+        assert f'"{role}"' in walk, role  # created with the fixtures
+        assert f"('lab-{role[2:]}', '{role}')" in walk, role

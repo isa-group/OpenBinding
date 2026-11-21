@@ -46,6 +46,7 @@ const alice: UserProfile = {
   created_at: '2026-01-01T00:00:00Z',
   email_verified: false,
   institutional_email: false,
+  password_enabled: true,
 };
 
 // The first render of a file is slow on a busy machine.

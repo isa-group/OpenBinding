@@ -49,6 +49,7 @@ const lucia = {
   created_at: '2026-03-02T00:00:00Z',
   email_verified: true,
   institutional_email: true,
+  password_enabled: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
@@ -95,6 +96,13 @@ interface Member {
   email: string;
   role: Role;
   created_at: string;
+  display_name?: string | null;
+  avatar?: {
+    kind: string;
+    assetId?: string;
+    backgroundColor?: string;
+    foregroundColor?: string;
+  } | null;
 }
 
 const person = (
@@ -116,7 +124,17 @@ const person = (
 const membersOf = (): Record<string, Member[]> => ({
   'isa-demo': [
     person(isaDemo, 'lucia.vega', 'user-1', 'OWNER'),
-    person(isaDemo, 'marco', 'user-marco', 'MEMBER', '2026-04-12T00:00:00Z'),
+    {
+      // A SCORETech Identity account: its display name and avatar (Identity's descriptor, colours as hex).
+      ...person(isaDemo, 'marco', 'user-marco', 'MEMBER', '2026-04-12T00:00:00Z'),
+      display_name: 'Marco Díaz',
+      avatar: {
+        kind: 'icon',
+        assetId: 'leaf',
+        backgroundColor: '#212529',
+        foregroundColor: '#ffffff',
+      },
+    },
     person(isaDemo, 'sofia', 'user-sofia', 'VIEWER', '2026-05-20T00:00:00Z'),
   ],
   'qos-lab': [person(qosLab, 'marco', 'user-marco', 'ADMIN', '2026-04-15T00:00:00Z')],
@@ -745,6 +763,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('main');
       const members = main.getByRole('region', { name: 'Members' });
       await expect(members.getByText('@marco')).toBeVisible();
+      await expect(members.getByText('Marco Díaz')).toBeVisible();
+      await expect(
+        members
+          .getByRole('listitem')
+          .filter({ hasText: '@marco' })
+          .locator('[data-avatar-kind="icon"]')
+      ).toBeVisible();
       await capture(page, testInfo, `members-${name}`);
       if (isMobile) {
         expect(critical).toEqual([]);

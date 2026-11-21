@@ -50,7 +50,8 @@ export default function EditorAccountMenu() {
     void signOut().then(() => navigate('/'));
   };
 
-  const displayName = user?.username ?? '';
+  const username = user?.username ?? '';
+  const displayName = user?.display_name || username;
 
   return (
     <div ref={containerRef} className="relative ml-1 border-l border-white/10 pl-2">
@@ -63,7 +64,12 @@ export default function EditorAccountMenu() {
         className="flex cursor-pointer items-center gap-2 rounded-lg py-1 pr-2 pl-1 text-left transition-colors hover:bg-white/10"
       >
         <span className="rounded-full ring-1 ring-white/20">
-          <UserAvatar username={displayName} size={28} />
+          <UserAvatar
+            username={username}
+            displayName={user?.display_name}
+            avatar={user?.avatar}
+            size={28}
+          />
         </span>
         <span className="hidden max-w-28 truncate text-xs font-medium text-white/80 xl:block">
           {displayName}

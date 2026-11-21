@@ -10,6 +10,7 @@ from typing import Any, Literal, Mapping, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .avatars import AvatarDescriptor, avatar_of
 from ..security.redaction import (
     redact_options,
     redact_original_request,
@@ -152,6 +153,8 @@ class MemberView(BaseModel):
     organization_id: uuid.UUID
     username: Optional[str] = None
     email: Optional[str] = None
+    display_name: Optional[str] = Field(default=None, description="The member's display name; null if none.")
+    avatar: Optional[AvatarDescriptor] = Field(default=None, description="The member's avatar; null draws the initials.")
     created_at: datetime
 
 
@@ -197,7 +200,19 @@ class UserRef(BaseModel):
 
     id: uuid.UUID
     username: str
-    avatar: Optional[str] = Field(default=None, description="The user's avatar URL; none yet (Identity, F5).")
+    display_name: Optional[str] = Field(
+        default=None,
+        description="The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.",
+    )
+    avatar: Optional[AvatarDescriptor] = Field(
+        default=None,
+        description="The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.",
+    )
+
+    @classmethod
+    def of(cls, user: Any) -> "UserRef":
+        """The reference of a ``users`` row: its id, username, display name and avatar."""
+        return cls(id=user.id, username=user.username, display_name=user.display_name, avatar=avatar_of(user.avatar))
 
 
 class CodeInvitationView(BaseModel):

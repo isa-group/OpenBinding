@@ -49,6 +49,7 @@ const lucia = {
   created_at: '2026-03-02T00:00:00Z',
   email_verified: true,
   institutional_email: true,
+  password_enabled: true,
 };
 const marco = {
   ...lucia,
@@ -57,6 +58,7 @@ const marco = {
   plan: 'FREE',
   email_verified: false,
   institutional_email: false,
+  password_enabled: true,
 };
 const iker = {
   ...marco,
@@ -65,7 +67,18 @@ const iker = {
   role: 'admin',
   plan: 'LAB',
 };
-type Account = typeof lucia;
+/** An account that signs in with SCORETech Identity only: no password of its own. */
+const sofia = {
+  ...lucia,
+  username: 'sofia.ruiz',
+  email: 'sofia@example.org',
+  password_enabled: false,
+};
+type Account = typeof lucia & {
+  display_name?: string | null;
+  avatar?: unknown;
+  api_keys_suspended_at?: string | null;
+};
 
 /** What the gateway reports for the RESEARCH plan of the pricing 0.2.0: the plan, its features and its limits, with no consumption. */
 const researchUsage = () => ({
@@ -237,7 +250,8 @@ const methodOf = (route: Route) => route.request().method();
 async function mockApi(
   page: Page,
   account: Account,
-  overrides: Partial<State> = {}
+  overrides: Partial<State> = {},
+  provider: 'local' | 'scoretech' = 'local'
 ): Promise<State> {
   const state: State = {
     account,
@@ -267,7 +281,7 @@ async function mockApi(
   await page.route(`${API}/**`, route =>
     route.fulfill({ status: 404, json: { detail: 'not mocked' } })
   );
-  await authConfig(page);
+  await authConfig(page, provider);
   await page.route(`${API}/health**`, json({ status: 'ok' }));
   await signedIn(page, 's3-access');
   await page.route(`${API}/v1/plans/pricing`, json(PLANS_PRICING_FIXTURE));
@@ -294,8 +308,15 @@ async function mockApi(
     const method = methodOf(route);
     if (method === 'PATCH') {
       if (state.refuse.patch) return state.refuse.patch(route);
-      const body = route.request().postDataJSON() as { email?: string };
+      const body = route.request().postDataJSON() as {
+        email?: string;
+        display_name?: string;
+        avatar?: unknown;
+      };
       if (body.email) state.account = { ...state.account, email: body.email };
+      if ('display_name' in body)
+        state.account = { ...state.account, display_name: body.display_name || null };
+      if ('avatar' in body) state.account = { ...state.account, avatar: body.avatar };
       return json(state.account)(route);
     }
     if (method === 'DELETE') return (state.refuse.delete ?? noContent)(route);
@@ -404,6 +425,7 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
 
 const SECTIONS: Array<[string, string]> = [
   ['Account', '/me/settings'],
+  ['Public profile', '/me/settings?section=profile'],
   ['Notifications', '/me/settings?section=notifications'],
   ['Plan', '/me/settings?section=plan'],
   ['Appearance', '/me/settings?section=appearance'],
@@ -563,6 +585,129 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
+    test('acct-settings in SCORETech Identity mode: the SCORETech account, no local credentials, deletion without a password', async ({
+      page,
+    }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(page, sofia, {}, 'scoretech');
+      await page.goto('/me/settings');
+      const main = page.locator('main');
+      await expect(
+        main.getByRole('heading', { level: 2, name: 'Your SCORETech account' })
+      ).toBeVisible();
+      await expect(main.getByLabel('Email address')).toHaveCount(0);
+      await expect(main.getByLabel('New password')).toHaveCount(0);
+      const profile = main.getByRole('link', { name: /Open my SCORETech profile/ });
+      await expect(profile).toHaveAttribute('target', '_blank');
+      await expect(profile).toHaveAttribute('rel', 'noopener noreferrer');
+      const href = new URL((await profile.getAttribute('href')) ?? '');
+      expect(href.hash).toBe('#public-profile');
+      expect(href.searchParams.get('return_to')).toBe(
+        `${new URL(page.url()).origin}/me/settings?section=account`
+      );
+      await expectSettingsNav(page, isMobile, 'Account');
+      await capture(page, testInfo, `settings-${name}-identity-account`);
+
+      await page.goto('/me/settings?section=danger');
+      await expect(
+        main.getByRole('heading', { level: 3, name: 'Delete OpenBinding account' })
+      ).toBeVisible();
+      await expect(main.getByText(/Your SCORETech Identity account and your access/)).toBeVisible();
+      await main.getByRole('button', { name: 'Delete my account' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Confirm deletion' });
+      await expect(dialog.getByLabel(/password/i)).toHaveCount(0);
+      await dialog.getByLabel('Type sofia.ruiz to confirm').fill('sofia.ruiz');
+      await capture(page, testInfo, `settings-${name}-identity-danger-dialog`);
+      const deleted = page.waitForRequest(
+        request => request.method() === 'DELETE' && request.url() === `${API}/v1/users/me`
+      );
+      await dialog.getByRole('button', { name: 'Delete account' }).click();
+      expect((await deleted).postDataJSON()).toEqual({
+        confirmation: 'sofia.ruiz',
+        current_password: null,
+      });
+      await expect(page).toHaveURL(/\/$/);
+      expect(critical).toEqual([]);
+    });
+
+    test('acct-settings · Public profile: the display name and the avatar, edited in local mode', async ({
+      page,
+    }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      const state = await mockApi(page, lucia);
+      await page.goto('/me/settings?section=profile');
+      const main = page.locator('main');
+      await expect(main.getByRole('heading', { level: 2, name: 'Public profile' })).toBeVisible();
+      await expectSettingsNav(page, isMobile, 'Public profile');
+      await main.getByLabel('Display name').fill('Lucía Vega');
+      const patched = page.waitForRequest(
+        request => request.method() === 'PATCH' && request.url() === `${API}/v1/users/me`
+      );
+      await main.getByRole('button', { name: 'Save display name' }).click();
+      expect((await patched).postDataJSON()).toEqual({ display_name: 'Lucía Vega' });
+      expect(state.account.display_name).toBe('Lucía Vega');
+      await capture(page, testInfo, `settings-${name}-profile`);
+
+      await main.getByRole('button', { name: 'Change avatar' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Edit avatar' });
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button', { name: 'Icons' }).click();
+      await dialog.getByRole('button', { name: 'Robot' }).click();
+      await dialog.getByRole('button', { name: 'Background colour #0d7660' }).click();
+      await capture(page, testInfo, `settings-${name}-avatar-editor`);
+      const saved = page.waitForRequest(
+        request => request.method() === 'PATCH' && request.url() === `${API}/v1/users/me`
+      );
+      await dialog.getByRole('button', { name: 'Save avatar' }).click();
+      expect((await saved).postDataJSON()).toEqual({
+        avatar: {
+          kind: 'icon',
+          assetId: 'avatar-9',
+          backgroundColor: '#0d7660',
+          foregroundColor: '#ffffff',
+        },
+      });
+      await expect(dialog).toHaveCount(0);
+      // The header follows: the session is read again and draws the new avatar.
+      if (!isMobile)
+        await expect(
+          page.getByRole('button', { name: 'Account menu' }).locator('[data-avatar-kind="icon"]')
+        ).toBeVisible();
+      expect(critical).toEqual([]);
+    });
+
+    test('acct-settings · Public profile in SCORETech Identity mode: read-only, edited in Identity', async ({
+      page,
+    }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(
+        page,
+        {
+          ...sofia,
+          display_name: 'Sofía Ruiz',
+          avatar: {
+            kind: 'icon',
+            assetId: 'leaf',
+            backgroundColor: '#212529',
+            foregroundColor: '#ffffff',
+          },
+        },
+        {},
+        'scoretech'
+      );
+      await page.goto('/me/settings?section=profile');
+      const main = page.locator('main');
+      await expect(main.getByText('Sofía Ruiz')).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Change avatar' })).toHaveCount(0);
+      await expect(main.getByLabel('Display name')).toHaveCount(0);
+      const edit = main.getByRole('link', { name: /Edit in SCORETech Identity/ });
+      await expect(edit).toHaveAttribute('target', '_blank');
+      expect(new URL((await edit.getAttribute('href')) ?? '').hash).toBe('#public-profile');
+      await expect(main.locator('[data-avatar-kind="icon"]')).toBeVisible();
+      await capture(page, testInfo, `settings-${name}-identity-profile`);
+      expect(critical).toEqual([]);
+    });
+
     test('acct-settings · Notifications: a kind × channel grid saved with its revision', async ({
       page,
     }, testInfo) => {
@@ -719,6 +864,34 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         current_password: null,
       });
       await expect(page).toHaveURL(/\/$/);
+      expect(critical).toEqual([]);
+    });
+
+    test('acct-api-keys in SCORETech Identity mode: when the keys stop, and suspended keys', async ({
+      page,
+    }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      const inAMonth = new Date(Date.now() + 30 * 86_400_000).toISOString();
+      const state = await mockApi(
+        page,
+        { ...sofia, api_keys_suspended_at: inAMonth } as Account,
+        { usage: json(freeUsage()) },
+        'scoretech'
+      );
+      await page.goto('/me/api-keys');
+      const main = page.locator('main');
+      await expect(main.getByRole('status').filter({ hasText: 'stop working on' })).toContainText(
+        'unless you sign in again'
+      );
+      await capture(page, testInfo, `api-keys-${name}-orphan-notice`);
+
+      state.account = { ...state.account, api_keys_suspended_at: hoursAgo(2) } as Account;
+      await page.reload();
+      await expect(
+        main.getByRole('alert').filter({ hasText: 'Your API keys are suspended' })
+      ).toContainText('until you sign in with SCORETech Identity');
+      await expect(main.getByRole('article', { name: 'ci-lectura-resultados' })).toBeVisible();
+      await capture(page, testInfo, `api-keys-${name}-suspended`);
       expect(critical).toEqual([]);
     });
 

@@ -18,6 +18,7 @@ const base: UserProfile = {
   created_at: '2026-09-01T00:00:00Z',
   email_verified: false,
   institutional_email: false,
+  password_enabled: true,
 };
 
 describe('isInstitutionalAccount', () => {

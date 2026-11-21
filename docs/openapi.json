@@ -162,6 +162,38 @@
         "title": "AdminAuditPage",
         "type": "object"
       },
+      "AdminIdentityLink": {
+        "description": "The external identity an account signs in with: SCORETech Identity's issuer and subject.",
+        "properties": {
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "linked_at": {
+            "format": "date-time",
+            "title": "Linked At",
+            "type": "string"
+          },
+          "provider": {
+            "description": "`scoretech`.",
+            "title": "Provider",
+            "type": "string"
+          },
+          "subject": {
+            "description": "Identity's `sub` for this account.",
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "issuer",
+          "subject",
+          "linked_at"
+        ],
+        "title": "AdminIdentityLink",
+        "type": "object"
+      },
       "AdminSubscriptionView": {
         "properties": {
           "changed": {
@@ -217,8 +249,14 @@
         "type": "object"
       },
       "AdminUserView": {
-        "description": "A user as an administrator sees them: the profile, plus what it costs.",
+        "description": "A user as an administrator sees them: the profile, plus what it costs and how it signs in.",
         "properties": {
+          "active_sessions": {
+            "default": 0,
+            "description": "Browser sessions neither signed out nor expired, in either sign-in mode.",
+            "title": "Active Sessions",
+            "type": "integer"
+          },
           "api_key_count": {
             "default": 0,
             "description": "How many keys are in use.",
@@ -238,6 +276,36 @@
             "description": "SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.",
             "title": "Api Keys Suspended At"
           },
+          "avatar": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "icon": "#/components/schemas/IconAvatar",
+                    "initials": "#/components/schemas/InitialsAvatar",
+                    "preset": "#/components/schemas/PresetAvatar"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PresetAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InitialsAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IconAvatar"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.",
+            "title": "Avatar"
+          },
           "contract_pending": {
             "default": false,
             "description": "True when the account still owes a contract.",
@@ -248,6 +316,18 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.",
+            "title": "Display Name"
           },
           "email": {
             "description": "The account's address as stored: what the person registered, the email SCORETech Identity verified, or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an `email` format).",
@@ -265,6 +345,17 @@
             "title": "Id",
             "type": "string"
           },
+          "identity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminIdentityLink"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The SCORETech Identity the account signs in with; null for a local account."
+          },
           "institutional_email": {
             "default": false,
             "description": "Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.",
@@ -275,11 +366,46 @@
             "title": "Is Active",
             "type": "boolean"
           },
+          "last_identity_refresh_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the account last signed in or renewed with SCORETech Identity; null if never.",
+            "title": "Last Identity Refresh At"
+          },
+          "password_enabled": {
+            "default": false,
+            "description": "Whether the account has a password of its own: deleting it then asks for the current one. False for an account that only signs in with SCORETech Identity.",
+            "title": "Password Enabled",
+            "type": "boolean"
+          },
           "plan": {
             "description": "Plan last recorded for the SPACE contract (read from the database, so reading the profile never needs SPACE). The contract itself decides what a request is allowed to do; this is what the interface displays. Empty when the account has no plan (the stateless open gate, or SPACE has not assigned one).",
             "maxLength": 128,
             "title": "Plan",
             "type": "string"
+          },
+          "research_basis": {
+            "anyOf": [
+              {
+                "enum": [
+                  "email",
+                  "admin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the account was last granted RESEARCH: `email` (a verified institutional email) or `admin` (an administrator); null if it never was.",
+            "title": "Research Basis"
           },
           "role": {
             "$ref": "#/components/schemas/RoleName"
@@ -8754,6 +8880,55 @@
         "title": "HistogramBucket",
         "type": "object"
       },
+      "IconAvatar": {
+        "additionalProperties": false,
+        "description": "One of Identity's icons or SPHERE's predefined avatars, in two colours.",
+        "properties": {
+          "assetId": {
+            "enum": [
+              "spark",
+              "rocket",
+              "heart",
+              "leaf",
+              "star",
+              "avatar-1",
+              "avatar-2",
+              "avatar-3",
+              "avatar-4",
+              "avatar-6",
+              "avatar-7",
+              "avatar-8",
+              "avatar-9",
+              "avatar-10"
+            ],
+            "title": "Assetid",
+            "type": "string"
+          },
+          "backgroundColor": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Backgroundcolor",
+            "type": "string"
+          },
+          "foregroundColor": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Foregroundcolor",
+            "type": "string"
+          },
+          "kind": {
+            "const": "icon",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "assetId",
+          "backgroundColor",
+          "foregroundColor"
+        ],
+        "title": "IconAvatar",
+        "type": "object"
+      },
       "ImmutableResourceRef": {
         "additionalProperties": false,
         "properties": {
@@ -8777,6 +8952,34 @@
           "version",
           "digest"
         ],
+        "type": "object"
+      },
+      "InitialsAvatar": {
+        "additionalProperties": false,
+        "description": "The initials of the display name (or the username), in two colours.",
+        "properties": {
+          "backgroundColor": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Backgroundcolor",
+            "type": "string"
+          },
+          "foregroundColor": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Foregroundcolor",
+            "type": "string"
+          },
+          "kind": {
+            "const": "initials",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "backgroundColor",
+          "foregroundColor"
+        ],
+        "title": "InitialsAvatar",
         "type": "object"
       },
       "InstanceManifest": {
@@ -9955,10 +10158,52 @@
       },
       "MemberView": {
         "properties": {
+          "avatar": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "icon": "#/components/schemas/IconAvatar",
+                    "initials": "#/components/schemas/InitialsAvatar",
+                    "preset": "#/components/schemas/PresetAvatar"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PresetAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InitialsAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IconAvatar"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The member's avatar; null draws the initials.",
+            "title": "Avatar"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The member's display name; null if none.",
+            "title": "Display Name"
           },
           "email": {
             "anyOf": [
@@ -10914,6 +11159,33 @@
           "document"
         ],
         "title": "PlansPricingView",
+        "type": "object"
+      },
+      "PresetAvatar": {
+        "additionalProperties": false,
+        "description": "One of Identity's preset animals, drawn in Identity's default colours.",
+        "properties": {
+          "assetId": {
+            "enum": [
+              "owl",
+              "fox",
+              "octopus",
+              "robot"
+            ],
+            "title": "Assetid",
+            "type": "string"
+          },
+          "kind": {
+            "const": "preset",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "assetId"
+        ],
+        "title": "PresetAvatar",
         "type": "object"
       },
       "PricingSnapshotView": {
@@ -15890,6 +16162,36 @@
       },
       "UpdateProfileRequest": {
         "properties": {
+          "avatar": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "icon": "#/components/schemas/IconAvatar",
+                    "initials": "#/components/schemas/InitialsAvatar",
+                    "preset": "#/components/schemas/PresetAvatar"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PresetAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InitialsAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IconAvatar"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Local mode: the avatar, in SCORETech Identity's shapes; null removes it (the initials). Absent keeps it. In SCORETech Identity mode it is Identity's (409 `managed_by_identity`).",
+            "title": "Avatar"
+          },
           "current_password": {
             "anyOf": [
               {
@@ -15901,6 +16203,19 @@
             ],
             "description": "Required when changing the password.",
             "title": "Current Password"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Local mode: the name to show others; an empty one, or null, removes it. Absent keeps it. In SCORETech Identity mode it is Identity's (409 `managed_by_identity`).",
+            "title": "Display Name"
           },
           "email": {
             "anyOf": [
@@ -16388,10 +16703,52 @@
             "description": "SCORETech Identity mode: when this account's API keys stop (or stopped) working unless the person signs in again (`API_KEY_ORPHAN_DAYS` after the last sign-in or renewal); null in local mode.",
             "title": "Api Keys Suspended At"
           },
+          "avatar": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "icon": "#/components/schemas/IconAvatar",
+                    "initials": "#/components/schemas/InitialsAvatar",
+                    "preset": "#/components/schemas/PresetAvatar"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PresetAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InitialsAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IconAvatar"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.",
+            "title": "Avatar"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.",
+            "title": "Display Name"
           },
           "email": {
             "description": "The account's address as stored: what the person registered, the email SCORETech Identity verified, or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an `email` format).",
@@ -16417,6 +16774,12 @@
           },
           "is_active": {
             "title": "Is Active",
+            "type": "boolean"
+          },
+          "password_enabled": {
+            "default": false,
+            "description": "Whether the account has a password of its own: deleting it then asks for the current one. False for an account that only signs in with SCORETech Identity.",
+            "title": "Password Enabled",
             "type": "boolean"
           },
           "plan": {
@@ -16451,14 +16814,44 @@
           "avatar": {
             "anyOf": [
               {
+                "discriminator": {
+                  "mapping": {
+                    "icon": "#/components/schemas/IconAvatar",
+                    "initials": "#/components/schemas/InitialsAvatar",
+                    "preset": "#/components/schemas/PresetAvatar"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PresetAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/InitialsAvatar"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IconAvatar"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.",
+            "title": "Avatar"
+          },
+          "display_name": {
+            "anyOf": [
+              {
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "The user's avatar URL; none yet (Identity, F5).",
-            "title": "Avatar"
+            "description": "The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.",
+            "title": "Display Name"
           },
           "id": {
             "format": "uuid",
@@ -38581,7 +38974,7 @@
         ]
       },
       "patch": {
-        "description": "Change what the account holder is allowed to change.\n\nBoth changes need the current password. Email is included in that because\nthe email address is one of the two ways to sign in, so changing it is a\nchange of credential, not of contact details.\n\nThe revision is the account row's, shared with the notification preferences.",
+        "description": "Change what the account holder is allowed to change.\n\nThe email and the password need the current password. Email is included in\nthat because the email address is one of the two ways to sign in, so\nchanging it is a change of credential, not of contact details. The display\nname and the avatar (local mode) need no password: they are what others see,\nnot a way in. In SCORETech Identity mode all four are Identity's (409).\n\nThe revision is the account row's, shared with the notification preferences.",
         "operationId": "updateOwnProfile",
         "parameters": [
           {
@@ -38719,7 +39112,7 @@
             "ApiKeyAuth": []
           }
         ],
-        "summary": "Change your email or password",
+        "summary": "Change your email, password, display name or avatar",
         "tags": [
           "Users"
         ],

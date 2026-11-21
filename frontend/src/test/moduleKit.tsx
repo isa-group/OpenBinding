@@ -5,6 +5,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi, type Mock } from 'vitest';
 import type { UserProfile } from '../modules/core/api/account';
 import { AuthContext } from '../modules/auth/hooks/useAuth';
+import { StaticAuthConfig } from '../modules/auth/contexts/authConfig';
+import type { AuthConfig } from '../modules/auth/contexts/authConfigContext';
 import DialogHost from '../modules/core/components/dialog-host';
 import { ToastProvider } from '../modules/core/contexts/toastContext';
 import type { Organization } from '../modules/organization/api/organizationsApi';
@@ -26,6 +28,7 @@ export const ME: UserProfile = {
   created_at: '2026-01-10T00:00:00Z',
   email_verified: false,
   institutional_email: false,
+  password_enabled: true,
 };
 
 /** One answer of the fake gateway: a body (JSON) with a status, or a function of the request. */
@@ -102,7 +105,16 @@ export interface ModuleRenderOptions {
   /** The account's organizations: a tree, flattened for `organizations`. */
   tree?: Organization[];
   organizations?: Partial<OrganizationContextInterface>;
+  /** How the gateway signs people in; local unless a test says otherwise. */
+  authConfig?: AuthConfig;
 }
+
+/** SCORETech Identity mode, as the gateway's `GET /v1/auth/config` answers it. */
+export const SCORETECH_CONFIG: AuthConfig = {
+  provider: 'scoretech',
+  login_url: 'http://localhost/api/v1/auth/identity/login',
+  account_url: 'https://identity.example/account/#public-profile',
+};
 
 const flatten = (orgs: Organization[]): Organization[] =>
   orgs.flatMap(org => [org, ...flatten(org.children ?? [])]);
@@ -141,20 +153,22 @@ export function renderModule(element: ReactElement, options: ModuleRenderOptions
   const result = render(
     <HelmetProvider>
       <MemoryRouter initialEntries={[options.entry ?? '/']}>
-        <AuthContext.Provider value={auth}>
-          <OrganizationContext.Provider value={organizations}>
-            <ToastProvider>
-              <Routes>
-                <Route path={options.path ?? '*'} element={element} />
-                {Object.entries(options.routes ?? {}).map(([path, routed]) => (
-                  <Route key={path} path={path} element={routed} />
-                ))}
-              </Routes>
-              <Where />
-              <DialogHost />
-            </ToastProvider>
-          </OrganizationContext.Provider>
-        </AuthContext.Provider>
+        <StaticAuthConfig value={options.authConfig ?? { provider: 'local' }}>
+          <AuthContext.Provider value={auth}>
+            <OrganizationContext.Provider value={organizations}>
+              <ToastProvider>
+                <Routes>
+                  <Route path={options.path ?? '*'} element={element} />
+                  {Object.entries(options.routes ?? {}).map(([path, routed]) => (
+                    <Route key={path} path={path} element={routed} />
+                  ))}
+                </Routes>
+                <Where />
+                <DialogHost />
+              </ToastProvider>
+            </OrganizationContext.Provider>
+          </AuthContext.Provider>
+        </StaticAuthConfig>
       </MemoryRouter>
     </HelmetProvider>
   );

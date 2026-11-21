@@ -1,5 +1,5 @@
 {
-  "x-description": "The SCORETech Identity overlay of the lab (lab/identity/README.md): docker compose -f compose.lab.json -f compose.lab-identity.json. The gateway signs in with the Identity lab, which runs as its own compose project (scoretech-identity-lab); it reaches the realm through Identity's internal network while every token is checked against the public issuer. e2e-identity runs the walk with host networking, because Identity's issuer is fixed to http://localhost:18000 and it accepts only loopback return origins in the local environment.",
+  "x-description": "The SCORETech Identity overlay of the lab (lab/identity/README.md): docker compose -f compose.lab.json -f compose.lab-identity.json. The gateway signs in with the Identity lab, which runs as its own compose project (scoretech-identity-lab); it reaches the realm through Identity's internal network while every token is checked against the public issuer. e2e-identity runs the walk with host networking, because Identity's issuer is fixed to http://localhost:18000 and it accepts only loopback return origins in the local environment. For F4's operation walk (e2e/live/13-operation.spec.ts) it signs in through Identity (LAB_SIGN_IN), reads the lab Mailpit through the read-only /mailpit/ location and the feed consumer on the loopback port this overlay alone publishes.",
   "services": {
     "gateway": {
       "environment": {
@@ -20,6 +20,11 @@
         "default": {},
         "identity": {}
       }
+    },
+    "feed-consumer": {
+      "ports": [
+        "127.0.0.1:18197:8090"
+      ]
     },
     "e2e-identity": {
       "profiles": [
@@ -45,6 +50,10 @@
         "IDENTITY_ORIGIN": "http://localhost:18000",
         "MAILPIT_URL": "http://localhost:18025",
         "WALK_RUN": "${WALK_RUN:-}",
+        "LAB_SIGN_IN": "identity",
+        "LAB_MAILPIT_URL": "http://localhost:${DEMO_LAB_PORT:-18198}/mailpit",
+        "LAB_FEED_CONSUMER_URL": "http://localhost:18197",
+        "DEMO_SEED_PASSWORD": "${DEMO_SEED_PASSWORD:-}",
         "E2E_RESULTS_DIR": "/results"
       },
       "volumes": [

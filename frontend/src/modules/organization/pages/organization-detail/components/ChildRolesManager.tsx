@@ -177,7 +177,12 @@ export default function ChildRolesManager({ org, tree, organizations, currentUse
                         key={member.id}
                         className="flex flex-wrap items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-tp-surface/50"
                       >
-                        <UserAvatar username={name} size={24} />
+                        <UserAvatar
+                          username={name}
+                          displayName={member.display_name}
+                          avatar={member.avatar}
+                          size={24}
+                        />
                         <span className="min-w-0 flex-1 truncate text-sm text-tp-ink">@{name}</span>
                         {editable ? (
                           <select

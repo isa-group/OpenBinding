@@ -3,7 +3,8 @@
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's deletion (`DELETE /v1/users/me` with the typed username and the current password) and its refusals
 // (the last owner of an organization hands it over first); the confirmation is OpenBinding's accessible Modal instead of
-// SPHERE's portaled motion overlay; the browser leaves with a clean session; SCORETech's centralized wording is not ported.
+// SPHERE's portaled motion overlay; the browser leaves with a clean session; the current password is asked only of an
+// account that has one (`password_enabled`); SPHERE's SCORETech wording (the Identity account stays) in Identity mode.
 
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
@@ -12,6 +13,7 @@ import { FiAlertTriangle, FiLoader, FiShield, FiTrash2 } from 'react-icons/fi';
 import { apiClient } from '../../core/api/http';
 import { leaveTo } from '../../core/utils/navigation';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { useAuthConfig } from '../../auth/contexts/authConfigContext';
 import { classifyAuthError, marker } from '../../core/api/errors';
 import { FormField } from '../../core/components/form-field';
 import { Modal } from '../../core/components/modal';
@@ -29,6 +31,8 @@ interface Refusal {
 
 export default function DangerZoneSection() {
   const { user } = useAuth();
+  const centralized = useAuthConfig().provider === 'scoretech';
+  const asksPassword = user?.password_enabled ?? true;
   const api = useUserSettingsApi();
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -98,12 +102,20 @@ export default function DangerZoneSection() {
             <FiAlertTriangle className="h-5 w-5 text-red-600" aria-hidden="true" />
           </div>
           <div className="flex-1">
-            <h3 className="text-sm font-medium text-tp-ink">Delete account</h3>
+            <h3 className="text-sm font-medium text-tp-ink">
+              {centralized ? 'Delete OpenBinding account' : 'Delete account'}
+            </h3>
             <p className="mt-1 text-sm text-tp-steel">
               Permanently deletes your account, its API keys, memberships and notifications. The
               runs and engines you created stay without your name, and your federated engines are
               deactivated. Organizations you own must be handed over first.
             </p>
+            {centralized && (
+              <p className="mt-2 text-sm text-tp-steel">
+                Your SCORETech Identity account and your access to other SCORE services remain
+                separate.
+              </p>
+            )}
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -150,18 +162,20 @@ export default function DangerZoneSection() {
               placeholder={username}
               mono
             />
-            <FormField
-              label="Current password (if your account has one)"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={event => {
-                setPassword(event.target.value);
-                setPasswordError(undefined);
-              }}
-              disabled={deleting}
-              error={passwordError}
-            />
+            {asksPassword && (
+              <FormField
+                label="Current password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={event => {
+                  setPassword(event.target.value);
+                  setPasswordError(undefined);
+                }}
+                disabled={deleting}
+                error={passwordError}
+              />
+            )}
 
             <div aria-live="assertive">
               {error && (

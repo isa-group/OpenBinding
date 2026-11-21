@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { addressNow, fakeGateway, orgNode, renderModule } from '../../../../test/moduleKit';
+import { addressNow, fakeGateway, ME, orgNode, renderModule } from '../../../../test/moduleKit';
 import type { ApiKeySummary } from '../../api/apiKeysApi';
 import ApiKeysPage from '.';
 
@@ -136,5 +136,35 @@ describe('/me/api-keys', () => {
     expect(
       await screen.findByText(/To manage keys, a request needs keys:read/)
     ).toBeInTheDocument();
+  });
+
+  it('says nothing of a suspension in local mode', async () => {
+    renderKeys(gatewayWith([reader]));
+    await screen.findByRole('article', { name: 'ci-results' });
+    expect(screen.queryByText(/stop working on|are suspended/)).not.toBeInTheDocument();
+  });
+
+  it('says when the keys stop working unless their owner signs in again', async () => {
+    renderModule(<ApiKeysPage />, {
+      entry: '/me/api-keys',
+      path: '/me/api-keys',
+      gateway: gatewayWith([reader]),
+      user: { ...ME, api_keys_suspended_at: '2099-12-20T10:00:00Z' },
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Your API keys stop working on Dec 20, 2099 unless you sign in again.'
+    );
+  });
+
+  it('warns that the keys are suspended until their owner signs in with SCORETech Identity', async () => {
+    renderModule(<ApiKeysPage />, {
+      entry: '/me/api-keys',
+      path: '/me/api-keys',
+      gateway: gatewayWith([reader]),
+      user: { ...ME, api_keys_suspended_at: '2026-01-02T10:00:00Z' },
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your API keys are suspended until you sign in with SCORETech Identity.'
+    );
   });
 });

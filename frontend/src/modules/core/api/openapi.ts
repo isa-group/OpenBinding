@@ -3108,12 +3108,14 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change your email or password
+         * Change your email, password, display name or avatar
          * @description Change what the account holder is allowed to change.
          *
-         *     Both changes need the current password. Email is included in that because
-         *     the email address is one of the two ways to sign in, so changing it is a
-         *     change of credential, not of contact details.
+         *     The email and the password need the current password. Email is included in
+         *     that because the email address is one of the two ways to sign in, so
+         *     changing it is a change of credential, not of contact details. The display
+         *     name and the avatar (local mode) need no password: they are what others see,
+         *     not a way in. In SCORETech Identity mode all four are Identity's (409).
          *
          *     The revision is the account row's, shared with the notification preferences.
          */
@@ -3355,6 +3357,29 @@ export interface components {
             /** Total */
             total: number;
         };
+        /**
+         * AdminIdentityLink
+         * @description The external identity an account signs in with: SCORETech Identity's issuer and subject.
+         */
+        AdminIdentityLink: {
+            /** Issuer */
+            issuer: string;
+            /**
+             * Linked At
+             * Format: date-time
+             */
+            linked_at: string;
+            /**
+             * Provider
+             * @description `scoretech`.
+             */
+            provider: string;
+            /**
+             * Subject
+             * @description Identity's `sub` for this account.
+             */
+            subject: string;
+        };
         /** AdminSubscriptionView */
         AdminSubscriptionView: {
             /** Changed */
@@ -3384,9 +3409,15 @@ export interface components {
         };
         /**
          * AdminUserView
-         * @description A user as an administrator sees them: the profile, plus what it costs.
+         * @description A user as an administrator sees them: the profile, plus what it costs and how it signs in.
          */
         AdminUserView: {
+            /**
+             * Active Sessions
+             * @description Browser sessions neither signed out nor expired, in either sign-in mode.
+             * @default 0
+             */
+            active_sessions: number;
             /**
              * Api Key Count
              * @description How many keys are in use.
@@ -3399,6 +3430,11 @@ export interface components {
              */
             api_keys_suspended_at?: string | null;
             /**
+             * Avatar
+             * @description The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.
+             */
+            avatar?: (components["schemas"]["PresetAvatar"] | components["schemas"]["InitialsAvatar"] | components["schemas"]["IconAvatar"]) | null;
+            /**
              * Contract Pending
              * @description True when the account still owes a contract.
              * @default false
@@ -3409,6 +3445,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Display Name
+             * @description The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.
+             */
+            display_name?: string | null;
             /**
              * Email
              * @description The account's address as stored: what the person registered, the email SCORETech Identity verified, or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an `email` format).
@@ -3425,6 +3466,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** @description The SCORETech Identity the account signs in with; null for a local account. */
+            identity?: components["schemas"]["AdminIdentityLink"] | null;
             /**
              * Institutional Email
              * @description Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.
@@ -3434,10 +3477,26 @@ export interface components {
             /** Is Active */
             is_active: boolean;
             /**
+             * Last Identity Refresh At
+             * @description When the account last signed in or renewed with SCORETech Identity; null if never.
+             */
+            last_identity_refresh_at?: string | null;
+            /**
+             * Password Enabled
+             * @description Whether the account has a password of its own: deleting it then asks for the current one. False for an account that only signs in with SCORETech Identity.
+             * @default false
+             */
+            password_enabled: boolean;
+            /**
              * Plan
              * @description Plan last recorded for the SPACE contract (read from the database, so reading the profile never needs SPACE). The contract itself decides what a request is allowed to do; this is what the interface displays. Empty when the account has no plan (the stateless open gate, or SPACE has not assigned one).
              */
             plan: string;
+            /**
+             * Research Basis
+             * @description How the account was last granted RESEARCH: `email` (a verified institutional email) or `admin` (an administrator); null if it never was.
+             */
+            research_basis?: ("email" | "admin") | null;
             role: components["schemas"]["RoleName"];
             /** Username */
             username: string;
@@ -6651,11 +6710,46 @@ export interface components {
              */
             value: string;
         };
+        /**
+         * IconAvatar
+         * @description One of Identity's icons or SPHERE's predefined avatars, in two colours.
+         */
+        IconAvatar: {
+            /**
+             * Assetid
+             * @enum {string}
+             */
+            assetId: "spark" | "rocket" | "heart" | "leaf" | "star" | "avatar-1" | "avatar-2" | "avatar-3" | "avatar-4" | "avatar-6" | "avatar-7" | "avatar-8" | "avatar-9" | "avatar-10";
+            /** Backgroundcolor */
+            backgroundColor: string;
+            /** Foregroundcolor */
+            foregroundColor: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "icon";
+        };
         ImmutableResourceRef: {
             digest: string;
             name: string;
             namespace: string;
             version: string;
+        };
+        /**
+         * InitialsAvatar
+         * @description The initials of the display name (or the username), in two colours.
+         */
+        InitialsAvatar: {
+            /** Backgroundcolor */
+            backgroundColor: string;
+            /** Foregroundcolor */
+            foregroundColor: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "initials";
         };
         InstanceManifest: {
             /** @constant */
@@ -7107,10 +7201,20 @@ export interface components {
         /** MemberView */
         MemberView: {
             /**
+             * Avatar
+             * @description The member's avatar; null draws the initials.
+             */
+            avatar?: (components["schemas"]["PresetAvatar"] | components["schemas"]["InitialsAvatar"] | components["schemas"]["IconAvatar"]) | null;
+            /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Display Name
+             * @description The member's display name; null if none.
+             */
+            display_name?: string | null;
             /** Email */
             email?: string | null;
             /**
@@ -7531,6 +7635,22 @@ export interface components {
              * @description The Pricing2Yaml text, for pricing-renderer.
              */
             yaml: string;
+        };
+        /**
+         * PresetAvatar
+         * @description One of Identity's preset animals, drawn in Identity's default colours.
+         */
+        PresetAvatar: {
+            /**
+             * Assetid
+             * @enum {string}
+             */
+            assetId: "owl" | "fox" | "octopus" | "robot";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "preset";
         };
         /**
          * PricingSnapshotView
@@ -9534,10 +9654,20 @@ export interface components {
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
             /**
+             * Avatar
+             * @description Local mode: the avatar, in SCORETech Identity's shapes; null removes it (the initials). Absent keeps it. In SCORETech Identity mode it is Identity's (409 `managed_by_identity`).
+             */
+            avatar?: (components["schemas"]["PresetAvatar"] | components["schemas"]["InitialsAvatar"] | components["schemas"]["IconAvatar"]) | null;
+            /**
              * Current Password
              * @description Required when changing the password.
              */
             current_password?: string | null;
+            /**
+             * Display Name
+             * @description Local mode: the name to show others; an empty one, or null, removes it. Absent keeps it. In SCORETech Identity mode it is Identity's (409 `managed_by_identity`).
+             */
+            display_name?: string | null;
             /** Email */
             email?: string | null;
             /** New Password */
@@ -9709,10 +9839,20 @@ export interface components {
              */
             api_keys_suspended_at?: string | null;
             /**
+             * Avatar
+             * @description The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.
+             */
+            avatar?: (components["schemas"]["PresetAvatar"] | components["schemas"]["InitialsAvatar"] | components["schemas"]["IconAvatar"]) | null;
+            /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Display Name
+             * @description The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.
+             */
+            display_name?: string | null;
             /**
              * Email
              * @description The account's address as stored: what the person registered, the email SCORETech Identity verified, or `<id>@identity.openbinding.invalid` when Identity verified none (a reserved name, so not an `email` format).
@@ -9738,6 +9878,12 @@ export interface components {
             /** Is Active */
             is_active: boolean;
             /**
+             * Password Enabled
+             * @description Whether the account has a password of its own: deleting it then asks for the current one. False for an account that only signs in with SCORETech Identity.
+             * @default false
+             */
+            password_enabled: boolean;
+            /**
              * Plan
              * @description Plan last recorded for the SPACE contract (read from the database, so reading the profile never needs SPACE). The contract itself decides what a request is allowed to do; this is what the interface displays. Empty when the account has no plan (the stateless open gate, or SPACE has not assigned one).
              */
@@ -9753,9 +9899,14 @@ export interface components {
         UserRef: {
             /**
              * Avatar
-             * @description The user's avatar URL; none yet (Identity, F5).
+             * @description The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.
              */
-            avatar?: string | null;
+            avatar?: (components["schemas"]["PresetAvatar"] | components["schemas"]["InitialsAvatar"] | components["schemas"]["IconAvatar"]) | null;
+            /**
+             * Display Name
+             * @description The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.
+             */
+            display_name?: string | null;
             /**
              * Id
              * Format: uuid

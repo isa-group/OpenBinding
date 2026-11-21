@@ -18,6 +18,7 @@ export const lucia: UserProfile = {
   created_at: '2026-03-01T00:00:00Z',
   email_verified: false,
   institutional_email: false,
+  password_enabled: true,
 };
 
 export function org(slug: string, over: Partial<Organization> = {}): Organization {

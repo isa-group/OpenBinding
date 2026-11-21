@@ -19,7 +19,16 @@ const member = (userId: string, username: string, role: string) => ({
 });
 const members = [
   member(ME.id, ME.username, 'OWNER'),
-  member('u-marco', 'marco', 'MEMBER'),
+  {
+    ...member('u-marco', 'marco', 'MEMBER'),
+    display_name: 'Marco Díaz',
+    avatar: {
+      kind: 'icon',
+      assetId: 'leaf',
+      backgroundColor: '#212529',
+      foregroundColor: '#ffffff',
+    },
+  },
   member('u-sofia', 'sofia', 'VIEWER'),
 ];
 const memberRoutes = (over: Parameters<typeof fakeGateway>[0] = {}) =>
@@ -71,6 +80,15 @@ describe('/orgs/:org', () => {
       '/orgs/isa-demo/audit'
     );
     expect(within(nav).getByRole('link', { name: 'Invitations' })).toBeInTheDocument();
+  });
+
+  it('names members by their display name, with their Identity avatar', async () => {
+    renderPage('/orgs/isa-demo/members', { tree: [group], gateway: memberRoutes() });
+    const marco = (await screen.findByText('Marco Díaz')).closest('li') as HTMLElement;
+    expect(within(marco).getByText('@marco')).toBeInTheDocument();
+    expect(marco.querySelector('[data-avatar-kind="icon"]')).not.toBeNull();
+    const sofia = screen.getByText('@sofia').closest('li') as HTMLElement;
+    expect(sofia.querySelector('[data-avatar-kind]')).toBeNull();
   });
 
   it('saves drafted role changes and removals together, through the batch', async () => {

@@ -128,7 +128,12 @@ describe('the Playwright specs', () => {
       .map(name => name.replace(`${identity}/`, ''));
 
     it('live in e2e/identity, numbered apart from e2e/live, and run only by their own configuration', () => {
-      expect(specs.sort()).toEqual(['01-gateway.spec.ts', '02-screens.spec.ts']);
+      expect(specs.sort()).toEqual([
+        '01-gateway.spec.ts',
+        '02-screens.spec.ts',
+        '03-account.spec.ts',
+        '04-operation.spec.ts',
+      ]);
       const config = read(`${root}/playwright.identity.config.ts`);
       expect(config).toContain("testDir: './e2e/identity'");
       expect(config).toMatch(/workers: 1\b/);
@@ -153,6 +158,36 @@ describe('the Playwright specs', () => {
         expect(spec).toContain(`'${tag}`);
       expect(spec).toContain('identity-username-409');
       expect(spec).toContain('identity-error-${code}');
+    });
+
+    it('walk Settings, avatars, the orphan key and deletion, with visual stops in both palettes', () => {
+      const spec = read(`${identity}/03-account.spec.ts`);
+      for (const tag of [
+        '@account J10: Settings',
+        '@account J10: the public profile',
+        '@account J7',
+        '@account J5',
+        '@orphan J7',
+        '@orphan J10',
+      ])
+        expect(spec).toContain(`'${tag}`);
+      for (const stop of ['settings-identity', 'profile-identity', 'header-avatar', 'member-list'])
+        expect(spec).toContain(`'${stop}'`);
+      for (const stop of ['keys-notice', 'keys-suspended', 'admin-identity-tab'])
+        expect(spec).toContain(`'${stop}'`);
+    });
+
+    it('walk F4’s operation behind Identity: three users sign in once, then 13-operation runs unchanged', () => {
+      const setup = read(`${identity}/04-operation.spec.ts`);
+      expect(setup).toContain('`@operation-setup ${role}');
+      for (const role of ['opowner', 'opmember', 'opviewer']) expect(setup).toContain(`'${role}'`);
+      const support = read(`${live}/support.ts`);
+      expect(support).toContain("process.env.LAB_SIGN_IN === 'identity'");
+      expect(support).toContain('signInReturning(page, fixture)');
+      const feed = read(`${live}/feedKey.ts`);
+      expect(feed).toContain("process.env.LAB_MAILPIT_URL ?? 'http://mailpit:8025/mailpit'");
+      expect(feed).toContain("process.env.LAB_FEED_CONSUMER_URL ?? 'http://feed-consumer:8090'");
+      expect(read(`${identity}/support.ts`)).toMatch(/!\/\^\(__Host-\)\?ob_\/\.test/);
     });
 
     it('read codes from the lab Mailpit and never type a literal password or address of a real domain', () => {
@@ -269,7 +304,12 @@ describe('the Playwright specs', () => {
       expect(sweep).toMatch(/width: 390, height: 844/);
       expect(sweep).toMatch(/width: 375/);
       expect(sweep).toContain("colorScheme: 'dark'");
-      for (const screen of ['sphere-wizard-pricing', 'sphere-wizard-preview', 'org-connections'])
+      for (const screen of [
+        'sphere-wizard-pricing',
+        'sphere-wizard-preview',
+        'org-connections',
+        'acct-settings-profile',
+      ])
         expect(sweep, screen).toContain(screen);
     });
 
@@ -364,6 +404,8 @@ describe('the Playwright specs', () => {
         "slug: 'jobs'",
         "slug: 'job-result'",
         "slug: 'plan-permissions'",
+        "slug: 'public-profile'",
+        "slug: 'avatar-editor'",
         "slug: 'team-organization'",
         "slug: 'pricing'",
         "slug: 'engine-card'",

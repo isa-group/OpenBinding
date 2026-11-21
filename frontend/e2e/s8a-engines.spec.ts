@@ -76,6 +76,7 @@ const alex = {
   created_at: '2026-03-02T00:00:00Z',
   email_verified: true,
   institutional_email: true,
+  password_enabled: true,
 };
 
 type Key =

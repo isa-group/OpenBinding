@@ -1,5 +1,6 @@
 import type { Page, TestInfo } from '@playwright/test';
 import { prepareCapture, waitUntilSettled } from '../helpers/pageChecks';
+import { signInReturning, type Role as IdentityRole } from '../identity/support';
 
 /**
  * Support for the specs of the `live` project: they run against a stack that is already up (the lab: `BASE_URL`, `http://web:8080`
@@ -69,11 +70,29 @@ const LONGEST_WAIT_S = 300;
 const BROWSER_ORIGIN = new URL(process.env.BASE_URL ?? 'http://web:8080').origin;
 
 /**
+ * `LAB_SIGN_IN=identity`: a walk run behind SCORETech Identity (the `e2e-identity` service of compose.lab-identity.json,
+ * lab/identity/walk.sh), where the gateway refuses `POST /v1/auth/login`. `owner`, `member` and `viewer` are then the fixture
+ * users `ob-walk-<run>-op{owner,member,viewer}`, to whom the walk moved the seeded `lab-main` memberships.
+ */
+const IDENTITY_SIGN_IN = process.env.LAB_SIGN_IN === 'identity';
+const IDENTITY_USERS: Partial<Record<LabRole, IdentityRole>> = {
+  owner: 'opowner',
+  member: 'opmember',
+  viewer: 'opviewer',
+};
+
+/**
  * Signs in through the API from the page's own browser context, so a spec does not spend a login of the (throttled) form: the
  * answer's HttpOnly session cookie lands in the context's cookie jar, and the page turns it into a token when it loads, as after a
- * sign-in by the form. Returns the access token, for the specs that ask the API something themselves.
+ * sign-in by the form. Returns the access token, for the specs that ask the API something themselves. Behind Identity
+ * (`LAB_SIGN_IN=identity`) it signs the role's fixture user in with SCORETech Identity instead.
  */
 export async function signInByApi(page: Page, role: LabRole): Promise<string> {
+  if (IDENTITY_SIGN_IN) {
+    const fixture = IDENTITY_USERS[role];
+    if (!fixture) throw new Error(`${LAB_USERS[role]} has no SCORETech Identity fixture user`);
+    return signInReturning(page, fixture);
+  }
   let status = 0;
   for (let attempt = 1; attempt <= LOGIN_TRIES; attempt += 1) {
     const response = await page.request.post(`${API}/v1/auth/login`, {

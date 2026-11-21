@@ -16,8 +16,12 @@ import pytest
 import pytest_asyncio
 
 from openbinding_gateway import space_client
+from sqlalchemy import select
+
 from openbinding_gateway.db.models import (
+    AuditEvent,
     AuthIdentity,
+    IdentitySession,
     Notification,
     User,
     UserRole,
@@ -117,7 +121,11 @@ async def test_the_listing_never_carries_a_password_hash(
 
     response = await api_client.get("/v1/admin/users", headers=admin)
 
-    assert "password" not in response.text.lower()
+    # Only whether an account has a password (`password_enabled`, a boolean) is said, never the password or its hash.
+    assert "password_hash" not in response.text and "$argon2" not in response.text
+    for row in response.json()["users"]:
+        assert {key for key in row if "password" in key} == {"password_enabled"}
+        assert isinstance(row["password_enabled"], bool)
 
 
 async def test_accounts_can_be_searched(api_client, registration, gate, db_session):
@@ -400,6 +408,10 @@ async def test_an_administrator_grants_research_without_any_identity_and_never_w
     assert invalid_add_on.status_code == 422
     assert accepted.status_code == 200
     assert accepted.json()["subscription"]["plan"] == INSTITUTIONAL_PLAN
+    # The account page names the basis of the grant and the identity added meanwhile.
+    granted = accepted.json()["user"]
+    assert granted["research_basis"] == "admin"
+    assert granted["identity"]["subject"] == "verified-sub"
 
 
 async def test_an_expired_contract_is_left_to_space_to_renew(
@@ -742,3 +754,53 @@ async def test_maintenance_purge_requires_the_exact_typed_confirmation(
     assert refused.status_code == 422
     assert accepted.status_code == 200
     assert accepted.json() == {"apiKeys": 0, "jobs": 0}
+
+
+async def test_the_account_page_shows_its_identity_link_last_refresh_sessions_and_research_basis(
+    api_client, registration, gate, db_session
+):
+    """F5-C C4: provider, issuer and subject, the last Identity renewal, the live sessions and the RESEARCH basis,
+    for administrators only (never in a user reference or the holder's profile)."""
+    profile, holder = await account(api_client, registration)
+    _, admin = await account(api_client, registration, db_session, admin=True)
+    endpoint = f"/v1/admin/users/{profile['id']}/subscription"
+
+    local = (await api_client.get(endpoint, headers=admin)).json()["user"]
+    assert local["identity"] is None and local["last_identity_refresh_at"] is None
+    assert local["research_basis"] is None
+    assert local["active_sessions"] >= 1  # the sessions its registration and sign-in opened
+
+    user_id = uuid.UUID(profile["id"])
+    refreshed = datetime(2026, 11, 1, 9, 30, tzinfo=timezone.utc)
+    user = await db_session.get(User, user_id)
+    user.last_identity_refresh_at = refreshed
+    db_session.add(AuthIdentity(
+        user_id=user_id, provider="scoretech", issuer="https://identity.test/identity/auth/realms/score",
+        subject="sub-ana", attributes={},
+    ))
+    db_session.add(AuditEvent(
+        actor_id=user_id, action="account.research.granted", target_type="User", target_id=user_id,
+        detail={"basis": "email"},
+    ))
+    await db_session.flush()
+
+    view = (await api_client.get(endpoint, headers=admin)).json()["user"]
+    assert view["identity"]["provider"] == "scoretech"
+    assert view["identity"]["issuer"] == "https://identity.test/identity/auth/realms/score"
+    assert view["identity"]["subject"] == "sub-ana"
+    assert datetime.fromisoformat(view["last_identity_refresh_at"].replace("Z", "+00:00")) == refreshed
+    assert view["research_basis"] == "email"
+
+    listed = {row["id"]: row for row in (await api_client.get("/v1/admin/users", headers=admin)).json()["users"]}
+    assert listed[profile["id"]]["identity"]["subject"] == "sub-ana"
+    assert listed[profile["id"]]["active_sessions"] == local["active_sessions"]
+    own = (await api_client.get("/v1/users/me", headers=holder)).json()
+    assert "identity" not in own and "research_basis" not in own and "active_sessions" not in own
+
+    # Ended sessions (signed out, or past the idle limit) are not counted.
+    rows = (await db_session.execute(select(IdentitySession).where(IdentitySession.user_id == user_id))).scalars().all()
+    rows[0].revoked_at = datetime.now(timezone.utc)
+    for row in rows[1:]:
+        row.idle_expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+    await db_session.flush()
+    assert (await api_client.get(endpoint, headers=admin)).json()["user"]["active_sessions"] == 0

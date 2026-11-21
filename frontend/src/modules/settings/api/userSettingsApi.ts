@@ -3,8 +3,9 @@
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's gateway routes and generated types (`PATCH /v1/users/me` for the email and the password,
 // notification preferences per kind × channel, beta features, the plan); refusals throw the typed error
-// `readApiError` reads; the revisions (`ETag`) come back so a write can send `If-Match`. SPHERE's profile, social links,
-// avatar and Google identity calls are not ported.
+// `readApiError` reads; the revisions (`ETag`) come back so a write can send `If-Match`. The display name and the avatar go
+// through the same `PATCH /v1/users/me`; SPHERE's profile blob, social links, avatar upload and Google identity calls are not
+// ported.
 
 import { useCallback, useMemo } from 'react';
 import type { PlansPricingView, UsageView, UserProfile } from '../../core/api/account';
@@ -46,7 +47,10 @@ export function useUserSettingsApi() {
     [fetchWithInterceptor]
   );
 
-  /** Change the sign-in email or the password: both need the current password. */
+  /**
+   * Change the sign-in email or the password (both need the current password), or, in local mode, the display name and
+   * the avatar (they need none).
+   */
   const updateProfile = useCallback(
     (changes: UpdateProfileRequest) =>
       call<UserProfile>(ME, { method: 'PATCH', body: JSON.stringify(changes) }),

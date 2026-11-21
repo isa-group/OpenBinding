@@ -3,7 +3,8 @@
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's keys through `useApiKeysApi()` (refusals read and said, never swallowed); the dialog opens at
 // `?create=key` from a link; the secret of a created or rotated key is shown once in SPHERE's warning panel; rotate and revoke
-// are confirmed; the plan's key limit is shown and enforced in words; a Helmet title.
+// are confirmed; the plan's key limit is shown and enforced in words; a Helmet title; in SCORETech Identity mode, a notice of
+// when the keys stop working unless their owner signs in again (`UserProfile.api_keys_suspended_at`).
 
 import { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
@@ -15,6 +16,8 @@ import BlockAlert from '../../../core/components/block-alert';
 import { useCopy } from '../../../core/hooks/useCopy';
 import customConfirm from '../../../core/utils/custom-confirm';
 import { fallbackMessage } from '../../../core/utils/account-errors';
+import { formatDate } from '../../../core/utils/format';
+import { useAuth } from '../../../auth/hooks/useAuth';
 import { useApiKeysApi, type ApiKeySummary, type CreatedApiKey } from '../../api/apiKeysApi';
 import ApiKeyList from '../../components/ApiKeyList';
 import CreateApiKeyDialog from '../../components/CreateApiKeyDialog';
@@ -40,8 +43,34 @@ interface Banner {
   text: string;
 }
 
+/**
+ * What the page says of the orphan-key rule (SCORETech Identity mode): personal keys work only while their owner has
+ * signed in or renewed with Identity within the gateway's window. Nothing in local mode (`null`).
+ */
+function suspensionNotice(
+  suspendedAt: string | null | undefined,
+  now: number
+): { variant: 'info' | 'warning'; text: string } | null {
+  if (!suspendedAt) return null;
+  const at = Date.parse(suspendedAt);
+  if (Number.isNaN(at)) return null;
+  if (at <= now)
+    return {
+      variant: 'warning',
+      text: 'Your API keys are suspended until you sign in with SCORETech Identity. Sign out and sign in again to use them.',
+    };
+  return {
+    variant: 'info',
+    text: `Your API keys stop working on ${formatDate(suspendedAt)} unless you sign in again. Each sign-in with SCORETech Identity keeps them working.`,
+  };
+}
+
 export default function ApiKeysPage() {
   const api = useApiKeysApi();
+  const { user } = useAuth();
+  // The moment the page opened: the notice says how things stand when it is read, not on every render.
+  const [openedAt] = useState(() => Date.now());
+  const suspension = suspensionNotice(user?.api_keys_suspended_at, openedAt);
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const creating = params.get('create') === 'key';
@@ -153,6 +182,10 @@ export default function ApiKeysPage() {
           than your account.
         </p>
       </div>
+
+      {suspension && (
+        <BlockAlert variant={suspension.variant} className="mb-6" message={suspension.text} />
+      )}
 
       {secret && (
         <BlockAlert variant="warning" className="mb-6">

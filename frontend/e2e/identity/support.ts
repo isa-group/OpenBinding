@@ -8,8 +8,8 @@
  * routes are called through `page.request`, which shares the page's cookie jar, with the frontend's `Origin`.
  * Nothing here logs an address, a code or a token.
  */
-import { expect, type APIResponse, type Page } from '@playwright/test';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { expect, type APIResponse, type BrowserContext, type Page } from '@playwright/test';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 export const OB = process.env.BASE_URL ?? 'http://localhost:18198';
 export const MAILPIT = process.env.MAILPIT_URL ?? 'http://localhost:18025';
@@ -17,8 +17,19 @@ export const RUN = process.env.WALK_RUN ?? '';
 const RESULTS = process.env.E2E_RESULTS_DIR ?? '/results';
 const STATE = `${RESULTS}/walk-state.json`;
 
+/** `opowner`, `opmember` and `opviewer` stand for the lab's owner, member and viewer in F4's operation walk (04). */
 export type Role =
-  'admin' | 'member' | 'research' | 'norole' | 'clash' | 'squat' | 'new' | 'screens';
+  | 'admin'
+  | 'member'
+  | 'research'
+  | 'norole'
+  | 'clash'
+  | 'squat'
+  | 'new'
+  | 'screens'
+  | 'opowner'
+  | 'opmember'
+  | 'opviewer';
 
 export function email(role: Role): string {
   if (role === 'research') return `ob-walk-${RUN}-research@research.example`;
@@ -134,6 +145,36 @@ export async function identityAsksForAnEmail(page: Page): Promise<boolean> {
   await startSignIn(page);
   await page.waitForLoadState('domcontentloaded');
   return (await page.locator('#email').count()) > 0 && new URL(page.url()).origin !== OB;
+}
+
+type Cookies = Parameters<BrowserContext['addCookies']>[0];
+
+/**
+ * Signs `role`, which has already chosen its username, in on `page` and returns an access token, for the live walks run
+ * behind Identity (e2e/live/support.ts, `LAB_SIGN_IN=identity`). With Identity's SSO cookies from this user's earlier
+ * sign-in (never OpenBinding's own `ob_` cookies), Identity answers at once; otherwise by email code.
+ */
+export async function signInReturning(page: Page, role: Role): Promise<string> {
+  const saved = storagePath(role);
+  if (existsSync(saved)) {
+    const { cookies } = JSON.parse(readFileSync(saved, 'utf8')) as { cookies: Cookies };
+    await page.context().addCookies(cookies.filter(cookie => !/^(__Host-)?ob_/.test(cookie.name)));
+  }
+  await startSignIn(page);
+  const home = () => {
+    const url = new URL(page.url());
+    return url.origin === OB && !url.pathname.startsWith('/api/');
+  };
+  await expect
+    .poll(async () => home() || (await page.locator('#email').count()) > 0, { timeout: 60_000 })
+    .toBe(true);
+  if (!home()) await answerWithCode(page, email(role));
+  expect((await landed(page)).pathname, `${username(role)} has a username`).not.toBe(
+    '/sso/identity/username'
+  );
+  await page.waitForURL(url => url.origin === OB && url.pathname === '/', { timeout: 60_000 });
+  await page.context().storageState({ path: saved });
+  return tokenOf(await api(page).session());
 }
 
 export function api(page: Page) {

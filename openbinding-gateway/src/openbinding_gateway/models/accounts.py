@@ -12,9 +12,10 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from ..security.apikeys import ApiKeyPermission, ENGINE_LIMITED_PERMISSIONS
+from .avatars import AvatarDescriptor
 
 USERNAME_PATTERN = r"^[a-zA-Z0-9][a-zA-Z0-9._-]{2,63}$"
 
@@ -129,6 +130,21 @@ class UserProfile(BaseModel):
         default=False,
         description="Whether `email` is verified and in an institutional domain that entitles the account to RESEARCH.",
     )
+    display_name: Optional[str] = Field(
+        default=None,
+        description="The name the person shows (SCORETech Identity's display name, or the one set in local mode); null if none.",
+    )
+    avatar: Optional[AvatarDescriptor] = Field(
+        default=None,
+        description="The person's avatar: SCORETech Identity's descriptor (colours as hex); null draws the initials.",
+    )
+    password_enabled: bool = Field(
+        default=False,
+        description=(
+            "Whether the account has a password of its own: deleting it then asks for the current one. False for an "
+            "account that only signs in with SCORETech Identity."
+        ),
+    )
     api_keys_suspended_at: Optional[datetime] = Field(
         default=None,
         description=(
@@ -158,6 +174,29 @@ class UpdateProfileRequest(BaseModel):
         default=None, description="Required when changing the password."
     )
     new_password: Optional[str] = None
+    display_name: Optional[str] = Field(
+        default=None,
+        max_length=160,
+        description=(
+            "Local mode: the name to show others; an empty one, or null, removes it. Absent keeps it. In SCORETech "
+            "Identity mode it is Identity's (409 `managed_by_identity`)."
+        ),
+    )
+    avatar: Optional[AvatarDescriptor] = Field(
+        default=None,
+        description=(
+            "Local mode: the avatar, in SCORETech Identity's shapes; null removes it (the initials). Absent keeps it. "
+            "In SCORETech Identity mode it is Identity's (409 `managed_by_identity`)."
+        ),
+    )
+
+    @field_validator("display_name")
+    @classmethod
+    def _trimmed(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        value = " ".join(value.split())
+        return value or None
 
 
 class ApiKeyEngineRef(BaseModel):
@@ -313,13 +352,39 @@ class PricingTokenView(BaseModel):
     pricing_token: str
 
 
+class AdminIdentityLink(BaseModel):
+    """The external identity an account signs in with: SCORETech Identity's issuer and subject."""
+
+    provider: str = Field(..., description="`scoretech`.")
+    issuer: str
+    subject: str = Field(..., description="Identity's `sub` for this account.")
+    linked_at: datetime
+
+
 class AdminUserView(UserProfile):
-    """A user as an administrator sees them: the profile, plus what it costs."""
+    """A user as an administrator sees them: the profile, plus what it costs and how it signs in."""
 
     contract_pending: bool = Field(
         default=False, description="True when the account still owes a contract."
     )
     api_key_count: int = Field(default=0, description="How many keys are in use.")
+    identity: Optional[AdminIdentityLink] = Field(
+        default=None, description="The SCORETech Identity the account signs in with; null for a local account."
+    )
+    last_identity_refresh_at: Optional[datetime] = Field(
+        default=None,
+        description="When the account last signed in or renewed with SCORETech Identity; null if never.",
+    )
+    active_sessions: int = Field(
+        default=0, description="Browser sessions neither signed out nor expired, in either sign-in mode."
+    )
+    research_basis: Optional[Literal["email", "admin"]] = Field(
+        default=None,
+        description=(
+            "How the account was last granted RESEARCH: `email` (a verified institutional email) or `admin` (an "
+            "administrator); null if it never was."
+        ),
+    )
 
 
 class AdminUserPage(BaseModel):

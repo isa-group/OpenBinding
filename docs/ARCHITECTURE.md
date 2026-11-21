@@ -280,7 +280,14 @@ header and its 33-screen budget).
 - **Engines:** `/engines` (the catalog), `/engines/:namespace/:name/:version`, and the account's `/me/engines`,
   `/me/engines/new` and `/me/engines/:name`.
 - **Account and administration:** `/me/settings?section=`, `/me/api-keys`, `/notifications`, `/admin/:section?`
-  and `/admin/users/:user`.
+  and `/admin/users/:user`. Settings follows SPHERE's filtering by sign-in mode: in `scoretech` mode Account is
+  SPHERE's IdentityAccountSection ("Open my SCORETech profile", a new tab that comes back to Settings) and the local
+  email and password are not shown; Public profile (the display name and the avatar) is read-only there, with "Edit in
+  SCORETech Identity", and editable in `local` mode through SPHERE's AvatarEditor restricted to Identity's shapes; the
+  Danger Zone asks for a password only of an account that has one. People are drawn with SCORETech Identity's avatar
+  renderer (`core/components/user-avatar`) wherever a `UserRef`, a member or the profile carries a descriptor: the header,
+  member lists, the user search. The API keys page says when the keys stop working unless their owner signs in again,
+  and the admin user's Identity tab names the account's issuer, subject, last renewal, live sessions and RESEARCH basis.
 - **Sign-in:** `/authentication` is the way to SCORETech Identity in `scoretech` mode (no form; `?identity_error=` pages
   with Try again) and the local form, registration (`?view=register`), `/forgot-password` and `/reset-password` in
   `local` mode; `/sso/identity/callback` finishes a sign-in and `/sso/identity/username` chooses the username of a first

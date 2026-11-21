@@ -249,6 +249,31 @@ describe('admin-user-detail · one account', () => {
     expect(api.adminGetUserUsage).toHaveBeenCalledWith(SAM.id);
   });
 
+  it('shows how the account signs in: its SCORETech identity, last renewal, sessions and RESEARCH basis', async () => {
+    open(MARIA.id, {}, 'identity');
+    await screen.findByRole('heading', { level: 1, name: 'maria.santos' });
+    const facts = within(screen.getByLabelText('Account facts'));
+    expect(facts.getByText('SCORETech Identity')).toBeInTheDocument();
+    expect(
+      facts.getByText('https://identity.example.invalid/identity/auth/realms/score')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy Identity subject' })).toBeInTheDocument();
+    expect(facts.getByText('Institutional domain of its verified e-mail')).toBeInTheDocument();
+    expect(facts.getByText('Nov 19, 2026', { exact: false })).toBeInTheDocument();
+    const sessions = facts.getByText('Active sessions').closest('div');
+    expect(sessions).toHaveTextContent('2');
+  });
+
+  it('says a local account signs in with its password and never renewed with Identity', async () => {
+    open(SAM.id, {}, 'identity');
+    await screen.findByRole('heading', { level: 1, name: 'sam.okafor' });
+    const facts = within(screen.getByLabelText('Account facts'));
+    expect(facts.getByText('OpenBinding password')).toBeInTheDocument();
+    expect(facts.queryByText('Identity subject')).not.toBeInTheDocument();
+    expect(facts.getByText('Never')).toBeInTheDocument();
+    expect(facts.getByText('Never granted')).toBeInTheDocument();
+  });
+
   it('finds an account by username as well as by id', async () => {
     open('sam.okafor');
     await ready();
