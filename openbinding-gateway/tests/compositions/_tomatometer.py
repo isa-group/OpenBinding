@@ -63,6 +63,15 @@ async def derive_and_seal(session, organization, composition, user, label: str, 
     return sealed.version
 
 
+async def fresh(session, found: "Seeded") -> tuple[Organization, Composition, User]:
+    """The seeded organization, composition and user, read again (a watcher cycle expires the session's objects)."""
+    return (
+        await session.get(Organization, found.ids["organization"], populate_existing=True),
+        await session.get(Composition, found.ids["composition"], populate_existing=True),
+        await session.get(User, found.ids["user"], populate_existing=True),
+    )
+
+
 async def seeded(api_client, registration, db_session, gate, *, production: bool = True) -> Seeded:
     headers, org, organization, user = await member(api_client, registration, db_session, gate)
     made = await templates.instantiate(db_session, organization, user, "tomatometer", slug="tomatometer")
@@ -74,7 +83,7 @@ async def seeded(api_client, registration, db_session, gate, *, production: bool
                                  {"dailySummary": "email.resend.pro"}, revision.revision)
     found = Seeded(headers, org, organization, user, composition, v100, v110, revision)
     found.ids = {"organization": organization.id, "composition": composition.id, "v100": v100.id, "v110": v110.id,
-                 "user": user.id}
+                 "user": user.id, "revision": revision.revision}
     if production:
         environment = CompositionEnvironment(
             organization_id=organization.id, composition_id=composition.id, slug="production", name="Production",
