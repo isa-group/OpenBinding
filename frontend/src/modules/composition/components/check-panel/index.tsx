@@ -101,8 +101,8 @@ export default function CheckPanel({ org, composition, environment, adopted }: P
             </ul>
             <p className="text-xs text-tp-steel">
               {`Checked version ${report.version.label} ${formatDistanceToNow(parseISO(report.checkedAt))} ago. `}
-              Nothing was changed. OpenBinding also watches these pricings every few minutes; changes appear under
-              Upstream changes.
+              Nothing was changed. OpenBinding also watches these pricings every few minutes;
+              changes appear under Upstream changes.
             </p>
           </div>
         )}
