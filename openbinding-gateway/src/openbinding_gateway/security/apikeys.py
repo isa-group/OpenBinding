@@ -252,6 +252,8 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "compositions": {"composition", "compositions"},
             # A composition's upstream changes, also listed across organizations under /users/me.
             "upstream-events": {"composition", "compositions"},
+            # A composition's proposals, an organization's proposal and the caller's (F6).
+            "proposals": {"composition", "compositions"},
             "runs": {"run", "runs"},
             "presets": {"preset", "presets"},
             "cells": {"cell", "cells"},
@@ -363,8 +365,9 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
     if path == "/v1/users":
         # Finding users by username, to invite them to an organization.
         return frozenset({ApiKeyPermission.ORGANIZATIONS_READ.value})
-    if path.startswith(("/v1/users/me/compositions", "/v1/users/me/upstream-events")):
-        # The caller's compositions, and their upstream events, across their organizations: a read of compositions.
+    if path.startswith(("/v1/users/me/compositions", "/v1/users/me/upstream-events", "/v1/users/me/proposals")):
+        # The caller's compositions, their upstream events and their proposals, across their organizations: a read
+        # of compositions.
         return frozenset({ApiKeyPermission.COMPOSITIONS_READ.value})
     if path.startswith("/v1/users/me"):
         return frozenset(
@@ -413,6 +416,15 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset(
             {ApiKeyPermission.COMPOSITIONS_READ.value}
             if reads
+            else {ApiKeyPermission.COMPOSITIONS_WRITE.value}
+        )
+    if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["proposals"]:
+        # An organization's proposals (F6): reading one is a read of compositions; confirming or cancelling one is a
+        # write of compositions. Confirming is keyed by path, so a step that adopts is checked by the executor
+        # against the key's own permissions (`compositions:adopt`), not here.
+        return frozenset(
+            {ApiKeyPermission.COMPOSITIONS_READ.value}
+            if method == "GET"
             else {ApiKeyPermission.COMPOSITIONS_WRITE.value}
         )
     if path.startswith("/v1/organizations/") and path.split("/")[4:5] in (["sphere"], ["pricing-snapshots"]):

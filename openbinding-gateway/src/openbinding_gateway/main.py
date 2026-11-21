@@ -64,6 +64,9 @@ from .modules.compositions.adapters.routes import router as compositions_router
 from .modules.compositions.adapters.environment_routes import router as composition_environments_router
 from .modules.compositions.adapters.upstream_routes import me_router as own_upstream_events_router
 from .modules.compositions.adapters.upstream_routes import router as upstream_events_router
+from .modules.compositions.adapters.proposal_routes import me_router as own_proposals_router
+from .modules.compositions.adapters.proposal_routes import organization_router as organization_proposals_router
+from .modules.compositions.adapters.proposal_routes import router as proposals_router
 from .modules.compositions.adapters.template_routes import public_router as composition_templates_router
 from .modules.compositions.adapters.template_routes import router as composition_from_template_router
 from .modules.execution.adapters.preset_routes import router as run_presets_router
@@ -547,6 +550,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(composition_environments_router)
     app.include_router(upstream_events_router)
     app.include_router(own_upstream_events_router)
+    app.include_router(proposals_router)
+    app.include_router(organization_proposals_router)
+    app.include_router(own_proposals_router)
     app.include_router(composition_from_template_router)
     app.include_router(bim_router)
     app.include_router(composition_language_router)

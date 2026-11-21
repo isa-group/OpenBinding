@@ -41,6 +41,7 @@ REEVALUATE = "/v1/organizations/{org}/compositions/{composition}/versions/{versi
 EVALUATE = "/v1/organizations/{org}/compositions/{composition}/evaluate"
 NEIGHBORHOOD = "/v1/organizations/{org}/compositions/{composition}/neighborhood"
 DERIVE = "/v1/organizations/{org}/compositions/{composition}/derive"
+PROPOSALS = "/v1/organizations/{org}/compositions/{composition}/proposals"
 CONNECTION = "/v1/organizations/{org}/connections/sphere"
 FROM_TEMPLATE = "/v1/organizations/{org}/compositions/from-template"
 NO_TEMPLATE = {"content": b'{"template": "nothing"}', "headers": {"content-type": "application/json"}}
@@ -79,6 +80,8 @@ REQUESTS = {
     ("POST", EVALUATE): ("POST", "/v1/organizations/{org}/compositions/none/evaluate", EMPTY_JSON),
     ("GET", NEIGHBORHOOD): ("GET", "/v1/organizations/{org}/compositions/none/neighborhood", {}),
     ("POST", DERIVE): ("POST", "/v1/organizations/{org}/compositions/none/derive", EMPTY_JSON),
+    # A proposal derives the document a seal step would store (F6-B): the first is a 422, the second a 429.
+    ("POST", PROPOSALS): ("POST", "/v1/organizations/{org}/compositions/none/proposals", EMPTY_JSON),
     # Counted before the template is looked up: the first is a 404, the second a 429.
     ("POST", FROM_TEMPLATE): ("POST", FROM_TEMPLATE, NO_TEMPLATE),
     # Counted before the key is checked: the first is a 422, the second a 429.
@@ -243,7 +246,7 @@ def test_compile_read_and_evaluate_are_the_classes_the_policy_states():
     )
     assert {route for route, work_class in WORK_ROUTES.items() if work_class == "evaluate"} == {
         ("POST", VERSIONS), ("POST", f"{VERSIONS}/check"), ("POST", FORK),
-        ("POST", REEVALUATE), ("POST", EVALUATE), ("GET", NEIGHBORHOOD), ("POST", DERIVE),
+        ("POST", REEVALUATE), ("POST", EVALUATE), ("GET", NEIGHBORHOOD), ("POST", DERIVE), ("POST", PROPOSALS),
     }
 
 

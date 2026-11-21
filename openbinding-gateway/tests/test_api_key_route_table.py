@@ -51,8 +51,9 @@ def test_the_route_table_has_the_v1_surface():
     # 196 with SCORETech Identity (F5-A) and the three composition template routes (F4-B); F5-B deletes the refresh
     # token route and the local logout, then the four US CAS routes and the two linked-identity routes (191); F5-D adds
     # what deleting the account deletes with it (192); F6-A adds the upstream events: list, read, review and the
-    # caller's list (196).
-    assert len(ROUTES) == 196
+    # caller's list (196); F6-B adds the proposals: a composition's (make, list), an organization's (read, cancel) and the
+    # caller's list (201).
+    assert len(ROUTES) == 201
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -158,11 +159,11 @@ def test_projects_are_gone_with_their_permissions_and_boundary():
     assert not {"projects:read", "projects:write"} & set(ALL_PERMISSIONS)
     assert "projects" not in apikeys.BOUNDARY_FIELDS
     # The organization tree holds only the organization, its avatar, members, invitations, audit, problems, runs,
-    # run presets, studies, compositions, connections, SPHERE discovery and pricing snapshots.
+    # run presets, studies, compositions, connections, SPHERE discovery, pricing snapshots and proposals (F6-B).
     sections = {route[1].split("/")[4] for route in ROUTES if route[1].startswith("/v1/organizations/{org}/")}
     assert sections == {
         "avatar", "avatar-colors", "hierarchy", "profile", "owner", "members", "invitations", "audit", "problems", "runs", "presets", "studies",
-        "compositions", "connections", "sphere", "pricing-snapshots",
+        "compositions", "connections", "sphere", "pricing-snapshots", "proposals",
     }
     # A stored boundary that still names projects is malformed, and a malformed boundary denies everything.
     stale = SimpleNamespace(grants={"boundary": {"projects": ["p"]}})
@@ -282,7 +283,7 @@ def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
     routes = sorted(
         route for route in ROUTES
         if route[1].startswith(compositions) and "/environments" not in route[1] and not route[1].endswith("/from-template")
-        and "/upstream-events" not in route[1]
+        and "/upstream-events" not in route[1] and "/proposals" not in route[1]
     )
 
     assert routes == [
@@ -435,6 +436,22 @@ def test_upstream_events_are_composition_reads_and_their_review_a_write():
         ("GET", "/v1/users/me/upstream-events"),
         ("POST", f"{events}/{{event}}/review"),
     ]
+    for method, path in routes:
+        expected = "compositions:read" if method == "GET" else "compositions:write"
+        assert required_permissions(path, method) == frozenset({expected}), (method, path)
+
+
+def test_proposals_are_composition_reads_and_their_writes_composition_writes():
+    """F6-B: reading a proposal is a read of compositions; making or cancelling one is a write. A key that only adopts
+    cannot make one; the executor checks each step's own permission at confirm (``compositions:adopt`` to adopt)."""
+    routes = sorted(route for route in ROUTES if "proposals" in route[1])
+    assert routes == sorted([
+        ("GET", "/v1/organizations/{org}/compositions/{composition}/proposals"),
+        ("POST", "/v1/organizations/{org}/compositions/{composition}/proposals"),
+        ("GET", "/v1/organizations/{org}/proposals/{proposal}"),
+        ("DELETE", "/v1/organizations/{org}/proposals/{proposal}"),
+        ("GET", "/v1/users/me/proposals"),
+    ] + [route for route in routes if route[1].endswith("/confirm")])
     for method, path in routes:
         expected = "compositions:read" if method == "GET" else "compositions:write"
         assert required_permissions(path, method) == frozenset({expected}), (method, path)

@@ -113,3 +113,37 @@ async def test_an_adoption_names_its_proposal_exactly_when_one_made_it(pg) -> No
             await session.rollback()
         await adoption(session, w, environment_id, 1, source="proposal", proposal_id=proposal_id)
         await session.commit()
+
+
+async def test_two_concurrent_proposals_of_one_author_leave_one_pending(pg) -> None:
+    """P2 under a race: each create supersedes the pending one; the loser of the unique index retries the supersession
+    once, so both answer and exactly one stays pending, superseding the other."""
+    from sqlalchemy import select
+
+    from openbinding_gateway.db.models import Composition, Organization, OrganizationRole, User
+    from openbinding_gateway.modules.compositions.application import proposals
+
+    async with pg.session() as session:
+        w = await world(session)
+        await environment(session, w)
+        await session.commit()
+
+    async def make(note: str):
+        async with pg.session() as session:
+            organization = await session.get(Organization, w.organization_id)
+            composition = await session.get(Composition, w.composition_id)
+            user = await session.get(User, w.user_id)
+            return (await proposals.create(
+                session, organization, user,
+                [proposals.StepRequest("adopt", {"environment": "production", "version": "1.1.0", "note": note})],
+                role=OrganizationRole.OWNER, composition=composition,
+            )).id
+
+    made = await asyncio.gather(make("a"), make("b"))
+    async with pg.session() as session:
+        rows = {row.id: row for row in (await session.scalars(
+            select(Proposal).where(Proposal.composition_id == w.composition_id))).all()}
+    assert set(rows) == set(made)
+    pending = [row for row in rows.values() if row.status == "pending"]
+    superseded = [row for row in rows.values() if row.status == "superseded"]
+    assert len(pending) == len(superseded) == 1 and superseded[0].superseded_by_id == pending[0].id
