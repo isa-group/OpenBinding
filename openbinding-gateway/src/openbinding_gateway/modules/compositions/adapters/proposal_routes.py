@@ -20,6 +20,7 @@ from ....access.dependencies import get_current_user, session_dependency
 from ....access.work_limits import limit_work
 from ....collaboration import effective_role, organization_by_ref
 from ....db.models import Composition, CompositionEnvironment, Organization, OrganizationRole, User
+from ....security.apikeys import authenticated_api_key
 from ....models.errors import (
     CONFLICT_RESPONSE,
     FORBIDDEN_RESPONSE,
@@ -98,6 +99,18 @@ async def organization_scope(session: AsyncSession, org: str, user: User) -> tup
     if organization is None or role is None:
         raise proposals.unreadable()
     return organization, role
+
+
+async def reachable(session: AsyncSession, organization: Organization, proposal: str, user: User):
+    """The organization's proposal ``proposal`` for a caller whose API key (if any) reaches its composition; anything
+    else is ``Proposal not found.``."""
+    row = await proposals.by_id(session, organization, proposal)
+    if row is None:
+        raise proposals.unreadable()
+    composition = None if row.composition_id is None else await session.get(Composition, row.composition_id)
+    if not proposals.key_reaches(authenticated_api_key(user), organization, composition):
+        raise proposals.unreadable()
+    return row
 
 
 async def proposal_view(session: AsyncSession, row, caller: User, *, detail: bool = False) -> ProposalView:
@@ -218,9 +231,7 @@ async def get_proposal(
 ) -> ProposalView:
     """One proposal with each seal step's document and its diff against the version in effect (members)."""
     organization, _ = await organization_scope(session, org, user)
-    row = await proposals.by_id(session, organization, proposal)
-    if row is None:
-        raise proposals.unreadable()
+    row = await reachable(session, organization, proposal, user)
     headers(response, row)
     return await proposal_view(session, row, user, detail=True)
 
@@ -244,9 +255,7 @@ async def cancel_proposal(
 ) -> ProposalView:
     """Cancel a pending proposal (its author only): it is kept, `cancelled`."""
     organization, _ = await organization_scope(session, org, user)
-    row = await proposals.by_id(session, organization, proposal)
-    if row is None:
-        raise proposals.unreadable()
+    row = await reachable(session, organization, proposal, user)
     cancelled = await proposals.cancel(session, row, user)
     headers(response, cancelled)
     return await proposal_view(session, cancelled, user)
@@ -288,6 +297,7 @@ async def confirm_proposal(
 ) -> ProposalView:
     """Confirm a pending proposal (its author): the steps are applied in order and reported one by one."""
     organization, role = await organization_scope(session, org, user)
+    await reachable(session, organization, proposal, user)
     finished = await proposal_executor.confirm(
         session, organization, proposal, user, role=role,
         confirmation=None if payload is None else payload.confirmation,
@@ -308,8 +318,21 @@ async def list_own_proposals(
     """The caller's own proposals in every organization they hold a role in, newest first (pending by default): the
     dashboard's "Your pending proposals"."""
     organization_ids = await compositions.readable_organization_ids(session, user)
-    rows = await proposals.list_for(session, None, organization_ids=organization_ids, author=user, status_=status_,
-                                    limit=limit)
+    key = authenticated_api_key(user)
+    if key is not None:
+        # The key's boundary: only proposals of organizations and compositions it reaches (filtered here, since the
+        # route names none of them).
+        reached = []
+        for row in await proposals.list_for(session, None, organization_ids=organization_ids, author=user,
+                                            status_=status_, limit=200):
+            organization = await session.get(Organization, row.organization_id)
+            composition = None if row.composition_id is None else await session.get(Composition, row.composition_id)
+            if organization is not None and proposals.key_reaches(key, organization, composition):
+                reached.append(row)
+        rows = reached[:limit]
+    else:
+        rows = await proposals.list_for(session, None, organization_ids=organization_ids, author=user,
+                                        status_=status_, limit=limit)
     headers(response)
     return ProposalList(proposals=[await proposal_view(session, row, user) for row in rows])
 

@@ -796,6 +796,24 @@ async def preview_of(session: AsyncSession, proposal: Proposal, step: ProposalSt
     return Preview(step.preview, against, environment_used, diff)
 
 
+def key_reaches(api_key: Any, organization: Organization, composition: Composition | None) -> bool:
+    """Whether a personal API key's boundary covers a proposal of ``organization`` on ``composition``. A proposal's own
+    routes name only the organization and the proposal, so the route-level check cannot see its composition; a key
+    bounded by slugs reaches no proposal without one. ``None`` (a browser session) reaches every proposal."""
+    from ....security.apikeys import boundary_of
+
+    boundary = boundary_of(api_key) if api_key is not None else None
+    if boundary is None:
+        return True
+    if not boundary:
+        return False
+    if "organizations" in boundary and not {str(organization.id), organization.slug} & boundary["organizations"]:
+        return False
+    if "slugs" in boundary:
+        return composition is not None and bool({composition.slug, str(composition.id)} & boundary["slugs"])
+    return True
+
+
 # -- Cancelling ------------------------------------------------------------------------------------------------------
 
 
@@ -840,6 +858,7 @@ __all__ = [
     "create",
     "deferred_of",
     "head_version",
+    "key_reaches",
     "list_for",
     "next_label",
     "not_pending",

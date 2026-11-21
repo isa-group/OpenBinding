@@ -520,3 +520,33 @@ async def test_a_run_whose_job_is_gone_is_stale(api_client, registration, db_ses
                                     headers=headers)
     assert refused.status_code == 409 and code(refused) == "proposal_stale"
     assert {item["reason"] for item in refused.json()["detail"]["stale"]} == {"run_unreadable"}
+
+
+async def _bounded_key(api_client, headers, boundary: dict) -> dict:
+    made = await api_client.post("/v1/users/me/api-keys", headers=headers, json={
+        "name": "bounded", "permissions": ["compositions:read", "compositions:write", "compositions:adopt"],
+        "engine_access": {"all": True, "engines": []}, "boundary": boundary,
+    })
+    assert made.status_code == 201, made.text
+    body = made.json()
+    return {"X-API-Key": body["secret"]}
+
+
+async def test_a_key_bounded_to_another_composition_reaches_no_proposal_of_this_one(api_client, registration, db_session, gate):  # noqa: F811
+    """A proposal's own routes name only the organization and the proposal: the key's slugs are checked against the
+    proposal's composition, with the same 404 as a missing proposal, and the caller's list is filtered alike."""
+    t = await tomato_team(api_client, registration, db_session, gate)
+    made = await propose(api_client, t, t.member, adopt("1.1.0"))
+    elsewhere = await _bounded_key(api_client, t.member, {"slugs": ["other"]})
+    missing = await api_client.get(t.proposal(str(uuid.uuid4())), headers=t.member)
+    for method, path in (("GET", t.proposal(made["id"])), ("DELETE", t.proposal(made["id"])),
+                         ("POST", f"{t.proposal(made['id'])}/confirm")):
+        refused = await api_client.request(method, path, headers=elsewhere)
+        assert refused.status_code == 404 and refused.json() == missing.json(), (method, path, refused.text)
+    assert (await api_client.get("/v1/users/me/proposals", headers=elsewhere)).json() == {"proposals": []}
+    assert (await db_session.get(Proposal, uuid.UUID(made["id"]), populate_existing=True)).status == "pending"
+    reaching = await _bounded_key(api_client, t.member, {"slugs": ["tomatometer"]})
+    assert [row["id"] for row in (await api_client.get("/v1/users/me/proposals", headers=reaching)).json()[
+        "proposals"]] == [made["id"]]
+    confirmed = await confirm(api_client, t, reaching, made["id"])
+    assert confirmed.status_code == 200 and confirmed.json()["status"] == "completed", confirmed.text
