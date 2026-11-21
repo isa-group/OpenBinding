@@ -381,3 +381,36 @@ async def test_a_url_offering_is_watched_through_its_snapshots(api_client, regis
     assert forward.new_snapshot_id == first.new_snapshot_id and forward.notify is True
     await cycle(db_session, source)
     assert len(await _events(db_session, composition_id=shop_id)) == 3
+
+
+async def test_a_url_host_answering_429_holds_only_its_own_watches(api_client, registration, db_session, gate, sphere, source, clocks, monkeypatch):  # noqa: F811
+    """A third-party offering host's 429 is its own scope: the organization's SPHERE watches are not held (nor
+    told SPHERE is busy)."""
+    from openbinding_gateway.core.settings import get_settings
+    from sphere_recorded import SFX
+
+    monkeypatch.setattr(get_settings(), "offering_url_min_interval_s", 1e-6)
+    mailgun = (SFX / "6ade364540e55445692b0eda" / "6ade36454b2b5b01c587db3d.yml").read_bytes()
+    sphere.add_host("pricings.example.org", "93.184.216.34")
+    sphere.serve("/shop/pricing.yml", mailgun, {"content-type": "application/yaml", "etag": '"v1"'})
+    found = await seeded(api_client, registration, db_session, gate, production=False)
+    base = f"/v1/organizations/{found.org}/compositions"
+    assert (await api_client.post(base, headers=found.headers, json={"slug": "shop", "name": "Shop"})).status_code == 201
+    sealed = await api_client.post(f"{base}/shop/versions", content=SHOP.encode(), headers={**found.headers, **YAML})
+    assert sealed.status_code == 201, sealed.text
+    organization_id = found.ids["organization"]
+    keyed = PricingWatch(source_kind="sphere", pricing_id="6c0000000000000000000001", scope_key=str(organization_id),
+                         organization_id=organization_id,
+                         watch_key=f"sphere|6c0000000000000000000001|{organization_id}")
+    db_session.add(keyed)
+    await db_session.commit()
+    keyed_id = keyed.id
+    await cycle(db_session, source)
+    sphere.rate_limited(30, path="/shop/pricing.yml", times=1)
+    clocks.advance(30)
+    report = await cycle(db_session, source)
+    url = await db_session.scalar(select(PricingWatch).where(PricingWatch.source_kind == "url")
+                                  .execution_options(populate_existing=True))
+    held = await db_session.get(PricingWatch, keyed_id, populate_existing=True)
+    assert held.retry_after_until is None and held.last_error is None
+    assert report.busy == 1 and url.retry_after_until is not None and url.last_error == "url_busy"

@@ -43,6 +43,7 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlsplit
 
 from sqlalchemy import and_, case, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -158,7 +159,17 @@ class _Counting:
         return target
 
 
+def _origin(url: str | None) -> str:
+    """``scheme://host[:port]/`` of a URL offering: the host whose 429 holds it."""
+    parts = urlsplit(url or "")
+    return f"{parts.scheme}://{parts.netloc}/"
+
+
 def _bucket(watch: PricingWatch) -> str:
+    """The rate-limit scope a 429 closes: SPHERE's (every public watch, one registry's, one organization's key), or a
+    URL offering's host, which never holds an organization's SPHERE watches (nor they it)."""
+    if watch.source_kind == "url":
+        return f"url:{_origin(watch.url)}"
     if watch.source_kind == "registry":
         return f"registry:{watch.registry}"
     if watch.organization_id is not None:
@@ -167,10 +178,12 @@ def _bucket(watch: PricingWatch) -> str:
 
 
 def _bucket_condition(watch: PricingWatch) -> Any:
+    if watch.source_kind == "url":
+        return and_(PricingWatch.source_kind == "url", PricingWatch.url.startswith(_origin(watch.url), autoescape=True))
     if watch.source_kind == "registry":
         return and_(PricingWatch.source_kind == "registry", PricingWatch.registry == watch.registry)
     if watch.organization_id is not None:
-        return PricingWatch.organization_id == watch.organization_id
+        return and_(PricingWatch.organization_id == watch.organization_id, PricingWatch.source_kind != "url")
     return and_(PricingWatch.scope_key == "public", PricingWatch.source_kind == "sphere")
 
 
@@ -264,7 +277,7 @@ async def _busy(factory, watch: PricingWatch, retry_after: int) -> None:
                  PricingWatch.retry_after_until),
                 else_=until,
             ),
-            last_error="sphere_busy",
+            last_error="url_busy" if watch.source_kind == "url" else "sphere_busy",
         ).execution_options(synchronize_session=False))
         await session.execute(update(PricingWatch).where(PricingWatch.id == watch.id).values(
             polled_at=clock.now(session), next_poll_at=until,

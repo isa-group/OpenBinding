@@ -214,7 +214,8 @@ Every sealed version records what it reads upstream as watch references; the ups
 family's manifest once per interval (`UPSTREAM_POLL_INTERVAL_S`, 300 s; staggered per watch) with `If-None-Match` and
 `revalidate=True`, so a fresh cache entry or a recent 404 never answers for SPHERE. A new latest version (SPHERE's
 order: by `createdAt`, never the highest label) is snapshotted as a system read, passing the manifest already read.
-A 429 closes the watch's bucket (every public watch, one registry's, or one organization's) until `Retry-After`, in the
+A 429 closes the watch's bucket (every public watch, one registry's, or one organization's keyed ones; a URL offering's
+host is a bucket of its own) until `Retry-After`, in the
 database, so a leadership change keeps it; a failure backs off exponentially to an hour; a family is gone only after
 two 404s from requests actually sent at least one interval apart by the database clock. An organization-scoped watch
 reads with its connection's key; a missing key, or one SPHERE refuses during the read (the adapter would then answer
