@@ -2,7 +2,8 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: the gateway's flat branch (by slug, with `has_access`); an admin of both ends moves an organization (OpenBinding's
-// rule), refused moves read as sentences; "Add child" opens the creation dialog; the rows are links.
+// rule), refused moves read as sentences; "Add child" opens the creation dialog; the rows are links; a personal
+// organization takes no sub-organization, so it offers none.
 
 import { motion } from 'framer-motion';
 import { useCallback, useMemo, useState } from 'react';
@@ -44,6 +45,8 @@ export default function HierarchyTab({
 }: Props) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const { isMoving, error, message, dismissFeedback, move } = useOrgReparenting(onMoved);
+  // A personal organization stands outside the hierarchy: no child is added to it.
+  const canAddChild = canManage && !org.is_personal;
   const roots = useMemo(() => (hierarchyTree ? [hierarchyTree] : []), [hierarchyTree]);
   const draggedNode = draggedId ? findInTree(roots, draggedId, childrenOf) : null;
   const managedIds = useMemo(
@@ -115,14 +118,14 @@ export default function HierarchyTab({
               ? 'Ancestors above, descendants below. A locked organization is one you do not belong to.'
               : 'This is a root organization. All descendants are shown below.'}
           </p>
-          {canManage && (
+          {canAddChild && (
             <p className="mt-1 text-xs text-tp-steel">
               Drag an organization by its grip onto another to make it a child. You must be an admin
               of both ends of the move.
             </p>
           )}
         </div>
-        {canManage && (
+        {canAddChild && (
           <button
             type="button"
             onClick={onCreateSubOrg}
@@ -148,8 +151,12 @@ export default function HierarchyTab({
         {hierarchyTree && !hasChildren ? (
           <div className="flex flex-col items-center gap-2 py-12 text-tp-ink">
             <Iconify icon="mdi:graph-outline" width={32} />
-            <p className="text-sm">No sub-organizations yet.</p>
-            {canManage && (
+            <p className="text-sm">
+              {org.is_personal
+                ? 'A personal organization has no sub-organizations.'
+                : 'No sub-organizations yet.'}
+            </p>
+            {canAddChild && (
               <button
                 type="button"
                 onClick={onCreateSubOrg}

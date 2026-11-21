@@ -122,6 +122,7 @@ const org = (
   slug,
   name,
   parent_id: null as string | null,
+  is_personal: false,
   effective_role: role,
   description: '',
   avatar: { url: null, kind: null, bg_color: null, fg_color: null },
@@ -139,6 +140,13 @@ const ORGANIZATIONS = [
     created_at: '2026-07-01T00:00:00Z',
   }),
   org('org-read-lab', 'read-lab', 'Read Lab', 'VIEWER', { created_at: '2026-05-01T00:00:00Z' }),
+  // Every account owns its personal organization, named after it (F5-D); last, so the screens that open the first
+  // organization keep opening ISA Demo Group.
+  org('org-alex-rivera', 'alex-rivera', 'alex.rivera PERSONAL', 'OWNER', {
+    is_personal: true,
+    stats: { members: 1, sub_organizations: 0, compositions: 0, problems: 0, runs: 0, studies: 0 },
+    created_at: '2026-03-01T00:00:00Z',
+  }),
 ];
 
 const member = (
@@ -183,6 +191,7 @@ const MEMBERS: Record<string, ReturnType<typeof member>[]> = {
       '2026-04-15T00:00:00Z'
     ),
   ],
+  'alex-rivera': [member('org-alex-rivera', 'alex.rivera', ME_ID, 'OWNER')],
 };
 
 const ORG_AUDIT = [
@@ -933,6 +942,7 @@ const PUBLIC_ORGANIZATIONS = [
     name: 'ISA Demo Group',
     description: 'Compositions and studies of the ISA research group.',
     avatar: { url: null, kind: null, bg_color: null, fg_color: null },
+    is_personal: false,
     public_compositions: 2,
   },
   {
@@ -941,6 +951,7 @@ const PUBLIC_ORGANIZATIONS = [
     name: 'Lab Other',
     description: '',
     avatar: { url: null, kind: null, bg_color: null, fg_color: null },
+    is_personal: false,
     public_compositions: 1,
   },
 ];

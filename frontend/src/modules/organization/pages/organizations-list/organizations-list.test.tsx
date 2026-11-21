@@ -91,6 +91,34 @@ describe('/me/orgs', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows the personal organization apart from the teams, and never moves it', () => {
+    const mine = orgNode('ana', { name: 'ana PERSONAL', is_personal: true });
+    renderModule(<OrganizationsListPage />, { tree: [mine, ...tree] });
+    const personal = screen.getByRole('region', { name: 'Personal' });
+    expect(within(personal).getByRole('link', { name: 'ana PERSONAL' })).toHaveAttribute(
+      'href',
+      '/orgs/ana'
+    );
+    const teams = screen.getByRole('region', { name: 'Teams' });
+    expect(within(teams).queryByRole('link', { name: 'ana PERSONAL' })).not.toBeInTheDocument();
+    expect(within(teams).getByRole('link', { name: 'ISA Demo Group' })).toBeInTheDocument();
+    expect(screen.getByText('5 organizations')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Move ana PERSONAL to…' })).not.toBeInTheDocument();
+    // Nor does it take a branch: the move dialog never offers it as a parent.
+    fireEvent.click(screen.getByRole('button', { name: 'Move Partner Lab to…' }));
+    const select = within(screen.getByRole('dialog', { name: 'Move Partner Lab' })).getByRole(
+      'combobox',
+      { name: 'New parent' }
+    );
+    expect(within(select).queryByRole('option', { name: /ana PERSONAL/ })).not.toBeInTheDocument();
+  });
+
+  it('has no Personal section without a personal organization', () => {
+    renderModule(<OrganizationsListPage />, { tree });
+    expect(screen.queryByRole('region', { name: 'Personal' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Teams' })).toBeInTheDocument();
+  });
+
   it('invites a newcomer to create or join an organization', () => {
     renderModule(<OrganizationsListPage />, { tree: [] });
     expect(screen.getByText('No organizations yet')).toBeInTheDocument();

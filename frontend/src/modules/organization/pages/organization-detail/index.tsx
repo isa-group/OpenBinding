@@ -74,6 +74,7 @@ function buildTree(nodes: OrgHierarchyNode[], currentId: string): TreeNode | nul
         parentId: node.parent_id ?? null,
         children: [],
         hasAccess: node.has_access,
+        isPersonal: node.is_personal,
       },
     ])
   );
