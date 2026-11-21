@@ -1,0 +1,615 @@
+{
+  "event": true,
+  "category": "offering_changed",
+  "reasons": [],
+  "notify": true,
+  "classifier": "1",
+  "diff": {
+    "schema": "openbinding/upstream-event-diff@1",
+    "pricing": {
+      "sphere": "sphere/tomatometer",
+      "registry": null,
+      "pricingId": "6ab0a323697330667ccce8cd",
+      "title": "TomatoMeter"
+    },
+    "old": {
+      "versionId": "6921867e7004563bd918e7e8",
+      "label": "1.0.0",
+      "createdAt": "2025-05-25T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce8cd?version=6921867e7004563bd918e7e8"
+    },
+    "new": {
+      "versionId": "6fff00000000000000000003",
+      "label": "1.2.0",
+      "createdAt": "2026-11-20T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce8cd?version=6fff00000000000000000003"
+    },
+    "catalog": {
+      "plans": {
+        "added": [],
+        "removed": []
+      },
+      "addOns": {
+        "added": [],
+        "removed": []
+      },
+      "features": {
+        "added": [],
+        "removed": []
+      },
+      "usageLimits": {
+        "added": [],
+        "removed": []
+      }
+    },
+    "plans": [
+      {
+        "plan": "basic",
+        "addOns": [],
+        "before": {
+          "price": "0.000000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": false,
+            "dailySummary": false,
+            "darkMode": false,
+            "customPomodoroDuration": false,
+            "advancedAnalytics": false,
+            "exportDataToJson": false
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "3.000000"
+          }
+        },
+        "after": {
+          "price": "0.990000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": false,
+            "dailySummary": true,
+            "darkMode": false,
+            "customPomodoroDuration": false,
+            "advancedAnalytics": false,
+            "exportDataToJson": false
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "5.000000"
+          }
+        },
+        "changed": true
+      },
+      {
+        "plan": "basic",
+        "addOns": [
+          "extraTimers"
+        ],
+        "before": {
+          "price": "1.000000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": false,
+            "dailySummary": false,
+            "darkMode": false,
+            "customPomodoroDuration": false,
+            "advancedAnalytics": false,
+            "exportDataToJson": false
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "8.000000"
+          }
+        },
+        "after": {
+          "price": "1.990000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": false,
+            "dailySummary": true,
+            "darkMode": false,
+            "customPomodoroDuration": false,
+            "advancedAnalytics": false,
+            "exportDataToJson": false
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "10.000000"
+          }
+        },
+        "changed": true
+      },
+      {
+        "plan": "advanced",
+        "addOns": [],
+        "before": {
+          "price": "3.990000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": true,
+            "dailySummary": true,
+            "darkMode": true,
+            "customPomodoroDuration": false,
+            "advancedAnalytics": false,
+            "exportDataToJson": false
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "10.000000"
+          }
+        },
+        "after": {
+          "price": "3.990000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": true,
+            "dailySummary": true,
+            "darkMode": true,
+            "customPomodoroDuration": false,
+            "advancedAnalytics": false,
+            "exportDataToJson": false
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "10.000000"
+          }
+        },
+        "changed": false
+      },
+      {
+        "plan": "advanced",
+        "addOns": [
+          "extraTimers"
+        ],
+        "before": {
+          "price": "4.990000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": true,
+            "dailySummary": true,
+            "darkMode": true,
+            "customPomodoroDuration": false,
+            "advancedAnalytics": false,
+            "exportDataToJson": false
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "15.000000"
+          }
+        },
+        "after": {
+          "price": "4.990000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": true,
+            "dailySummary": true,
+            "darkMode": true,
+            "customPomodoroDuration": false,
+            "advancedAnalytics": false,
+            "exportDataToJson": false
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "15.000000"
+          }
+        },
+        "changed": false
+      },
+      {
+        "plan": "premium",
+        "addOns": [],
+        "before": {
+          "price": "9.990000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": true,
+            "dailySummary": true,
+            "darkMode": true,
+            "customPomodoroDuration": true,
+            "advancedAnalytics": true,
+            "exportDataToJson": false
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "15.000000"
+          }
+        },
+        "after": {
+          "price": "9.990000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": true,
+            "dailySummary": true,
+            "darkMode": true,
+            "customPomodoroDuration": true,
+            "advancedAnalytics": true,
+            "exportDataToJson": false
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "15.000000"
+          }
+        },
+        "changed": false
+      },
+      {
+        "plan": "premium",
+        "addOns": [
+          "extraTimers"
+        ],
+        "before": {
+          "price": "10.990000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": true,
+            "dailySummary": true,
+            "darkMode": true,
+            "customPomodoroDuration": true,
+            "advancedAnalytics": true,
+            "exportDataToJson": false
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "20.000000"
+          }
+        },
+        "after": {
+          "price": "10.990000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": true,
+            "dailySummary": true,
+            "darkMode": true,
+            "customPomodoroDuration": true,
+            "advancedAnalytics": true,
+            "exportDataToJson": false
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "20.000000"
+          }
+        },
+        "changed": false
+      },
+      {
+        "plan": "premium",
+        "addOns": [
+          "exportAsJson"
+        ],
+        "before": {
+          "price": "11.990000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": true,
+            "dailySummary": true,
+            "darkMode": true,
+            "customPomodoroDuration": true,
+            "advancedAnalytics": true,
+            "exportDataToJson": true
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "15.000000"
+          }
+        },
+        "after": {
+          "price": "11.990000",
+          "unit": "user/month",
+          "features": {
+            "pomodoroTimer": true,
+            "soundNotifications": true,
+            "basicAnalytics": true,
+            "motivationalQuotes": true,
+            "dailySummary": true,
+            "darkMode": true,
+            "customPomodoroDuration": true,
+            "advancedAnalytics": true,
+            "exportDataToJson": true
+          },
+          "usageLimits": {
+            "maxPomodoroTimers": "15.000000"
+          }
+        },
+        "changed": false
+      }
+    ],
+    "margins": {
+      "environments": [
+        {
+          "environment": "production",
+          "adoption": 1,
+          "evaluation": "production-evaluation",
+          "users": 1000,
+          "before": {
+            "status": "ok",
+            "costPerUser": "0.508990",
+            "currency": "USD",
+            "rows": [
+              {
+                "plan": "basic",
+                "addOns": [],
+                "revenue": "0.000000",
+                "cost": "0.508990",
+                "margin": "-0.508990"
+              },
+              {
+                "plan": "basic",
+                "addOns": [
+                  "extraTimers"
+                ],
+                "revenue": "1.000000",
+                "cost": "0.508990",
+                "margin": "0.491010"
+              },
+              {
+                "plan": "advanced",
+                "addOns": [],
+                "revenue": "3.990000",
+                "cost": "0.508990",
+                "margin": "3.481010"
+              },
+              {
+                "plan": "advanced",
+                "addOns": [
+                  "extraTimers"
+                ],
+                "revenue": "4.990000",
+                "cost": "0.508990",
+                "margin": "4.481010"
+              },
+              {
+                "plan": "premium",
+                "addOns": [],
+                "revenue": "9.990000",
+                "cost": "0.508990",
+                "margin": "9.481010"
+              },
+              {
+                "plan": "premium",
+                "addOns": [
+                  "extraTimers"
+                ],
+                "revenue": "10.990000",
+                "cost": "0.508990",
+                "margin": "10.481010"
+              },
+              {
+                "plan": "premium",
+                "addOns": [
+                  "exportAsJson"
+                ],
+                "revenue": "11.990000",
+                "cost": "0.508990",
+                "margin": "11.481010"
+              }
+            ]
+          },
+          "after": {
+            "status": "ok",
+            "costPerUser": "0.508990",
+            "currency": "USD",
+            "rows": [
+              {
+                "plan": "basic",
+                "addOns": [],
+                "revenue": "0.990000",
+                "cost": "0.508990",
+                "margin": "0.481010"
+              },
+              {
+                "plan": "basic",
+                "addOns": [
+                  "extraTimers"
+                ],
+                "revenue": "1.990000",
+                "cost": "0.508990",
+                "margin": "1.481010"
+              },
+              {
+                "plan": "advanced",
+                "addOns": [],
+                "revenue": "3.990000",
+                "cost": "0.508990",
+                "margin": "3.481010"
+              },
+              {
+                "plan": "advanced",
+                "addOns": [
+                  "extraTimers"
+                ],
+                "revenue": "4.990000",
+                "cost": "0.508990",
+                "margin": "4.481010"
+              },
+              {
+                "plan": "premium",
+                "addOns": [],
+                "revenue": "9.990000",
+                "cost": "0.508990",
+                "margin": "9.481010"
+              },
+              {
+                "plan": "premium",
+                "addOns": [
+                  "extraTimers"
+                ],
+                "revenue": "10.990000",
+                "cost": "0.508990",
+                "margin": "10.481010"
+              },
+              {
+                "plan": "premium",
+                "addOns": [
+                  "exportAsJson"
+                ],
+                "revenue": "11.990000",
+                "cost": "0.508990",
+                "margin": "11.481010"
+              }
+            ]
+          }
+        }
+      ],
+      "latest": {
+        "version": "1.1.0",
+        "before": {
+          "status": "users_required",
+          "costPerUser": null,
+          "currency": "USD",
+          "rows": [
+            {
+              "plan": "basic",
+              "addOns": [],
+              "revenue": "0.000000",
+              "cost": null,
+              "margin": null
+            },
+            {
+              "plan": "basic",
+              "addOns": [
+                "extraTimers"
+              ],
+              "revenue": "1.000000",
+              "cost": null,
+              "margin": null
+            },
+            {
+              "plan": "advanced",
+              "addOns": [],
+              "revenue": "3.990000",
+              "cost": null,
+              "margin": null
+            },
+            {
+              "plan": "advanced",
+              "addOns": [
+                "extraTimers"
+              ],
+              "revenue": "4.990000",
+              "cost": null,
+              "margin": null
+            },
+            {
+              "plan": "premium",
+              "addOns": [],
+              "revenue": "9.990000",
+              "cost": null,
+              "margin": null
+            },
+            {
+              "plan": "premium",
+              "addOns": [
+                "extraTimers"
+              ],
+              "revenue": "10.990000",
+              "cost": null,
+              "margin": null
+            },
+            {
+              "plan": "premium",
+              "addOns": [
+                "exportAsJson"
+              ],
+              "revenue": "11.990000",
+              "cost": null,
+              "margin": null
+            }
+          ]
+        },
+        "after": {
+          "status": "users_required",
+          "costPerUser": null,
+          "currency": "USD",
+          "rows": [
+            {
+              "plan": "basic",
+              "addOns": [],
+              "revenue": "0.990000",
+              "cost": null,
+              "margin": null
+            },
+            {
+              "plan": "basic",
+              "addOns": [
+                "extraTimers"
+              ],
+              "revenue": "1.990000",
+              "cost": null,
+              "margin": null
+            },
+            {
+              "plan": "advanced",
+              "addOns": [],
+              "revenue": "3.990000",
+              "cost": null,
+              "margin": null
+            },
+            {
+              "plan": "advanced",
+              "addOns": [
+                "extraTimers"
+              ],
+              "revenue": "4.990000",
+              "cost": null,
+              "margin": null
+            },
+            {
+              "plan": "premium",
+              "addOns": [],
+              "revenue": "9.990000",
+              "cost": null,
+              "margin": null
+            },
+            {
+              "plan": "premium",
+              "addOns": [
+                "extraTimers"
+              ],
+              "revenue": "10.990000",
+              "cost": null,
+              "margin": null
+            },
+            {
+              "plan": "premium",
+              "addOns": [
+                "exportAsJson"
+              ],
+              "revenue": "11.990000",
+              "cost": null,
+              "margin": null
+            }
+          ]
+        }
+      }
+    },
+    "notes": []
+  }
+}

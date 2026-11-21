@@ -62,6 +62,9 @@ gateway's own answers about SPHERE for the frontend's mocks, read with the recor
 journeys, ``expand.<name>.json`` (``expandSphereRecipe``), ``apply.<name>.json`` (``applySphereRecipe``) and
 ``recipe.<name>.json`` (``getSphereRecipe``) for ``tomatometer-email`` (the e-mail recipe on revision 1 of the
 template's problem, J2, whose apply answers revision 2 that holds the same package) and ``storage`` (a new problem from Dropbox, J1).
+``sphere/upstream/`` holds each upstream classifier golden (``tests/golden/upstream``, ``tools/dump_upstream_goldens.py``)
+with the two YAMLs it compares (``<case>.old.yml``, ``<case>.new.yml``), which the parity test feeds to
+pricing-renderer's ``compareSelections``.
 
     python tools/dump_frontend_fixtures.py               # rewrite frontend/src/test/fixtures/{core,sphere}/
     python tools/dump_frontend_fixtures.py --out DIR     # write DIR/core/ and DIR/sphere/ instead
@@ -95,6 +98,7 @@ SFX = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "sphere"
 DEMO = REPO_ROOT / "examples" / "demo"
 
 sys.path.insert(0, str(GATEWAY_ROOT / "src"))
+sys.path.insert(0, str(GATEWAY_ROOT / "tools"))
 
 #: Fixture name -> package directory (``None``: built by :func:`ambiguous_files`), in the order they are written.
 PACKAGES: tuple[tuple[str, Path | None], ...] = (
@@ -639,8 +643,28 @@ def sphere_files() -> dict[str, str]:
     return files
 
 
+def upstream_files() -> dict[str, str]:
+    """``sphere/upstream/``: each upstream classifier golden (``tests/golden/upstream``) with the two YAMLs it
+    compares, for the frontend's parity test (pricing-renderer's ``compareSelections`` against the Python port)."""
+    import dump_upstream_goldens as upstream
+
+    files: dict[str, str] = {}
+    golden_dir = upstream.DEFAULT_OUT
+    for case in json.loads((golden_dir / "cases.json").read_text(encoding="utf-8"))["cases"]:
+        name = case["name"]
+        files[f"upstream/{name}.json"] = (golden_dir / f"{name}.json").read_text(encoding="utf-8")
+        for side in ("old", "new"):
+            if case.get(side) is not None:
+                data, _ = upstream.pricing_bytes(case[side])
+                files[f"upstream/{name}.{side}.yml"] = data.decode("utf-8")
+    return files
+
+
 def sphere_drift(files: dict[str, str], directory: Path) -> list[str]:
-    present = {path.name for path in directory.iterdir() if path.is_file()} if directory.is_dir() else set()
+    present = (
+        {path.relative_to(directory).as_posix() for path in directory.rglob("*") if path.is_file()}
+        if directory.is_dir() else set()
+    )
     found = [f"missing: sphere/{name}" for name in sorted(set(files) - present)]
     found += [f"not generated: sphere/{name}" for name in sorted(present - set(files))]
     found += [
@@ -658,7 +682,7 @@ def main(argv: list[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
 
     files, answered = generate()
-    sphere = {**sphere_files(), **answered}
+    sphere = {**sphere_files(), **upstream_files(), **answered}
     if arguments.check:
         found = drift(files, FIXTURES) + sphere_drift(sphere, SPHERE_FIXTURES)
         if found:
@@ -676,10 +700,11 @@ def main(argv: list[str] | None = None) -> int:
     for name, content in files.items():
         (core_out / name).write_text(content, encoding="utf-8")
     sphere_out.mkdir(parents=True, exist_ok=True)
-    for stale in sphere_out.iterdir():
-        if stale.is_file() and stale.name not in sphere:
+    for stale in sphere_out.rglob("*"):
+        if stale.is_file() and stale.relative_to(sphere_out).as_posix() not in sphere:
             stale.unlink()
     for name, content in sphere.items():
+        (sphere_out / name).parent.mkdir(parents=True, exist_ok=True)
         (sphere_out / name).write_text(content, encoding="utf-8")
     print(f"Wrote {len(files)} files to {core_out} and {len(sphere)} to {sphere_out}")
     return 0

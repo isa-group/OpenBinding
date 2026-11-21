@@ -1,0 +1,893 @@
+{
+  "event": true,
+  "category": "binding_invalid",
+  "reasons": [
+    {
+      "code": "plan_removed",
+      "plan": "PROFESSIONAL",
+      "renamedTo": "PROFESSIONAL_PLUS"
+    }
+  ],
+  "notify": true,
+  "classifier": "1",
+  "diff": {
+    "schema": "openbinding/upstream-event-diff@1",
+    "pricing": {
+      "sphere": "danruilop1/brevo",
+      "registry": null,
+      "pricingId": "6ade2d4440e55445692b07f1",
+      "title": "brevo"
+    },
+    "old": {
+      "versionId": "6ade2d444b2b5b01c587d80d",
+      "label": "2026-10",
+      "createdAt": "2026-10-25T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d"
+    },
+    "new": {
+      "versionId": "6fff00000000000000000011",
+      "label": "2026-11-renamed",
+      "createdAt": "2026-11-16T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6fff00000000000000000011"
+    },
+    "catalog": {
+      "plans": {
+        "added": [
+          "PROFESSIONAL_PLUS"
+        ],
+        "removed": [
+          "PROFESSIONAL"
+        ]
+      },
+      "addOns": {
+        "added": [],
+        "removed": []
+      },
+      "features": {
+        "added": [],
+        "removed": []
+      },
+      "usageLimits": {
+        "added": [],
+        "removed": []
+      }
+    },
+    "entries": [
+      {
+        "task": "dailySummary",
+        "candidate": "email.brevo.professional",
+        "selection": {
+          "plan": "PROFESSIONAL",
+          "addOns": [],
+          "billing": "monthly",
+          "seats": 1
+        },
+        "comparison": {
+          "plan": {
+            "before": {
+              "id": "PROFESSIONAL",
+              "known": true,
+              "name": "PROFESSIONAL"
+            },
+            "after": {
+              "id": "PROFESSIONAL",
+              "known": false,
+              "name": null
+            },
+            "changed": false,
+            "renamedTo": "PROFESSIONAL_PLUS"
+          },
+          "addOns": {
+            "added": [],
+            "removedByUser": [],
+            "removedByReconciliation": [],
+            "quantityChanged": [],
+            "unchanged": []
+          },
+          "features": {
+            "gained": [],
+            "lost": [
+              {
+                "id": "advancedReporting",
+                "name": "advancedReporting",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "abTesting",
+                "name": "abTesting",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "removeBrevoBranding",
+                "name": "removeBrevoBranding",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "aiSendTimeOptimization",
+                "name": "aiSendTimeOptimization",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "contentFeeds",
+                "name": "contentFeeds",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "emailFrequencyManagement",
+                "name": "emailFrequencyManagement",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "reusableContentSections",
+                "name": "reusableContentSections",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "clickHeatmaps",
+                "name": "clickHeatmaps",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "geographyAndDeviceReports",
+                "name": "geographyAndDeviceReports",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "landingPages",
+                "name": "landingPages",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "popups",
+                "name": "popups",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "webPushNotifications",
+                "name": "webPushNotifications",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "mobilePushNotifications",
+                "name": "mobilePushNotifications",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "whatsappCampaigns",
+                "name": "whatsappCampaigns",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "multichannelAttribution",
+                "name": "multichannelAttribution",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "multiBranchTesting",
+                "name": "multiBranchTesting",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "aiProductRecommendations",
+                "name": "aiProductRecommendations",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "backInStockAlerts",
+                "name": "backInStockAlerts",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "priceDropAlerts",
+                "name": "priceDropAlerts",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "dynamicCoupons",
+                "name": "dynamicCoupons",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "contactScoring",
+                "name": "contactScoring",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "aiSegmentation",
+                "name": "aiSegmentation",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "randomizedListSplits",
+                "name": "randomizedListSplits",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "customObjects",
+                "name": "customObjects",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "transactionalWhatsapp",
+                "name": "transactionalWhatsapp",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "inboundWebhooks",
+                "name": "inboundWebhooks",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "salesforcePlugin",
+                "name": "salesforcePlugin",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "preBuiltDashboards",
+                "name": "preBuiltDashboards",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "dashboardBuilder",
+                "name": "dashboardBuilder",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "aiDataAnalyst",
+                "name": "aiDataAnalyst",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "userPermissions",
+                "name": "userPermissions",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "tagsAndFolders",
+                "name": "tagsAndFolders",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "phoneSupport",
+                "name": "phoneSupport",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "deliverabilitySpecialist",
+                "name": "deliverabilitySpecialist",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "tailoredOnboarding",
+                "name": "tailoredOnboarding",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              }
+            ],
+            "changed": [],
+            "unchanged": [
+              "emailAndSmsCampaigns",
+              "userAccounts",
+              "auraAi",
+              "mcpForAiAssistants",
+              "dragAndDropEmailEditor",
+              "emailTemplates",
+              "mobileOptimization",
+              "aiContentGenerator",
+              "dynamicContent",
+              "openAndClickReports",
+              "dedicatedIp",
+              "smsCampaigns",
+              "adsRetargetingAndLookalikes",
+              "brevoWallet",
+              "multichannelAutomation",
+              "realTimeEventTriggers",
+              "multipleEntryPoints",
+              "pathwayReporting",
+              "ecommerceIntegrations",
+              "abandonedCartRecovery",
+              "loyalty",
+              "contactStorage",
+              "customSignupForms",
+              "contactTimeline",
+              "advancedSegmentation",
+              "unlimitedCustomFields",
+              "webAndEventTracking",
+              "identityResolution",
+              "gdprCompliance",
+              "multiLevelDataModel",
+              "unlimitedCompanies",
+              "transactionalEmail",
+              "transactionalSms",
+              "realTimeEmailStatistics",
+              "customizedLogRetention",
+              "websiteAndCmsIntegrations",
+              "plugins",
+              "zapierConnector",
+              "apis",
+              "outboundWebhooks",
+              "dataWarehouseAndSftp",
+              "dataTransformation",
+              "assetSharing",
+              "ssoSaml",
+              "subaccountManagement",
+              "sla",
+              "emailSupport",
+              "customerSuccessManager",
+              "salesMultiUserAccess",
+              "openDeals",
+              "salesAutomation",
+              "automatedMeetingScheduling",
+              "phoneVoip",
+              "salesPipelines",
+              "stageRules",
+              "multipleCurrencies",
+              "revenueReport",
+              "salesCycleReport",
+              "teamPerformanceReport",
+              "forecasting",
+              "salesWorkflows",
+              "realTimeSalesEventTriggers",
+              "aiContactAndCompanyEnrichment",
+              "outreachSequences",
+              "taskManagementAndReminders",
+              "taskNavigator",
+              "notesAndFiles",
+              "connectedCalendars",
+              "bookingPages",
+              "inBrowserVideoCalling",
+              "meetingReminders",
+              "roundRobinScheduling",
+              "brevoPayments",
+              "mailboxSynchronization",
+              "conversationsMobileApp",
+              "instagramDms",
+              "facebookMessenger",
+              "sms1to1Messages",
+              "whatsapp1to1Messages",
+              "liveChat",
+              "chatbotScenarios",
+              "targetedChatAndLeadCaptureChatbot",
+              "aiChatbot",
+              "aiConversationsAgent",
+              "removeBrevoBrandingOnChat",
+              "savedReplies",
+              "conversationRouting",
+              "chatAvailability",
+              "chatRatings",
+              "liveVisitorInsights",
+              "conversationsAnalytics",
+              "worldwideCalling",
+              "unlimitedPhoneLines",
+              "callRecordingAndVoicemail",
+              "callMenu",
+              "callTransfer",
+              "aiCallTranscriptionsAndSummaries",
+              "callStatistics",
+              "aiFollowUpEmails",
+              "clickToDial",
+              "phoneMobileApp",
+              "multiLanguagePack"
+            ]
+          },
+          "usageLimits": [
+            {
+              "id": "emailsPerDay",
+              "name": "emailsPerDay",
+              "before": {
+                "kind": "unlimited"
+              },
+              "after": {
+                "kind": "number",
+                "value": "300"
+              },
+              "direction": "decreased",
+              "presence": "both",
+              "unit": "email"
+            },
+            {
+              "id": "emailsPerMonth",
+              "name": "emailsPerMonth",
+              "before": {
+                "kind": "number",
+                "value": "150000"
+              },
+              "after": {
+                "kind": "unlimited"
+              },
+              "direction": "increased",
+              "presence": "both",
+              "unit": "email"
+            },
+            {
+              "id": "marketingSeatsLimit",
+              "name": "marketingSeatsLimit",
+              "before": {
+                "kind": "number",
+                "value": "10"
+              },
+              "after": {
+                "kind": "number",
+                "value": "1"
+              },
+              "direction": "decreased",
+              "presence": "both",
+              "unit": "seat",
+              "delta": "-9"
+            },
+            {
+              "id": "contactsLimit",
+              "name": "contactsLimit",
+              "before": {
+                "kind": "number",
+                "value": "2000000"
+              },
+              "after": {
+                "kind": "number",
+                "value": "100000"
+              },
+              "direction": "decreased",
+              "presence": "both",
+              "unit": "contact",
+              "delta": "-1900000"
+            },
+            {
+              "id": "landingPagesLimit",
+              "name": "landingPagesLimit",
+              "before": {
+                "kind": "number",
+                "value": "10"
+              },
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "direction": "decreased",
+              "presence": "both",
+              "unit": "page",
+              "delta": "-10"
+            },
+            {
+              "id": "webPushSubscribersPerCampaign",
+              "name": "webPushSubscribersPerCampaign",
+              "before": {
+                "kind": "number",
+                "value": "20000"
+              },
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "direction": "decreased",
+              "presence": "both",
+              "unit": "subscriber",
+              "delta": "-20000"
+            },
+            {
+              "id": "mobilePushSubscribersPerCampaign",
+              "name": "mobilePushSubscribersPerCampaign",
+              "before": {
+                "kind": "number",
+                "value": "20000"
+              },
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "direction": "decreased",
+              "presence": "both",
+              "unit": "subscriber",
+              "delta": "-20000"
+            },
+            {
+              "id": "conversionMetricsLimit",
+              "name": "conversionMetricsLimit",
+              "before": {
+                "kind": "unlimited"
+              },
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "direction": "decreased",
+              "presence": "both",
+              "unit": "metric"
+            },
+            {
+              "id": "automationContactsLimit",
+              "name": "automationContactsLimit",
+              "before": {
+                "kind": "unlimited"
+              },
+              "after": {
+                "kind": "number",
+                "value": "2000"
+              },
+              "direction": "decreased",
+              "presence": "both",
+              "unit": "contact"
+            },
+            {
+              "id": "customObjectsLimit",
+              "name": "customObjectsLimit",
+              "before": {
+                "kind": "number",
+                "value": "1"
+              },
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "direction": "decreased",
+              "presence": "both",
+              "unit": "object",
+              "delta": "-1"
+            },
+            {
+              "id": "deliverabilitySpecialistHoursPerYear",
+              "name": "deliverabilitySpecialistHoursPerYear",
+              "before": {
+                "kind": "number",
+                "value": "3"
+              },
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "direction": "decreased",
+              "presence": "both",
+              "unit": "hour",
+              "delta": "-3"
+            }
+          ],
+          "price": {
+            "before": {
+              "subtotal": "499.000000",
+              "requiresQuote": false,
+              "currency": "USD",
+              "billing": "monthly",
+              "unit": "USD/month"
+            },
+            "after": {
+              "subtotal": null,
+              "requiresQuote": false,
+              "currency": "USD",
+              "billing": null,
+              "unit": null
+            },
+            "billingPeriodChanged": true,
+            "differenceOmitted": "plan"
+          }
+        },
+        "attributes": [
+          {
+            "target": "availability",
+            "targetKind": "feature",
+            "sourceKind": "guarantee",
+            "before": "0.990000",
+            "after": null,
+            "delta": null
+          },
+          {
+            "target": "subscription",
+            "targetKind": "feature",
+            "sourceKind": "priced",
+            "before": "499.000000",
+            "after": null,
+            "delta": null
+          },
+          {
+            "target": "emailsPerDay",
+            "targetKind": "property",
+            "sourceKind": "limit",
+            "before": "100000000.000000",
+            "after": null,
+            "delta": null
+          },
+          {
+            "target": "emailsPerMonth",
+            "targetKind": "property",
+            "sourceKind": "limit",
+            "before": "150000.000000",
+            "after": null,
+            "delta": null
+          }
+        ],
+        "requirements": [],
+        "reasons": [
+          {
+            "code": "plan_removed",
+            "plan": "PROFESSIONAL",
+            "renamedTo": "PROFESSIONAL_PLUS"
+          }
+        ],
+        "originMismatch": []
+      }
+    ],
+    "global": [],
+    "notes": [
+      "values_not_reevaluated"
+    ]
+  }
+}

@@ -122,10 +122,12 @@ def _price(side: _Side, selection: Selection) -> dict[str, Any]:
     result = side.result
     total = Decimal(0)
     quote = False
+    labels: list[str] = []
     with money_context():
         for part in result.parts:
             if part.amount is None or isinstance(part.price, Label):
                 quote = True
+                labels.append(part.price.text if isinstance(part.price, Label) else part.id)
                 continue
             unit = pricing.plans[part.id].unit if part.kind == "plan" else pricing.add_ons[part.id].unit
             seats = selection.seats if units.per_seat(unit) else 1
@@ -135,6 +137,7 @@ def _price(side: _Side, selection: Selection) -> dict[str, Any]:
     return {
         "subtotal": None if quote else str(quantize6(total)),
         "requiresQuote": quote or result.requires_quote,
+        **({"quote": labels} if labels else {}),
         "currency": pricing.currency,
         "billing": result.billing.id,
         "unit": f"{pricing.currency}/{period}" if period else pricing.currency,
@@ -197,8 +200,10 @@ class SelectionComparison:
             and not (self.features["gained"] or self.features["lost"] or self.features["changed"])
             and not self.usage_limits
             and not price["billingPeriodChanged"]
-            and price.get("differenceOmitted") is None
-            and Decimal(price.get("difference") or "0") == 0
+            and (
+                (price.get("differenceOmitted") is None and Decimal(price.get("difference") or "0") == 0)
+                or (price.get("differenceOmitted") == "quote" and price["before"] == price["after"])
+            )
         )
 
     def as_json(self) -> dict[str, Any]:

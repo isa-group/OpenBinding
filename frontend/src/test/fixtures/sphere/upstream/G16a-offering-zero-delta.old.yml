@@ -1,0 +1,133 @@
+saasName: TomatoMeter
+syntaxVersion: "3.0"
+version: "1.0.0"
+createdAt: "2025-05-25"
+currency: USD
+features:
+  pomodoroTimer:
+    description: Tomato timer feature
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['pomodoroTimer'] && subscriptionContext['maxPomodoroTimers'] < pricingContext['usageLimits']['maxPomodoroTimers']
+    type: DOMAIN
+  soundNotifications:
+    description: Rings a sound everytime a timer finishes or is stopped
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['soundNotifications']
+    type: AUTOMATION
+    automationType: TRACKING
+  basicAnalytics:
+    description: Check basi weekly productivity analytics, such as the Tomato Score or the number of pomodoros completed in the last week. 
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['basicAnalytics']
+    type: INFORMATION
+  motivationalQuotes:
+    description: Show a motivational quote at the start of each pomodoro. 
+    valueType: BOOLEAN
+    defaultValue: false
+    expression: pricingContext['features']['motivationalQuotes']
+    type: DOMAIN
+  dailySummary:
+    description: Unlock a complete view of your pomodoro history, including your productivity levels, grouped by day.
+    valueType: BOOLEAN
+    defaultValue: false
+    expression: pricingContext['features']['dailySummary']
+    type: INFORMATION
+  darkMode:
+    description: Switch the interface to a dark color scheme.
+    valueType: BOOLEAN
+    defaultValue: false
+    expression: pricingContext['features']['darkMode']
+    type: DOMAIN
+  customPomodoroDuration:
+    description: Set your own pomodoro and break durations.
+    valueType: BOOLEAN
+    defaultValue: false
+    expression: pricingContext['features']['customPomodoroDuration']
+    type: DOMAIN
+  advancedAnalytics:
+    description: "Unlock a new set of advanced analytics widgets in your weekly productivity view, including detailed insights into average work sessions, productivity trends, pomodoro streaks, and more."
+    valueType: BOOLEAN
+    defaultValue: false
+    expression: pricingContext['features']['advancedAnalytics']
+    type: INFORMATION
+  exportDataToJson:
+    description: Allows you to export structured data into a JSON file, making it easy to store, share, or process the data in other tools or systems. This feature ensures that your data is serialized in a clean, consistent format, suitable for backups, debugging, or integrations.
+    valueType: BOOLEAN
+    defaultValue: false
+    expression: pricingContext['features']['exportDataToJson']
+    type: DOMAIN
+usageLimits:
+  maxPomodoroTimers:
+    description: 'The maximum amount of pomodoro timers you can use each day'
+    valueType: NUMERIC
+    defaultValue: 3
+    unit: timer
+    type: RENEWABLE
+    period:
+      unit: DAY
+      value: 1
+    linkedFeatures:
+      - pomodoroTimer
+plans:
+  basic:
+    description: Basic plan
+    price: 0.0
+    unit: user/month
+    features: null
+    usageLimits: null
+  advanced:
+    description: Advanced plan
+    price: 3.99
+    unit: user/month
+    features:
+      motivationalQuotes:
+        value: true
+      dailySummary:
+        value: true
+      darkMode:
+        value: true
+    usageLimits:
+      maxPomodoroTimers:
+        value: 10
+  premium:
+    description: Premium plan
+    price: 9.99
+    unit: user/month
+    features:
+      motivationalQuotes:
+        value: true
+      dailySummary:
+        value: true
+      darkMode:
+        value: true
+      customPomodoroDuration:
+        value: true
+      advancedAnalytics:
+        value: true
+    usageLimits:
+      maxPomodoroTimers:
+        value: 15
+addOns:
+  extraTimers:
+    description: Extra Timers description
+    price: 1.00
+    unit: /month
+    usageLimitsExtensions:
+      maxPomodoroTimers:
+        value: 5
+    subscriptionContraints:
+      minQuantity: 1
+      maxQuantity: 10
+      quantityStep: 1
+  exportAsJson:
+    description: Export as JSON description
+    availableFor:
+      - premium
+    price: 2.00
+    unit: /month
+    features:
+      exportDataToJson:
+        value: true
