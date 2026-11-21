@@ -48,12 +48,12 @@ gets before and after (`no_direct_mapping`). Nothing is re-evaluated, and every 
 `offering_changed`, never invalidating, with every adopted environment's margins and the latest version's before and
 after. Goldens G1–G20 run offline.
 
-**Events** (`composition_upstream_events`) are written once per key and never rewritten: one binding event per
-(version, watch, old → new), one offering event per (composition, watch, new); a URL whose content returns to a hash
-already named gets `sha256:<hex>~<n>`, since an offering is compared with what its last event observed. The partial
-unique indexes are the idempotency across replicas (`ON CONFLICT DO NOTHING`). Only `state` (`open` → `reviewed` → `resolved`), the review
-note and the stamps change, under a state-machine trigger. `no_impact` events are stored (they keep the watcher
-idempotent) but neither told nor badged.
+**Events** (`composition_upstream_events`) are written once per key and never rewritten: one binding event per (version,
+watch, old → new), one offering event per (composition, watch, new); a URL whose content returns to a hash already named
+gets `sha256:<hex>~<n>`, since an offering is compared with what was observed last (its latest event, or a version
+sealed after it). The partial unique indexes are the idempotency across replicas (`ON CONFLICT DO NOTHING`). Only
+`state` (`open` → `reviewed` → `resolved`), the review note and the stamps change, under a state-machine trigger.
+`no_impact` events are stored (they keep the watcher idempotent) but neither told nor badged.
 
 **Resolution only by a person's seal.** `seal_into` resolves, in the seal's transaction, every open or reviewed
 binding event of the composition when the new version pins the event's new version or a newer one in a `from` of the

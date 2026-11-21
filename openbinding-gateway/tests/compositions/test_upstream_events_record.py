@@ -351,7 +351,6 @@ async def test_a_url_offering_is_watched_through_its_snapshots(api_client, regis
     await db_session.commit()
     shop_id = shop.id
     feed = await api_client.get(f"{base}/shop/environments/production/composition", headers=found.headers)
-    clocks.advance(86400)  # the events' clock past the evaluation's (which is not frozen)
 
     await cycle(db_session, source)
     assert await _events(db_session, composition_id=shop_id) == []
@@ -437,3 +436,46 @@ async def test_a_ref_whose_classification_fails_never_holds_the_others_back(api_
     assert [event.composition_id for event in await _events(db_session)] == [second.ids["composition"]]
     brevo = await watch_of(db_session, BREVO)
     assert brevo.classify_after is not None and brevo.last_error == "classify_failed"
+
+
+async def test_a_url_change_after_a_newer_evaluation_is_recorded(api_client, registration, db_session, gate, sphere, source, clocks, monkeypatch):  # noqa: F811
+    """A -> B is recorded; the file reverts to A and 1.1.0 is sealed (its evaluation reads A); then the file goes back to
+    B. That is a change from what was observed last (1.1.0's A), although an earlier event names B."""
+    from openbinding_gateway.core.settings import get_settings
+    from openbinding_gateway.db.models import Composition
+    from sphere_recorded import SFX
+
+    monkeypatch.setattr(get_settings(), "offering_url_min_interval_s", 1e-6)
+    mailgun = (SFX / "6ade364540e55445692b0eda" / "6ade36454b2b5b01c587db3d.yml").read_bytes()
+    scale = (SFX / "derived" / "mailgun-scale.yml").read_bytes()
+    sphere.add_host("pricings.example.org", "93.184.216.34")
+    sphere.serve("/shop/pricing.yml", mailgun, {"content-type": "application/yaml", "etag": '"v1"'})
+    found = await seeded(api_client, registration, db_session, gate, production=False)
+    base = f"/v1/organizations/{found.org}/compositions"
+    assert (await api_client.post(base, headers=found.headers, json={"slug": "shop", "name": "Shop"})).status_code == 201
+
+    async def seal(label: str) -> None:
+        sealed = await api_client.post(f"{base}/shop/versions", content=SHOP.replace("1.0.0", label).encode(),
+                                       headers={**found.headers, **YAML})
+        assert sealed.status_code == 201, sealed.text
+
+    await seal("1.0.0")
+    shop_id = (await db_session.scalar(select(Composition).where(Composition.slug == "shop"))).id
+    clocks.advance(30)
+    await cycle(db_session, source)
+    sphere.serve("/shop/pricing.yml", scale, {"content-type": "application/yaml", "etag": '"v2"'})
+    clocks.advance(30)
+    await cycle(db_session, source)
+    (first,) = await _events(db_session, composition_id=shop_id)
+    sphere.serve("/shop/pricing.yml", mailgun, {"content-type": "application/yaml", "etag": '"v3"'})
+    clocks.advance(30)
+    await seal("1.1.0")
+    clocks.advance(30)
+    await cycle(db_session, source)
+    assert len(await _events(db_session, composition_id=shop_id)) == 1  # A again: what 1.1.0 was evaluated on
+    sphere.serve("/shop/pricing.yml", scale, {"content-type": "application/yaml", "etag": '"v4"'})
+    clocks.advance(30)
+    await cycle(db_session, source)
+    earlier, later = await _events(db_session, composition_id=shop_id)
+    assert later.old_ref == first.old_ref and later.new_ref == f"{first.new_ref}~1"
+    assert later.version_id != earlier.version_id
