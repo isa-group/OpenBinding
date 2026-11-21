@@ -1,0 +1,152 @@
+{
+  "event": true,
+  "category": "values_changed",
+  "reasons": [],
+  "notify": true,
+  "classifier": "1",
+  "diff": {
+    "schema": "openbinding/upstream-event-diff@1",
+    "pricing": {
+      "sphere": "sphere/openbinding",
+      "registry": null,
+      "pricingId": "6ab0a323697330667ccce891",
+      "title": "OpenBinding"
+    },
+    "old": {
+      "versionId": "6a9d355893628b97bbf63be6",
+      "label": "0.1.1",
+      "createdAt": "2026-09-06T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce891?version=6a9d355893628b97bbf63be6"
+    },
+    "new": {
+      "versionId": "6ab29c8a4191a7ee13e5e5f6",
+      "label": "0.1.2",
+      "createdAt": "2026-09-22T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce891?version=6ab29c8a4191a7ee13e5e5f6"
+    },
+    "catalog": {
+      "plans": {
+        "added": [],
+        "removed": []
+      },
+      "addOns": {
+        "added": [],
+        "removed": []
+      },
+      "features": {
+        "added": [],
+        "removed": []
+      },
+      "usageLimits": {
+        "added": [],
+        "removed": []
+      }
+    },
+    "entries": [
+      {
+        "task": "solve",
+        "candidate": "engine.openbinding.pro",
+        "selection": {
+          "plan": "PRO",
+          "addOns": [],
+          "billing": null,
+          "seats": 1
+        },
+        "comparison": {
+          "plan": {
+            "before": {
+              "id": "PRO",
+              "known": true,
+              "name": "PRO"
+            },
+            "after": {
+              "id": "PRO",
+              "known": true,
+              "name": "PRO"
+            },
+            "changed": false,
+            "renamedTo": null
+          },
+          "addOns": {
+            "added": [],
+            "removedByUser": [],
+            "removedByReconciliation": [],
+            "quantityChanged": [],
+            "unchanged": []
+          },
+          "features": {
+            "gained": [],
+            "lost": [],
+            "changed": [],
+            "unchanged": [
+              "authoring",
+              "solve",
+              "federatedEngines",
+              "apiAccess",
+              "collaboration",
+              "studies",
+              "advancedAnalytics",
+              "reproducibleExport",
+              "publishing",
+              "reproducibilityArchive",
+              "institutionalBranding"
+            ]
+          },
+          "usageLimits": [
+            {
+              "id": "maxInstanceComplexityLog10",
+              "name": "maxInstanceComplexityLog10",
+              "before": {
+                "kind": "number",
+                "value": "30"
+              },
+              "after": {
+                "kind": "number",
+                "value": "60"
+              },
+              "direction": "increased",
+              "presence": "both",
+              "unit": "log10 combinations",
+              "delta": "30"
+            }
+          ],
+          "price": {
+            "before": {
+              "subtotal": null,
+              "requiresQuote": true,
+              "quote": [
+                "Contact us / Institutional agreement"
+              ],
+              "currency": "EUR",
+              "billing": "monthly",
+              "unit": "EUR/month"
+            },
+            "after": {
+              "subtotal": null,
+              "requiresQuote": true,
+              "quote": [
+                "Contact us / Institutional agreement"
+              ],
+              "currency": "EUR",
+              "billing": "monthly",
+              "unit": "EUR/month"
+            },
+            "billingPeriodChanged": false,
+            "differenceOmitted": "quote"
+          }
+        },
+        "attributes": [],
+        "requirements": [],
+        "reasons": [],
+        "originMismatch": []
+      }
+    ],
+    "global": [],
+    "notes": [
+      "no_value_origins",
+      "values_not_reevaluated"
+    ]
+  }
+}

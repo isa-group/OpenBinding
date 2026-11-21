@@ -16,7 +16,7 @@ source:
   freezes them as literal strings in the Alembic baseline, which never imports
   this module. ``tests/test_schema_baseline.py`` checks that both agree.
 
-Three builders cover every guard:
+Four builders cover every guard:
 
 * ``immutable(table)``: rows are sealed; UPDATE and DELETE are rejected.
 * ``immutable(table, delete=False)``: UPDATE is rejected; DELETE is left to the
@@ -24,6 +24,9 @@ Three builders cover every guard:
 * ``protect(table, columns)``: UPDATE is rejected when one of ``columns``
   changes (or when the extra ``when`` condition holds).
 * ``retain(table)``: DELETE is rejected; the rows are history.
+* ``state_machine(table, column, transitions, set_once=...)``: an UPDATE must keep ``column`` or move it along
+  ``transitions``, and each ``set_once`` column group may change only on the moves named for it (F6's upstream
+  events and, later, proposals).
 """
 
 from __future__ import annotations
@@ -34,6 +37,7 @@ from sqlalchemy import DDL, MetaData, event
 
 __all__ = [
     "TRIGGERS", "Trigger", "function_names", "immutable", "protect", "register_triggers", "render", "retain", "retain_when",
+    "state_machine",
 ]
 
 
@@ -119,6 +123,53 @@ def retain_when(table: str, when: tuple[str, str], columns: tuple[str, ...], *, 
     return _trigger(name, table, "DELETE", message, when[0], when[1], columns)
 
 
+def state_machine(
+    table: str,
+    column: str,
+    transitions: dict[str, tuple[str, ...]],
+    *,
+    set_once: tuple[tuple[tuple[str, ...], tuple[tuple[str, str], ...]], ...] = (),
+    name: str | None = None,
+    message: str | None = None,
+) -> Trigger:
+    """An UPDATE of ``table`` is rejected unless ``column`` stays or moves along ``transitions`` (``{old: news}``;
+    a state with no entry is terminal), and unless each group of ``set_once`` columns changes only on one of the
+    ``(old, new)`` moves named for it."""
+    for state, targets in transitions.items():
+        for value in (state, *targets):
+            if "'" in value:
+                raise ValueError(f"state_machine({table}): a state must not contain a quote")
+
+    def moves(pairs: tuple[tuple[str, str], ...]) -> str:
+        if not pairs:
+            return "FALSE"
+        return " OR ".join(f"(OLD.{column} = '{old}' AND NEW.{column} = '{new}')" for old, new in pairs)
+
+    allowed = tuple((old, new) for old, targets in transitions.items() for new in targets)
+    sqlite_terms = [f"(OLD.{column} IS NOT NEW.{column} AND NOT ({moves(allowed)}))"]
+    pg_terms = [f"(OLD.{column} IS DISTINCT FROM NEW.{column} AND NOT ({moves(allowed)}))"]
+    columns = [column]
+    for group, pairs in set_once:
+        columns.extend(group)
+        sqlite_changed = " OR ".join(f"OLD.{c} IS NOT NEW.{c}" for c in group)
+        pg_changed = " OR ".join(f"OLD.{c} IS DISTINCT FROM NEW.{c}" for c in group)
+        sqlite_terms.append(f"(({sqlite_changed}) AND NOT ({moves(pairs)}))")
+        pg_terms.append(f"(({pg_changed}) AND NOT ({moves(pairs)}))")
+    # SQLite has no FALSE keyword before 3.23; 0 means the same there.
+    sqlite_when = " OR ".join(sqlite_terms).replace("(FALSE)", "(0)")
+    return _trigger(
+        name or f"state_{table}", table, "UPDATE", message or f"{table}: that change of {column} is not allowed",
+        sqlite_when, " OR ".join(pg_terms), tuple(columns),
+    )
+
+
+#: The columns of an upstream event that never change (state, note and the stamps are the state machine's).
+_UPSTREAM_EVENT_FIXED = (
+    "id", "organization_id", "composition_id", "version_id", "watch_id", "subject", "tasks", "category", "reasons",
+    "notify", "old_ref", "new_ref", "old_version_id", "new_version_id", "old_label", "new_label", "old_snapshot_id",
+    "new_snapshot_id", "diff", "classifier", "detected_at",
+)
+
 #: Joins a study (``s``) to its organization when that is the personal organization of a deleted account.
 _DELETED_PERSONAL = (
     "JOIN organizations o ON o.id = s.organization_id JOIN users u ON u.id = o.personal_owner_id "
@@ -185,6 +236,22 @@ TRIGGERS: tuple[Trigger, ...] = (
     ),
     # A connection is replaced or deleted, never moved to another organization or kind.
     protect("org_connections", ("organization_id", "kind")),
+    # F6: a watch never changes what it watches (its schedule moves freely); a watch reference is insert-only; an
+    # upstream event changes only its state, its review (once, open -> reviewed) and its resolution (once).
+    protect("pricing_watches", ("source_kind", "registry", "pricing_id", "url", "url_key", "scope_key",
+                                "organization_id", "watch_key", "created_at")),
+    *immutable("pricing_watch_refs", delete=False, message="pricing watch references are immutable"),
+    protect("composition_upstream_events", _UPSTREAM_EVENT_FIXED, json_columns=("tasks", "reasons", "diff"),
+            message="an upstream event is immutable but for its state, review and resolution"),
+    state_machine(
+        "composition_upstream_events", "state",
+        {"open": ("reviewed", "resolved"), "reviewed": ("resolved",)},
+        set_once=(
+            (("note", "reviewed_by_id", "reviewed_at"), (("open", "reviewed"),)),
+            (("resolved_by_version_id", "resolved_by_id", "resolved_at"), (("open", "resolved"), ("reviewed", "resolved"))),
+        ),
+        message="an upstream event moves forward only, is reviewed once and resolved once",
+    ),
 )
 
 _REGISTERED = "openbinding_triggers_registered"

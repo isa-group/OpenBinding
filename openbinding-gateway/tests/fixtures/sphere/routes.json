@@ -207,6 +207,30 @@
     "file": "6ab0a323697330667ccce891/manifest.json",
     "headers": "6ab0a323697330667ccce891/manifest.headers.json"
   },
+  "/api/v1/public/pricings/6ab0a323697330667ccce891/versions/6a9d1d9293628b97bbf63ab0/yaml": {
+    "file": "6ab0a323697330667ccce891/6a9d1d9293628b97bbf63ab0.yml",
+    "headers": "6ab0a323697330667ccce891/6a9d1d9293628b97bbf63ab0.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce891/versions/6a9d355893628b97bbf63be6/yaml": {
+    "file": "6ab0a323697330667ccce891/6a9d355893628b97bbf63be6.yml",
+    "headers": "6ab0a323697330667ccce891/6a9d355893628b97bbf63be6.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce891/versions/6ab29c8a4191a7ee13e5e5f6/yaml": {
+    "file": "6ab0a323697330667ccce891/6ab29c8a4191a7ee13e5e5f6.yml",
+    "headers": "6ab0a323697330667ccce891/6ab29c8a4191a7ee13e5e5f6.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce891/versions/6ab29d044191a7ee13e5e622/yaml": {
+    "file": "6ab0a323697330667ccce891/6ab29d044191a7ee13e5e622.yml",
+    "headers": "6ab0a323697330667ccce891/6ab29d044191a7ee13e5e622.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce891/versions/6ab397694191a7ee13e5e7c2/yaml": {
+    "file": "6ab0a323697330667ccce891/6ab397694191a7ee13e5e7c2.yml",
+    "headers": "6ab0a323697330667ccce891/6ab397694191a7ee13e5e7c2.headers.json"
+  },
+  "/api/v1/public/pricings/6ab0a323697330667ccce891/versions/6ab3af164191a7ee13e5e7f3/yaml": {
+    "file": "6ab0a323697330667ccce891/6ab3af164191a7ee13e5e7f3.yml",
+    "headers": "6ab0a323697330667ccce891/6ab3af164191a7ee13e5e7f3.headers.json"
+  },
   "/api/v1/public/pricings/6ab0a323697330667ccce891/versions/6ada6dbd4b2b5b01c587d17f/yaml": {
     "file": "6ab0a323697330667ccce891/6ada6dbd4b2b5b01c587d17f.yml",
     "headers": "6ab0a323697330667ccce891/6ada6dbd4b2b5b01c587d17f.headers.json"

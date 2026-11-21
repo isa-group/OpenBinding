@@ -1,0 +1,507 @@
+saasName: dropbox
+syntaxVersion: '3.1'
+version: '2021'
+url: https://web.archive.org/web/20211120083446/https://www.dropbox.com/plans
+createdAt: '2025-07-08'
+currency: USD
+variables: {}
+tags:
+  - Content and accident protection
+  - Dropbox core features
+  - Productivity and sharing tools
+  - Support
+  - Team management
+features:
+  storage:
+    description: Cloud storage capacity provided by Dropbox.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  users:
+    description: Number of users included in the plan.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  bestInClassSyncTechnology:
+    description: Access to Dropbox's leading synchronization technology.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  anytimeAnywhereAccess:
+    description: Ability to access files from any device at any time.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  computerBackup:
+    description: Feature to back up computer files to Dropbox.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  easyAndSecureSharing:
+    description: Simplified and secure methods for sharing files and folders.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  256BitAesAndSslTlsEncryption:
+    description: Industry-standard encryption protocols to protect data.
+    valueType: BOOLEAN
+    type: GUARANTEE
+    docUrl: https://www.dropbox.com/security
+    defaultValue: true
+  fileRecoveryAndVersionHistory:
+    description: Ability to recover files and access previous versions.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  dropboxRewind:
+    description: Roll back your entire Dropbox account to a previous state.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  remoteDeviceWipe:
+    description: Ability to remotely wipe Dropbox data from lost or stolen devices.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: true
+  enableTwoFactorAuthentication_2fa:
+    description: Add an extra layer of security to your account with 2FA.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: true
+  dropboxPasswords:
+    description: Secure password management tool by Dropbox.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  dropboxVault:
+    description: A secure place to store sensitive documents and files.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  documentWatermarking:
+    description: Add watermarks to documents for protection.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  sharedLinkControls:
+    description: >-
+      Advanced controls for managing shared links, such as passwords and
+      expirations.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  accountTransferTool:
+    description: Tool to transfer account ownership or data to another user.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  enablesHipaaCompliance:
+    description: Ensures compliance with HIPAA regulations for healthcare data.
+    valueType: BOOLEAN
+    type: GUARANTEE
+    docUrl: https://www.dropbox.com/security
+    defaultValue: false
+  deviceApprovals:
+    description: Control which devices can access Dropbox accounts.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  familyRoom:
+    description: A dedicated space for families to organize and share files.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  dropboxPaper:
+    description: A collaborative workspace for documents.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  dropboxTransfer:
+    description: Service for sending large files easily.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  hellosignEsignatures:
+    description: Ability to send documents for eSignature via HelloSign.
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: WEB_SAAS
+    pricingUrls:
+      - https://www.hellosign.com/
+    defaultValue: true
+  fileLocking:
+    description: Prevent others from editing a file while you're working on it.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  integratedCloudContent:
+    description: Seamless integration with cloud-based content services.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  brandedSharing:
+    description: Customize shared links with your own branding.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  trafficAndInsights:
+    description: Gain insights into shared link activity and traffic.
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  webPreviewsAndComments:
+    description: Preview files directly in the browser and add comments.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  plusButton:
+    description: Quick access to common actions and features via a 'Plus' button.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  fileRequests:
+    description: >-
+      Easily request files from anyone, even if they don't have a Dropbox
+      account.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  smartSync:
+    description: Save hard drive space by making files online-only.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  automaticSpaceSaving:
+    description: Automatically optimize storage by moving less-used files to the cloud.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  fullTextSearch:
+    description: Search for content within your files, not just file names.
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  viewerHistory:
+    description: See who has viewed your shared files and when.
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  adminConsole:
+    description: Centralized dashboard for managing team settings and members.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  multiTeamAdminLogin:
+    description: Manage multiple Dropbox teams from a single admin login.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  centralizedBilling:
+    description: Manage all team billing from a single, centralized account.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  companyManagedGroups:
+    description: Create and manage user groups within your organization.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  unlimitedApiAccessToSecurityPlatformPartners:
+    description: Full API access for integrating with security platforms.
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: API
+    defaultValue: false
+  unlimitedApiAccessToProductivityPlatformPartners:
+    description: Full API access for integrating with productivity platforms.
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: API
+    defaultValue: false
+  apiCallsForDataTransportPartners:
+    description: Monthly API call limit for integrations with data transport partners.
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: API
+    defaultValue: false
+  tieredAdminRoles:
+    description: Assign different levels of administrative permissions to team members.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  signInAsUser:
+    description: Administrators can sign in as a user for troubleshooting or support.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  auditLogsWithFileEventTracking:
+    description: >-
+      Detailed logs of all activities, including file events, for auditing
+      purposes.
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  singleSignOnSsoIntegrations:
+    description: Integrate with SSO providers for seamless user authentication.
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: IDENTITY_PROVIDER
+    defaultValue: false
+  inviteEnforcement:
+    description: Control and enforce rules for inviting new members to the team.
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  priorityEmailSupport:
+    description: Receive expedited support via email.
+    valueType: BOOLEAN
+    type: SUPPORT
+    defaultValue: true
+  liveChatSupport:
+    description: Access to real-time support via live chat.
+    valueType: BOOLEAN
+    type: SUPPORT
+    defaultValue: false
+  phoneSupportDuringBusinessHours:
+    description: Access to phone support during standard business hours.
+    valueType: BOOLEAN
+    type: SUPPORT
+    defaultValue: false
+usageLimits:
+  storageLimit:
+    description: The total cloud storage space available for the account.
+    type: NON_RENEWABLE
+    valueType: NUMERIC
+    unit: GB
+    linkedFeatures:
+      - storage
+    defaultValue: 2000
+  userLimit:
+    description: The maximum number of users allowed under the plan.
+    type: NON_RENEWABLE
+    valueType: NUMERIC
+    unit: users
+    linkedFeatures:
+      - users
+    defaultValue: 1
+  fileRecoveryAndVersionHistoryDuration:
+    description: >-
+      The duration for which files can be recovered and previous versions are
+      kept.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: days
+    linkedFeatures:
+      - fileRecoveryAndVersionHistory
+    defaultValue: 30
+    period:
+      value: 1
+      unit: MONTH
+  dropboxRewindHistoryDuration:
+    description: The duration of history available for using Dropbox Rewind.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: days
+    linkedFeatures:
+      - dropboxRewind
+    defaultValue: 30
+    period:
+      value: 1
+      unit: MONTH
+  dropboxTransferSizeLimit:
+    description: Maximum size per transfer for Dropbox Transfer.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: GB per Transfer
+    linkedFeatures:
+      - dropboxTransfer
+    defaultValue: 2
+  hellosignEsignatureDocumentLimit:
+    description: Maximum number of documents that can be sent for eSignature per month.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: documents per month
+    linkedFeatures:
+      - hellosignEsignatures
+    defaultValue: 3
+  apiCallsLimitForDataTransportPartners:
+    description: Monthly limit on API calls for data transport partners.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: API calls/month
+    linkedFeatures:
+      - apiCallsForDataTransportPartners
+    defaultValue: 0
+plans:
+  PLUS:
+    description: For individuals
+    price: 9.99
+    unit: account
+    features: null
+    usageLimits: null
+  FAMILY:
+    description: For families
+    price: 16.99
+    unit: account
+    features:
+      familyRoom:
+        value: true
+    usageLimits:
+      userLimit:
+        value: 6
+  PROFESSIONAL:
+    description: For individuals
+    price: 16.58
+    unit: account
+    features:
+      documentWatermarking:
+        value: true
+      sharedLinkControls:
+        value: true
+      brandedSharing:
+        value: true
+      trafficAndInsights:
+        value: true
+      smartSync:
+        value: true
+      automaticSpaceSaving:
+        value: true
+      viewerHistory:
+        value: true
+      liveChatSupport:
+        value: true
+    usageLimits:
+      storageLimit:
+        value: 3000
+      fileRecoveryAndVersionHistoryDuration:
+        value: 180
+      dropboxRewindHistoryDuration:
+        value: 180
+      dropboxTransferSizeLimit:
+        value: 100
+  STANDARD:
+    description: For smaller teams
+    price: 12.5
+    unit: user
+    features:
+      documentWatermarking:
+        value: true
+      sharedLinkControls:
+        value: true
+      accountTransferTool:
+        value: true
+      enablesHipaaCompliance:
+        value: true
+      deviceApprovals:
+        value: true
+      brandedSharing:
+        value: true
+      trafficAndInsights:
+        value: true
+      smartSync:
+        value: true
+      automaticSpaceSaving:
+        value: true
+      viewerHistory:
+        value: true
+      adminConsole:
+        value: true
+      centralizedBilling:
+        value: true
+      companyManagedGroups:
+        value: true
+      unlimitedApiAccessToSecurityPlatformPartners:
+        value: true
+      unlimitedApiAccessToProductivityPlatformPartners:
+        value: true
+      apiCallsForDataTransportPartners:
+        value: true
+      signInAsUser:
+        value: true
+      auditLogsWithFileEventTracking:
+        value: true
+      singleSignOnSsoIntegrations:
+        value: true
+      inviteEnforcement:
+        value: true
+      liveChatSupport:
+        value: true
+      phoneSupportDuringBusinessHours:
+        value: true
+    usageLimits:
+      storageLimit:
+        value: 5000
+      userLimit:
+        value: .inf
+      fileRecoveryAndVersionHistoryDuration:
+        value: 180
+      dropboxRewindHistoryDuration:
+        value: 180
+      apiCallsLimitForDataTransportPartners:
+        value: 1000000000
+  ADVANCED:
+    description: For larger teams
+    price: 20
+    unit: user
+    features:
+      documentWatermarking:
+        value: true
+      sharedLinkControls:
+        value: true
+      accountTransferTool:
+        value: true
+      enablesHipaaCompliance:
+        value: true
+      deviceApprovals:
+        value: true
+      brandedSharing:
+        value: true
+      trafficAndInsights:
+        value: true
+      smartSync:
+        value: true
+      automaticSpaceSaving:
+        value: true
+      viewerHistory:
+        value: true
+      adminConsole:
+        value: true
+      multiTeamAdminLogin:
+        value: true
+      centralizedBilling:
+        value: true
+      companyManagedGroups:
+        value: true
+      unlimitedApiAccessToSecurityPlatformPartners:
+        value: true
+      unlimitedApiAccessToProductivityPlatformPartners:
+        value: true
+      apiCallsForDataTransportPartners:
+        value: true
+      tieredAdminRoles:
+        value: true
+      signInAsUser:
+        value: true
+      auditLogsWithFileEventTracking:
+        value: true
+      singleSignOnSsoIntegrations:
+        value: true
+      inviteEnforcement:
+        value: true
+      liveChatSupport:
+        value: true
+      phoneSupportDuringBusinessHours:
+        value: true
+    usageLimits:
+      storageLimit:
+        value: .inf
+      userLimit:
+        value: .inf
+      fileRecoveryAndVersionHistoryDuration:
+        value: 180
+      dropboxRewindHistoryDuration:
+        value: 180
+      dropboxTransferSizeLimit:
+        value: 100
+      apiCallsLimitForDataTransportPartners:
+        value: 1000000000

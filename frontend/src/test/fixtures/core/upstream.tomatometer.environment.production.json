@@ -1,0 +1,78 @@
+{
+  "adoptRole": "ADMIN",
+  "createdAt": "2026-01-01T00:00:21Z",
+  "description": "What TomatoMeter reads in production.",
+  "expectedUsers": 1000,
+  "feed": {
+    "etag": "\"sha256-f8877f33423f7fa96418c4a7af8d6388696c0275e3c9b53482610b0c4b63172d\"",
+    "path": "/v1/organizations/fixtures/compositions/tomatometer/environments/production/composition"
+  },
+  "id": "00000000-0000-4000-8000-000000000040",
+  "inEffect": {
+    "adoptedAt": "2026-01-01T00:00:15Z",
+    "adoptedBy": {
+      "displayName": "fixture-author",
+      "username": "fixture-author"
+    },
+    "adoption": 3,
+    "binding": {
+      "dailySummary": {
+        "candidate": "email.brevo.professional"
+      },
+      "export": {
+        "candidate": "storage.dropbox.plus"
+      },
+      "login": {
+        "candidate": "auth.builtin.local"
+      },
+      "quotes": {
+        "candidate": "quotes.zenquotes.free"
+      }
+    },
+    "evaluation": {
+      "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+      "id": "00000000-0000-4000-8000-000000000033",
+      "outcome": "verified",
+      "valuesStatus": "verified"
+    },
+    "note": "Back to Brevo",
+    "offering": {
+      "createdAt": "2026-01-01T00:00:12Z",
+      "status": "read",
+      "versionName": "1.0.0"
+    },
+    "version": {
+      "id": "00000000-0000-4000-8000-000000000036",
+      "label": "1.0.0",
+      "ordinal": 1
+    }
+  },
+  "keyCount": 1,
+  "keys": [
+    {
+      "createdAt": "2026-01-01T00:00:22Z",
+      "createdBy": "fixture-author",
+      "creatorIsMember": true,
+      "hint": "obe_f1c7a5e0…",
+      "id": "00000000-0000-4000-8000-000000000041",
+      "label": "TomatoMeter production",
+      "lastUsedAt": "2026-01-01T00:00:36Z",
+      "revokedAt": null
+    }
+  ],
+  "name": "Production",
+  "operator": {
+    "displayName": "fixture-author",
+    "member": true,
+    "username": "fixture-author"
+  },
+  "slug": "production",
+  "updatedAt": "2026-01-01T00:00:23Z",
+  "upstream": {
+    "bindingInvalid": 0,
+    "open": 1,
+    "resolvedBy": null,
+    "reviewed": 0,
+    "worst": "values_changed"
+  }
+}

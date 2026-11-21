@@ -731,6 +731,12 @@ async def test_platform_operations_are_visible_without_direct_database_access(
     assert set(queues.json()["counts"]) == {
         "queued", "running", "completed", "failed", "cancelled"
     }
+    # F6: the upstream watcher's state, from the tables.
+    watch = queues.json()["upstreamWatch"]
+    assert set(watch) == {"enabled", "intervalSeconds", "watches", "due", "oldestDueSeconds", "lastObservedAt",
+                          "eventsLastDay", "unresolvedRefs", "executingProposals"}
+    assert set(watch["watches"]) == {"pending", "active", "unavailable", "notFound", "gone", "credentialMissing",
+                                     "registryUnknown", "idle"}
     assert audit.json()["total"] >= 0
     assert maintenance.json()["expiredApiKeys"] == 0 and "expiredArtifacts" not in maintenance.json()
 

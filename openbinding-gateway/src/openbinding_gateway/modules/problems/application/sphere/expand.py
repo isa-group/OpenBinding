@@ -179,7 +179,8 @@ async def _files_of(session: AsyncSession, revision: BindingCaseRevision) -> dic
     return packages.read_files(read_verified(blob))
 
 
-def _recipe_of(revision: BindingCaseRevision) -> Recipe | None:
+def recipe_of_revision(revision: BindingCaseRevision) -> Recipe | None:
+    """The pinned recipe of ``revision`` (``None`` when no SPHERE import generated it): ``recipe_of`` without HTTP."""
     provenance = revision.provenance or {}
     if provenance.get("producer") != SPHERE_PRODUCER or not isinstance(provenance.get("recipe"), Mapping):
         return None
@@ -195,7 +196,7 @@ async def latest_sphere_revision(
     if at_most is not None:
         query = query.where(BindingCaseRevision.revision <= at_most)
     for revision in (await session.scalars(query.order_by(BindingCaseRevision.revision.desc()))).all():
-        if _recipe_of(revision) is not None:
+        if recipe_of_revision(revision) is not None:
             return revision
     return None
 
@@ -207,7 +208,7 @@ async def _base(session: AsyncSession, problem: BindingCase, number: int) -> Bas
     if revision is None:
         raise api_error(404, "not_found", "Problem revision not found.")
     previous = await latest_sphere_revision(session, problem, number)
-    return Base(revision, await _files_of(session, revision), _recipe_of(previous) if previous else None)
+    return Base(revision, await _files_of(session, revision), recipe_of_revision(previous) if previous else None)
 
 
 async def _target(
@@ -470,7 +471,7 @@ async def recipe_of(session: AsyncSession, problem: BindingCase, revision: int |
         found = await session.scalar(select(BindingCaseRevision).where(
             BindingCaseRevision.binding_case_id == problem.id, BindingCaseRevision.revision == revision,
         ))
-    recipe = _recipe_of(found) if found is not None else None
+    recipe = recipe_of_revision(found) if found is not None else None
     if found is None or recipe is None:
         raise api_error(404, "not_found", "No SPHERE recipe generated this problem's revision.")
     return found, recipe
@@ -484,5 +485,6 @@ __all__ = [
     "generated_sources",
     "latest_sphere_revision",
     "recipe_of",
+    "recipe_of_revision",
     "resolve_sources",
 ]

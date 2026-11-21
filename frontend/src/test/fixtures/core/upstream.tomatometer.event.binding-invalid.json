@@ -1,0 +1,929 @@
+{
+  "category": "binding_invalid",
+  "classifier": "1",
+  "detectedAt": "2026-01-01T00:00:37Z",
+  "diff": {
+    "catalog": {
+      "addOns": {
+        "added": [],
+        "removed": []
+      },
+      "features": {
+        "added": [],
+        "removed": []
+      },
+      "plans": {
+        "added": [],
+        "removed": [
+          "PROFESSIONAL"
+        ]
+      },
+      "usageLimits": {
+        "added": [],
+        "removed": []
+      }
+    },
+    "entries": [
+      {
+        "attributes": [
+          {
+            "after": null,
+            "before": "0.990000",
+            "delta": null,
+            "sourceKind": "guarantee",
+            "target": "availability",
+            "targetKind": "feature"
+          },
+          {
+            "after": null,
+            "before": "499.000000",
+            "delta": null,
+            "sourceKind": "priced",
+            "target": "subscription",
+            "targetKind": "feature"
+          },
+          {
+            "after": null,
+            "before": "100000000.000000",
+            "delta": null,
+            "sourceKind": "limit",
+            "target": "emailsPerDay",
+            "targetKind": "property"
+          },
+          {
+            "after": null,
+            "before": "150000.000000",
+            "delta": null,
+            "sourceKind": "limit",
+            "target": "emailsPerMonth",
+            "targetKind": "property"
+          }
+        ],
+        "candidate": "email.brevo.professional",
+        "comparison": {
+          "addOns": {
+            "added": [],
+            "quantityChanged": [],
+            "removedByReconciliation": [],
+            "removedByUser": [],
+            "unchanged": []
+          },
+          "features": {
+            "changed": [],
+            "gained": [],
+            "lost": [
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "advancedReporting",
+                "name": "advancedReporting",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "abTesting",
+                "name": "abTesting",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "removeBrevoBranding",
+                "name": "removeBrevoBranding",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "aiSendTimeOptimization",
+                "name": "aiSendTimeOptimization",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "contentFeeds",
+                "name": "contentFeeds",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "emailFrequencyManagement",
+                "name": "emailFrequencyManagement",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "reusableContentSections",
+                "name": "reusableContentSections",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "clickHeatmaps",
+                "name": "clickHeatmaps",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "geographyAndDeviceReports",
+                "name": "geographyAndDeviceReports",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "landingPages",
+                "name": "landingPages",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "popups",
+                "name": "popups",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "webPushNotifications",
+                "name": "webPushNotifications",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "mobilePushNotifications",
+                "name": "mobilePushNotifications",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "whatsappCampaigns",
+                "name": "whatsappCampaigns",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "multichannelAttribution",
+                "name": "multichannelAttribution",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "multiBranchTesting",
+                "name": "multiBranchTesting",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "aiProductRecommendations",
+                "name": "aiProductRecommendations",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "backInStockAlerts",
+                "name": "backInStockAlerts",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "priceDropAlerts",
+                "name": "priceDropAlerts",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "dynamicCoupons",
+                "name": "dynamicCoupons",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "contactScoring",
+                "name": "contactScoring",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "aiSegmentation",
+                "name": "aiSegmentation",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "randomizedListSplits",
+                "name": "randomizedListSplits",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "customObjects",
+                "name": "customObjects",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "transactionalWhatsapp",
+                "name": "transactionalWhatsapp",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "inboundWebhooks",
+                "name": "inboundWebhooks",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "salesforcePlugin",
+                "name": "salesforcePlugin",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "preBuiltDashboards",
+                "name": "preBuiltDashboards",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "dashboardBuilder",
+                "name": "dashboardBuilder",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "aiDataAnalyst",
+                "name": "aiDataAnalyst",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "userPermissions",
+                "name": "userPermissions",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "tagsAndFolders",
+                "name": "tagsAndFolders",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "phoneSupport",
+                "name": "phoneSupport",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "deliverabilitySpecialist",
+                "name": "deliverabilitySpecialist",
+                "presence": "both"
+              },
+              {
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "id": "tailoredOnboarding",
+                "name": "tailoredOnboarding",
+                "presence": "both"
+              }
+            ],
+            "unchanged": [
+              "emailAndSmsCampaigns",
+              "userAccounts",
+              "auraAi",
+              "mcpForAiAssistants",
+              "dragAndDropEmailEditor",
+              "emailTemplates",
+              "mobileOptimization",
+              "aiContentGenerator",
+              "dynamicContent",
+              "openAndClickReports",
+              "dedicatedIp",
+              "smsCampaigns",
+              "adsRetargetingAndLookalikes",
+              "brevoWallet",
+              "multichannelAutomation",
+              "realTimeEventTriggers",
+              "multipleEntryPoints",
+              "pathwayReporting",
+              "ecommerceIntegrations",
+              "abandonedCartRecovery",
+              "loyalty",
+              "contactStorage",
+              "customSignupForms",
+              "contactTimeline",
+              "advancedSegmentation",
+              "unlimitedCustomFields",
+              "webAndEventTracking",
+              "identityResolution",
+              "gdprCompliance",
+              "multiLevelDataModel",
+              "unlimitedCompanies",
+              "transactionalEmail",
+              "transactionalSms",
+              "realTimeEmailStatistics",
+              "customizedLogRetention",
+              "websiteAndCmsIntegrations",
+              "plugins",
+              "zapierConnector",
+              "apis",
+              "outboundWebhooks",
+              "dataWarehouseAndSftp",
+              "dataTransformation",
+              "assetSharing",
+              "ssoSaml",
+              "subaccountManagement",
+              "sla",
+              "emailSupport",
+              "customerSuccessManager",
+              "salesMultiUserAccess",
+              "openDeals",
+              "salesAutomation",
+              "automatedMeetingScheduling",
+              "phoneVoip",
+              "salesPipelines",
+              "stageRules",
+              "multipleCurrencies",
+              "revenueReport",
+              "salesCycleReport",
+              "teamPerformanceReport",
+              "forecasting",
+              "salesWorkflows",
+              "realTimeSalesEventTriggers",
+              "aiContactAndCompanyEnrichment",
+              "outreachSequences",
+              "taskManagementAndReminders",
+              "taskNavigator",
+              "notesAndFiles",
+              "connectedCalendars",
+              "bookingPages",
+              "inBrowserVideoCalling",
+              "meetingReminders",
+              "roundRobinScheduling",
+              "brevoPayments",
+              "mailboxSynchronization",
+              "conversationsMobileApp",
+              "instagramDms",
+              "facebookMessenger",
+              "sms1to1Messages",
+              "whatsapp1to1Messages",
+              "liveChat",
+              "chatbotScenarios",
+              "targetedChatAndLeadCaptureChatbot",
+              "aiChatbot",
+              "aiConversationsAgent",
+              "removeBrevoBrandingOnChat",
+              "savedReplies",
+              "conversationRouting",
+              "chatAvailability",
+              "chatRatings",
+              "liveVisitorInsights",
+              "conversationsAnalytics",
+              "worldwideCalling",
+              "unlimitedPhoneLines",
+              "callRecordingAndVoicemail",
+              "callMenu",
+              "callTransfer",
+              "aiCallTranscriptionsAndSummaries",
+              "callStatistics",
+              "aiFollowUpEmails",
+              "clickToDial",
+              "phoneMobileApp",
+              "multiLanguagePack"
+            ]
+          },
+          "plan": {
+            "after": {
+              "id": "PROFESSIONAL",
+              "known": false,
+              "name": null
+            },
+            "before": {
+              "id": "PROFESSIONAL",
+              "known": true,
+              "name": "PROFESSIONAL"
+            },
+            "changed": false,
+            "renamedTo": null
+          },
+          "price": {
+            "after": {
+              "billing": null,
+              "currency": "USD",
+              "requiresQuote": false,
+              "subtotal": null,
+              "unit": null
+            },
+            "before": {
+              "billing": "monthly",
+              "currency": "USD",
+              "requiresQuote": false,
+              "subtotal": "499.000000",
+              "unit": "USD/month"
+            },
+            "billingPeriodChanged": true,
+            "differenceOmitted": "plan"
+          },
+          "usageLimits": [
+            {
+              "after": {
+                "kind": "number",
+                "value": "300"
+              },
+              "before": {
+                "kind": "unlimited"
+              },
+              "direction": "decreased",
+              "id": "emailsPerDay",
+              "name": "emailsPerDay",
+              "presence": "both",
+              "unit": "email"
+            },
+            {
+              "after": {
+                "kind": "unlimited"
+              },
+              "before": {
+                "kind": "number",
+                "value": "150000"
+              },
+              "direction": "increased",
+              "id": "emailsPerMonth",
+              "name": "emailsPerMonth",
+              "presence": "both",
+              "unit": "email"
+            },
+            {
+              "after": {
+                "kind": "number",
+                "value": "1"
+              },
+              "before": {
+                "kind": "number",
+                "value": "10"
+              },
+              "delta": "-9",
+              "direction": "decreased",
+              "id": "marketingSeatsLimit",
+              "name": "marketingSeatsLimit",
+              "presence": "both",
+              "unit": "seat"
+            },
+            {
+              "after": {
+                "kind": "number",
+                "value": "100000"
+              },
+              "before": {
+                "kind": "number",
+                "value": "2000000"
+              },
+              "delta": "-1900000",
+              "direction": "decreased",
+              "id": "contactsLimit",
+              "name": "contactsLimit",
+              "presence": "both",
+              "unit": "contact"
+            },
+            {
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "before": {
+                "kind": "number",
+                "value": "10"
+              },
+              "delta": "-10",
+              "direction": "decreased",
+              "id": "landingPagesLimit",
+              "name": "landingPagesLimit",
+              "presence": "both",
+              "unit": "page"
+            },
+            {
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "before": {
+                "kind": "number",
+                "value": "20000"
+              },
+              "delta": "-20000",
+              "direction": "decreased",
+              "id": "webPushSubscribersPerCampaign",
+              "name": "webPushSubscribersPerCampaign",
+              "presence": "both",
+              "unit": "subscriber"
+            },
+            {
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "before": {
+                "kind": "number",
+                "value": "20000"
+              },
+              "delta": "-20000",
+              "direction": "decreased",
+              "id": "mobilePushSubscribersPerCampaign",
+              "name": "mobilePushSubscribersPerCampaign",
+              "presence": "both",
+              "unit": "subscriber"
+            },
+            {
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "before": {
+                "kind": "unlimited"
+              },
+              "direction": "decreased",
+              "id": "conversionMetricsLimit",
+              "name": "conversionMetricsLimit",
+              "presence": "both",
+              "unit": "metric"
+            },
+            {
+              "after": {
+                "kind": "number",
+                "value": "2000"
+              },
+              "before": {
+                "kind": "unlimited"
+              },
+              "direction": "decreased",
+              "id": "automationContactsLimit",
+              "name": "automationContactsLimit",
+              "presence": "both",
+              "unit": "contact"
+            },
+            {
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "before": {
+                "kind": "number",
+                "value": "1"
+              },
+              "delta": "-1",
+              "direction": "decreased",
+              "id": "customObjectsLimit",
+              "name": "customObjectsLimit",
+              "presence": "both",
+              "unit": "object"
+            },
+            {
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "before": {
+                "kind": "number",
+                "value": "3"
+              },
+              "delta": "-3",
+              "direction": "decreased",
+              "id": "deliverabilitySpecialistHoursPerYear",
+              "name": "deliverabilitySpecialistHoursPerYear",
+              "presence": "both",
+              "unit": "hour"
+            }
+          ]
+        },
+        "originMismatch": [],
+        "reasons": [
+          {
+            "code": "plan_removed",
+            "plan": "PROFESSIONAL"
+          }
+        ],
+        "requirements": [],
+        "selection": {
+          "addOns": [],
+          "billing": "monthly",
+          "plan": "PROFESSIONAL",
+          "seats": 1
+        },
+        "task": "dailySummary"
+      }
+    ],
+    "global": [],
+    "new": {
+      "createdAt": "2026-01-01T00:00:38Z",
+      "label": "2027-01",
+      "snapshotId": "00000000-0000-4000-8000-000000000050",
+      "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6fff00000000000000000002",
+      "versionId": "6fff00000000000000000002"
+    },
+    "notes": [
+      "values_not_reevaluated"
+    ],
+    "old": {
+      "createdAt": "2026-01-01T00:00:08Z",
+      "label": "2026-10",
+      "snapshotId": "00000000-0000-4000-8000-000000000026",
+      "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+      "versionId": "6ade2d444b2b5b01c587d80d"
+    },
+    "pricing": {
+      "pricingId": "6ade2d4440e55445692b07f1",
+      "registry": null,
+      "sphere": "danruilop1/brevo",
+      "title": "brevo",
+      "url": null
+    },
+    "schema": "openbinding/upstream-event-diff@1"
+  },
+  "environments": [
+    "production"
+  ],
+  "id": "00000000-0000-4000-8000-000000000051",
+  "new": {
+    "label": "2027-01",
+    "snapshotId": "00000000-0000-4000-8000-000000000050",
+    "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6fff00000000000000000002",
+    "versionId": "6fff00000000000000000002"
+  },
+  "newVersionWithdrawn": false,
+  "note": "",
+  "notify": true,
+  "old": {
+    "label": "2026-10",
+    "snapshotId": "00000000-0000-4000-8000-000000000026",
+    "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  "pricing": {
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "sphere": "danruilop1/brevo",
+    "title": "brevo",
+    "url": null
+  },
+  "reasons": [
+    {
+      "code": "plan_removed",
+      "plan": "PROFESSIONAL"
+    }
+  ],
+  "rebindingRecommended": true,
+  "resolvedBy": null,
+  "reviewedAt": null,
+  "reviewedBy": null,
+  "state": "open",
+  "subject": "binding",
+  "supersededBy": null,
+  "tasks": [
+    "dailySummary"
+  ],
+  "version": {
+    "id": "00000000-0000-4000-8000-000000000036",
+    "label": "1.0.0"
+  }
+}

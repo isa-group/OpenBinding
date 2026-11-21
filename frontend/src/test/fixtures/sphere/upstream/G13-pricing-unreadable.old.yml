@@ -1,0 +1,1340 @@
+saasName: dropbox
+syntaxVersion: '3.1'
+version: '2024'
+url: https://web.archive.org/web/20240716101229/https://www.dropbox.com/plans
+createdAt: '2025-07-01'
+currency: USD
+billing:
+  monthly: 1
+  yearly: 0.8
+variables: {}
+tags:
+  - Collaborative sharing
+  - Content and accident protection
+  - Dropbox core features
+  - One-way transfer
+  - Productivity tools
+  - Send and track features
+  - Support
+  - Team management
+  - Video tools
+  - eSignature
+features:
+  users:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  storage:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  bestInClassSyncTechnology:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  easyAndSecureSharing:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  anytimeAnywhereAccess:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  connectUnlimitedDevices:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  256BitAesAndSslTlsEncryption:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  realTimeDocumentAnalytics:
+    description: ''
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  passcodeAndEmailVerification:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  viewerEngagementDashboard:
+    description: ''
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  backup:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  accountRecoveryAndVersionHistory:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  restoreDeletedFiles:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  passwordManagement:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  multiFactorAuthentication:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  documentScanning:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  remoteDeviceWipe:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  watermarking:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  accountTransferTool:
+    description: ''
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  granularPermissions:
+    description: ''
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  enableHipaaCompliance:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  deviceApprovals:
+    description: ''
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  dataClassification:
+    description: ''
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  ransomwareDetectionAndRecovery:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  suspiciousActivityAlerts:
+    description: ''
+    valueType: BOOLEAN
+    type: AUTOMATION
+    automationType: TRACKING
+    defaultValue: false
+  endToEndEncryption:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  advancedKeyManagement:
+    description: ''
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  screenAndVideoRecordingsWithDropboxCapture:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  videoTranscriptsAndClosedCaptions:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  videoEditing:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  videoCommenting:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  creativeReviewAndApprovalsWithDropboxReplay:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  integratedCloudContent:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  onlineDocumentsAndNoteTaking:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  webPreviewsAndComments:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  plusButton:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  pdfEditing:
+    description: ''
+    valueType: TEXT
+    type: DOMAIN
+    defaultValue: Advanced editing, includes editing existing text
+  annotateAndSignPdfs:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  imageEditing:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  imageSearch:
+    description: ''
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  fullTextSearch:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  fileLocking:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  viewerHistory:
+    description: ''
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  sharedLinks:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  advancedLinkSettings:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  disableDownloads:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  customExpirationDates:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  passwordProtectedLinks:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  fileAndFolderTransfer:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  incomingTransferRequests:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  transferAnalytics:
+    description: ''
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  passwordProtectedTransfers:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  brandedTransfers:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  unlimitedSelfSigning:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  unlimitedSignatureRequests:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  industryLeadingSecurityAndPrivacy:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  templates:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: true
+  branding:
+    description: ''
+    valueType: BOOLEAN
+    type: DOMAIN
+    defaultValue: false
+  adminConsole:
+    description: ''
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  multiTeamAdminLogin:
+    description: ''
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  centralizedBilling:
+    description: ''
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  companyManagedGroups:
+    description: ''
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  unlimitedApiAccessToSecurityPlatformPartners:
+    description: ''
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: API
+    defaultValue: false
+  unlimitedApiAccessToProductivityPlatformPartners:
+    description: ''
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: API
+    defaultValue: false
+  1BillionApiCallsMonthForDataTransportPartners:
+    description: ''
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: API
+    defaultValue: false
+  tieredAdminRoles:
+    description: ''
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  signInAsUser:
+    description: ''
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  auditLogsWithFileEventTracking:
+    description: ''
+    valueType: BOOLEAN
+    type: INFORMATION
+    defaultValue: false
+  singleSignOnSsoIntegrations:
+    description: ''
+    valueType: BOOLEAN
+    type: INTEGRATION
+    integrationType: IDENTITY_PROVIDER
+    defaultValue: false
+  inviteEnforcement:
+    description: ''
+    valueType: BOOLEAN
+    type: MANAGEMENT
+    defaultValue: false
+  priorityEmailSupport:
+    description: ''
+    valueType: BOOLEAN
+    type: SUPPORT
+    defaultValue: true
+  liveChatSupport:
+    description: ''
+    valueType: BOOLEAN
+    type: SUPPORT
+    defaultValue: false
+  phoneSupportDuringBusinessHours:
+    description: ''
+    valueType: BOOLEAN
+    type: SUPPORT
+    defaultValue: false
+usageLimits:
+  usersLimit:
+    description: Limit for users.
+    type: NON_RENEWABLE
+    valueType: NUMERIC
+    unit: user
+    linkedFeatures:
+      - users
+    defaultValue: 1
+  storageLimit:
+    description: Limit for storage.
+    type: NON_RENEWABLE
+    valueType: NUMERIC
+    unit: GB of storage
+    linkedFeatures:
+      - storage
+    defaultValue: 2000
+  accountRecoveryAndVersionHistoryLimit:
+    description: Limit for account recovery and version history.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: days
+    linkedFeatures:
+      - accountRecoveryAndVersionHistory
+    defaultValue: 30
+  restoreDeletedFilesLimit:
+    description: Limit for restore deleted files.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: days
+    linkedFeatures:
+      - restoreDeletedFiles
+    defaultValue: 30
+  screenAndVideoRecordingsWithDropboxCaptureLimit:
+    description: Limit for screen and video recordings with dropbox capture.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: minutes
+    linkedFeatures:
+      - screenAndVideoRecordingsWithDropboxCapture
+    defaultValue: 120
+  creativeReviewAndApprovalsWithDropboxReplayLimit:
+    description: Limit for creative review and approvals with dropbox replay.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: file uploads
+    linkedFeatures:
+      - creativeReviewAndApprovalsWithDropboxReplay
+    defaultValue: 4
+  fileAndFolderTransferLimit:
+    description: Limit for file and folder transfer.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: GB
+    linkedFeatures:
+      - fileAndFolderTransfer
+    defaultValue: 50
+  unlimitedSignatureRequestsLimit:
+    description: Limit for unlimited signature requests.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: per month
+    linkedFeatures:
+      - unlimitedSignatureRequests
+    defaultValue: 3
+  templatesLimit:
+    description: Number of eSignature templates available.
+    type: NON_RENEWABLE
+    valueType: NUMERIC
+    unit: templates
+    linkedFeatures:
+      - templates
+    defaultValue: 5
+  1BillionApiCallsMonthForDataTransportPartnersLimit:
+    description: Limit for 1 billion api calls/month for data transport partners.
+    type: RENEWABLE
+    valueType: NUMERIC
+    unit: API calls/month
+    linkedFeatures:
+      - 1BillionApiCallsMonthForDataTransportPartners
+    defaultValue: 0
+plans:
+  PLUS:
+    description: >-
+      Best Value; For personal use. Features: 1 user; 2 TB of storage; Transfer
+      files up to 50 GB; 30 days to restore deleted files
+    price: '#plusYearlyAdvertisedMonthlyPrice'
+    unit: user
+    features: null
+    usageLimits: null
+  ESSENTIALS:
+    description: >-
+      For professionals. Features: 1 user; 3 TB of storage; Transfer files up to
+      100 GB; 180 days to restore deleted files; Track file engagement;
+      Unlimited signature requests; PDF editing; Record, review, and edit video
+    price: '#hellosignProBundleYearlyAdvertisedMonthlyPrice'
+    unit: user
+    features:
+      realTimeDocumentAnalytics:
+        value: true
+      passcodeAndEmailVerification:
+        value: true
+      viewerEngagementDashboard:
+        value: true
+      videoTranscriptsAndClosedCaptions:
+        value: true
+      videoEditing:
+        value: true
+      videoCommenting:
+        value: true
+      imageSearch:
+        value: true
+      viewerHistory:
+        value: true
+      advancedLinkSettings:
+        value: true
+      disableDownloads:
+        value: true
+      customExpirationDates:
+        value: true
+      passwordProtectedLinks:
+        value: true
+      incomingTransferRequests:
+        value: true
+      transferAnalytics:
+        value: true
+      passwordProtectedTransfers:
+        value: true
+      brandedTransfers:
+        value: true
+      branding:
+        value: true
+      liveChatSupport:
+        value: true
+    usageLimits:
+      storageLimit:
+        value: 3000
+      accountRecoveryAndVersionHistoryLimit:
+        value: 180
+      restoreDeletedFilesLimit:
+        value: 180
+      screenAndVideoRecordingsWithDropboxCaptureLimit:
+        value: 999999999999999
+      creativeReviewAndApprovalsWithDropboxReplayLimit:
+        value: 10
+      fileAndFolderTransferLimit:
+        value: 100
+      unlimitedSignatureRequestsLimit:
+        value: 999999999999999
+      templatesLimit:
+        value: 15
+  BUSINESS:
+    description: >-
+      For teams. Features: 3+ users; Starts at 9 TB for the team; Transfer files
+      up to 100 GB; 180 days to restore deleted files; Track file engagement;
+      Unlimited signature requests; PDF editing; Record, review, and edit video;
+      Set up admins; Know what content is shared
+    price: '#dbxBusinessYearlyAdvertisedMonthlyPricePerLicense'
+    unit: user
+    features:
+      realTimeDocumentAnalytics:
+        value: true
+      passcodeAndEmailVerification:
+        value: true
+      viewerEngagementDashboard:
+        value: true
+      remoteDeviceWipe:
+        value: true
+      watermarking:
+        value: true
+      accountTransferTool:
+        value: true
+      granularPermissions:
+        value: true
+      videoTranscriptsAndClosedCaptions:
+        value: true
+      videoEditing:
+        value: true
+      videoCommenting:
+        value: true
+      imageSearch:
+        value: true
+      viewerHistory:
+        value: true
+      advancedLinkSettings:
+        value: true
+      disableDownloads:
+        value: true
+      customExpirationDates:
+        value: true
+      passwordProtectedLinks:
+        value: true
+      incomingTransferRequests:
+        value: true
+      transferAnalytics:
+        value: true
+      passwordProtectedTransfers:
+        value: true
+      brandedTransfers:
+        value: true
+      branding:
+        value: true
+      adminConsole:
+        value: true
+      multiTeamAdminLogin:
+        value: true
+      centralizedBilling:
+        value: true
+      companyManagedGroups:
+        value: true
+      signInAsUser:
+        value: true
+      auditLogsWithFileEventTracking:
+        value: true
+      singleSignOnSsoIntegrations:
+        value: true
+      inviteEnforcement:
+        value: true
+      liveChatSupport:
+        value: true
+      phoneSupportDuringBusinessHours:
+        value: true
+    usageLimits:
+      usersLimit:
+        value: 3
+      storageLimit:
+        value: 9000
+      accountRecoveryAndVersionHistoryLimit:
+        value: 180
+      restoreDeletedFilesLimit:
+        value: 180
+      screenAndVideoRecordingsWithDropboxCaptureLimit:
+        value: 999999999999999
+      creativeReviewAndApprovalsWithDropboxReplayLimit:
+        value: 10
+      fileAndFolderTransferLimit:
+        value: 100
+      unlimitedSignatureRequestsLimit:
+        value: 999999999999999
+      templatesLimit:
+        value: 999999999999999
+  BUSINESS_PLUS:
+    description: >-
+      For companies. Features: 3+ users; Starts at 15 TB for the team; Transfer
+      files up to 250 GB; 1 year to restore deleted files; Track file
+      engagement; Unlimited signature requests; PDF editing; Record, review, and
+      edit video; Set up tiered admin roles; Suspicious activity alerts;
+      Compliance tracking
+    price: '#dbxBusinessPlusYearlyAdvertisedMonthlyPricePerLicense'
+    unit: user
+    features:
+      realTimeDocumentAnalytics:
+        value: true
+      passcodeAndEmailVerification:
+        value: true
+      viewerEngagementDashboard:
+        value: true
+      remoteDeviceWipe:
+        value: true
+      watermarking:
+        value: true
+      accountTransferTool:
+        value: true
+      granularPermissions:
+        value: true
+      enableHipaaCompliance:
+        value: true
+      deviceApprovals:
+        value: true
+      dataClassification:
+        value: true
+      ransomwareDetectionAndRecovery:
+        value: true
+      suspiciousActivityAlerts:
+        value: true
+      endToEndEncryption:
+        value: true
+      advancedKeyManagement:
+        value: true
+      videoTranscriptsAndClosedCaptions:
+        value: true
+      videoEditing:
+        value: true
+      videoCommenting:
+        value: true
+      pdfEditing:
+        value: Advanced editing, includes editing existing text
+      imageSearch:
+        value: true
+      viewerHistory:
+        value: true
+      advancedLinkSettings:
+        value: true
+      disableDownloads:
+        value: true
+      customExpirationDates:
+        value: true
+      passwordProtectedLinks:
+        value: true
+      incomingTransferRequests:
+        value: true
+      transferAnalytics:
+        value: true
+      passwordProtectedTransfers:
+        value: true
+      brandedTransfers:
+        value: true
+      branding:
+        value: true
+      adminConsole:
+        value: true
+      multiTeamAdminLogin:
+        value: true
+      centralizedBilling:
+        value: true
+      companyManagedGroups:
+        value: true
+      unlimitedApiAccessToSecurityPlatformPartners:
+        value: true
+      unlimitedApiAccessToProductivityPlatformPartners:
+        value: true
+      1BillionApiCallsMonthForDataTransportPartners:
+        value: true
+      tieredAdminRoles:
+        value: true
+      signInAsUser:
+        value: true
+      auditLogsWithFileEventTracking:
+        value: true
+      singleSignOnSsoIntegrations:
+        value: true
+      inviteEnforcement:
+        value: true
+      liveChatSupport:
+        value: true
+      phoneSupportDuringBusinessHours:
+        value: true
+    usageLimits:
+      usersLimit:
+        value: 3
+      storageLimit:
+        value: 15000
+      accountRecoveryAndVersionHistoryLimit:
+        value: 365
+      restoreDeletedFilesLimit:
+        value: 365
+      screenAndVideoRecordingsWithDropboxCaptureLimit:
+        value: 999999999999999
+      creativeReviewAndApprovalsWithDropboxReplayLimit:
+        value: 10
+      fileAndFolderTransferLimit:
+        value: 250
+      unlimitedSignatureRequestsLimit:
+        value: 999999999999999
+      templatesLimit:
+        value: 999999999999999
+      1BillionApiCallsMonthForDataTransportPartnersLimit:
+        value: 1000000000
+  BASIC:
+    description: 2 GB to store and share your files
+    price: 0
+    unit: account
+    features:
+      users:
+        value: false
+      storage:
+        value: true
+      bestInClassSyncTechnology:
+        value: false
+      easyAndSecureSharing:
+        value: false
+      anytimeAnywhereAccess:
+        value: false
+      connectUnlimitedDevices:
+        value: false
+      256BitAesAndSslTlsEncryption:
+        value: false
+      backup:
+        value: false
+      accountRecoveryAndVersionHistory:
+        value: false
+      restoreDeletedFiles:
+        value: false
+      passwordManagement:
+        value: false
+      multiFactorAuthentication:
+        value: false
+      documentScanning:
+        value: false
+      screenAndVideoRecordingsWithDropboxCapture:
+        value: false
+      creativeReviewAndApprovalsWithDropboxReplay:
+        value: false
+      integratedCloudContent:
+        value: false
+      onlineDocumentsAndNoteTaking:
+        value: false
+      webPreviewsAndComments:
+        value: false
+      plusButton:
+        value: false
+      pdfEditing:
+        value: ''
+      annotateAndSignPdfs:
+        value: false
+      imageEditing:
+        value: false
+      fullTextSearch:
+        value: false
+      fileLocking:
+        value: false
+      sharedLinks:
+        value: false
+      fileAndFolderTransfer:
+        value: false
+      unlimitedSelfSigning:
+        value: false
+      unlimitedSignatureRequests:
+        value: false
+      industryLeadingSecurityAndPrivacy:
+        value: false
+      templates:
+        value: false
+      priorityEmailSupport:
+        value: false
+    usageLimits:
+      usersLimit:
+        value: 0
+      storageLimit:
+        value: 2
+      accountRecoveryAndVersionHistoryLimit:
+        value: 0
+      restoreDeletedFilesLimit:
+        value: 0
+      screenAndVideoRecordingsWithDropboxCaptureLimit:
+        value: 0
+      creativeReviewAndApprovalsWithDropboxReplayLimit:
+        value: 0
+      fileAndFolderTransferLimit:
+        value: 0
+      unlimitedSignatureRequestsLimit:
+        value: 0
+      templatesLimit:
+        value: 0
+  ENTERPRISE:
+    description: >-
+      Customize to your business with enterprise-grade security, integrations
+      with best-in-class security solutions, and live support from dedicated
+      experts
+    price: 0
+    unit: account
+    private: true
+    features:
+      screenAndVideoRecordingsWithDropboxCapture:
+        value: false
+      creativeReviewAndApprovalsWithDropboxReplay:
+        value: false
+      fileAndFolderTransfer:
+        value: false
+      templates:
+        value: false
+    usageLimits:
+      usersLimit:
+        value: 999999999999999
+      storageLimit:
+        value: 999999999999999
+      accountRecoveryAndVersionHistoryLimit:
+        value: 365
+      restoreDeletedFilesLimit:
+        value: 365
+      screenAndVideoRecordingsWithDropboxCaptureLimit:
+        value: 0
+      creativeReviewAndApprovalsWithDropboxReplayLimit:
+        value: 0
+      fileAndFolderTransferLimit:
+        value: 0
+      unlimitedSignatureRequestsLimit:
+        value: 999999999999999
+      templatesLimit:
+        value: 0
+addOns:
+  EXTENDED_ACCOUNT_RECOVERY_AND_VERSION_HISTORY_(180-DAY)_FOR_PLUS:
+    description: >-
+      Extends account recovery and version history to 180 days for Plus plan
+      users.
+    price: 0
+    unit: days
+    private: true
+    features:
+      accountRecoveryAndVersionHistory:
+        value: true
+    usageLimits: null
+    availableFor:
+      - PLUS
+    excludes: []
+    usageLimitsExtensions:
+      accountRecoveryAndVersionHistoryLimit:
+        value: 180
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  EXTENDED_ACCOUNT_RECOVERY_AND_VERSION_HISTORY_(1-YEAR)_FOR_ESSENTIALS:
+    description: >-
+      Extends account recovery and version history to 1 year (365 days) for
+      Essentials plan users.
+    price: 0
+    unit: days
+    private: true
+    features:
+      accountRecoveryAndVersionHistory:
+        value: true
+    usageLimits: null
+    availableFor:
+      - ESSENTIALS
+    excludes: []
+    usageLimitsExtensions:
+      accountRecoveryAndVersionHistoryLimit:
+        value: 365
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  EXTENDED_ACCOUNT_RECOVERY_AND_VERSION_HISTORY_(1-YEAR)_FOR_BUSINESS:
+    description: >-
+      Extends account recovery and version history to 1 year (365 days) for
+      Business plan users.
+    price: 0
+    unit: days
+    private: true
+    features:
+      accountRecoveryAndVersionHistory:
+        value: true
+    usageLimits: null
+    availableFor:
+      - BUSINESS
+    excludes: []
+    usageLimitsExtensions:
+      accountRecoveryAndVersionHistoryLimit:
+        value: 365
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  EXTENDED_RESTORE_DELETED_FILES_(180-DAY)_FOR_PLUS:
+    description: >-
+      Extends the ability to restore deleted files to 180 days for Plus plan
+      users.
+    price: 0
+    unit: days
+    private: true
+    features:
+      restoreDeletedFiles:
+        value: true
+    usageLimits: null
+    availableFor:
+      - PLUS
+    excludes: []
+    usageLimitsExtensions:
+      restoreDeletedFilesLimit:
+        value: 180
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  EXTENDED_RESTORE_DELETED_FILES_(1-YEAR)_FOR_ESSENTIALS:
+    description: >-
+      Extends the ability to restore deleted files to 1 year (365 days) for
+      Essentials plan users.
+    price: 0
+    unit: days
+    private: true
+    features:
+      restoreDeletedFiles:
+        value: true
+    usageLimits: null
+    availableFor:
+      - ESSENTIALS
+    excludes: []
+    usageLimitsExtensions:
+      restoreDeletedFilesLimit:
+        value: 365
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  EXTENDED_RESTORE_DELETED_FILES_(1-YEAR)_FOR_BUSINESS:
+    description: >-
+      Extends the ability to restore deleted files to 1 year (365 days) for
+      Business plan users.
+    price: 0
+    unit: days
+    private: true
+    features:
+      restoreDeletedFiles:
+        value: true
+    usageLimits: null
+    availableFor:
+      - BUSINESS
+    excludes: []
+    usageLimitsExtensions:
+      restoreDeletedFilesLimit:
+        value: 365
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  UNLIMITED_DROPBOX_CAPTURE_FOR_PLUS:
+    description: >-
+      Upgrades Dropbox Capture to unlimited recording time, 4K video quality,
+      and advanced video editing for Plus plan users.
+    price: 0
+    unit: minutes
+    private: true
+    features:
+      screenAndVideoRecordingsWithDropboxCapture:
+        value: true
+    usageLimits: null
+    availableFor:
+      - PLUS
+    excludes: []
+    usageLimitsExtensions:
+      screenAndVideoRecordingsWithDropboxCaptureLimit:
+        value: 999999999999999
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  EXTENDED_DROPBOX_REPLAY_(10_FILE_UPLOADS)_FOR_PLUS:
+    description: Increases Dropbox Replay file uploads to 10 for Plus plan users.
+    price: 0
+    unit: file uploads
+    private: true
+    features:
+      creativeReviewAndApprovalsWithDropboxReplay:
+        value: true
+    usageLimits: null
+    availableFor:
+      - PLUS
+    excludes: []
+    usageLimitsExtensions:
+      creativeReviewAndApprovalsWithDropboxReplayLimit:
+        value: 10
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  EXTENDED_FILE_TRANSFER_(100_GB)_FOR_PLUS:
+    description: Increases file and folder transfer limit to 100 GB for Plus plan users.
+    price: 0
+    unit: GB
+    private: true
+    features:
+      fileAndFolderTransfer:
+        value: true
+    usageLimits: null
+    availableFor:
+      - PLUS
+    excludes:
+      - EXTENDED_FILE_TRANSFER_(250_GB)_FOR_PLUS
+    usageLimitsExtensions:
+      fileAndFolderTransferLimit:
+        value: 100
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  EXTENDED_FILE_TRANSFER_(250_GB)_FOR_PLUS:
+    description: Increases file and folder transfer limit to 250 GB for Plus plan users.
+    price: 0
+    unit: GB
+    private: true
+    features:
+      fileAndFolderTransfer:
+        value: true
+    usageLimits: null
+    availableFor:
+      - PLUS
+    excludes:
+      - EXTENDED_FILE_TRANSFER_(100_GB)_FOR_PLUS
+    usageLimitsExtensions:
+      fileAndFolderTransferLimit:
+        value: 250
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  EXTENDED_FILE_TRANSFER_(250_GB)_FOR_ESSENTIALS:
+    description: >-
+      Increases file and folder transfer limit to 250 GB for Essentials plan
+      users.
+    price: 0
+    unit: GB
+    private: true
+    features:
+      fileAndFolderTransfer:
+        value: true
+    usageLimits: null
+    availableFor:
+      - ESSENTIALS
+    excludes: []
+    usageLimitsExtensions:
+      fileAndFolderTransferLimit:
+        value: 250
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  EXTENDED_FILE_TRANSFER_(250_GB)_FOR_BUSINESS:
+    description: >-
+      Increases file and folder transfer limit to 250 GB for Business plan
+      users.
+    price: 0
+    unit: GB
+    private: true
+    features:
+      fileAndFolderTransfer:
+        value: true
+    usageLimits: null
+    availableFor:
+      - BUSINESS
+    excludes: []
+    usageLimitsExtensions:
+      fileAndFolderTransferLimit:
+        value: 250
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  UNLIMITED_SIGNATURE_REQUESTS_FOR_PLUS:
+    description: Provides unlimited signature requests for Plus plan users.
+    price: 0
+    unit: per month
+    private: true
+    features:
+      unlimitedSignatureRequests:
+        value: true
+    usageLimits: null
+    availableFor:
+      - PLUS
+    excludes: []
+    usageLimitsExtensions:
+      unlimitedSignatureRequestsLimit:
+        value: 999999999999999
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  EXTENDED_ESIGNATURE_TEMPLATES_(15)_FOR_PLUS:
+    description: Increases eSignature templates to 15 for Plus plan users.
+    price: 0
+    unit: templates
+    private: true
+    features:
+      templates:
+        value: true
+    usageLimits: null
+    availableFor:
+      - PLUS
+    excludes:
+      - UNLIMITED_ESIGNATURE_TEMPLATES_FOR_PLUS
+    usageLimitsExtensions:
+      templatesLimit:
+        value: 15
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  UNLIMITED_ESIGNATURE_TEMPLATES_FOR_PLUS:
+    description: Provides unlimited eSignature templates for Plus plan users.
+    price: 0
+    unit: templates
+    private: true
+    features:
+      templates:
+        value: true
+    usageLimits: null
+    availableFor:
+      - PLUS
+    excludes:
+      - EXTENDED_ESIGNATURE_TEMPLATES_(15)_FOR_PLUS
+    usageLimitsExtensions:
+      templatesLimit:
+        value: 999999999999999
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  UNLIMITED_ESIGNATURE_TEMPLATES_FOR_ESSENTIALS:
+    description: Provides unlimited eSignature templates for Essentials plan users.
+    price: 0
+    unit: templates
+    private: true
+    features:
+      templates:
+        value: true
+    usageLimits: null
+    availableFor:
+      - ESSENTIALS
+    excludes: []
+    usageLimitsExtensions:
+      templatesLimit:
+        value: 999999999999999
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_PLUS:
+    description: >-
+      Provides 1 billion API calls/month for data transport partners for Plus
+      plan users.
+    price: 0
+    unit: API calls/month
+    private: true
+    features:
+      1BillionApiCallsMonthForDataTransportPartners:
+        value: true
+    usageLimits: null
+    availableFor:
+      - PLUS
+    excludes: []
+    usageLimitsExtensions:
+      1BillionApiCallsMonthForDataTransportPartnersLimit:
+        value: 1000000000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_ESSENTIALS:
+    description: >-
+      Provides 1 billion API calls/month for data transport partners for
+      Essentials plan users.
+    price: 0
+    unit: API calls/month
+    private: true
+    features:
+      1BillionApiCallsMonthForDataTransportPartners:
+        value: true
+    usageLimits: null
+    availableFor:
+      - ESSENTIALS
+    excludes: []
+    usageLimitsExtensions:
+      1BillionApiCallsMonthForDataTransportPartnersLimit:
+        value: 1000000000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_BUSINESS:
+    description: >-
+      Provides 1 billion API calls/month for data transport partners for
+      Business plan users.
+    price: 0
+    unit: API calls/month
+    private: true
+    features:
+      1BillionApiCallsMonthForDataTransportPartners:
+        value: true
+    usageLimits: null
+    availableFor:
+      - BUSINESS
+    excludes: []
+    usageLimitsExtensions:
+      1BillionApiCallsMonthForDataTransportPartnersLimit:
+        value: 1000000000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  ADDITIONAL_STORAGE_(1TB)_FOR_PLUS,_ESSENTIALS,_BUSINESS:
+    description: >-
+      Adds 1 TB (1000 GB) of storage to the team's total storage for Plus,
+      Essentials, and Business plans.
+    price: 9.99
+    unit: TB
+    features:
+      storage:
+        value: true
+    usageLimits: null
+    availableFor:
+      - PLUS
+      - ESSENTIALS
+      - BUSINESS
+    excludes: []
+    usageLimitsExtensions:
+      storageLimit:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  ADDITIONAL_STORAGE_(1TB)_FOR_BUSINESS_PLUS:
+    description: >-
+      Adds 1 TB (1000 GB) of storage to the team's total storage for Business
+      Plus plans.
+    price: 8
+    unit: TB
+    features:
+      storage:
+        value: true
+    usageLimits: null
+    availableFor:
+      - BUSINESS_PLUS
+    excludes: []
+    usageLimitsExtensions:
+      storageLimit:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  ADDITIONAL_USER_FOR_BUSINESS:
+    description: Adds one user license to the Business plan.
+    price: 24
+    unit: user
+    features:
+      users:
+        value: true
+    usageLimits: null
+    availableFor:
+      - BUSINESS
+    excludes: []
+    usageLimitsExtensions:
+      usersLimit:
+        value: 1
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  ADDITIONAL_USER_FOR_BUSINESS_PLUS:
+    description: Adds one user license to the Business Plus plan.
+    price: 32
+    unit: user
+    features:
+      users:
+        value: true
+    usageLimits: null
+    availableFor:
+      - BUSINESS_PLUS
+    excludes: []
+    usageLimitsExtensions:
+      usersLimit:
+        value: 1
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1

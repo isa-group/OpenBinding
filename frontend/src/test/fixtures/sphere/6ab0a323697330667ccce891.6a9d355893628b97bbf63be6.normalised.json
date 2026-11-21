@@ -1,0 +1,1499 @@
+{
+  "pricing": {
+    "syntaxVersion": "3.1",
+    "title": "OpenBinding",
+    "version": "0.1.1",
+    "createdAt": "2026-09-06",
+    "currency": "EUR",
+    "billing": [
+      {
+        "id": "monthly",
+        "multiplier": 1.0,
+        "synthesized": false
+      }
+    ],
+    "features": [
+      {
+        "id": "authoring",
+        "name": "authoring",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "solve",
+        "name": "solve",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "federatedEngines",
+        "name": "federatedEngines",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "apiAccess",
+        "name": "apiAccess",
+        "type": "INTEGRATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "collaboration",
+        "name": "collaboration",
+        "type": "MANAGEMENT",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "studies",
+        "name": "studies",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "advancedAnalytics",
+        "name": "advancedAnalytics",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "reproducibleExport",
+        "name": "reproducibleExport",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "publishing",
+        "name": "publishing",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "default": true
+      },
+      {
+        "id": "reproducibilityArchive",
+        "name": "reproducibilityArchive",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      },
+      {
+        "id": "institutionalBranding",
+        "name": "institutionalBranding",
+        "type": "INFORMATION",
+        "valueType": "BOOLEAN",
+        "default": false
+      }
+    ],
+    "usageLimits": [
+      {
+        "id": "taskStarts",
+        "name": "taskStarts",
+        "valueType": "NUMERIC",
+        "unit": "solve/month",
+        "default": 10,
+        "linkedFeatures": [
+          "solve"
+        ]
+      },
+      {
+        "id": "solverSeconds",
+        "name": "solverSeconds",
+        "valueType": "NUMERIC",
+        "unit": "second/month",
+        "default": 900,
+        "linkedFeatures": [
+          "solve"
+        ]
+      },
+      {
+        "id": "federatedTaskStarts",
+        "name": "federatedTaskStarts",
+        "valueType": "NUMERIC",
+        "unit": "solve/month",
+        "default": 5,
+        "linkedFeatures": [
+          "federatedEngines"
+        ]
+      },
+      {
+        "id": "concurrentJobs",
+        "name": "concurrentJobs",
+        "valueType": "NUMERIC",
+        "unit": "job",
+        "default": 1,
+        "linkedFeatures": [
+          "solve",
+          "federatedEngines",
+          "studies"
+        ]
+      },
+      {
+        "id": "federatedEngines",
+        "name": "federatedEngines",
+        "valueType": "NUMERIC",
+        "unit": "engine",
+        "default": 1,
+        "linkedFeatures": [
+          "federatedEngines"
+        ]
+      },
+      {
+        "id": "apiKeys",
+        "name": "apiKeys",
+        "valueType": "NUMERIC",
+        "unit": "key",
+        "default": 1,
+        "linkedFeatures": [
+          "apiAccess"
+        ]
+      },
+      {
+        "id": "maxTimeoutSeconds",
+        "name": "maxTimeoutSeconds",
+        "valueType": "NUMERIC",
+        "unit": "second",
+        "default": 60,
+        "linkedFeatures": [
+          "solve",
+          "federatedEngines"
+        ]
+      },
+      {
+        "id": "maxIterations",
+        "name": "maxIterations",
+        "valueType": "NUMERIC",
+        "unit": "iteration",
+        "default": 10000,
+        "linkedFeatures": [
+          "solve"
+        ]
+      },
+      {
+        "id": "maxPayloadBytes",
+        "name": "maxPayloadBytes",
+        "valueType": "NUMERIC",
+        "unit": "byte",
+        "default": 8388608,
+        "linkedFeatures": [
+          "authoring",
+          "solve"
+        ]
+      },
+      {
+        "id": "maxInstanceComplexityLog10",
+        "name": "maxInstanceComplexityLog10",
+        "valueType": "NUMERIC",
+        "unit": "log10 combinations",
+        "default": 9,
+        "linkedFeatures": [
+          "solve"
+        ]
+      },
+      {
+        "id": "jobHistoryDays",
+        "name": "jobHistoryDays",
+        "valueType": "NUMERIC",
+        "unit": "day",
+        "default": 7,
+        "linkedFeatures": [
+          "reproducibleExport"
+        ]
+      },
+      {
+        "id": "studyRuns",
+        "name": "studyRuns",
+        "valueType": "NUMERIC",
+        "unit": "run/month",
+        "default": 3,
+        "linkedFeatures": [
+          "studies"
+        ]
+      },
+      {
+        "id": "organizations",
+        "name": "organizations",
+        "valueType": "NUMERIC",
+        "unit": "organization",
+        "default": 1,
+        "linkedFeatures": [
+          "collaboration"
+        ]
+      },
+      {
+        "id": "members",
+        "name": "members",
+        "valueType": "NUMERIC",
+        "unit": "member",
+        "default": 2,
+        "linkedFeatures": [
+          "collaboration"
+        ]
+      },
+      {
+        "id": "projects",
+        "name": "projects",
+        "valueType": "NUMERIC",
+        "unit": "project",
+        "default": 3,
+        "linkedFeatures": [
+          "collaboration"
+        ]
+      },
+      {
+        "id": "privateProjects",
+        "name": "privateProjects",
+        "valueType": "NUMERIC",
+        "unit": "project",
+        "default": 1,
+        "linkedFeatures": [
+          "collaboration"
+        ]
+      },
+      {
+        "id": "collections",
+        "name": "collections",
+        "valueType": "NUMERIC",
+        "unit": "collection",
+        "default": 2,
+        "linkedFeatures": [
+          "collaboration"
+        ]
+      },
+      {
+        "id": "studies",
+        "name": "studies",
+        "valueType": "NUMERIC",
+        "unit": "study",
+        "default": 1,
+        "linkedFeatures": [
+          "studies"
+        ]
+      },
+      {
+        "id": "storageBytes",
+        "name": "storageBytes",
+        "valueType": "NUMERIC",
+        "unit": "byte",
+        "default": {
+          "unlimited": true
+        },
+        "linkedFeatures": [
+          "reproducibleExport"
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "id": "BASIC",
+        "name": "BASIC",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "authoring": true,
+          "solve": true,
+          "federatedEngines": true,
+          "apiAccess": true,
+          "collaboration": true,
+          "studies": true,
+          "advancedAnalytics": false,
+          "reproducibleExport": true,
+          "publishing": true,
+          "reproducibilityArchive": false,
+          "institutionalBranding": false
+        },
+        "usageLimits": {
+          "taskStarts": 10,
+          "solverSeconds": 900,
+          "federatedTaskStarts": 5,
+          "concurrentJobs": 1,
+          "federatedEngines": 1,
+          "apiKeys": 1,
+          "maxTimeoutSeconds": 60,
+          "maxIterations": 10000,
+          "maxPayloadBytes": 8388608,
+          "maxInstanceComplexityLog10": 9,
+          "jobHistoryDays": 7,
+          "studyRuns": 3,
+          "organizations": 1,
+          "members": 2,
+          "projects": 3,
+          "privateProjects": 1,
+          "collections": 2,
+          "studies": 1,
+          "storageBytes": {
+            "unlimited": true
+          }
+        }
+      },
+      {
+        "id": "ADVANCED",
+        "name": "ADVANCED",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Contact us / Institutional agreement"
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "authoring": true,
+          "solve": true,
+          "federatedEngines": true,
+          "apiAccess": true,
+          "collaboration": true,
+          "studies": true,
+          "advancedAnalytics": true,
+          "reproducibleExport": true,
+          "publishing": true,
+          "reproducibilityArchive": false,
+          "institutionalBranding": false
+        },
+        "usageLimits": {
+          "taskStarts": 25,
+          "solverSeconds": 18000,
+          "federatedTaskStarts": 10,
+          "concurrentJobs": 2,
+          "federatedEngines": 3,
+          "apiKeys": 10,
+          "maxTimeoutSeconds": 600,
+          "maxIterations": 500000,
+          "maxPayloadBytes": 67108864,
+          "maxInstanceComplexityLog10": 15,
+          "jobHistoryDays": 90,
+          "studyRuns": 50,
+          "organizations": 2,
+          "members": 10,
+          "projects": 25,
+          "privateProjects": 15,
+          "collections": 25,
+          "studies": 10,
+          "storageBytes": {
+            "unlimited": true
+          }
+        }
+      },
+      {
+        "id": "RESEARCH",
+        "name": "RESEARCH",
+        "private": false,
+        "price": {
+          "kind": "fixed",
+          "amount": 0.0
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "authoring": true,
+          "solve": true,
+          "federatedEngines": true,
+          "apiAccess": true,
+          "collaboration": true,
+          "studies": true,
+          "advancedAnalytics": true,
+          "reproducibleExport": true,
+          "publishing": true,
+          "reproducibilityArchive": false,
+          "institutionalBranding": true
+        },
+        "usageLimits": {
+          "taskStarts": 50,
+          "solverSeconds": 30000,
+          "federatedTaskStarts": 100,
+          "concurrentJobs": 3,
+          "federatedEngines": 5,
+          "apiKeys": 25,
+          "maxTimeoutSeconds": 900,
+          "maxIterations": 1000000,
+          "maxPayloadBytes": {
+            "unlimited": true
+          },
+          "maxInstanceComplexityLog10": 20,
+          "jobHistoryDays": 180,
+          "studyRuns": 100,
+          "organizations": 5,
+          "members": 15,
+          "projects": 50,
+          "privateProjects": 30,
+          "collections": 50,
+          "studies": 25,
+          "storageBytes": {
+            "unlimited": true
+          }
+        }
+      },
+      {
+        "id": "PRO",
+        "name": "PRO",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Contact us / Institutional agreement"
+        },
+        "unit": "user/month",
+        "period": "month",
+        "perSeat": true,
+        "features": {
+          "authoring": true,
+          "solve": true,
+          "federatedEngines": true,
+          "apiAccess": true,
+          "collaboration": true,
+          "studies": true,
+          "advancedAnalytics": true,
+          "reproducibleExport": true,
+          "publishing": true,
+          "reproducibilityArchive": true,
+          "institutionalBranding": false
+        },
+        "usageLimits": {
+          "taskStarts": {
+            "unlimited": true
+          },
+          "solverSeconds": 180000,
+          "federatedTaskStarts": 1000,
+          "concurrentJobs": 8,
+          "federatedEngines": 20,
+          "apiKeys": {
+            "unlimited": true
+          },
+          "maxTimeoutSeconds": 1800,
+          "maxIterations": 10000000,
+          "maxPayloadBytes": {
+            "unlimited": true
+          },
+          "maxInstanceComplexityLog10": 30,
+          "jobHistoryDays": 365,
+          "studyRuns": 1000,
+          "organizations": 10,
+          "members": 100,
+          "projects": 500,
+          "privateProjects": 500,
+          "collections": 500,
+          "studies": 250,
+          "storageBytes": {
+            "unlimited": true
+          }
+        }
+      }
+    ],
+    "addOns": [
+      {
+        "id": "COMPUTE_PACK",
+        "name": "COMPUTE_PACK",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Contact us"
+        },
+        "unit": "pack/month",
+        "period": "month",
+        "availableFor": [
+          "ADVANCED",
+          "PRO"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "taskStarts": 100.0,
+          "solverSeconds": 7200.0,
+          "federatedTaskStarts": 250.0
+        },
+        "metered": false
+      },
+      {
+        "id": "COLLABORATION_PACK",
+        "name": "COLLABORATION_PACK",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Contact us"
+        },
+        "unit": "pack/month",
+        "period": "month",
+        "availableFor": [
+          "ADVANCED",
+          "PRO"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "members": 5.0,
+          "projects": 10.0,
+          "privateProjects": 5.0
+        },
+        "metered": false
+      },
+      {
+        "id": "STORAGE_PACK",
+        "name": "STORAGE_PACK",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Contact us"
+        },
+        "unit": "pack/month",
+        "period": "month",
+        "availableFor": [
+          "ADVANCED",
+          "PRO"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "storageBytes": 5368709120.0
+        },
+        "metered": false
+      },
+      {
+        "id": "FEDERATION_PACK",
+        "name": "FEDERATION_PACK",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Contact us"
+        },
+        "unit": "pack/month",
+        "period": "month",
+        "availableFor": [
+          "PRO"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "federatedEngines": 2.0,
+          "federatedTaskStarts": 500.0
+        },
+        "metered": false
+      },
+      {
+        "id": "CONCURRENCY_PACK",
+        "name": "CONCURRENCY_PACK",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Contact us"
+        },
+        "unit": "pack/month",
+        "period": "month",
+        "availableFor": [
+          "PRO"
+        ],
+        "dependsOn": [],
+        "excludes": [],
+        "features": {},
+        "usageLimits": {},
+        "usageLimitsExtensions": {
+          "concurrentJobs": 1.0
+        },
+        "metered": false
+      },
+      {
+        "id": "REPRODUCIBILITY_ARCHIVE",
+        "name": "REPRODUCIBILITY_ARCHIVE",
+        "private": false,
+        "price": {
+          "kind": "label",
+          "text": "Contact us"
+        },
+        "unit": "account",
+        "quantity": 1.0,
+        "availableFor": [
+          "ADVANCED"
+        ],
+        "usageLimitsExtensions": {
+          "jobHistoryDays": 275.0
+        },
+        "metered": true
+      }
+    ],
+    "diagnostics": [],
+    "variables": {}
+  },
+  "effective": {
+    "BASIC": {
+      "plan": "BASIC",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "BASIC",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": false,
+      "features": {
+        "authoring": true,
+        "solve": true,
+        "federatedEngines": true,
+        "apiAccess": true,
+        "collaboration": true,
+        "studies": true,
+        "advancedAnalytics": false,
+        "reproducibleExport": true,
+        "publishing": true,
+        "reproducibilityArchive": false,
+        "institutionalBranding": false
+      },
+      "usageLimits": {
+        "taskStarts": 10,
+        "solverSeconds": 900,
+        "federatedTaskStarts": 5,
+        "concurrentJobs": 1,
+        "federatedEngines": 1,
+        "apiKeys": 1,
+        "maxTimeoutSeconds": 60,
+        "maxIterations": 10000,
+        "maxPayloadBytes": 8388608,
+        "maxInstanceComplexityLog10": 9,
+        "jobHistoryDays": 7,
+        "studyRuns": 3,
+        "organizations": 1,
+        "members": 2,
+        "projects": 3,
+        "privateProjects": 1,
+        "collections": 2,
+        "studies": 1,
+        "storageBytes": {
+          "unlimited": true
+        }
+      }
+    },
+    "ADVANCED": {
+      "plan": "ADVANCED",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "ADVANCED",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact us / Institutional agreement"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "authoring": true,
+        "solve": true,
+        "federatedEngines": true,
+        "apiAccess": true,
+        "collaboration": true,
+        "studies": true,
+        "advancedAnalytics": true,
+        "reproducibleExport": true,
+        "publishing": true,
+        "reproducibilityArchive": false,
+        "institutionalBranding": false
+      },
+      "usageLimits": {
+        "taskStarts": 25,
+        "solverSeconds": 18000,
+        "federatedTaskStarts": 10,
+        "concurrentJobs": 2,
+        "federatedEngines": 3,
+        "apiKeys": 10,
+        "maxTimeoutSeconds": 600,
+        "maxIterations": 500000,
+        "maxPayloadBytes": 67108864,
+        "maxInstanceComplexityLog10": 15,
+        "jobHistoryDays": 90,
+        "studyRuns": 50,
+        "organizations": 2,
+        "members": 10,
+        "projects": 25,
+        "privateProjects": 15,
+        "collections": 25,
+        "studies": 10,
+        "storageBytes": {
+          "unlimited": true
+        }
+      }
+    },
+    "ADVANCED+COMPUTE_PACK": {
+      "plan": "ADVANCED",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "COMPUTE_PACK": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "ADVANCED",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact us / Institutional agreement"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "COMPUTE_PACK",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Contact us"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "authoring": true,
+        "solve": true,
+        "federatedEngines": true,
+        "apiAccess": true,
+        "collaboration": true,
+        "studies": true,
+        "advancedAnalytics": true,
+        "reproducibleExport": true,
+        "publishing": true,
+        "reproducibilityArchive": false,
+        "institutionalBranding": false
+      },
+      "usageLimits": {
+        "taskStarts": 125.0,
+        "solverSeconds": 25200.0,
+        "federatedTaskStarts": 260.0,
+        "concurrentJobs": 2,
+        "federatedEngines": 3,
+        "apiKeys": 10,
+        "maxTimeoutSeconds": 600,
+        "maxIterations": 500000,
+        "maxPayloadBytes": 67108864,
+        "maxInstanceComplexityLog10": 15,
+        "jobHistoryDays": 90,
+        "studyRuns": 50,
+        "organizations": 2,
+        "members": 10,
+        "projects": 25,
+        "privateProjects": 15,
+        "collections": 25,
+        "studies": 10,
+        "storageBytes": {
+          "unlimited": true
+        }
+      }
+    },
+    "ADVANCED+COLLABORATION_PACK": {
+      "plan": "ADVANCED",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "COLLABORATION_PACK": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "ADVANCED",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact us / Institutional agreement"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "COLLABORATION_PACK",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Contact us"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "authoring": true,
+        "solve": true,
+        "federatedEngines": true,
+        "apiAccess": true,
+        "collaboration": true,
+        "studies": true,
+        "advancedAnalytics": true,
+        "reproducibleExport": true,
+        "publishing": true,
+        "reproducibilityArchive": false,
+        "institutionalBranding": false
+      },
+      "usageLimits": {
+        "taskStarts": 25,
+        "solverSeconds": 18000,
+        "federatedTaskStarts": 10,
+        "concurrentJobs": 2,
+        "federatedEngines": 3,
+        "apiKeys": 10,
+        "maxTimeoutSeconds": 600,
+        "maxIterations": 500000,
+        "maxPayloadBytes": 67108864,
+        "maxInstanceComplexityLog10": 15,
+        "jobHistoryDays": 90,
+        "studyRuns": 50,
+        "organizations": 2,
+        "members": 15.0,
+        "projects": 35.0,
+        "privateProjects": 20.0,
+        "collections": 25,
+        "studies": 10,
+        "storageBytes": {
+          "unlimited": true
+        }
+      }
+    },
+    "ADVANCED+STORAGE_PACK": {
+      "plan": "ADVANCED",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "STORAGE_PACK": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "ADVANCED",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact us / Institutional agreement"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "STORAGE_PACK",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Contact us"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "authoring": true,
+        "solve": true,
+        "federatedEngines": true,
+        "apiAccess": true,
+        "collaboration": true,
+        "studies": true,
+        "advancedAnalytics": true,
+        "reproducibleExport": true,
+        "publishing": true,
+        "reproducibilityArchive": false,
+        "institutionalBranding": false
+      },
+      "usageLimits": {
+        "taskStarts": 25,
+        "solverSeconds": 18000,
+        "federatedTaskStarts": 10,
+        "concurrentJobs": 2,
+        "federatedEngines": 3,
+        "apiKeys": 10,
+        "maxTimeoutSeconds": 600,
+        "maxIterations": 500000,
+        "maxPayloadBytes": 67108864,
+        "maxInstanceComplexityLog10": 15,
+        "jobHistoryDays": 90,
+        "studyRuns": 50,
+        "organizations": 2,
+        "members": 10,
+        "projects": 25,
+        "privateProjects": 15,
+        "collections": 25,
+        "studies": 10,
+        "storageBytes": {
+          "unlimited": true
+        }
+      }
+    },
+    "RESEARCH": {
+      "plan": "RESEARCH",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "RESEARCH",
+          "quantity": 1,
+          "price": {
+            "kind": "fixed",
+            "amount": 0.0
+          },
+          "unitAmount": 0.0,
+          "amount": 0.0
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": false,
+      "features": {
+        "authoring": true,
+        "solve": true,
+        "federatedEngines": true,
+        "apiAccess": true,
+        "collaboration": true,
+        "studies": true,
+        "advancedAnalytics": true,
+        "reproducibleExport": true,
+        "publishing": true,
+        "reproducibilityArchive": false,
+        "institutionalBranding": true
+      },
+      "usageLimits": {
+        "taskStarts": 50,
+        "solverSeconds": 30000,
+        "federatedTaskStarts": 100,
+        "concurrentJobs": 3,
+        "federatedEngines": 5,
+        "apiKeys": 25,
+        "maxTimeoutSeconds": 900,
+        "maxIterations": 1000000,
+        "maxPayloadBytes": {
+          "unlimited": true
+        },
+        "maxInstanceComplexityLog10": 20,
+        "jobHistoryDays": 180,
+        "studyRuns": 100,
+        "organizations": 5,
+        "members": 15,
+        "projects": 50,
+        "privateProjects": 30,
+        "collections": 50,
+        "studies": 25,
+        "storageBytes": {
+          "unlimited": true
+        }
+      }
+    },
+    "PRO": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {},
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact us / Institutional agreement"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "authoring": true,
+        "solve": true,
+        "federatedEngines": true,
+        "apiAccess": true,
+        "collaboration": true,
+        "studies": true,
+        "advancedAnalytics": true,
+        "reproducibleExport": true,
+        "publishing": true,
+        "reproducibilityArchive": true,
+        "institutionalBranding": false
+      },
+      "usageLimits": {
+        "taskStarts": {
+          "unlimited": true
+        },
+        "solverSeconds": 180000,
+        "federatedTaskStarts": 1000,
+        "concurrentJobs": 8,
+        "federatedEngines": 20,
+        "apiKeys": {
+          "unlimited": true
+        },
+        "maxTimeoutSeconds": 1800,
+        "maxIterations": 10000000,
+        "maxPayloadBytes": {
+          "unlimited": true
+        },
+        "maxInstanceComplexityLog10": 30,
+        "jobHistoryDays": 365,
+        "studyRuns": 1000,
+        "organizations": 10,
+        "members": 100,
+        "projects": 500,
+        "privateProjects": 500,
+        "collections": 500,
+        "studies": 250,
+        "storageBytes": {
+          "unlimited": true
+        }
+      }
+    },
+    "PRO+COMPUTE_PACK": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "COMPUTE_PACK": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact us / Institutional agreement"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "COMPUTE_PACK",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Contact us"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "authoring": true,
+        "solve": true,
+        "federatedEngines": true,
+        "apiAccess": true,
+        "collaboration": true,
+        "studies": true,
+        "advancedAnalytics": true,
+        "reproducibleExport": true,
+        "publishing": true,
+        "reproducibilityArchive": true,
+        "institutionalBranding": false
+      },
+      "usageLimits": {
+        "taskStarts": {
+          "unlimited": true
+        },
+        "solverSeconds": 187200.0,
+        "federatedTaskStarts": 1250.0,
+        "concurrentJobs": 8,
+        "federatedEngines": 20,
+        "apiKeys": {
+          "unlimited": true
+        },
+        "maxTimeoutSeconds": 1800,
+        "maxIterations": 10000000,
+        "maxPayloadBytes": {
+          "unlimited": true
+        },
+        "maxInstanceComplexityLog10": 30,
+        "jobHistoryDays": 365,
+        "studyRuns": 1000,
+        "organizations": 10,
+        "members": 100,
+        "projects": 500,
+        "privateProjects": 500,
+        "collections": 500,
+        "studies": 250,
+        "storageBytes": {
+          "unlimited": true
+        }
+      }
+    },
+    "PRO+COLLABORATION_PACK": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "COLLABORATION_PACK": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact us / Institutional agreement"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "COLLABORATION_PACK",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Contact us"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "authoring": true,
+        "solve": true,
+        "federatedEngines": true,
+        "apiAccess": true,
+        "collaboration": true,
+        "studies": true,
+        "advancedAnalytics": true,
+        "reproducibleExport": true,
+        "publishing": true,
+        "reproducibilityArchive": true,
+        "institutionalBranding": false
+      },
+      "usageLimits": {
+        "taskStarts": {
+          "unlimited": true
+        },
+        "solverSeconds": 180000,
+        "federatedTaskStarts": 1000,
+        "concurrentJobs": 8,
+        "federatedEngines": 20,
+        "apiKeys": {
+          "unlimited": true
+        },
+        "maxTimeoutSeconds": 1800,
+        "maxIterations": 10000000,
+        "maxPayloadBytes": {
+          "unlimited": true
+        },
+        "maxInstanceComplexityLog10": 30,
+        "jobHistoryDays": 365,
+        "studyRuns": 1000,
+        "organizations": 10,
+        "members": 105.0,
+        "projects": 510.0,
+        "privateProjects": 505.0,
+        "collections": 500,
+        "studies": 250,
+        "storageBytes": {
+          "unlimited": true
+        }
+      }
+    },
+    "PRO+STORAGE_PACK": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "STORAGE_PACK": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact us / Institutional agreement"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "STORAGE_PACK",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Contact us"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "authoring": true,
+        "solve": true,
+        "federatedEngines": true,
+        "apiAccess": true,
+        "collaboration": true,
+        "studies": true,
+        "advancedAnalytics": true,
+        "reproducibleExport": true,
+        "publishing": true,
+        "reproducibilityArchive": true,
+        "institutionalBranding": false
+      },
+      "usageLimits": {
+        "taskStarts": {
+          "unlimited": true
+        },
+        "solverSeconds": 180000,
+        "federatedTaskStarts": 1000,
+        "concurrentJobs": 8,
+        "federatedEngines": 20,
+        "apiKeys": {
+          "unlimited": true
+        },
+        "maxTimeoutSeconds": 1800,
+        "maxIterations": 10000000,
+        "maxPayloadBytes": {
+          "unlimited": true
+        },
+        "maxInstanceComplexityLog10": 30,
+        "jobHistoryDays": 365,
+        "studyRuns": 1000,
+        "organizations": 10,
+        "members": 100,
+        "projects": 500,
+        "privateProjects": 500,
+        "collections": 500,
+        "studies": 250,
+        "storageBytes": {
+          "unlimited": true
+        }
+      }
+    },
+    "PRO+FEDERATION_PACK": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "FEDERATION_PACK": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact us / Institutional agreement"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "FEDERATION_PACK",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Contact us"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "authoring": true,
+        "solve": true,
+        "federatedEngines": true,
+        "apiAccess": true,
+        "collaboration": true,
+        "studies": true,
+        "advancedAnalytics": true,
+        "reproducibleExport": true,
+        "publishing": true,
+        "reproducibilityArchive": true,
+        "institutionalBranding": false
+      },
+      "usageLimits": {
+        "taskStarts": {
+          "unlimited": true
+        },
+        "solverSeconds": 180000,
+        "federatedTaskStarts": 1500.0,
+        "concurrentJobs": 8,
+        "federatedEngines": 22.0,
+        "apiKeys": {
+          "unlimited": true
+        },
+        "maxTimeoutSeconds": 1800,
+        "maxIterations": 10000000,
+        "maxPayloadBytes": {
+          "unlimited": true
+        },
+        "maxInstanceComplexityLog10": 30,
+        "jobHistoryDays": 365,
+        "studyRuns": 1000,
+        "organizations": 10,
+        "members": 100,
+        "projects": 500,
+        "privateProjects": 500,
+        "collections": 500,
+        "studies": 250,
+        "storageBytes": {
+          "unlimited": true
+        }
+      }
+    },
+    "PRO+CONCURRENCY_PACK": {
+      "plan": "PRO",
+      "billing": {
+        "id": "monthly",
+        "multiplier": 1.0
+      },
+      "addOns": {
+        "CONCURRENCY_PACK": 1.0
+      },
+      "removed": [],
+      "parts": [
+        {
+          "kind": "plan",
+          "id": "PRO",
+          "quantity": 1,
+          "price": {
+            "kind": "label",
+            "text": "Contact us / Institutional agreement"
+          },
+          "unitAmount": null,
+          "amount": null
+        },
+        {
+          "kind": "addOn",
+          "id": "CONCURRENCY_PACK",
+          "quantity": 1.0,
+          "price": {
+            "kind": "label",
+            "text": "Contact us"
+          },
+          "unitAmount": null,
+          "amount": null
+        }
+      ],
+      "subtotal": 0.0,
+      "requiresQuote": true,
+      "features": {
+        "authoring": true,
+        "solve": true,
+        "federatedEngines": true,
+        "apiAccess": true,
+        "collaboration": true,
+        "studies": true,
+        "advancedAnalytics": true,
+        "reproducibleExport": true,
+        "publishing": true,
+        "reproducibilityArchive": true,
+        "institutionalBranding": false
+      },
+      "usageLimits": {
+        "taskStarts": {
+          "unlimited": true
+        },
+        "solverSeconds": 180000,
+        "federatedTaskStarts": 1000,
+        "concurrentJobs": 9.0,
+        "federatedEngines": 20,
+        "apiKeys": {
+          "unlimited": true
+        },
+        "maxTimeoutSeconds": 1800,
+        "maxIterations": 10000000,
+        "maxPayloadBytes": {
+          "unlimited": true
+        },
+        "maxInstanceComplexityLog10": 30,
+        "jobHistoryDays": 365,
+        "studyRuns": 1000,
+        "organizations": 10,
+        "members": 100,
+        "projects": 500,
+        "privateProjects": 500,
+        "collections": 500,
+        "studies": 250,
+        "storageBytes": {
+          "unlimited": true
+        }
+      }
+    }
+  }
+}

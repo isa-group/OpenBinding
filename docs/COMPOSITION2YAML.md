@@ -622,9 +622,14 @@ view and the F6 watcher, without re-reading the YAML). From F3, every evaluation
 stores the offering version it used: the SPHERE version id, or for a `url` a reference to the stored copy of the file
 (`pricing_snapshots`, whose sha256 is internal and never appears in the document). F3 reads the offering through its
 `PricingSource` port, over HTTPS only, with no credentials, no redirects to another scheme, private and link-local
-addresses blocked, 5 MiB and a time limit. A new offering version is an F6 upstream event ("offering changed"),
+addresses blocked, 5 MiB and a time limit. A new offering version is an upstream event ("offering changed"),
 which recomputes margins and ends at *reviewed*: sealing never resolves it, since the document does not pin the
-offering version.
+offering version ([ADR 0057](adr/0057-upstream-watches-and-events.md)).
+
+`from.version` is mandatory because it is what the upstream watcher compares: a version pins exactly one version of
+each family it reads, every newer version of that family is classified against the bound plan, and sealing a version
+that pins the new version (or newer) is what resolves the event. An entry without `from` is watched through its
+linked revision's value origins; a declared entry without either is not watched.
 
 ```yaml c2y valid
 syntaxVersion: "1.0"

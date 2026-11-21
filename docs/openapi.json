@@ -4063,6 +4063,17 @@
             "format": "date-time",
             "title": "Updatedat",
             "type": "string"
+          },
+          "upstream": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnvironmentUpstreamSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Upstream events of the version in effect and the composition's open offering events (F6); computed when read, so it never moves the environment's ETag or its feed."
           }
         },
         "required": [
@@ -5335,6 +5346,17 @@
             "title": "Syntax Version",
             "type": "string"
           },
+          "upstream": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "This version's open and reviewed upstream events (F6); members only."
+          },
           "values": {
             "additionalProperties": {
               "$ref": "#/components/schemas/ValueView"
@@ -5468,6 +5490,17 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "upstream": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its open and reviewed upstream events on live versions (F6), for members only; null for a visitor of a public composition and on the public list."
           },
           "version_count": {
             "default": 0,
@@ -7751,6 +7784,64 @@
           "displayName"
         ],
         "title": "EnvironmentPerson",
+        "type": "object"
+      },
+      "EnvironmentUpstreamSummary": {
+        "properties": {
+          "bindingInvalid": {
+            "description": "Open or reviewed events that recommend rebinding.",
+            "minimum": 0.0,
+            "title": "Bindinginvalid",
+            "type": "integer"
+          },
+          "open": {
+            "minimum": 0.0,
+            "title": "Open",
+            "type": "integer"
+          },
+          "resolvedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamResolvedIn"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The newest version that resolved an event of the version in effect and is not adopted here."
+          },
+          "reviewed": {
+            "minimum": 0.0,
+            "title": "Reviewed",
+            "type": "integer"
+          },
+          "worst": {
+            "anyOf": [
+              {
+                "enum": [
+                  "no_impact",
+                  "values_changed",
+                  "binding_invalid",
+                  "offering_changed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The worst category among the counted events.",
+            "title": "Worst"
+          }
+        },
+        "required": [
+          "open",
+          "reviewed",
+          "bindingInvalid",
+          "worst",
+          "resolvedBy"
+        ],
+        "title": "EnvironmentUpstreamSummary",
         "type": "object"
       },
       "EnvironmentVersion": {
@@ -10283,6 +10374,231 @@
           "created_at"
         ],
         "title": "MemberView",
+        "type": "object"
+      },
+      "MyUpstreamComposition": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ],
+        "title": "MyUpstreamComposition",
+        "type": "object"
+      },
+      "MyUpstreamEvent": {
+        "properties": {
+          "category": {
+            "enum": [
+              "no_impact",
+              "values_changed",
+              "binding_invalid",
+              "offering_changed"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "classifier": {
+            "title": "Classifier",
+            "type": "string"
+          },
+          "composition": {
+            "$ref": "#/components/schemas/MyUpstreamComposition"
+          },
+          "detectedAt": {
+            "format": "date-time",
+            "title": "Detectedat",
+            "type": "string"
+          },
+          "environments": {
+            "description": "Where the affected version is adopted (every adopted environment for an offering event).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Environments",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "new": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamSide"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when the source is gone."
+          },
+          "newVersionWithdrawn": {
+            "title": "Newversionwithdrawn",
+            "type": "boolean"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "notify": {
+            "description": "Whether it is told and badged (false for no impact and untold events).",
+            "title": "Notify",
+            "type": "boolean"
+          },
+          "old": {
+            "$ref": "#/components/schemas/UpstreamSide"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/CompositionOrganization"
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/UpstreamPricingRef"
+          },
+          "reasons": {
+            "description": "Codes with detail, in precedence order.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "rebindingRecommended": {
+            "title": "Rebindingrecommended",
+            "type": "boolean"
+          },
+          "resolvedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamResolution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewedat"
+          },
+          "reviewedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamPerson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "open",
+              "reviewed",
+              "resolved"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "subject": {
+            "enum": [
+              "binding",
+              "offering"
+            ],
+            "title": "Subject",
+            "type": "string"
+          },
+          "supersededBy": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A newer event of the same version and pricing.",
+            "title": "Supersededby"
+          },
+          "tasks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "version": {
+            "$ref": "#/components/schemas/UpstreamVersionName",
+            "description": "The affected version (an offering event's reference version)."
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "category",
+          "state",
+          "notify",
+          "version",
+          "tasks",
+          "reasons",
+          "pricing",
+          "old",
+          "new",
+          "note",
+          "reviewedBy",
+          "reviewedAt",
+          "resolvedBy",
+          "detectedAt",
+          "environments",
+          "supersededBy",
+          "newVersionWithdrawn",
+          "rebindingRecommended",
+          "classifier",
+          "organization",
+          "composition"
+        ],
+        "title": "MyUpstreamEvent",
+        "type": "object"
+      },
+      "MyUpstreamEventList": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/MyUpstreamEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "required": [
+          "events"
+        ],
+        "title": "MyUpstreamEventList",
         "type": "object"
       },
       "NeighborhoodCoverage": {
@@ -16401,6 +16717,17 @@
           "task": {
             "title": "Task",
             "type": "string"
+          },
+          "watch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamWatchState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How OpenBinding watches this pricing (F6); members only."
           }
         },
         "required": [
@@ -16412,6 +16739,452 @@
           "plan"
         ],
         "title": "UpstreamEntry",
+        "type": "object"
+      },
+      "UpstreamEventCounts": {
+        "properties": {
+          "noImpact": {
+            "title": "Noimpact",
+            "type": "integer"
+          },
+          "open": {
+            "title": "Open",
+            "type": "integer"
+          },
+          "resolved": {
+            "title": "Resolved",
+            "type": "integer"
+          },
+          "reviewed": {
+            "title": "Reviewed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "open",
+          "reviewed",
+          "resolved",
+          "noImpact"
+        ],
+        "title": "UpstreamEventCounts",
+        "type": "object"
+      },
+      "UpstreamEventDetail": {
+        "properties": {
+          "category": {
+            "enum": [
+              "no_impact",
+              "values_changed",
+              "binding_invalid",
+              "offering_changed"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "classifier": {
+            "title": "Classifier",
+            "type": "string"
+          },
+          "detectedAt": {
+            "format": "date-time",
+            "title": "Detectedat",
+            "type": "string"
+          },
+          "diff": {
+            "additionalProperties": true,
+            "description": "`openbinding/upstream-event-diff@1`, as stored.",
+            "title": "Diff",
+            "type": "object"
+          },
+          "environments": {
+            "description": "Where the affected version is adopted (every adopted environment for an offering event).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Environments",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "new": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamSide"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when the source is gone."
+          },
+          "newVersionWithdrawn": {
+            "title": "Newversionwithdrawn",
+            "type": "boolean"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "notify": {
+            "description": "Whether it is told and badged (false for no impact and untold events).",
+            "title": "Notify",
+            "type": "boolean"
+          },
+          "old": {
+            "$ref": "#/components/schemas/UpstreamSide"
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/UpstreamPricingRef"
+          },
+          "reasons": {
+            "description": "Codes with detail, in precedence order.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "rebindingRecommended": {
+            "title": "Rebindingrecommended",
+            "type": "boolean"
+          },
+          "resolvedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamResolution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewedat"
+          },
+          "reviewedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamPerson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "open",
+              "reviewed",
+              "resolved"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "subject": {
+            "enum": [
+              "binding",
+              "offering"
+            ],
+            "title": "Subject",
+            "type": "string"
+          },
+          "supersededBy": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A newer event of the same version and pricing.",
+            "title": "Supersededby"
+          },
+          "tasks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "version": {
+            "$ref": "#/components/schemas/UpstreamVersionName",
+            "description": "The affected version (an offering event's reference version)."
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "category",
+          "state",
+          "notify",
+          "version",
+          "tasks",
+          "reasons",
+          "pricing",
+          "old",
+          "new",
+          "note",
+          "reviewedBy",
+          "reviewedAt",
+          "resolvedBy",
+          "detectedAt",
+          "environments",
+          "supersededBy",
+          "newVersionWithdrawn",
+          "rebindingRecommended",
+          "classifier",
+          "diff"
+        ],
+        "title": "UpstreamEventDetail",
+        "type": "object"
+      },
+      "UpstreamEventList": {
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/UpstreamEventCounts"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/UpstreamEventView"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "nextBefore": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`<detectedAt>,<id>` of the last event, for the next page.",
+            "title": "Nextbefore"
+          },
+          "watches": {
+            "description": "The pricings this composition's live versions read.",
+            "items": {
+              "$ref": "#/components/schemas/UpstreamWatchSummary"
+            },
+            "title": "Watches",
+            "type": "array"
+          }
+        },
+        "required": [
+          "events",
+          "watches",
+          "counts",
+          "nextBefore"
+        ],
+        "title": "UpstreamEventList",
+        "type": "object"
+      },
+      "UpstreamEventReview": {
+        "additionalProperties": false,
+        "description": "Mark an event reviewed, once, with an optional note.",
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "title": "UpstreamEventReview",
+        "type": "object"
+      },
+      "UpstreamEventView": {
+        "description": "An upstream event: a classified change of a pricing a live version reads (immutable but for its state).",
+        "properties": {
+          "category": {
+            "enum": [
+              "no_impact",
+              "values_changed",
+              "binding_invalid",
+              "offering_changed"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "classifier": {
+            "title": "Classifier",
+            "type": "string"
+          },
+          "detectedAt": {
+            "format": "date-time",
+            "title": "Detectedat",
+            "type": "string"
+          },
+          "environments": {
+            "description": "Where the affected version is adopted (every adopted environment for an offering event).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Environments",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "new": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamSide"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when the source is gone."
+          },
+          "newVersionWithdrawn": {
+            "title": "Newversionwithdrawn",
+            "type": "boolean"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "notify": {
+            "description": "Whether it is told and badged (false for no impact and untold events).",
+            "title": "Notify",
+            "type": "boolean"
+          },
+          "old": {
+            "$ref": "#/components/schemas/UpstreamSide"
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/UpstreamPricingRef"
+          },
+          "reasons": {
+            "description": "Codes with detail, in precedence order.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "rebindingRecommended": {
+            "title": "Rebindingrecommended",
+            "type": "boolean"
+          },
+          "resolvedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamResolution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewedat"
+          },
+          "reviewedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamPerson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "open",
+              "reviewed",
+              "resolved"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "subject": {
+            "enum": [
+              "binding",
+              "offering"
+            ],
+            "title": "Subject",
+            "type": "string"
+          },
+          "supersededBy": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A newer event of the same version and pricing.",
+            "title": "Supersededby"
+          },
+          "tasks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tasks",
+            "type": "array"
+          },
+          "version": {
+            "$ref": "#/components/schemas/UpstreamVersionName",
+            "description": "The affected version (an offering event's reference version)."
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "category",
+          "state",
+          "notify",
+          "version",
+          "tasks",
+          "reasons",
+          "pricing",
+          "old",
+          "new",
+          "note",
+          "reviewedBy",
+          "reviewedAt",
+          "resolvedBy",
+          "detectedAt",
+          "environments",
+          "supersededBy",
+          "newVersionWithdrawn",
+          "rebindingRecommended",
+          "classifier"
+        ],
+        "title": "UpstreamEventView",
         "type": "object"
       },
       "UpstreamOffering": {
@@ -16484,6 +17257,19 @@
         "title": "UpstreamOffering",
         "type": "object"
       },
+      "UpstreamPerson": {
+        "properties": {
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "title": "UpstreamPerson",
+        "type": "object"
+      },
       "UpstreamPlan": {
         "properties": {
           "name": {
@@ -16519,6 +17305,175 @@
           "private"
         ],
         "title": "UpstreamPlan",
+        "type": "object"
+      },
+      "UpstreamPricingRef": {
+        "properties": {
+          "pricingId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricingid"
+          },
+          "registry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registry"
+          },
+          "sphere": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`owner/slug` of the family.",
+            "title": "Sphere"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The offering's URL, for a URL watch.",
+            "title": "Url"
+          }
+        },
+        "required": [
+          "sphere",
+          "registry",
+          "pricingId",
+          "url",
+          "title"
+        ],
+        "title": "UpstreamPricingRef",
+        "type": "object"
+      },
+      "UpstreamResolution": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamPerson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/UpstreamVersionName"
+          }
+        },
+        "required": [
+          "version",
+          "by",
+          "at"
+        ],
+        "title": "UpstreamResolution",
+        "type": "object"
+      },
+      "UpstreamResolvedIn": {
+        "properties": {
+          "version": {
+            "$ref": "#/components/schemas/UpstreamVersionName"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "UpstreamResolvedIn",
+        "type": "object"
+      },
+      "UpstreamSide": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "snapshotId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshotid"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the version opens in SPHERE.",
+            "title": "Url"
+          },
+          "versionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionid"
+          }
+        },
+        "required": [
+          "versionId",
+          "label",
+          "snapshotId",
+          "url"
+        ],
+        "title": "UpstreamSide",
         "type": "object"
       },
       "UpstreamSnapshot": {
@@ -16650,6 +17605,53 @@
         "title": "UpstreamSnapshot",
         "type": "object"
       },
+      "UpstreamSummary": {
+        "description": "Open and reviewed upstream events, each (version, watch, subject) once; no-impact and untold events excluded.",
+        "properties": {
+          "bindingInvalid": {
+            "description": "Open or reviewed events that recommend rebinding.",
+            "minimum": 0.0,
+            "title": "Bindinginvalid",
+            "type": "integer"
+          },
+          "open": {
+            "minimum": 0.0,
+            "title": "Open",
+            "type": "integer"
+          },
+          "reviewed": {
+            "minimum": 0.0,
+            "title": "Reviewed",
+            "type": "integer"
+          },
+          "worst": {
+            "anyOf": [
+              {
+                "enum": [
+                  "no_impact",
+                  "values_changed",
+                  "binding_invalid",
+                  "offering_changed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The worst category among the counted events.",
+            "title": "Worst"
+          }
+        },
+        "required": [
+          "open",
+          "reviewed",
+          "bindingInvalid",
+          "worst"
+        ],
+        "title": "UpstreamSummary",
+        "type": "object"
+      },
       "UpstreamValue": {
         "properties": {
           "manualOnly": {
@@ -16678,6 +17680,25 @@
           "manualOnly"
         ],
         "title": "UpstreamValue",
+        "type": "object"
+      },
+      "UpstreamVersionName": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "UpstreamVersionName",
         "type": "object"
       },
       "UpstreamView": {
@@ -16720,6 +17741,90 @@
           "offering"
         ],
         "title": "UpstreamView",
+        "type": "object"
+      },
+      "UpstreamWatchState": {
+        "properties": {
+          "nextPollAt": {
+            "format": "date-time",
+            "title": "Nextpollat",
+            "type": "string"
+          },
+          "observedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The last answer from upstream (a 200 or a 304).",
+            "title": "Observedat"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "active",
+              "unavailable",
+              "not_found",
+              "gone",
+              "credential_missing",
+              "registry_unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "observedAt",
+          "nextPollAt"
+        ],
+        "title": "UpstreamWatchState",
+        "type": "object"
+      },
+      "UpstreamWatchSummary": {
+        "properties": {
+          "latestLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latestlabel"
+          },
+          "observedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observedat"
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/UpstreamPricingRef"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pricing",
+          "latestLabel",
+          "observedAt",
+          "status"
+        ],
+        "title": "UpstreamWatchSummary",
         "type": "object"
       },
       "UsageView": {
@@ -23597,7 +24702,8 @@
                     "CompositionUpdated",
                     "RunFinished",
                     "RunFailed",
-                    "CompositionAdopted"
+                    "CompositionAdopted",
+                    "UpstreamEvent"
                   ],
                   "type": "string"
                 },
@@ -29620,6 +30726,519 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/upstream-events": {
+      "get": {
+        "description": "The composition's upstream events, newest first, with the pricings its live versions read (members only).",
+        "operationId": "listUpstreamEvents",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "open",
+                    "reviewed",
+                    "resolved"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "description": "Only the events of this version (its id).",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only the events of this version (its id).",
+              "title": "Version"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "no_impact",
+                    "values_changed",
+                    "binding_invalid",
+                    "offering_changed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subject",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "binding",
+                    "offering"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Subject"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "`<detectedAt>,<id>` of the last event of the page before.",
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`<detectedAt>,<id>` of the last event of the page before.",
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpstreamEventList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or event, or the caller is not a member: `Composition not found.` for a private or missing composition, `Upstream event not found.` otherwise."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Upstream Events",
+        "tags": [
+          "Upstream events"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/upstream-events/{event}": {
+      "get": {
+        "description": "One event with its stored diff (members only).",
+        "operationId": "getUpstreamEvent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "event",
+            "required": true,
+            "schema": {
+              "title": "Event",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpstreamEventDetail"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or event, or the caller is not a member: `Composition not found.` for a private or missing composition, `Upstream event not found.` otherwise."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Upstream Event",
+        "tags": [
+          "Upstream events"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/upstream-events/{event}/review": {
+      "post": {
+        "description": "Mark an open event reviewed, with an optional note written once (MEMBER). An offering event ends here.",
+        "operationId": "reviewUpstreamEvent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "event",
+            "required": true,
+            "schema": {
+              "title": "Event",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpstreamEventReview"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpstreamEventDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role is weaker than MEMBER (`organization_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition or event, or the caller is not a member: `Composition not found.` for a private or missing composition, `Upstream event not found.` otherwise."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Already reviewed or resolved (`event_not_reviewable`)."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Review Upstream Event",
+        "tags": [
+          "Upstream events"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
         ]
       }
     },
@@ -40196,6 +41815,93 @@
         ],
         "x-required-api-key-permissions": [
           "account:write"
+        ]
+      }
+    },
+    "/v1/users/me/upstream-events": {
+      "get": {
+        "description": "The open upstream events (reviewed ones too, for bindings) of the live versions of every organization the\ncaller holds a role in, newest first: the dashboard's \"Upstream changes\".",
+        "operationId": "listOwnUpstreamEvents",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyUpstreamEventList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Own Upstream Events",
+        "tags": [
+          "Upstream events"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
         ]
       }
     },

@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '72c9f83f7d02'
+revision: str = '59165254db89'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -36,6 +36,10 @@ SQLITE_TRIGGERS = (
     "CREATE TRIGGER protect_composition_environment_keys BEFORE UPDATE ON composition_environment_keys WHEN OLD.environment_id IS NOT NEW.environment_id OR OLD.prefix IS NOT NEW.prefix OR OLD.secret_hash IS NOT NEW.secret_hash OR OLD.created_by_id IS NOT NEW.created_by_id OR OLD.created_at IS NOT NEW.created_at BEGIN SELECT RAISE(ABORT, 'the protected columns of composition_environment_keys are immutable'); END",
     "CREATE TRIGGER revoked_composition_environment_keys BEFORE UPDATE ON composition_environment_keys WHEN (OLD.revoked_at IS NOT NULL AND (NEW.revoked_at IS NOT OLD.revoked_at OR NEW.revoked_by_id IS NOT OLD.revoked_by_id)) BEGIN SELECT RAISE(ABORT, 'a revoked feed key stays revoked'); END",
     "CREATE TRIGGER protect_org_connections BEFORE UPDATE ON org_connections WHEN OLD.organization_id IS NOT NEW.organization_id OR OLD.kind IS NOT NEW.kind BEGIN SELECT RAISE(ABORT, 'the protected columns of org_connections are immutable'); END",
+    "CREATE TRIGGER protect_pricing_watches BEFORE UPDATE ON pricing_watches WHEN OLD.source_kind IS NOT NEW.source_kind OR OLD.registry IS NOT NEW.registry OR OLD.pricing_id IS NOT NEW.pricing_id OR OLD.url IS NOT NEW.url OR OLD.url_key IS NOT NEW.url_key OR OLD.scope_key IS NOT NEW.scope_key OR OLD.organization_id IS NOT NEW.organization_id OR OLD.watch_key IS NOT NEW.watch_key OR OLD.created_at IS NOT NEW.created_at BEGIN SELECT RAISE(ABORT, 'the protected columns of pricing_watches are immutable'); END",
+    "CREATE TRIGGER immutable_pricing_watch_refs_update BEFORE UPDATE ON pricing_watch_refs BEGIN SELECT RAISE(ABORT, 'pricing watch references are immutable'); END",
+    "CREATE TRIGGER protect_composition_upstream_events BEFORE UPDATE ON composition_upstream_events WHEN OLD.id IS NOT NEW.id OR OLD.organization_id IS NOT NEW.organization_id OR OLD.composition_id IS NOT NEW.composition_id OR OLD.version_id IS NOT NEW.version_id OR OLD.watch_id IS NOT NEW.watch_id OR OLD.subject IS NOT NEW.subject OR OLD.tasks IS NOT NEW.tasks OR OLD.category IS NOT NEW.category OR OLD.reasons IS NOT NEW.reasons OR OLD.notify IS NOT NEW.notify OR OLD.old_ref IS NOT NEW.old_ref OR OLD.new_ref IS NOT NEW.new_ref OR OLD.old_version_id IS NOT NEW.old_version_id OR OLD.new_version_id IS NOT NEW.new_version_id OR OLD.old_label IS NOT NEW.old_label OR OLD.new_label IS NOT NEW.new_label OR OLD.old_snapshot_id IS NOT NEW.old_snapshot_id OR OLD.new_snapshot_id IS NOT NEW.new_snapshot_id OR OLD.diff IS NOT NEW.diff OR OLD.classifier IS NOT NEW.classifier OR OLD.detected_at IS NOT NEW.detected_at BEGIN SELECT RAISE(ABORT, 'an upstream event is immutable but for its state, review and resolution'); END",
+    "CREATE TRIGGER state_composition_upstream_events BEFORE UPDATE ON composition_upstream_events WHEN (OLD.state IS NOT NEW.state AND NOT ((OLD.state = 'open' AND NEW.state = 'reviewed') OR (OLD.state = 'open' AND NEW.state = 'resolved') OR (OLD.state = 'reviewed' AND NEW.state = 'resolved'))) OR ((OLD.note IS NOT NEW.note OR OLD.reviewed_by_id IS NOT NEW.reviewed_by_id OR OLD.reviewed_at IS NOT NEW.reviewed_at) AND NOT ((OLD.state = 'open' AND NEW.state = 'reviewed'))) OR ((OLD.resolved_by_version_id IS NOT NEW.resolved_by_version_id OR OLD.resolved_by_id IS NOT NEW.resolved_by_id OR OLD.resolved_at IS NOT NEW.resolved_at) AND NOT ((OLD.state = 'open' AND NEW.state = 'resolved') OR (OLD.state = 'reviewed' AND NEW.state = 'resolved'))) BEGIN SELECT RAISE(ABORT, 'an upstream event moves forward only, is reviewed once and resolved once'); END",
 )
 POSTGRESQL_TRIGGERS = (
     "CREATE OR REPLACE FUNCTION immutable_binding_case_revisions_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'binding_case_revisions rows are sealed and immutable'; END $$",
@@ -72,6 +76,14 @@ POSTGRESQL_TRIGGERS = (
     'CREATE TRIGGER revoked_composition_environment_keys BEFORE UPDATE ON composition_environment_keys FOR EACH ROW EXECUTE FUNCTION revoked_composition_environment_keys()',
     "CREATE OR REPLACE FUNCTION protect_org_connections() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.organization_id IS DISTINCT FROM NEW.organization_id OR OLD.kind IS DISTINCT FROM NEW.kind THEN RAISE EXCEPTION 'the protected columns of org_connections are immutable'; END IF; RETURN NEW; END $$",
     'CREATE TRIGGER protect_org_connections BEFORE UPDATE ON org_connections FOR EACH ROW EXECUTE FUNCTION protect_org_connections()',
+    "CREATE OR REPLACE FUNCTION protect_pricing_watches() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.source_kind IS DISTINCT FROM NEW.source_kind OR OLD.registry IS DISTINCT FROM NEW.registry OR OLD.pricing_id IS DISTINCT FROM NEW.pricing_id OR OLD.url IS DISTINCT FROM NEW.url OR OLD.url_key IS DISTINCT FROM NEW.url_key OR OLD.scope_key IS DISTINCT FROM NEW.scope_key OR OLD.organization_id IS DISTINCT FROM NEW.organization_id OR OLD.watch_key IS DISTINCT FROM NEW.watch_key OR OLD.created_at IS DISTINCT FROM NEW.created_at THEN RAISE EXCEPTION 'the protected columns of pricing_watches are immutable'; END IF; RETURN NEW; END $$",
+    'CREATE TRIGGER protect_pricing_watches BEFORE UPDATE ON pricing_watches FOR EACH ROW EXECUTE FUNCTION protect_pricing_watches()',
+    "CREATE OR REPLACE FUNCTION immutable_pricing_watch_refs_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'pricing watch references are immutable'; END $$",
+    'CREATE TRIGGER immutable_pricing_watch_refs_update BEFORE UPDATE ON pricing_watch_refs FOR EACH ROW EXECUTE FUNCTION immutable_pricing_watch_refs_update()',
+    "CREATE OR REPLACE FUNCTION protect_composition_upstream_events() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.id IS DISTINCT FROM NEW.id OR OLD.organization_id IS DISTINCT FROM NEW.organization_id OR OLD.composition_id IS DISTINCT FROM NEW.composition_id OR OLD.version_id IS DISTINCT FROM NEW.version_id OR OLD.watch_id IS DISTINCT FROM NEW.watch_id OR OLD.subject IS DISTINCT FROM NEW.subject OR OLD.tasks::jsonb IS DISTINCT FROM NEW.tasks::jsonb OR OLD.category IS DISTINCT FROM NEW.category OR OLD.reasons::jsonb IS DISTINCT FROM NEW.reasons::jsonb OR OLD.notify IS DISTINCT FROM NEW.notify OR OLD.old_ref IS DISTINCT FROM NEW.old_ref OR OLD.new_ref IS DISTINCT FROM NEW.new_ref OR OLD.old_version_id IS DISTINCT FROM NEW.old_version_id OR OLD.new_version_id IS DISTINCT FROM NEW.new_version_id OR OLD.old_label IS DISTINCT FROM NEW.old_label OR OLD.new_label IS DISTINCT FROM NEW.new_label OR OLD.old_snapshot_id IS DISTINCT FROM NEW.old_snapshot_id OR OLD.new_snapshot_id IS DISTINCT FROM NEW.new_snapshot_id OR OLD.diff::jsonb IS DISTINCT FROM NEW.diff::jsonb OR OLD.classifier IS DISTINCT FROM NEW.classifier OR OLD.detected_at IS DISTINCT FROM NEW.detected_at THEN RAISE EXCEPTION 'an upstream event is immutable but for its state, review and resolution'; END IF; RETURN NEW; END $$",
+    'CREATE TRIGGER protect_composition_upstream_events BEFORE UPDATE ON composition_upstream_events FOR EACH ROW EXECUTE FUNCTION protect_composition_upstream_events()',
+    "CREATE OR REPLACE FUNCTION state_composition_upstream_events() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF (OLD.state IS DISTINCT FROM NEW.state AND NOT ((OLD.state = 'open' AND NEW.state = 'reviewed') OR (OLD.state = 'open' AND NEW.state = 'resolved') OR (OLD.state = 'reviewed' AND NEW.state = 'resolved'))) OR ((OLD.note IS DISTINCT FROM NEW.note OR OLD.reviewed_by_id IS DISTINCT FROM NEW.reviewed_by_id OR OLD.reviewed_at IS DISTINCT FROM NEW.reviewed_at) AND NOT ((OLD.state = 'open' AND NEW.state = 'reviewed'))) OR ((OLD.resolved_by_version_id IS DISTINCT FROM NEW.resolved_by_version_id OR OLD.resolved_by_id IS DISTINCT FROM NEW.resolved_by_id OR OLD.resolved_at IS DISTINCT FROM NEW.resolved_at) AND NOT ((OLD.state = 'open' AND NEW.state = 'resolved') OR (OLD.state = 'reviewed' AND NEW.state = 'resolved'))) THEN RAISE EXCEPTION 'an upstream event moves forward only, is reviewed once and resolved once'; END IF; RETURN NEW; END $$",
+    'CREATE TRIGGER state_composition_upstream_events BEFORE UPDATE ON composition_upstream_events FOR EACH ROW EXECUTE FUNCTION state_composition_upstream_events()',
 )
 POSTGRESQL_TRIGGER_FUNCTIONS = (
     'immutable_binding_case_revisions_update',
@@ -91,6 +103,10 @@ POSTGRESQL_TRIGGER_FUNCTIONS = (
     'protect_composition_environment_keys',
     'revoked_composition_environment_keys',
     'protect_org_connections',
+    'protect_pricing_watches',
+    'immutable_pricing_watch_refs_update',
+    'protect_composition_upstream_events',
+    'state_composition_upstream_events',
 )
 
 
@@ -434,6 +450,23 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_organization_memberships_organization_id'), 'organization_memberships', ['organization_id'], unique=False)
     op.create_index(op.f('ix_organization_memberships_user_id'), 'organization_memberships', ['user_id'], unique=False)
+    op.create_table('pricing_ref_attempts',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('organization_id', sa.Uuid(), nullable=False),
+    sa.Column('sphere_ref', sa.String(length=300), nullable=False),
+    sa.Column('pinned_version_id', sa.String(length=24), nullable=True),
+    sa.Column('attempt_key', sa.String(length=340), nullable=False),
+    sa.Column('failures', sa.Integer(), server_default='0', nullable=False),
+    sa.Column('last_error', sa.String(length=80), nullable=True),
+    sa.Column('next_attempt_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('failures >= 0', name=op.f('ck_pricing_ref_attempts_failures_nonnegative')),
+    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_pricing_ref_attempts_organization_id_organizations'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_pricing_ref_attempts')),
+    sa.UniqueConstraint('attempt_key', name=op.f('uq_pricing_ref_attempts_attempt_key'))
+    )
+    op.create_index(op.f('ix_pricing_ref_attempts_next_attempt_at'), 'pricing_ref_attempts', ['next_attempt_at'], unique=False)
+    op.create_index(op.f('ix_pricing_ref_attempts_organization_id'), 'pricing_ref_attempts', ['organization_id'], unique=False)
     op.create_table('pricing_snapshots',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('source_key', sa.String(length=160), nullable=False),
@@ -579,6 +612,48 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_notification_stream_tickets_session_id'), 'notification_stream_tickets', ['session_id'], unique=False)
     op.create_index(op.f('ix_notification_stream_tickets_user_id'), 'notification_stream_tickets', ['user_id'], unique=False)
+    op.create_table('pricing_watches',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('source_kind', sa.String(length=8), nullable=False),
+    sa.Column('registry', sa.String(length=40), nullable=True),
+    sa.Column('pricing_id', sa.String(length=24), nullable=True),
+    sa.Column('url', sa.String(length=2048), nullable=True),
+    sa.Column('url_key', sa.String(length=64), nullable=True),
+    sa.Column('scope_key', sa.String(length=60), nullable=False),
+    sa.Column('organization_id', sa.Uuid(), nullable=True),
+    sa.Column('watch_key', sa.String(length=160), nullable=False),
+    sa.Column('status', sa.String(length=20), server_default='pending', nullable=False),
+    sa.Column('manifest_etag', sa.String(length=200), nullable=True),
+    sa.Column('last_modified', sa.String(length=64), nullable=True),
+    sa.Column('latest_version_id', sa.String(length=24), nullable=True),
+    sa.Column('latest_snapshot_id', sa.Uuid(), nullable=True),
+    sa.Column('version_order', sa.JSON(), nullable=False),
+    sa.Column('equivalent', sa.JSON(), nullable=False),
+    sa.Column('not_found_count', sa.Integer(), server_default='0', nullable=False),
+    sa.Column('failures', sa.Integer(), server_default='0', nullable=False),
+    sa.Column('not_found_since', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('gone_epoch', sa.Integer(), server_default='0', nullable=False),
+    sa.Column('retry_after_until', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('last_error', sa.String(length=80), nullable=True),
+    sa.Column('polled_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('observed_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('next_poll_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('classify_after', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint("(organization_id IS NULL) = (scope_key = 'public' OR substr(scope_key, 1, 9) = 'registry:')", name=op.f('ck_pricing_watches_scope_organization')),
+    sa.CheckConstraint("(source_kind = 'registry') = (registry IS NOT NULL)", name=op.f('ck_pricing_watches_registry_named')),
+    sa.CheckConstraint("(source_kind = 'url') = (url IS NOT NULL)", name=op.f('ck_pricing_watches_url_named')),
+    sa.CheckConstraint("source_kind = 'url' OR pricing_id IS NOT NULL", name=op.f('ck_pricing_watches_pricing_named')),
+    sa.CheckConstraint("source_kind IN ('sphere', 'registry', 'url')", name=op.f('ck_pricing_watches_source_kind')),
+    sa.CheckConstraint("status IN ('pending', 'active', 'unavailable', 'not_found', 'gone', 'credential_missing', 'registry_unknown')", name=op.f('ck_pricing_watches_status')),
+    sa.CheckConstraint('not_found_count >= 0 AND failures >= 0 AND gone_epoch >= 0', name=op.f('ck_pricing_watches_counters')),
+    sa.ForeignKeyConstraint(['latest_snapshot_id'], ['pricing_snapshots.id'], name=op.f('fk_pricing_watches_latest_snapshot_id_pricing_snapshots'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_pricing_watches_organization_id_organizations'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_pricing_watches')),
+    sa.UniqueConstraint('watch_key', name=op.f('uq_pricing_watches_watch_key'))
+    )
+    op.create_index(op.f('ix_pricing_watches_next_poll_at'), 'pricing_watches', ['next_poll_at'], unique=False)
+    op.create_index(op.f('ix_pricing_watches_organization_id'), 'pricing_watches', ['organization_id'], unique=False)
     op.create_table('study_runs',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('study_id', sa.Uuid(), nullable=False),
@@ -885,6 +960,88 @@ def upgrade() -> None:
     op.create_index(op.f('ix_composition_evaluations_offering_snapshot_id'), 'composition_evaluations', ['offering_snapshot_id'], unique=False)
     op.create_index(op.f('ix_composition_evaluations_revision_id'), 'composition_evaluations', ['revision_id'], unique=False)
     op.create_index(op.f('ix_composition_evaluations_version_id'), 'composition_evaluations', ['version_id'], unique=False)
+    op.create_table('composition_upstream_events',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('organization_id', sa.Uuid(), nullable=False),
+    sa.Column('composition_id', sa.Uuid(), nullable=False),
+    sa.Column('version_id', sa.Uuid(), nullable=False),
+    sa.Column('watch_id', sa.Uuid(), nullable=False),
+    sa.Column('subject', sa.String(length=8), nullable=False),
+    sa.Column('tasks', sa.JSON(), nullable=False),
+    sa.Column('category', sa.String(length=20), nullable=False),
+    sa.Column('reasons', sa.JSON(), nullable=False),
+    sa.Column('notify', sa.Boolean(), nullable=False),
+    sa.Column('old_ref', sa.String(length=80), nullable=False),
+    sa.Column('new_ref', sa.String(length=80), nullable=False),
+    sa.Column('old_version_id', sa.String(length=24), nullable=True),
+    sa.Column('new_version_id', sa.String(length=24), nullable=True),
+    sa.Column('old_label', sa.String(length=120), nullable=True),
+    sa.Column('new_label', sa.String(length=120), nullable=True),
+    sa.Column('old_snapshot_id', sa.Uuid(), nullable=True),
+    sa.Column('new_snapshot_id', sa.Uuid(), nullable=True),
+    sa.Column('diff', sa.JSON(), nullable=False),
+    sa.Column('classifier', sa.String(length=16), nullable=False),
+    sa.Column('state', sa.String(length=10), server_default='open', nullable=False),
+    sa.Column('note', sa.String(length=1000), server_default='', nullable=False),
+    sa.Column('reviewed_by_id', sa.Uuid(), nullable=True),
+    sa.Column('reviewed_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('resolved_by_version_id', sa.Uuid(), nullable=True),
+    sa.Column('resolved_by_id', sa.Uuid(), nullable=True),
+    sa.Column('resolved_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('detected_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint("(state = 'resolved') = (resolved_by_version_id IS NOT NULL AND resolved_by_id IS NOT NULL AND resolved_at IS NOT NULL)", name=op.f('ck_composition_upstream_events_resolved_whole')),
+    sa.CheckConstraint("(subject = 'offering') = (category = 'offering_changed')", name=op.f('ck_composition_upstream_events_offering_category')),
+    sa.CheckConstraint("category IN ('no_impact', 'values_changed', 'binding_invalid', 'offering_changed')", name=op.f('ck_composition_upstream_events_category')),
+    sa.CheckConstraint("state IN ('open', 'reviewed', 'resolved')", name=op.f('ck_composition_upstream_events_state')),
+    sa.CheckConstraint("subject <> 'offering' OR state <> 'resolved'", name=op.f('ck_composition_upstream_events_offering_never_resolved')),
+    sa.CheckConstraint("subject IN ('binding', 'offering')", name=op.f('ck_composition_upstream_events_subject')),
+    sa.CheckConstraint('(resolved_by_version_id IS NULL) = (resolved_at IS NULL) AND (resolved_by_id IS NULL) = (resolved_at IS NULL)', name=op.f('ck_composition_upstream_events_resolved_stamps')),
+    sa.CheckConstraint('(reviewed_by_id IS NULL) = (reviewed_at IS NULL)', name=op.f('ck_composition_upstream_events_reviewed_whole')),
+    sa.ForeignKeyConstraint(['composition_id', 'organization_id'], ['compositions.id', 'compositions.organization_id'], name='fk_upstream_events_composition', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['new_snapshot_id'], ['pricing_snapshots.id'], name=op.f('fk_composition_upstream_events_new_snapshot_id_pricing_snapshots'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['old_snapshot_id'], ['pricing_snapshots.id'], name=op.f('fk_composition_upstream_events_old_snapshot_id_pricing_snapshots'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['resolved_by_id'], ['users.id'], name=op.f('fk_composition_upstream_events_resolved_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['resolved_by_version_id', 'composition_id'], ['composition_versions.id', 'composition_versions.composition_id'], name='fk_upstream_events_resolved_by_version', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['reviewed_by_id'], ['users.id'], name=op.f('fk_composition_upstream_events_reviewed_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['version_id', 'composition_id'], ['composition_versions.id', 'composition_versions.composition_id'], name='fk_upstream_events_version', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['watch_id'], ['pricing_watches.id'], name=op.f('fk_composition_upstream_events_watch_id_pricing_watches'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_upstream_events')),
+    sa.UniqueConstraint('id', 'composition_id', name='uq_upstream_events_id_composition')
+    )
+    op.create_index('ix_upstream_events_composition_state', 'composition_upstream_events', ['composition_id', 'state'], unique=False)
+    op.create_index('ix_upstream_events_organization_detected', 'composition_upstream_events', ['organization_id', 'detected_at'], unique=False)
+    op.create_index('ix_upstream_events_version_state', 'composition_upstream_events', ['version_id', 'state'], unique=False)
+    op.create_index('ix_upstream_events_watch_new', 'composition_upstream_events', ['watch_id', 'new_ref'], unique=False)
+    op.create_index('uq_upstream_events_binding', 'composition_upstream_events', ['version_id', 'watch_id', 'old_ref', 'new_ref'], unique=True, sqlite_where=sa.text("subject = 'binding'"), postgresql_where=sa.text("subject = 'binding'"))
+    op.create_index('uq_upstream_events_offering', 'composition_upstream_events', ['composition_id', 'watch_id', 'new_ref'], unique=True, sqlite_where=sa.text("subject = 'offering'"), postgresql_where=sa.text("subject = 'offering'"))
+    op.create_table('pricing_watch_refs',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('organization_id', sa.Uuid(), nullable=False),
+    sa.Column('composition_id', sa.Uuid(), nullable=False),
+    sa.Column('version_id', sa.Uuid(), nullable=False),
+    sa.Column('watch_id', sa.Uuid(), nullable=True),
+    sa.Column('subject', sa.String(length=8), nullable=False),
+    sa.Column('via', sa.String(length=8), nullable=False),
+    sa.Column('sphere_ref', sa.String(length=300), nullable=True),
+    sa.Column('tasks', sa.JSON(), nullable=False),
+    sa.Column('pinned_version_id', sa.String(length=24), nullable=True),
+    sa.Column('pinned_snapshot_id', sa.Uuid(), nullable=True),
+    sa.Column('selection', sa.JSON(), nullable=False),
+    sa.Column('ref_key', sa.String(length=200), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint("(subject = 'offering') = (via = 'offering')", name=op.f('ck_pricing_watch_refs_offering_via')),
+    sa.CheckConstraint("subject IN ('binding', 'offering')", name=op.f('ck_pricing_watch_refs_subject')),
+    sa.CheckConstraint("via IN ('from', 'origins', 'offering')", name=op.f('ck_pricing_watch_refs_via')),
+    sa.ForeignKeyConstraint(['composition_id', 'organization_id'], ['compositions.id', 'compositions.organization_id'], name='fk_pricing_watch_refs_composition', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['pinned_snapshot_id'], ['pricing_snapshots.id'], name=op.f('fk_pricing_watch_refs_pinned_snapshot_id_pricing_snapshots'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['version_id', 'composition_id'], ['composition_versions.id', 'composition_versions.composition_id'], name='fk_pricing_watch_refs_version', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['watch_id'], ['pricing_watches.id'], name=op.f('fk_pricing_watch_refs_watch_id_pricing_watches'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_pricing_watch_refs')),
+    sa.UniqueConstraint('version_id', 'ref_key', name='uq_pricing_watch_refs_version_key')
+    )
+    op.create_index(op.f('ix_pricing_watch_refs_composition_id'), 'pricing_watch_refs', ['composition_id'], unique=False)
+    op.create_index('ix_pricing_watch_refs_unresolved', 'pricing_watch_refs', ['version_id'], unique=False, sqlite_where=sa.text('watch_id IS NULL'), postgresql_where=sa.text('watch_id IS NULL'))
+    op.create_index(op.f('ix_pricing_watch_refs_watch_id'), 'pricing_watch_refs', ['watch_id'], unique=False)
     op.create_table('composition_adoptions',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('environment_id', sa.Uuid(), nullable=False),
@@ -952,6 +1109,17 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_composition_adoptions_composition_id'), table_name='composition_adoptions')
     op.drop_index(op.f('ix_composition_adoptions_actor_id'), table_name='composition_adoptions')
     op.drop_table('composition_adoptions')
+    op.drop_index(op.f('ix_pricing_watch_refs_watch_id'), table_name='pricing_watch_refs')
+    op.drop_index('ix_pricing_watch_refs_unresolved', table_name='pricing_watch_refs', sqlite_where=sa.text('watch_id IS NULL'), postgresql_where=sa.text('watch_id IS NULL'))
+    op.drop_index(op.f('ix_pricing_watch_refs_composition_id'), table_name='pricing_watch_refs')
+    op.drop_table('pricing_watch_refs')
+    op.drop_index('uq_upstream_events_offering', table_name='composition_upstream_events', sqlite_where=sa.text("subject = 'offering'"), postgresql_where=sa.text("subject = 'offering'"))
+    op.drop_index('uq_upstream_events_binding', table_name='composition_upstream_events', sqlite_where=sa.text("subject = 'binding'"), postgresql_where=sa.text("subject = 'binding'"))
+    op.drop_index('ix_upstream_events_watch_new', table_name='composition_upstream_events')
+    op.drop_index('ix_upstream_events_version_state', table_name='composition_upstream_events')
+    op.drop_index('ix_upstream_events_organization_detected', table_name='composition_upstream_events')
+    op.drop_index('ix_upstream_events_composition_state', table_name='composition_upstream_events')
+    op.drop_table('composition_upstream_events')
     op.drop_index(op.f('ix_composition_evaluations_version_id'), table_name='composition_evaluations')
     op.drop_index(op.f('ix_composition_evaluations_revision_id'), table_name='composition_evaluations')
     op.drop_index(op.f('ix_composition_evaluations_offering_snapshot_id'), table_name='composition_evaluations')
@@ -1004,6 +1172,9 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_study_runs_study_id'), table_name='study_runs')
     op.drop_index(op.f('ix_study_runs_matrix_digest'), table_name='study_runs')
     op.drop_table('study_runs')
+    op.drop_index(op.f('ix_pricing_watches_organization_id'), table_name='pricing_watches')
+    op.drop_index(op.f('ix_pricing_watches_next_poll_at'), table_name='pricing_watches')
+    op.drop_table('pricing_watches')
     op.drop_index(op.f('ix_notification_stream_tickets_user_id'), table_name='notification_stream_tickets')
     op.drop_index(op.f('ix_notification_stream_tickets_session_id'), table_name='notification_stream_tickets')
     op.drop_table('notification_stream_tickets')
@@ -1028,6 +1199,9 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_pricing_snapshots_organization_id'), table_name='pricing_snapshots')
     op.drop_index(op.f('ix_pricing_snapshots_fetched_by_id'), table_name='pricing_snapshots')
     op.drop_table('pricing_snapshots')
+    op.drop_index(op.f('ix_pricing_ref_attempts_organization_id'), table_name='pricing_ref_attempts')
+    op.drop_index(op.f('ix_pricing_ref_attempts_next_attempt_at'), table_name='pricing_ref_attempts')
+    op.drop_table('pricing_ref_attempts')
     op.drop_index(op.f('ix_organization_memberships_user_id'), table_name='organization_memberships')
     op.drop_index(op.f('ix_organization_memberships_organization_id'), table_name='organization_memberships')
     op.drop_table('organization_memberships')

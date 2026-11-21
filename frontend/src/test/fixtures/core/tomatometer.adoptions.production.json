@@ -1,7 +1,7 @@
 {
   "adoptions": [
     {
-      "adoptedAt": "2026-01-01T00:00:13Z",
+      "adoptedAt": "2026-01-01T00:00:15Z",
       "adoptedBy": {
         "displayName": "fixture-author",
         "username": "fixture-author"
@@ -14,7 +14,7 @@
       "feedEtag": "\"sha256-f8877f33423f7fa96418c4a7af8d6388696c0275e3c9b53482610b0c4b63172d\"",
       "note": "Back to Brevo",
       "offering": {
-        "createdAt": "2026-01-01T00:00:10Z",
+        "createdAt": "2026-01-01T00:00:12Z",
         "versionName": "1.0.0"
       },
       "ordinal": 3,
@@ -28,7 +28,7 @@
       }
     },
     {
-      "adoptedAt": "2026-01-01T00:00:14Z",
+      "adoptedAt": "2026-01-01T00:00:16Z",
       "adoptedBy": {
         "displayName": "fixture-author",
         "username": "fixture-author"
@@ -41,7 +41,7 @@
       "feedEtag": "\"sha256-8f3be077d629c797d4cd93693f0026d07ee93015cbce5e90648dcf1ae8a878a1\"",
       "note": "Switch to Resend",
       "offering": {
-        "createdAt": "2026-01-01T00:00:10Z",
+        "createdAt": "2026-01-01T00:00:12Z",
         "versionName": "1.0.0"
       },
       "ordinal": 2,
@@ -55,7 +55,7 @@
       }
     },
     {
-      "adoptedAt": "2026-01-01T00:00:15Z",
+      "adoptedAt": "2026-01-01T00:00:17Z",
       "adoptedBy": {
         "displayName": "fixture-author",
         "username": "fixture-author"
@@ -68,7 +68,7 @@
       "feedEtag": "\"sha256-f8877f33423f7fa96418c4a7af8d6388696c0275e3c9b53482610b0c4b63172d\"",
       "note": "Go live",
       "offering": {
-        "createdAt": "2026-01-01T00:00:10Z",
+        "createdAt": "2026-01-01T00:00:12Z",
         "versionName": "1.0.0"
       },
       "ordinal": 1,

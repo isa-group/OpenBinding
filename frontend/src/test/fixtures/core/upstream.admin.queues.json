@@ -1,0 +1,26 @@
+{
+  "upstreamWatch": {
+    "due": 0,
+    "enabled": true,
+    "eventsLastDay": {
+      "binding_invalid": 4,
+      "offering_changed": 1,
+      "values_changed": 1
+    },
+    "executingProposals": 0,
+    "intervalSeconds": 300,
+    "lastObservedAt": "2026-01-01T00:00:31Z",
+    "oldestDueSeconds": null,
+    "unresolvedRefs": 0,
+    "watches": {
+      "active": 4,
+      "credentialMissing": 0,
+      "gone": 0,
+      "idle": 0,
+      "notFound": 0,
+      "pending": 0,
+      "registryUnknown": 0,
+      "unavailable": 0
+    }
+  }
+}

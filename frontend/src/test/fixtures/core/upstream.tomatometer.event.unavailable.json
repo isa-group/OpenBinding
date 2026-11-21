@@ -1,0 +1,87 @@
+{
+  "category": "binding_invalid",
+  "classifier": "1",
+  "detectedAt": "2026-01-01T00:00:41Z",
+  "diff": {
+    "catalog": null,
+    "entries": [
+      {
+        "candidate": "storage.dropbox.plus",
+        "reasons": [
+          {
+            "code": "source_unavailable",
+            "detail": "family_not_found"
+          }
+        ],
+        "selection": {
+          "addOns": [],
+          "billing": "monthly",
+          "plan": "PLUS",
+          "seats": 1
+        },
+        "task": "export"
+      }
+    ],
+    "global": [],
+    "new": null,
+    "notes": [
+      "values_not_reevaluated"
+    ],
+    "old": {
+      "createdAt": "2026-01-01T00:00:10Z",
+      "label": "2021",
+      "snapshotId": "00000000-0000-4000-8000-000000000031",
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+      "versionId": "687e4b68102baa50f3a5c7b7"
+    },
+    "pricing": {
+      "pricingId": "6ab0a323697330667ccce9c1",
+      "registry": null,
+      "sphere": "atenea/dropbox",
+      "title": "Dropbox",
+      "url": null
+    },
+    "schema": "openbinding/upstream-event-diff@1"
+  },
+  "environments": [
+    "production"
+  ],
+  "id": "00000000-0000-4000-8000-000000000054",
+  "new": null,
+  "newVersionWithdrawn": false,
+  "note": "",
+  "notify": true,
+  "old": {
+    "label": "2021",
+    "snapshotId": "00000000-0000-4000-8000-000000000031",
+    "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
+    "versionId": "687e4b68102baa50f3a5c7b7"
+  },
+  "pricing": {
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "registry": null,
+    "sphere": "atenea/dropbox",
+    "title": "Dropbox",
+    "url": null
+  },
+  "reasons": [
+    {
+      "code": "source_unavailable",
+      "detail": "family_not_found"
+    }
+  ],
+  "rebindingRecommended": true,
+  "resolvedBy": null,
+  "reviewedAt": null,
+  "reviewedBy": null,
+  "state": "open",
+  "subject": "binding",
+  "supersededBy": null,
+  "tasks": [
+    "export"
+  ],
+  "version": {
+    "id": "00000000-0000-4000-8000-000000000036",
+    "label": "1.0.0"
+  }
+}

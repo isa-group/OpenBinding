@@ -2,21 +2,21 @@
   "compositions": [
     {
       "archived": false,
-      "created_at": "2026-01-01T00:00:24Z",
+      "created_at": "2026-01-01T00:00:26Z",
       "created_by_id": "00000000-0000-4000-8000-000000000003",
       "derivedVersions": [
         {
           "id": "00000000-0000-4000-8000-000000000043",
           "inEffect": [],
           "label": "2.0.0",
-          "sealedAt": "2026-01-01T00:00:25Z"
+          "sealedAt": "2026-01-01T00:00:27Z"
         }
       ],
       "description": "",
       "id": "00000000-0000-4000-8000-000000000044",
       "kind": "application",
       "latest_version": {
-        "created_at": "2026-01-01T00:00:25Z",
+        "created_at": "2026-01-01T00:00:27Z",
         "figures": {
           "cost": null,
           "cost_unit": null,
@@ -36,7 +36,13 @@
         "slug": "fixtures"
       },
       "slug": "simple-seq",
-      "updated_at": "2026-01-01T00:00:26Z",
+      "updated_at": "2026-01-01T00:00:28Z",
+      "upstream": {
+        "bindingInvalid": 0,
+        "open": 0,
+        "reviewed": 0,
+        "worst": null
+      },
       "version_count": 3,
       "visibility": "private"
     }

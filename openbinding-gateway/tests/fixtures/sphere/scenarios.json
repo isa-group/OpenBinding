@@ -1,0 +1,167 @@
+[
+  {
+    "scenario": "brevo-professional-up",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "versionId": "6fff00000000000000000001",
+    "label": "2026-11",
+    "createdAt": "2026-11-15T00:00:00.000Z",
+    "file": "derived/brevo-professional-up.yml",
+    "contentHash": "e2f2f6b9aaa4d0048dfd3d57895f275c950f20be912315c68e18065beed3bd40",
+    "sha256": "596a8c7d8a997530e4f9749b554ff20128deaf4347ed9798619e25a65234017e",
+    "publishable": true,
+    "after": null,
+    "manifest": {
+      "nameChange": null
+    }
+  },
+  {
+    "scenario": "brevo-professional-retired",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "versionId": "6fff00000000000000000002",
+    "label": "2027-01",
+    "createdAt": "2027-01-10T00:00:00.000Z",
+    "file": "derived/brevo-professional-retired.yml",
+    "contentHash": "0bc1c3012bcf61c9f3da12e157e7a8813c6a161e707247af20047e96f77e710d",
+    "sha256": "226df7088acd0471bff40e8ab676fc19771962decc9e3c3520f14f3d7238e5c3",
+    "publishable": true,
+    "after": "brevo-professional-up",
+    "manifest": {
+      "nameChange": null
+    }
+  },
+  {
+    "scenario": "brevo-renamed-family",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "versionId": "6ade2d444b2b5b01c587d80d",
+    "label": "2026-10",
+    "createdAt": "2026-10-25T00:00:00.000Z",
+    "file": "derived/brevo-renamed-family.yml",
+    "contentHash": "aa873429290fd42dce2d52c1e05370e39f1b6909c8cba5e0ed09f293a6a333b5",
+    "sha256": "1ff6802b7c2afa64dbc6c29f4ec5596e3da0caa0d3c8b2b50e4378f60d229a7b",
+    "publishable": true,
+    "after": null,
+    "manifest": {
+      "nameChange": "Brevo"
+    }
+  },
+  {
+    "scenario": "tomatometer-1.2.0",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "versionId": "6fff00000000000000000003",
+    "label": "1.2.0",
+    "createdAt": "2026-11-20T00:00:00.000Z",
+    "file": "derived/tomatometer-1.2.0.yml",
+    "contentHash": "f115d510d2ef80c0d95854b6235c01d4b267b195d7359b22b752adf93d585019",
+    "sha256": "e9615b2432d7180f1fa1499a12ee83156f9eda3647c83c2d7dcc4bdd26938a12",
+    "publishable": true,
+    "after": null,
+    "manifest": {
+      "nameChange": null
+    }
+  },
+  {
+    "scenario": "brevo-professional-renamed",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "versionId": "6fff00000000000000000011",
+    "label": "2026-11-renamed",
+    "createdAt": "2026-11-16T00:00:00.000Z",
+    "file": "derived/brevo-professional-renamed.yml",
+    "contentHash": "37d0b72cb97f20bcbeb942f810864eaaa1112d48190bcaeed4e6a6b8a9bb0406",
+    "sha256": "3bb52c430dc8f5da235d02d76abfd25979577c48d12b17b3521443737f2be8b9",
+    "publishable": false,
+    "after": null,
+    "manifest": {
+      "nameChange": null
+    }
+  },
+  {
+    "scenario": "brevo-sla",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "versionId": "6fff00000000000000000012",
+    "label": "2026-11-sla",
+    "createdAt": "2026-11-16T00:00:00.000Z",
+    "file": "derived/brevo-sla.yml",
+    "contentHash": "4a6b6d1a2b3b3f740d00946586ef7b5332b7668ec73e27b96cf4f79d481bd73a",
+    "sha256": "95644179bb2bb40bfc0a055135410a2a6e2be0580d25a11de3188f6b38eeb6be",
+    "publishable": false,
+    "after": null,
+    "manifest": {
+      "nameChange": null
+    }
+  },
+  {
+    "scenario": "brevo-daily-limit",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "versionId": "6fff00000000000000000013",
+    "label": "2026-11-daily-limit",
+    "createdAt": "2026-11-16T00:00:00.000Z",
+    "file": "derived/brevo-daily-limit.yml",
+    "contentHash": "7b4f5c01934b4818ada74566ccc67848b2bcd45f3bd5a5070081962bf4be9a4b",
+    "sha256": "ad9353e565dcda18b312cf3b90d35547f4c03b95020ab1fc8259eca788f9ef5c",
+    "publishable": false,
+    "after": null,
+    "manifest": {
+      "nameChange": null
+    }
+  },
+  {
+    "scenario": "brevo-private",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "versionId": "6fff00000000000000000014",
+    "label": "2026-11-private",
+    "createdAt": "2026-11-16T00:00:00.000Z",
+    "file": "derived/brevo-private.yml",
+    "contentHash": "d089a343aedb34f0cc9823c1ecceb786fbceef1216a1160b67d35f30660ffceb",
+    "sha256": "c2ba4320d319fd782954f2108aae073fadf2ffc954f053c9561fdb8f26806d18",
+    "publishable": false,
+    "after": null,
+    "manifest": {
+      "nameChange": null
+    }
+  },
+  {
+    "scenario": "brevo-label",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "versionId": "6fff00000000000000000015",
+    "label": "2026-11-label",
+    "createdAt": "2026-11-16T00:00:00.000Z",
+    "file": "derived/brevo-label.yml",
+    "contentHash": "80ae9d63e7804f70dcb89971c252199cd08f9f140c84dd4a3f9b54ad8f46af78",
+    "sha256": "77f4b654f0d7f64f643fc49cd430209d8cb105ba3be0cc34e09b06e10b1f0d32",
+    "publishable": false,
+    "after": null,
+    "manifest": {
+      "nameChange": null
+    }
+  },
+  {
+    "scenario": "brevo-addon",
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "versionId": "6fff00000000000000000016",
+    "label": "2026-11-addon",
+    "createdAt": "2026-11-16T00:00:00.000Z",
+    "file": "derived/brevo-addon.yml",
+    "contentHash": "ab64a807ce9c520e33ff005dfe69f477e061c8de8d59b78a6a2dc5e605a9d2d7",
+    "sha256": "ec89a7e1d008e02e4b0b1eae79e1d424ec1885e9841acc882f99542504ef0e87",
+    "publishable": false,
+    "after": null,
+    "manifest": {
+      "nameChange": null
+    }
+  },
+  {
+    "scenario": "tomatometer-1.1.0-fis-like",
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "versionId": "6fff00000000000000000017",
+    "label": "1.1.0-fis-like",
+    "createdAt": "2026-11-10T00:00:00.000Z",
+    "file": "derived/tomatometer-1.1.0-fis-like.yml",
+    "contentHash": "392ade43fb64bdc706f702b023cc60fc594e15363eb9dc50845d57755acbf56a",
+    "sha256": "17954274b133b036978fc2e791300952aac1f61079496241e05831ab4587cd49",
+    "publishable": false,
+    "after": null,
+    "manifest": {
+      "nameChange": null
+    }
+  }
+]

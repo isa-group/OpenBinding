@@ -154,7 +154,7 @@ async def test_latest_is_the_manifests_never_the_highest_label(api_client, regis
     first = (await api_client.post(f"{environment}/check", headers=headers)).json()
     (unsnapshotted,) = [row for row in first["upstream"] if row["task"] == "export"]
     assert unsnapshotted["status"] == "not_snapshotted" and unsnapshotted["pinned"] is None
-    # The snapshot the upstream view would resolve (F6's poller takes it); check itself never takes one.
+    # The snapshot the upstream view would resolve (the upstream watcher takes it); check itself never takes one.
     db_session.add(PricingSnapshot(
         source_key="sphere:6ab0a323697330667ccce9c1:687e4b68102baa50f3a5c7b7", scope_key="public", sha256="a" * 64,
         size_bytes=1, content_hash="b" * 64, content_hash_verified=True, source_kind="sphere",

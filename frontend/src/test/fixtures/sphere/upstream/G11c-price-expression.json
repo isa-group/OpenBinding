@@ -1,0 +1,900 @@
+{
+  "event": true,
+  "category": "binding_invalid",
+  "reasons": [
+    {
+      "code": "price_not_numeric",
+      "plan": "PLUS"
+    }
+  ],
+  "notify": true,
+  "classifier": "1",
+  "diff": {
+    "schema": "openbinding/upstream-event-diff@1",
+    "pricing": {
+      "sphere": "atenea/dropbox",
+      "registry": null,
+      "pricingId": "6ab0a323697330667ccce9c1",
+      "title": "Dropbox"
+    },
+    "old": {
+      "versionId": "687e4b68102baa50f3a5c7b7",
+      "label": "2021",
+      "createdAt": "2025-07-08T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7"
+    },
+    "new": {
+      "versionId": "687e4b68102baa50f3a5c7b6",
+      "label": "2024",
+      "createdAt": "2025-07-01T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b6"
+    },
+    "catalog": {
+      "plans": {
+        "added": [
+          "ESSENTIALS",
+          "BUSINESS",
+          "BUSINESS_PLUS",
+          "BASIC",
+          "ENTERPRISE"
+        ],
+        "removed": [
+          "FAMILY",
+          "PROFESSIONAL",
+          "STANDARD",
+          "ADVANCED"
+        ]
+      },
+      "addOns": {
+        "added": [
+          "EXTENDED_ACCOUNT_RECOVERY_AND_VERSION_HISTORY_(180-DAY)_FOR_PLUS",
+          "EXTENDED_ACCOUNT_RECOVERY_AND_VERSION_HISTORY_(1-YEAR)_FOR_ESSENTIALS",
+          "EXTENDED_ACCOUNT_RECOVERY_AND_VERSION_HISTORY_(1-YEAR)_FOR_BUSINESS",
+          "EXTENDED_RESTORE_DELETED_FILES_(180-DAY)_FOR_PLUS",
+          "EXTENDED_RESTORE_DELETED_FILES_(1-YEAR)_FOR_ESSENTIALS",
+          "EXTENDED_RESTORE_DELETED_FILES_(1-YEAR)_FOR_BUSINESS",
+          "UNLIMITED_DROPBOX_CAPTURE_FOR_PLUS",
+          "EXTENDED_DROPBOX_REPLAY_(10_FILE_UPLOADS)_FOR_PLUS",
+          "EXTENDED_FILE_TRANSFER_(100_GB)_FOR_PLUS",
+          "EXTENDED_FILE_TRANSFER_(250_GB)_FOR_PLUS",
+          "EXTENDED_FILE_TRANSFER_(250_GB)_FOR_ESSENTIALS",
+          "EXTENDED_FILE_TRANSFER_(250_GB)_FOR_BUSINESS",
+          "UNLIMITED_SIGNATURE_REQUESTS_FOR_PLUS",
+          "EXTENDED_ESIGNATURE_TEMPLATES_(15)_FOR_PLUS",
+          "UNLIMITED_ESIGNATURE_TEMPLATES_FOR_PLUS",
+          "UNLIMITED_ESIGNATURE_TEMPLATES_FOR_ESSENTIALS",
+          "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_PLUS",
+          "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_ESSENTIALS",
+          "DATA_TRANSPORT_API_CALLS_(1_BILLION/MONTH)_FOR_BUSINESS",
+          "ADDITIONAL_STORAGE_(1TB)_FOR_PLUS,_ESSENTIALS,_BUSINESS",
+          "ADDITIONAL_STORAGE_(1TB)_FOR_BUSINESS_PLUS",
+          "ADDITIONAL_USER_FOR_BUSINESS",
+          "ADDITIONAL_USER_FOR_BUSINESS_PLUS"
+        ],
+        "removed": []
+      },
+      "features": {
+        "added": [
+          "connectUnlimitedDevices",
+          "realTimeDocumentAnalytics",
+          "passcodeAndEmailVerification",
+          "viewerEngagementDashboard",
+          "backup",
+          "accountRecoveryAndVersionHistory",
+          "restoreDeletedFiles",
+          "passwordManagement",
+          "multiFactorAuthentication",
+          "documentScanning",
+          "watermarking",
+          "granularPermissions",
+          "enableHipaaCompliance",
+          "dataClassification",
+          "ransomwareDetectionAndRecovery",
+          "suspiciousActivityAlerts",
+          "endToEndEncryption",
+          "advancedKeyManagement",
+          "screenAndVideoRecordingsWithDropboxCapture",
+          "videoTranscriptsAndClosedCaptions",
+          "videoEditing",
+          "videoCommenting",
+          "creativeReviewAndApprovalsWithDropboxReplay",
+          "onlineDocumentsAndNoteTaking",
+          "pdfEditing",
+          "annotateAndSignPdfs",
+          "imageEditing",
+          "imageSearch",
+          "sharedLinks",
+          "advancedLinkSettings",
+          "disableDownloads",
+          "customExpirationDates",
+          "passwordProtectedLinks",
+          "fileAndFolderTransfer",
+          "incomingTransferRequests",
+          "transferAnalytics",
+          "passwordProtectedTransfers",
+          "brandedTransfers",
+          "unlimitedSelfSigning",
+          "unlimitedSignatureRequests",
+          "industryLeadingSecurityAndPrivacy",
+          "templates",
+          "branding",
+          "1BillionApiCallsMonthForDataTransportPartners"
+        ],
+        "removed": [
+          "computerBackup",
+          "fileRecoveryAndVersionHistory",
+          "dropboxRewind",
+          "enableTwoFactorAuthentication_2fa",
+          "dropboxPasswords",
+          "dropboxVault",
+          "documentWatermarking",
+          "sharedLinkControls",
+          "enablesHipaaCompliance",
+          "familyRoom",
+          "dropboxPaper",
+          "dropboxTransfer",
+          "hellosignEsignatures",
+          "brandedSharing",
+          "trafficAndInsights",
+          "fileRequests",
+          "smartSync",
+          "automaticSpaceSaving",
+          "apiCallsForDataTransportPartners"
+        ]
+      },
+      "usageLimits": {
+        "added": [
+          "usersLimit",
+          "accountRecoveryAndVersionHistoryLimit",
+          "restoreDeletedFilesLimit",
+          "screenAndVideoRecordingsWithDropboxCaptureLimit",
+          "creativeReviewAndApprovalsWithDropboxReplayLimit",
+          "fileAndFolderTransferLimit",
+          "unlimitedSignatureRequestsLimit",
+          "templatesLimit",
+          "1BillionApiCallsMonthForDataTransportPartnersLimit"
+        ],
+        "removed": [
+          "userLimit",
+          "fileRecoveryAndVersionHistoryDuration",
+          "dropboxRewindHistoryDuration",
+          "dropboxTransferSizeLimit",
+          "hellosignEsignatureDocumentLimit",
+          "apiCallsLimitForDataTransportPartners"
+        ]
+      }
+    },
+    "entries": [
+      {
+        "task": "export",
+        "candidate": "storage.dropbox.plus",
+        "selection": {
+          "plan": "PLUS",
+          "addOns": [],
+          "billing": "monthly",
+          "seats": 1
+        },
+        "comparison": {
+          "plan": {
+            "before": {
+              "id": "PLUS",
+              "known": true,
+              "name": "PLUS"
+            },
+            "after": {
+              "id": "PLUS",
+              "known": true,
+              "name": "PLUS"
+            },
+            "changed": false,
+            "renamedTo": null
+          },
+          "addOns": {
+            "added": [],
+            "removedByUser": [],
+            "removedByReconciliation": [],
+            "quantityChanged": [],
+            "unchanged": []
+          },
+          "features": {
+            "gained": [
+              {
+                "id": "connectUnlimitedDevices",
+                "name": "connectUnlimitedDevices",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "backup",
+                "name": "backup",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "accountRecoveryAndVersionHistory",
+                "name": "accountRecoveryAndVersionHistory",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "restoreDeletedFiles",
+                "name": "restoreDeletedFiles",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "passwordManagement",
+                "name": "passwordManagement",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "multiFactorAuthentication",
+                "name": "multiFactorAuthentication",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "documentScanning",
+                "name": "documentScanning",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "screenAndVideoRecordingsWithDropboxCapture",
+                "name": "screenAndVideoRecordingsWithDropboxCapture",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "creativeReviewAndApprovalsWithDropboxReplay",
+                "name": "creativeReviewAndApprovalsWithDropboxReplay",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "onlineDocumentsAndNoteTaking",
+                "name": "onlineDocumentsAndNoteTaking",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "pdfEditing",
+                "name": "pdfEditing",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "text",
+                  "value": "Advanced editing, includes editing existing text"
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "annotateAndSignPdfs",
+                "name": "annotateAndSignPdfs",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "imageEditing",
+                "name": "imageEditing",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "sharedLinks",
+                "name": "sharedLinks",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "fileAndFolderTransfer",
+                "name": "fileAndFolderTransfer",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "unlimitedSelfSigning",
+                "name": "unlimitedSelfSigning",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "unlimitedSignatureRequests",
+                "name": "unlimitedSignatureRequests",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "industryLeadingSecurityAndPrivacy",
+                "name": "industryLeadingSecurityAndPrivacy",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "templates",
+                "name": "templates",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              }
+            ],
+            "lost": [
+              {
+                "id": "remoteDeviceWipe",
+                "name": "remoteDeviceWipe",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": false
+                },
+                "presence": "both"
+              },
+              {
+                "id": "computerBackup",
+                "name": "computerBackup",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              },
+              {
+                "id": "fileRecoveryAndVersionHistory",
+                "name": "fileRecoveryAndVersionHistory",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              },
+              {
+                "id": "dropboxRewind",
+                "name": "dropboxRewind",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              },
+              {
+                "id": "enableTwoFactorAuthentication_2fa",
+                "name": "enableTwoFactorAuthentication_2fa",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              },
+              {
+                "id": "dropboxPasswords",
+                "name": "dropboxPasswords",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              },
+              {
+                "id": "dropboxVault",
+                "name": "dropboxVault",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              },
+              {
+                "id": "dropboxPaper",
+                "name": "dropboxPaper",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              },
+              {
+                "id": "dropboxTransfer",
+                "name": "dropboxTransfer",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              },
+              {
+                "id": "hellosignEsignatures",
+                "name": "hellosignEsignatures",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              },
+              {
+                "id": "fileRequests",
+                "name": "fileRequests",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              }
+            ],
+            "changed": [],
+            "unchanged": [
+              "users",
+              "storage",
+              "bestInClassSyncTechnology",
+              "easyAndSecureSharing",
+              "anytimeAnywhereAccess",
+              "256BitAesAndSslTlsEncryption",
+              "realTimeDocumentAnalytics",
+              "passcodeAndEmailVerification",
+              "viewerEngagementDashboard",
+              "watermarking",
+              "accountTransferTool",
+              "granularPermissions",
+              "enableHipaaCompliance",
+              "deviceApprovals",
+              "dataClassification",
+              "ransomwareDetectionAndRecovery",
+              "suspiciousActivityAlerts",
+              "endToEndEncryption",
+              "advancedKeyManagement",
+              "videoTranscriptsAndClosedCaptions",
+              "videoEditing",
+              "videoCommenting",
+              "integratedCloudContent",
+              "webPreviewsAndComments",
+              "plusButton",
+              "imageSearch",
+              "fullTextSearch",
+              "fileLocking",
+              "viewerHistory",
+              "advancedLinkSettings",
+              "disableDownloads",
+              "customExpirationDates",
+              "passwordProtectedLinks",
+              "incomingTransferRequests",
+              "transferAnalytics",
+              "passwordProtectedTransfers",
+              "brandedTransfers",
+              "branding",
+              "adminConsole",
+              "multiTeamAdminLogin",
+              "centralizedBilling",
+              "companyManagedGroups",
+              "unlimitedApiAccessToSecurityPlatformPartners",
+              "unlimitedApiAccessToProductivityPlatformPartners",
+              "1BillionApiCallsMonthForDataTransportPartners",
+              "tieredAdminRoles",
+              "signInAsUser",
+              "auditLogsWithFileEventTracking",
+              "singleSignOnSsoIntegrations",
+              "inviteEnforcement",
+              "priorityEmailSupport",
+              "liveChatSupport",
+              "phoneSupportDuringBusinessHours",
+              "documentWatermarking",
+              "sharedLinkControls",
+              "enablesHipaaCompliance",
+              "familyRoom",
+              "brandedSharing",
+              "trafficAndInsights",
+              "smartSync",
+              "automaticSpaceSaving",
+              "apiCallsForDataTransportPartners"
+            ]
+          },
+          "usageLimits": [
+            {
+              "id": "usersLimit",
+              "name": "usersLimit",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "1"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "user"
+            },
+            {
+              "id": "accountRecoveryAndVersionHistoryLimit",
+              "name": "accountRecoveryAndVersionHistoryLimit",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "30"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "days"
+            },
+            {
+              "id": "restoreDeletedFilesLimit",
+              "name": "restoreDeletedFilesLimit",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "30"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "days"
+            },
+            {
+              "id": "screenAndVideoRecordingsWithDropboxCaptureLimit",
+              "name": "screenAndVideoRecordingsWithDropboxCaptureLimit",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "120"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "minutes"
+            },
+            {
+              "id": "creativeReviewAndApprovalsWithDropboxReplayLimit",
+              "name": "creativeReviewAndApprovalsWithDropboxReplayLimit",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "4"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "file uploads"
+            },
+            {
+              "id": "fileAndFolderTransferLimit",
+              "name": "fileAndFolderTransferLimit",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "50"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "GB"
+            },
+            {
+              "id": "unlimitedSignatureRequestsLimit",
+              "name": "unlimitedSignatureRequestsLimit",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "3"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "per month"
+            },
+            {
+              "id": "templatesLimit",
+              "name": "templatesLimit",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "5"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "templates"
+            },
+            {
+              "id": "1BillionApiCallsMonthForDataTransportPartnersLimit",
+              "name": "1BillionApiCallsMonthForDataTransportPartnersLimit",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "0"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "API calls/month"
+            },
+            {
+              "id": "userLimit",
+              "name": "userLimit",
+              "before": {
+                "kind": "number",
+                "value": "1"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "users"
+            },
+            {
+              "id": "fileRecoveryAndVersionHistoryDuration",
+              "name": "fileRecoveryAndVersionHistoryDuration",
+              "before": {
+                "kind": "number",
+                "value": "30"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "days"
+            },
+            {
+              "id": "dropboxRewindHistoryDuration",
+              "name": "dropboxRewindHistoryDuration",
+              "before": {
+                "kind": "number",
+                "value": "30"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "days"
+            },
+            {
+              "id": "dropboxTransferSizeLimit",
+              "name": "dropboxTransferSizeLimit",
+              "before": {
+                "kind": "number",
+                "value": "2"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "GB per Transfer"
+            },
+            {
+              "id": "hellosignEsignatureDocumentLimit",
+              "name": "hellosignEsignatureDocumentLimit",
+              "before": {
+                "kind": "number",
+                "value": "3"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "documents per month"
+            },
+            {
+              "id": "apiCallsLimitForDataTransportPartners",
+              "name": "apiCallsLimitForDataTransportPartners",
+              "before": {
+                "kind": "number",
+                "value": "0"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "API calls/month"
+            }
+          ],
+          "price": {
+            "before": {
+              "subtotal": "9.990000",
+              "requiresQuote": false,
+              "currency": "USD",
+              "billing": "monthly",
+              "unit": "USD"
+            },
+            "after": {
+              "subtotal": null,
+              "requiresQuote": true,
+              "quote": [
+                "PLUS"
+              ],
+              "currency": "USD",
+              "billing": "monthly",
+              "unit": "USD"
+            },
+            "billingPeriodChanged": false,
+            "differenceOmitted": "quote"
+          }
+        },
+        "attributes": [
+          {
+            "target": "subscription",
+            "targetKind": "feature",
+            "sourceKind": "priced",
+            "before": "9.990000",
+            "after": null,
+            "delta": null
+          },
+          {
+            "target": "storage",
+            "targetKind": "property",
+            "sourceKind": "limit",
+            "before": "2000.000000",
+            "after": null,
+            "delta": null
+          }
+        ],
+        "requirements": [],
+        "reasons": [
+          {
+            "code": "price_not_numeric",
+            "plan": "PLUS"
+          }
+        ],
+        "originMismatch": []
+      }
+    ],
+    "global": [],
+    "notes": [
+      "values_not_reevaluated"
+    ]
+  }
+}

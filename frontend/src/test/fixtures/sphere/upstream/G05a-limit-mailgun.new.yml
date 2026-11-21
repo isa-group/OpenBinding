@@ -1,0 +1,765 @@
+saasName: Mailgun
+syntaxVersion: '3.1'
+version: 2026-10
+createdAt: '2026-10-25'
+url: https://www.mailgun.com/pricing/
+currency: USD
+tags:
+  - Email Sending
+  - Deliverability and Performance
+  - User Management and Security
+  - Customer Support
+billing:
+  monthly: 1
+features:
+  smtpRelays:
+    description: Send email through SMTP relay.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email Sending
+  restfulEmailApi:
+    description: Send email through the RESTful email API.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email Sending
+  mailingLists:
+    description: Mailing lists.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email Sending
+  recipientVariables:
+    description: Recipient variables for personalized batch sending.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email Sending
+  customSendingDomains:
+    description: Custom sending domains.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email Sending
+  logRetention:
+    description: Retention of event logs.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email Sending
+  bounceClassification:
+    description: Classification of bounces over the retained period.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email Sending
+  messageRetention:
+    description: Retention of message content.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email Sending
+  analytics:
+    description: Email analytics and reporting.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email Sending
+  scheduledAnalyticsReports:
+    description: Schedule and send analytics reports.
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email Sending
+  inboundRouting:
+    description: Inbound routing (receiving email) through routes.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email Sending
+  emailTemplates:
+    description: Email template builder and API.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email Sending
+  webhooks:
+    description: Tracking webhooks.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email Sending
+  apiKeys:
+    description: API keys for the account.
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Email Sending
+  guaranteedUptimeSla:
+    description: Guaranteed uptime SLA.
+    type: GUARANTEE
+    docUrl: https://www.mailgun.com/legal/terms/
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email Sending
+  sendTimeOptimization:
+    description: Send Time Optimization (STO) delivers each email at the best time for the recipient.
+    type: AUTOMATION
+    automationType: TASK_AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Email Sending
+  emailValidations:
+    description: Email address validations.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Deliverability and Performance
+  suppressionManagement:
+    description: Suppression management of bounced, unsubscribed and complained addresses.
+    type: AUTOMATION
+    automationType: FILTERING
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability and Performance
+  automatedDedicatedIpWarmUp:
+    description: Automated warm-up of dedicated IPs.
+    type: AUTOMATION
+    automationType: TASK_AUTOMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Deliverability and Performance
+  authenticationProtocols:
+    description: Authentication protocols (SPF, DKIM, DMARC, BIMI, etc.).
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability and Performance
+  linkTracking:
+    description: Link tracking.
+    type: AUTOMATION
+    automationType: TRACKING
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Deliverability and Performance
+  dedicatedIps:
+    description: Dedicated sending IPs.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Deliverability and Performance
+  dedicatedIpPools:
+    description: Dedicated IP pools.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Deliverability and Performance
+  rapidFireSla:
+    description: Rapid Fire burst sending SLA.
+    type: GUARANTEE
+    docUrl: https://www.mailgun.com/enterprise/
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Deliverability and Performance
+  twoFactorAuthentication:
+    description: 2-factor authentication.
+    type: GUARANTEE
+    docUrl: https://www.mailgun.com/legal/terms/
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: User Management and Security
+  userAccounts:
+    description: User accounts to access the dashboard.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: User Management and Security
+  multiUserAccess:
+    description: Multiple users in one account.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: User Management and Security
+  userRolesAndPermissions:
+    description: User roles and permissions.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: User Management and Security
+  samlSso:
+    description: SAML single sign-on.
+    type: INTEGRATION
+    integrationType: IDENTITY_PROVIDER
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: User Management and Security
+  subaccounts:
+    description: Subaccounts to separate sending activity.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: User Management and Security
+  rbacApiKeys:
+    description: Role-based access control for API keys.
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: User Management and Security
+  knowledgeCenter:
+    description: Knowledge center.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Customer Support
+  comprehensiveSdks:
+    description: Comprehensive SDKs.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Customer Support
+  customerFeedbackForum:
+    description: Customer feedback forum.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Customer Support
+  documentation:
+    description: Documentation.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Customer Support
+  ticketSupport:
+    description: Ticket support.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: true
+    tag: Customer Support
+  chatSupport:
+    description: Live chat support.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Customer Support
+  phoneSupport:
+    description: Live phone support.
+    type: SUPPORT
+    valueType: BOOLEAN
+    defaultValue: false
+    tag: Customer Support
+usageLimits:
+  emailsPerDay:
+    description: Emails that can be sent per day.
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: email
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: DAY
+    linkedFeatures:
+      - smtpRelays
+      - restfulEmailApi
+  emailsPerMonth:
+    description: Emails included per month.
+    valueType: NUMERIC
+    defaultValue: .inf
+    unit: email
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - smtpRelays
+      - restfulEmailApi
+  customSendingDomainsLimit:
+    description: Maximum number of custom sending domains.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: domain
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - customSendingDomains
+  logRetentionDays:
+    description: Days of log retention.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: day
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - logRetention
+  bounceClassificationDays:
+    description: Days of bounce classification.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: day
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - bounceClassification
+  messageRetentionDays:
+    description: Days of message retention.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: day
+    type: NON_RENEWABLE
+    trackable: false
+    linkedFeatures:
+      - messageRetention
+  inboundRoutesLimit:
+    description: Maximum number of inbound routes.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: route
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - inboundRouting
+  apiKeysLimit:
+    description: Maximum number of API keys.
+    valueType: NUMERIC
+    defaultValue: 2
+    unit: key
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - apiKeys
+  emailValidationsPerMonth:
+    description: Email validations included per month.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: validation
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - emailValidations
+  dedicatedIpsLimit:
+    description: Dedicated IPs included.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: ip
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - dedicatedIps
+  usersLimit:
+    description: Maximum number of users in the account.
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: user
+    type: NON_RENEWABLE
+    trackable: true
+    linkedFeatures:
+      - userAccounts
+      - multiUserAccess
+plans:
+  FREE:
+    description: Test us out for free, 100 emails per day included.
+    price: 0
+    unit: account/month
+    features: null
+    usageLimits: null
+  BASIC:
+    description: 10,000 emails per month included, no daily email limit, monthly overage options.
+    price: 15
+    unit: account/month
+    features: null
+    usageLimits:
+      emailsPerDay:
+        value: .inf
+      emailsPerMonth:
+        value: 10000
+      inboundRoutesLimit:
+        value: 5
+  FOUNDATION:
+    description: 50,000 emails per month included.
+    price: 35
+    unit: account/month
+    features:
+      messageRetention:
+        value: true
+      emailTemplates:
+        value: true
+      guaranteedUptimeSla:
+        value: true
+      multiUserAccess:
+        value: true
+      userRolesAndPermissions:
+        value: true
+      rbacApiKeys:
+        value: true
+    usageLimits:
+      emailsPerDay:
+        value: .inf
+      emailsPerMonth:
+        value: 50000
+      customSendingDomainsLimit:
+        value: 1000
+      logRetentionDays:
+        value: 5
+      bounceClassificationDays:
+        value: 5
+      messageRetentionDays:
+        value: 1
+      inboundRoutesLimit:
+        value: .inf
+      usersLimit:
+        value: .inf
+  SCALE:
+    description: 100,000 emails per month included.
+    price: 90
+    unit: account/month
+    features:
+      messageRetention:
+        value: true
+      emailTemplates:
+        value: true
+      guaranteedUptimeSla:
+        value: true
+      sendTimeOptimization:
+        value: true
+      scheduledAnalyticsReports:
+        value: true
+      emailValidations:
+        value: true
+      automatedDedicatedIpWarmUp:
+        value: true
+      dedicatedIps:
+        value: true
+      dedicatedIpPools:
+        value: true
+      multiUserAccess:
+        value: true
+      userRolesAndPermissions:
+        value: true
+      samlSso:
+        value: true
+      rbacApiKeys:
+        value: true
+      chatSupport:
+        value: true
+      phoneSupport:
+        value: true
+    usageLimits:
+      emailsPerDay:
+        value: .inf
+      emailsPerMonth:
+        value: 101000
+      customSendingDomainsLimit:
+        value: 1000
+      logRetentionDays:
+        value: 30
+      bounceClassificationDays:
+        value: 30
+      messageRetentionDays:
+        value: 7
+      inboundRoutesLimit:
+        value: .inf
+      emailValidationsPerMonth:
+        value: 5000
+      dedicatedIpsLimit:
+        value: 1
+      usersLimit:
+        value: .inf
+  ENTERPRISE:
+    description: Everything in Scale plus custom features, Deliverability Services and Rapid Fire Burst Sending SLA.
+    price: Contact Sales
+    unit: account/month
+    private: true
+    features:
+      messageRetention:
+        value: true
+      emailTemplates:
+        value: true
+      guaranteedUptimeSla:
+        value: true
+      sendTimeOptimization:
+        value: true
+      scheduledAnalyticsReports:
+        value: true
+      emailValidations:
+        value: true
+      automatedDedicatedIpWarmUp:
+        value: true
+      dedicatedIps:
+        value: true
+      dedicatedIpPools:
+        value: true
+      rapidFireSla:
+        value: true
+      multiUserAccess:
+        value: true
+      userRolesAndPermissions:
+        value: true
+      samlSso:
+        value: true
+      subaccounts:
+        value: true
+      rbacApiKeys:
+        value: true
+      chatSupport:
+        value: true
+      phoneSupport:
+        value: true
+    usageLimits:
+      emailsPerDay:
+        value: .inf
+      emailsPerMonth:
+        value: 100000
+      customSendingDomainsLimit:
+        value: 1000
+      logRetentionDays:
+        value: 30
+      bounceClassificationDays:
+        value: 30
+      messageRetentionDays:
+        value: 7
+      inboundRoutesLimit:
+        value: .inf
+      emailValidationsPerMonth:
+        value: 5000
+      dedicatedIpsLimit:
+        value: 1
+      usersLimit:
+        value: .inf
+addOns:
+  extraEmailsBasic:
+    description: Extra emails beyond the monthly allowance on Basic (overage, cannot be deactivated).
+    price: 1.8
+    unit: 1000 emails
+    availableFor:
+      - BASIC
+    features: null
+    usageLimitsExtensions:
+      emailsPerMonth:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  extraEmailsFoundation:
+    description: Extra emails beyond the monthly allowance on Foundation 50k (overage, cannot be deactivated).
+    price: 1.3
+    unit: 1000 emails
+    availableFor:
+      - FOUNDATION
+    features: null
+    usageLimitsExtensions:
+      emailsPerMonth:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  extraEmailsScale:
+    description: Extra emails beyond the monthly allowance on Scale 100k (overage, cannot be deactivated).
+    price: 1.1
+    unit: 1000 emails
+    availableFor:
+      - SCALE
+    features: null
+    usageLimitsExtensions:
+      emailsPerMonth:
+        value: 1000
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: .inf
+      quantityStep: 1
+  emailValidationsBasic:
+    description: Email validations on Basic, billed per 100.
+    price: 1.2
+    unit: 100 validations
+    availableFor:
+      - BASIC
+    features:
+      emailValidations:
+        value: true
+    usageLimitsExtensions:
+      emailValidationsPerMonth:
+        value: 100
+  emailValidationsFoundationFirst5k:
+    description: Email validations on Foundation, first 5,000 per month.
+    price: 1.2
+    unit: 100 validations
+    availableFor:
+      - FOUNDATION
+    features:
+      emailValidations:
+        value: true
+    usageLimitsExtensions:
+      emailValidationsPerMonth:
+        value: 100
+  emailValidationsFoundationNext45k:
+    description: Email validations on Foundation, next 45,000 per month.
+    price: 0.8
+    unit: 100 validations
+    availableFor:
+      - FOUNDATION
+    dependsOn:
+      - emailValidationsFoundationFirst5k
+    features: null
+    usageLimitsExtensions:
+      emailValidationsPerMonth:
+        value: 100
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 450
+      quantityStep: 1
+  emailValidationsFoundationNext50k:
+    description: Email validations on Foundation, next 50,000 per month.
+    price: 0.5
+    unit: 100 validations
+    availableFor:
+      - FOUNDATION
+    dependsOn:
+      - emailValidationsFoundationNext45k
+    features: null
+    usageLimitsExtensions:
+      emailValidationsPerMonth:
+        value: 100
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 500
+      quantityStep: 1
+  emailValidationsFoundationNext150k:
+    description: Email validations on Foundation, next 150,000 per month.
+    price: 0.35
+    unit: 100 validations
+    availableFor:
+      - FOUNDATION
+    dependsOn:
+      - emailValidationsFoundationNext50k
+    features: null
+    usageLimitsExtensions:
+      emailValidationsPerMonth:
+        value: 100
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 1500
+      quantityStep: 1
+  emailValidationsFoundationNext250k:
+    description: Email validations on Foundation, next 250,000 per month.
+    price: 0.25
+    unit: 100 validations
+    availableFor:
+      - FOUNDATION
+    dependsOn:
+      - emailValidationsFoundationNext150k
+    features: null
+    usageLimitsExtensions:
+      emailValidationsPerMonth:
+        value: 100
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 2500
+      quantityStep: 1
+  emailValidationsScaleNext45k:
+    description: Email validations on Scale beyond the 5,000 included, next 45,000 per month.
+    price: 0.8
+    unit: 100 validations
+    availableFor:
+      - SCALE
+    features: null
+    usageLimitsExtensions:
+      emailValidationsPerMonth:
+        value: 100
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 450
+      quantityStep: 1
+  emailValidationsScaleNext50k:
+    description: Email validations on Scale, next 50,000 per month.
+    price: 0.5
+    unit: 100 validations
+    availableFor:
+      - SCALE
+    dependsOn:
+      - emailValidationsScaleNext45k
+    features: null
+    usageLimitsExtensions:
+      emailValidationsPerMonth:
+        value: 100
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 500
+      quantityStep: 1
+  emailValidationsScaleNext150k:
+    description: Email validations on Scale, next 150,000 per month.
+    price: 0.35
+    unit: 100 validations
+    availableFor:
+      - SCALE
+    dependsOn:
+      - emailValidationsScaleNext50k
+    features: null
+    usageLimitsExtensions:
+      emailValidationsPerMonth:
+        value: 100
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 1500
+      quantityStep: 1
+  emailValidationsScaleNext250k:
+    description: Email validations on Scale, next 250,000 per month.
+    price: 0.25
+    unit: 100 validations
+    availableFor:
+      - SCALE
+    dependsOn:
+      - emailValidationsScaleNext150k
+    features: null
+    usageLimitsExtensions:
+      emailValidationsPerMonth:
+        value: 100
+    subscriptionConstraints:
+      minQuantity: 1
+      maxQuantity: 2500
+      quantityStep: 1
+  dedicatedIp:
+    description: Additional dedicated IP, from the control panel or by contacting support.
+    price: 59
+    unit: ip/month
+    availableFor:
+      - FOUNDATION
+      - SCALE
+      - ENTERPRISE
+    features:
+      dedicatedIps:
+        value: true
+      automatedDedicatedIpWarmUp:
+        value: true
+    usageLimitsExtensions:
+      dedicatedIpsLimit:
+        value: 1
+custom:
+  unmodeled:
+    - element: volume selector (10k, 50k, 100k, 250k, 500k, 750k, 1M, 2.5M, More)
+      source_says: plan price and included volume change with the selected monthly volume; the page shows Basic 10k $15, Foundation 50k $35, Scale 100k $90 at its default position
+      why: prices for the other positions are rendered by script and could not be read; only the default position is modeled
+    - element: email overage by sending volume tier (help center)
+      source_says: 'per 1,000: Basic 1.80 at every tier; Foundation 1.30 at 50k, 1.10 at 100k-2.5M; Scale 1.10 at 100k, 0.90 at 250k, 0.75 at 500k, 0.60 at 750k, 0.50 at 1M, 0.40 at 2.5M'
+      why: depends on the tier selector whose plan prices are unknown; only the rate of each plan's modeled tier is used
+    - element: dedicated IP on Foundation at 100k+
+      source_says: access at 50k, one dedicated IP included at 100K+ volumes
+      why: usage limits cannot depend on the tier selector
+    - element: overage cannot be deactivated
+      source_says: extra usage is billed automatically and cannot be turned off
+      why: Pricing2Yaml models overage as optional add-ons; there is no construct for mandatory pay-per-use
+    - element: Early Access to New Features
+      source_says: row of the Customer Support group in the comparison table; no checkmark could be read for Free, Basic, Foundation or Scale, and the table has no Enterprise column
+      why: no plan or add-on is known to include it; Pricing2Yaml does not allow features that no plan or add-on grants
+    - element: Managed Support
+      source_says: row of the Customer Support group in the comparison table; no checkmark could be read for Free, Basic, Foundation or Scale, and the table has no Enterprise column
+      why: no plan or add-on is known to include it; Pricing2Yaml does not allow features that no plan or add-on grants
+    - element: custom message retention for contract customers
+      source_says: custom retention periods available for contract customers
+      why: no known value; negotiated

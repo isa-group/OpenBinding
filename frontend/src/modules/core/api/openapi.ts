@@ -1928,6 +1928,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/compositions/{composition}/upstream-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Upstream Events
+         * @description The composition's upstream events, newest first, with the pricings its live versions read (members only).
+         */
+        get: operations["listUpstreamEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/compositions/{composition}/upstream-events/{event}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Upstream Event
+         * @description One event with its stored diff (members only).
+         */
+        get: operations["getUpstreamEvent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/compositions/{composition}/upstream-events/{event}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review Upstream Event
+         * @description Mark an open event reviewed, with an optional note written once (MEMBER). An offering event ends here.
+         */
+        post: operations["reviewUpstreamEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/compositions/{composition}/versions": {
         parameters: {
             query?: never;
@@ -3280,6 +3340,27 @@ export interface paths {
          *     is the account row's, shared with the profile and the notification preferences.
          */
         put: operations["updateBetaFeatures"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/me/upstream-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Own Upstream Events
+         * @description The open upstream events (reviewed ones too, for bindings) of the live versions of every organization the
+         *     caller holds a role in, newest first: the dashboard's "Upstream changes".
+         */
+        get: operations["listOwnUpstreamEvents"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -4714,6 +4795,8 @@ export interface components {
              * Format: date-time
              */
             updatedAt: string;
+            /** @description Upstream events of the version in effect and the composition's open offering events (F6); computed when read, so it never moves the environment's ETag or its feed. */
+            upstream?: components["schemas"]["EnvironmentUpstreamSummary"] | null;
         };
         /**
          * CompositionEvaluate
@@ -5283,6 +5366,8 @@ export interface components {
              * @description The `syntaxVersion` the version was sealed with.
              */
             syntax_version: string;
+            /** @description This version's open and reviewed upstream events (F6); members only. */
+            upstream?: components["schemas"]["UpstreamSummary"] | null;
             /**
              * Values
              * @description The values of the current evaluation.
@@ -5348,6 +5433,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** @description Its open and reviewed upstream events on live versions (F6), for members only; null for a visitor of a public composition and on the public list. */
+            upstream?: components["schemas"]["UpstreamSummary"] | null;
             /**
              * Version Count
              * @description How many versions it has.
@@ -6210,6 +6297,25 @@ export interface components {
             displayName: string;
             /** Username */
             username: string;
+        };
+        /** EnvironmentUpstreamSummary */
+        EnvironmentUpstreamSummary: {
+            /**
+             * Bindinginvalid
+             * @description Open or reviewed events that recommend rebinding.
+             */
+            bindingInvalid: number;
+            /** Open */
+            open: number;
+            /** @description The newest version that resolved an event of the version in effect and is not adopted here. */
+            resolvedBy: components["schemas"]["UpstreamResolvedIn"] | null;
+            /** Reviewed */
+            reviewed: number;
+            /**
+             * Worst
+             * @description The worst category among the counted events.
+             */
+            worst: ("no_impact" | "values_changed" | "binding_invalid" | "offering_changed") | null;
         };
         /** EnvironmentVersion */
         EnvironmentVersion: {
@@ -7272,6 +7378,95 @@ export interface components {
             user_id: string;
             /** Username */
             username?: string | null;
+        };
+        /** MyUpstreamComposition */
+        MyUpstreamComposition: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /** MyUpstreamEvent */
+        MyUpstreamEvent: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "no_impact" | "values_changed" | "binding_invalid" | "offering_changed";
+            /** Classifier */
+            classifier: string;
+            composition: components["schemas"]["MyUpstreamComposition"];
+            /**
+             * Detectedat
+             * Format: date-time
+             */
+            detectedAt: string;
+            /**
+             * Environments
+             * @description Where the affected version is adopted (every adopted environment for an offering event).
+             */
+            environments: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** @description Null when the source is gone. */
+            new: components["schemas"]["UpstreamSide"] | null;
+            /** Newversionwithdrawn */
+            newVersionWithdrawn: boolean;
+            /** Note */
+            note: string;
+            /**
+             * Notify
+             * @description Whether it is told and badged (false for no impact and untold events).
+             */
+            notify: boolean;
+            old: components["schemas"]["UpstreamSide"];
+            organization: components["schemas"]["CompositionOrganization"];
+            pricing: components["schemas"]["UpstreamPricingRef"];
+            /**
+             * Reasons
+             * @description Codes with detail, in precedence order.
+             */
+            reasons: {
+                [key: string]: unknown;
+            }[];
+            /** Rebindingrecommended */
+            rebindingRecommended: boolean;
+            resolvedBy: components["schemas"]["UpstreamResolution"] | null;
+            /** Reviewedat */
+            reviewedAt: string | null;
+            reviewedBy: components["schemas"]["UpstreamPerson"] | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "reviewed" | "resolved";
+            /**
+             * Subject
+             * @enum {string}
+             */
+            subject: "binding" | "offering";
+            /**
+             * Supersededby
+             * @description A newer event of the same version and pricing.
+             */
+            supersededBy: string | null;
+            /** Tasks */
+            tasks: string[];
+            /** @description The affected version (an offering event's reference version). */
+            version: components["schemas"]["UpstreamVersionName"];
+        };
+        /** MyUpstreamEventList */
+        MyUpstreamEventList: {
+            /** Events */
+            events: components["schemas"]["MyUpstreamEvent"][];
         };
         /** NeighborhoodCoverage */
         NeighborhoodCoverage: {
@@ -9766,6 +9961,196 @@ export interface components {
             status: "snapshotted" | "not_snapshotted" | "registry_unknown";
             /** Task */
             task: string;
+            /** @description How OpenBinding watches this pricing (F6); members only. */
+            watch?: components["schemas"]["UpstreamWatchState"] | null;
+        };
+        /** UpstreamEventCounts */
+        UpstreamEventCounts: {
+            /** Noimpact */
+            noImpact: number;
+            /** Open */
+            open: number;
+            /** Resolved */
+            resolved: number;
+            /** Reviewed */
+            reviewed: number;
+        };
+        /** UpstreamEventDetail */
+        UpstreamEventDetail: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "no_impact" | "values_changed" | "binding_invalid" | "offering_changed";
+            /** Classifier */
+            classifier: string;
+            /**
+             * Detectedat
+             * Format: date-time
+             */
+            detectedAt: string;
+            /**
+             * Diff
+             * @description `openbinding/upstream-event-diff@1`, as stored.
+             */
+            diff: {
+                [key: string]: unknown;
+            };
+            /**
+             * Environments
+             * @description Where the affected version is adopted (every adopted environment for an offering event).
+             */
+            environments: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** @description Null when the source is gone. */
+            new: components["schemas"]["UpstreamSide"] | null;
+            /** Newversionwithdrawn */
+            newVersionWithdrawn: boolean;
+            /** Note */
+            note: string;
+            /**
+             * Notify
+             * @description Whether it is told and badged (false for no impact and untold events).
+             */
+            notify: boolean;
+            old: components["schemas"]["UpstreamSide"];
+            pricing: components["schemas"]["UpstreamPricingRef"];
+            /**
+             * Reasons
+             * @description Codes with detail, in precedence order.
+             */
+            reasons: {
+                [key: string]: unknown;
+            }[];
+            /** Rebindingrecommended */
+            rebindingRecommended: boolean;
+            resolvedBy: components["schemas"]["UpstreamResolution"] | null;
+            /** Reviewedat */
+            reviewedAt: string | null;
+            reviewedBy: components["schemas"]["UpstreamPerson"] | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "reviewed" | "resolved";
+            /**
+             * Subject
+             * @enum {string}
+             */
+            subject: "binding" | "offering";
+            /**
+             * Supersededby
+             * @description A newer event of the same version and pricing.
+             */
+            supersededBy: string | null;
+            /** Tasks */
+            tasks: string[];
+            /** @description The affected version (an offering event's reference version). */
+            version: components["schemas"]["UpstreamVersionName"];
+        };
+        /** UpstreamEventList */
+        UpstreamEventList: {
+            counts: components["schemas"]["UpstreamEventCounts"];
+            /** Events */
+            events: components["schemas"]["UpstreamEventView"][];
+            /**
+             * Nextbefore
+             * @description `<detectedAt>,<id>` of the last event, for the next page.
+             */
+            nextBefore: string | null;
+            /**
+             * Watches
+             * @description The pricings this composition's live versions read.
+             */
+            watches: components["schemas"]["UpstreamWatchSummary"][];
+        };
+        /**
+         * UpstreamEventReview
+         * @description Mark an event reviewed, once, with an optional note.
+         */
+        UpstreamEventReview: {
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /**
+         * UpstreamEventView
+         * @description An upstream event: a classified change of a pricing a live version reads (immutable but for its state).
+         */
+        UpstreamEventView: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "no_impact" | "values_changed" | "binding_invalid" | "offering_changed";
+            /** Classifier */
+            classifier: string;
+            /**
+             * Detectedat
+             * Format: date-time
+             */
+            detectedAt: string;
+            /**
+             * Environments
+             * @description Where the affected version is adopted (every adopted environment for an offering event).
+             */
+            environments: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** @description Null when the source is gone. */
+            new: components["schemas"]["UpstreamSide"] | null;
+            /** Newversionwithdrawn */
+            newVersionWithdrawn: boolean;
+            /** Note */
+            note: string;
+            /**
+             * Notify
+             * @description Whether it is told and badged (false for no impact and untold events).
+             */
+            notify: boolean;
+            old: components["schemas"]["UpstreamSide"];
+            pricing: components["schemas"]["UpstreamPricingRef"];
+            /**
+             * Reasons
+             * @description Codes with detail, in precedence order.
+             */
+            reasons: {
+                [key: string]: unknown;
+            }[];
+            /** Rebindingrecommended */
+            rebindingRecommended: boolean;
+            resolvedBy: components["schemas"]["UpstreamResolution"] | null;
+            /** Reviewedat */
+            reviewedAt: string | null;
+            reviewedBy: components["schemas"]["UpstreamPerson"] | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "reviewed" | "resolved";
+            /**
+             * Subject
+             * @enum {string}
+             */
+            subject: "binding" | "offering";
+            /**
+             * Supersededby
+             * @description A newer event of the same version and pricing.
+             */
+            supersededBy: string | null;
+            /** Tasks */
+            tasks: string[];
+            /** @description The affected version (an offering event's reference version). */
+            version: components["schemas"]["UpstreamVersionName"];
         };
         /** UpstreamOffering */
         UpstreamOffering: {
@@ -9784,6 +10169,11 @@ export interface components {
             /** Versionname */
             versionName: string | null;
         };
+        /** UpstreamPerson */
+        UpstreamPerson: {
+            /** Username */
+            username: string;
+        };
         /** UpstreamPlan */
         UpstreamPlan: {
             /** Name */
@@ -9799,6 +10189,53 @@ export interface components {
             private: boolean;
             /** Unit */
             unit: string | null;
+        };
+        /** UpstreamPricingRef */
+        UpstreamPricingRef: {
+            /** Pricingid */
+            pricingId: string | null;
+            /** Registry */
+            registry: string | null;
+            /**
+             * Sphere
+             * @description `owner/slug` of the family.
+             */
+            sphere: string | null;
+            /** Title */
+            title: string | null;
+            /**
+             * Url
+             * @description The offering's URL, for a URL watch.
+             */
+            url: string | null;
+        };
+        /** UpstreamResolution */
+        UpstreamResolution: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            by: components["schemas"]["UpstreamPerson"] | null;
+            version: components["schemas"]["UpstreamVersionName"];
+        };
+        /** UpstreamResolvedIn */
+        UpstreamResolvedIn: {
+            version: components["schemas"]["UpstreamVersionName"];
+        };
+        /** UpstreamSide */
+        UpstreamSide: {
+            /** Label */
+            label: string | null;
+            /** Snapshotid */
+            snapshotId: string | null;
+            /**
+             * Url
+             * @description Where the version opens in SPHERE.
+             */
+            url: string | null;
+            /** Versionid */
+            versionId: string | null;
         };
         /**
          * UpstreamSnapshot
@@ -9834,6 +10271,26 @@ export interface components {
             /** Versionname */
             versionName: string | null;
         };
+        /**
+         * UpstreamSummary
+         * @description Open and reviewed upstream events, each (version, watch, subject) once; no-impact and untold events excluded.
+         */
+        UpstreamSummary: {
+            /**
+             * Bindinginvalid
+             * @description Open or reviewed events that recommend rebinding.
+             */
+            bindingInvalid: number;
+            /** Open */
+            open: number;
+            /** Reviewed */
+            reviewed: number;
+            /**
+             * Worst
+             * @description The worst category among the counted events.
+             */
+            worst: ("no_impact" | "values_changed" | "binding_invalid" | "offering_changed") | null;
+        };
         /** UpstreamValue */
         UpstreamValue: {
             /**
@@ -9846,6 +10303,16 @@ export interface components {
              * @description The kinds of source the bound candidates' values of this global value have.
              */
             sources: ("priced" | "guarantee" | "limit" | "feature" | "manual")[];
+        };
+        /** UpstreamVersionName */
+        UpstreamVersionName: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
         };
         /**
          * UpstreamView
@@ -9862,6 +10329,34 @@ export interface components {
             };
             /** Version */
             version: string;
+        };
+        /** UpstreamWatchState */
+        UpstreamWatchState: {
+            /**
+             * Nextpollat
+             * Format: date-time
+             */
+            nextPollAt: string;
+            /**
+             * Observedat
+             * @description The last answer from upstream (a 200 or a 304).
+             */
+            observedAt: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "active" | "unavailable" | "not_found" | "gone" | "credential_missing" | "registry_unknown";
+        };
+        /** UpstreamWatchSummary */
+        UpstreamWatchSummary: {
+            /** Latestlabel */
+            latestLabel: string | null;
+            /** Observedat */
+            observedAt: string | null;
+            pricing: components["schemas"]["UpstreamPricingRef"];
+            /** Status */
+            status: string;
         };
         /**
          * UsageView
@@ -14098,7 +14593,7 @@ export interface operations {
             query?: {
                 unread_only?: boolean;
                 /** @description Only notifications of this kind. */
-                kind?: ("OrganizationInvitation" | "System" | "CompositionUpdated" | "RunFinished" | "RunFailed" | "CompositionAdopted") | null;
+                kind?: ("OrganizationInvitation" | "System" | "CompositionUpdated" | "RunFinished" | "RunFailed" | "CompositionAdopted" | "UpstreamEvent") | null;
                 offset?: number;
                 limit?: number;
             };
@@ -17619,6 +18114,259 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listUpstreamEvents: {
+        parameters: {
+            query?: {
+                state?: ("open" | "reviewed" | "resolved") | null;
+                /** @description Only the events of this version (its id). */
+                version?: string | null;
+                category?: ("no_impact" | "values_changed" | "binding_invalid" | "offering_changed") | null;
+                subject?: ("binding" | "offering") | null;
+                limit?: number;
+                /** @description `<detectedAt>,<id>` of the last event of the page before. */
+                before?: string | null;
+            };
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpstreamEventList"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such organization, composition or event, or the caller is not a member: `Composition not found.` for a private or missing composition, `Upstream event not found.` otherwise. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getUpstreamEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+                event: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpstreamEventDetail"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such organization, composition or event, or the caller is not a member: `Composition not found.` for a private or missing composition, `Upstream event not found.` otherwise. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reviewUpstreamEvent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match. */
+                "If-Match"?: string | null;
+            };
+            path: {
+                org: string;
+                composition: string;
+                event: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpstreamEventReview"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpstreamEventDetail"];
+                };
+            };
+            /** @description `If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller's role is weaker than MEMBER (`organization_forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, composition or event, or the caller is not a member: `Composition not found.` for a private or missing composition, `Upstream event not found.` otherwise. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Already reviewed or resolved (`event_not_reviewable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision. */
+            412: {
+                headers: {
+                    /** @description Revision of the resource; send it back as `If-Match` to edit it. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Account authentication is not configured on this deployment. */
@@ -23907,6 +24655,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listOwnUpstreamEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyUpstreamEventList"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             /** @description The request does not satisfy the contract; `diagnostics` says where. */

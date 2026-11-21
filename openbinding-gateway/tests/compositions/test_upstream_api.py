@@ -75,7 +75,7 @@ async def test_a_hand_written_from_is_snapshotted_at_seal_or_later(api_client, r
     view = (await api_client.get(f"{base}/upstream", headers=headers)).json()
     assert [e["status"] for e in view["entries"] if e["task"] == "dailySummary"] == ["not_snapshotted"]
 
-    # SPHERE is back (a fresh port: the failed paths are no longer remembered): F6's poller resolves the entry.
+    # SPHERE is back (a fresh port: the failed paths are no longer remembered): the upstream watcher resolves the entry.
     sphere.scripts.clear()
     set_pricing_source(SphereHttpSource(get_settings().model_copy(update={"sphere_enabled": True}),
                                         transport=sphere.transport()))

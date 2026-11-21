@@ -1,0 +1,209 @@
+{
+  "event": true,
+  "category": "no_impact",
+  "reasons": [],
+  "notify": false,
+  "classifier": "1",
+  "diff": {
+    "schema": "openbinding/upstream-event-diff@1",
+    "pricing": {
+      "sphere": "sphere/openbinding",
+      "registry": null,
+      "pricingId": "6ab0a323697330667ccce891",
+      "title": "OpenBinding"
+    },
+    "old": {
+      "versionId": "6a9d1d9293628b97bbf63ab0",
+      "label": "0.1.0",
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce891?version=6a9d1d9293628b97bbf63ab0"
+    },
+    "new": {
+      "versionId": "6a9d355893628b97bbf63be6",
+      "label": "0.1.1",
+      "createdAt": "2026-09-06T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce891?version=6a9d355893628b97bbf63be6"
+    },
+    "catalog": {
+      "plans": {
+        "added": [],
+        "removed": []
+      },
+      "addOns": {
+        "added": [],
+        "removed": []
+      },
+      "features": {
+        "added": [],
+        "removed": []
+      },
+      "usageLimits": {
+        "added": [],
+        "removed": []
+      }
+    },
+    "entries": [
+      {
+        "task": "solve",
+        "candidate": "engine.openbinding.basic",
+        "selection": {
+          "plan": "BASIC",
+          "addOns": [],
+          "billing": null,
+          "seats": 1
+        },
+        "comparison": {
+          "plan": {
+            "before": {
+              "id": "BASIC",
+              "known": true,
+              "name": "BASIC"
+            },
+            "after": {
+              "id": "BASIC",
+              "known": true,
+              "name": "BASIC"
+            },
+            "changed": false,
+            "renamedTo": null
+          },
+          "addOns": {
+            "added": [],
+            "removedByUser": [],
+            "removedByReconciliation": [],
+            "quantityChanged": [],
+            "unchanged": []
+          },
+          "features": {
+            "gained": [],
+            "lost": [],
+            "changed": [],
+            "unchanged": [
+              "authoring",
+              "solve",
+              "federatedEngines",
+              "apiAccess",
+              "collaboration",
+              "studies",
+              "advancedAnalytics",
+              "reproducibleExport",
+              "publishing",
+              "reproducibilityArchive",
+              "institutionalBranding"
+            ]
+          },
+          "usageLimits": [],
+          "price": {
+            "before": {
+              "subtotal": "0.000000",
+              "requiresQuote": false,
+              "currency": "EUR",
+              "billing": "monthly",
+              "unit": "EUR/month"
+            },
+            "after": {
+              "subtotal": "0.000000",
+              "requiresQuote": false,
+              "currency": "EUR",
+              "billing": "monthly",
+              "unit": "EUR/month"
+            },
+            "billingPeriodChanged": false,
+            "difference": "0.000000"
+          }
+        },
+        "attributes": [],
+        "requirements": [],
+        "reasons": [],
+        "originMismatch": []
+      },
+      {
+        "task": "solve",
+        "candidate": "engine.openbinding.pro",
+        "selection": {
+          "plan": "PRO",
+          "addOns": [],
+          "billing": null,
+          "seats": 1
+        },
+        "comparison": {
+          "plan": {
+            "before": {
+              "id": "PRO",
+              "known": true,
+              "name": "PRO"
+            },
+            "after": {
+              "id": "PRO",
+              "known": true,
+              "name": "PRO"
+            },
+            "changed": false,
+            "renamedTo": null
+          },
+          "addOns": {
+            "added": [],
+            "removedByUser": [],
+            "removedByReconciliation": [],
+            "quantityChanged": [],
+            "unchanged": []
+          },
+          "features": {
+            "gained": [],
+            "lost": [],
+            "changed": [],
+            "unchanged": [
+              "authoring",
+              "solve",
+              "federatedEngines",
+              "apiAccess",
+              "collaboration",
+              "studies",
+              "advancedAnalytics",
+              "reproducibleExport",
+              "publishing",
+              "reproducibilityArchive",
+              "institutionalBranding"
+            ]
+          },
+          "usageLimits": [],
+          "price": {
+            "before": {
+              "subtotal": null,
+              "requiresQuote": true,
+              "quote": [
+                "Contact us / Institutional agreement"
+              ],
+              "currency": "EUR",
+              "billing": "monthly",
+              "unit": "EUR/month"
+            },
+            "after": {
+              "subtotal": null,
+              "requiresQuote": true,
+              "quote": [
+                "Contact us / Institutional agreement"
+              ],
+              "currency": "EUR",
+              "billing": "monthly",
+              "unit": "EUR/month"
+            },
+            "billingPeriodChanged": false,
+            "differenceOmitted": "quote"
+          }
+        },
+        "attributes": [],
+        "requirements": [],
+        "reasons": [],
+        "originMismatch": []
+      }
+    ],
+    "global": [],
+    "notes": [
+      "no_value_origins",
+      "values_not_reevaluated"
+    ]
+  }
+}

@@ -286,3 +286,30 @@ async def test_a_composition_with_environments_is_not_deleted(api_client, regist
     assert refused.status_code == 409 and code(refused) == "composition_in_operation"
     assert refused.json()["detail"]["environments"] == ["production", "staging"]
     assert (await api_client.get(f"{base}/tomato", headers=headers)).status_code == 200
+
+
+async def test_a_composition_with_upstream_events_and_refs_is_deleted_with_them(api_client, registration, db_session, gate):  # noqa: F811
+    """F6: its events and watch references go with it; the watch stays (another composition may read it)."""
+    from _environment_rows import World, _version
+    from _upstream_rows import event, ref, watch
+    from openbinding_gateway.db.models import CompositionUpstreamEvent, PricingWatch, PricingWatchRef
+
+    account, headers, org = await owner(api_client, registration, db_session, gate)
+    base = f"/v1/organizations/{org}/compositions"
+    body = (await create(api_client, headers, org, "tomato")).json()
+    composition_id, user_id = uuid.UUID(body["id"]), uuid.UUID(account["id"])
+    version_id, evaluation_id = await _version(db_session, composition_id, user_id, 1, "1.0.0")
+    w = World(user_id, uuid.UUID(body["organization"]["id"]), composition_id, (version_id,), (evaluation_id,),
+              composition_id, version_id, evaluation_id)
+    watch_id = await watch(db_session)
+    await ref(db_session, w, watch_id)
+    await event(db_session, w, watch_id)
+    await db_session.commit()
+
+    assert (await api_client.delete(f"{base}/tomato", headers=headers)).status_code == 204
+
+    db_session.expire_all()
+    for model in (CompositionUpstreamEvent, PricingWatchRef):
+        assert await db_session.scalar(select(func.count()).select_from(model).where(
+            model.composition_id == composition_id)) == 0
+    assert await db_session.get(PricingWatch, watch_id) is not None

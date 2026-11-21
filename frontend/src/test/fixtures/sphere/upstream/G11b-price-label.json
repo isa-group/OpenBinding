@@ -1,0 +1,300 @@
+{
+  "event": true,
+  "category": "binding_invalid",
+  "reasons": [
+    {
+      "code": "price_not_numeric",
+      "plan": "PROFESSIONAL"
+    }
+  ],
+  "notify": true,
+  "classifier": "1",
+  "diff": {
+    "schema": "openbinding/upstream-event-diff@1",
+    "pricing": {
+      "sphere": "danruilop1/brevo",
+      "registry": null,
+      "pricingId": "6ade2d4440e55445692b07f1",
+      "title": "brevo"
+    },
+    "old": {
+      "versionId": "6ade2d444b2b5b01c587d80d",
+      "label": "2026-10",
+      "createdAt": "2026-10-25T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d"
+    },
+    "new": {
+      "versionId": "6fff00000000000000000015",
+      "label": "2026-11-label",
+      "createdAt": "2026-11-16T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6fff00000000000000000015"
+    },
+    "catalog": {
+      "plans": {
+        "added": [],
+        "removed": []
+      },
+      "addOns": {
+        "added": [],
+        "removed": []
+      },
+      "features": {
+        "added": [],
+        "removed": []
+      },
+      "usageLimits": {
+        "added": [],
+        "removed": []
+      }
+    },
+    "entries": [
+      {
+        "task": "dailySummary",
+        "candidate": "email.brevo.professional",
+        "selection": {
+          "plan": "PROFESSIONAL",
+          "addOns": [],
+          "billing": "monthly",
+          "seats": 1
+        },
+        "comparison": {
+          "plan": {
+            "before": {
+              "id": "PROFESSIONAL",
+              "known": true,
+              "name": "PROFESSIONAL"
+            },
+            "after": {
+              "id": "PROFESSIONAL",
+              "known": true,
+              "name": "PROFESSIONAL"
+            },
+            "changed": false,
+            "renamedTo": null
+          },
+          "addOns": {
+            "added": [],
+            "removedByUser": [],
+            "removedByReconciliation": [],
+            "quantityChanged": [],
+            "unchanged": []
+          },
+          "features": {
+            "gained": [],
+            "lost": [],
+            "changed": [],
+            "unchanged": [
+              "emailAndSmsCampaigns",
+              "userAccounts",
+              "auraAi",
+              "mcpForAiAssistants",
+              "advancedReporting",
+              "dragAndDropEmailEditor",
+              "emailTemplates",
+              "mobileOptimization",
+              "abTesting",
+              "removeBrevoBranding",
+              "aiContentGenerator",
+              "dynamicContent",
+              "aiSendTimeOptimization",
+              "contentFeeds",
+              "emailFrequencyManagement",
+              "reusableContentSections",
+              "openAndClickReports",
+              "clickHeatmaps",
+              "geographyAndDeviceReports",
+              "dedicatedIp",
+              "smsCampaigns",
+              "landingPages",
+              "popups",
+              "adsRetargetingAndLookalikes",
+              "webPushNotifications",
+              "mobilePushNotifications",
+              "whatsappCampaigns",
+              "brevoWallet",
+              "multichannelAttribution",
+              "multichannelAutomation",
+              "realTimeEventTriggers",
+              "multipleEntryPoints",
+              "multiBranchTesting",
+              "pathwayReporting",
+              "ecommerceIntegrations",
+              "abandonedCartRecovery",
+              "aiProductRecommendations",
+              "backInStockAlerts",
+              "priceDropAlerts",
+              "dynamicCoupons",
+              "loyalty",
+              "contactStorage",
+              "customSignupForms",
+              "contactTimeline",
+              "advancedSegmentation",
+              "unlimitedCustomFields",
+              "webAndEventTracking",
+              "identityResolution",
+              "contactScoring",
+              "aiSegmentation",
+              "randomizedListSplits",
+              "gdprCompliance",
+              "multiLevelDataModel",
+              "unlimitedCompanies",
+              "customObjects",
+              "transactionalEmail",
+              "transactionalSms",
+              "transactionalWhatsapp",
+              "realTimeEmailStatistics",
+              "customizedLogRetention",
+              "websiteAndCmsIntegrations",
+              "plugins",
+              "zapierConnector",
+              "apis",
+              "outboundWebhooks",
+              "inboundWebhooks",
+              "salesforcePlugin",
+              "dataWarehouseAndSftp",
+              "dataTransformation",
+              "preBuiltDashboards",
+              "dashboardBuilder",
+              "aiDataAnalyst",
+              "userPermissions",
+              "tagsAndFolders",
+              "assetSharing",
+              "ssoSaml",
+              "subaccountManagement",
+              "sla",
+              "emailSupport",
+              "phoneSupport",
+              "deliverabilitySpecialist",
+              "tailoredOnboarding",
+              "customerSuccessManager",
+              "salesMultiUserAccess",
+              "openDeals",
+              "salesAutomation",
+              "automatedMeetingScheduling",
+              "phoneVoip",
+              "salesPipelines",
+              "stageRules",
+              "multipleCurrencies",
+              "revenueReport",
+              "salesCycleReport",
+              "teamPerformanceReport",
+              "forecasting",
+              "salesWorkflows",
+              "realTimeSalesEventTriggers",
+              "aiContactAndCompanyEnrichment",
+              "outreachSequences",
+              "taskManagementAndReminders",
+              "taskNavigator",
+              "notesAndFiles",
+              "connectedCalendars",
+              "bookingPages",
+              "inBrowserVideoCalling",
+              "meetingReminders",
+              "roundRobinScheduling",
+              "brevoPayments",
+              "mailboxSynchronization",
+              "conversationsMobileApp",
+              "instagramDms",
+              "facebookMessenger",
+              "sms1to1Messages",
+              "whatsapp1to1Messages",
+              "liveChat",
+              "chatbotScenarios",
+              "targetedChatAndLeadCaptureChatbot",
+              "aiChatbot",
+              "aiConversationsAgent",
+              "removeBrevoBrandingOnChat",
+              "savedReplies",
+              "conversationRouting",
+              "chatAvailability",
+              "chatRatings",
+              "liveVisitorInsights",
+              "conversationsAnalytics",
+              "worldwideCalling",
+              "unlimitedPhoneLines",
+              "callRecordingAndVoicemail",
+              "callMenu",
+              "callTransfer",
+              "aiCallTranscriptionsAndSummaries",
+              "callStatistics",
+              "aiFollowUpEmails",
+              "clickToDial",
+              "phoneMobileApp",
+              "multiLanguagePack"
+            ]
+          },
+          "usageLimits": [],
+          "price": {
+            "before": {
+              "subtotal": "499.000000",
+              "requiresQuote": false,
+              "currency": "USD",
+              "billing": "monthly",
+              "unit": "USD/month"
+            },
+            "after": {
+              "subtotal": null,
+              "requiresQuote": true,
+              "quote": [
+                "Contact sales"
+              ],
+              "currency": "USD",
+              "billing": "monthly",
+              "unit": "USD/month"
+            },
+            "billingPeriodChanged": false,
+            "differenceOmitted": "quote"
+          }
+        },
+        "attributes": [
+          {
+            "target": "availability",
+            "targetKind": "feature",
+            "sourceKind": "guarantee",
+            "before": "0.990000",
+            "after": null,
+            "delta": null
+          },
+          {
+            "target": "subscription",
+            "targetKind": "feature",
+            "sourceKind": "priced",
+            "before": "499.000000",
+            "after": null,
+            "delta": null
+          },
+          {
+            "target": "emailsPerDay",
+            "targetKind": "property",
+            "sourceKind": "limit",
+            "before": "100000000.000000",
+            "after": null,
+            "delta": null
+          },
+          {
+            "target": "emailsPerMonth",
+            "targetKind": "property",
+            "sourceKind": "limit",
+            "before": "150000.000000",
+            "after": null,
+            "delta": null
+          }
+        ],
+        "requirements": [],
+        "reasons": [
+          {
+            "code": "price_not_numeric",
+            "plan": "PROFESSIONAL"
+          }
+        ],
+        "originMismatch": []
+      }
+    ],
+    "global": [],
+    "notes": [
+      "values_not_reevaluated"
+    ]
+  }
+}

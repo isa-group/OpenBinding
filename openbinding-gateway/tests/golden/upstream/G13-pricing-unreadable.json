@@ -1,0 +1,41 @@
+{
+  "event": true,
+  "category": "binding_invalid",
+  "reasons": [
+    {
+      "code": "pricing_unreadable",
+      "detail": "sphere_syntax_unsupported"
+    }
+  ],
+  "notify": true,
+  "classifier": "1",
+  "diff": {
+    "schema": "openbinding/upstream-event-diff@1",
+    "pricing": {
+      "sphere": "atenea/dropbox",
+      "registry": null,
+      "pricingId": "6ab0a323697330667ccce9c1",
+      "title": "Dropbox"
+    },
+    "old": {
+      "versionId": "687e4b68102baa50f3a5c7b6",
+      "label": "2024",
+      "createdAt": "2025-07-01T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b6"
+    },
+    "new": {
+      "versionId": "687e4b68102baa50f3a5c7b5",
+      "label": "2023",
+      "createdAt": "2025-07-06T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b5"
+    },
+    "catalog": null,
+    "entries": [],
+    "global": [],
+    "notes": [
+      "values_not_reevaluated"
+    ]
+  }
+}

@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....db.models import Notification, User, utcnow
 
-#: What a notification is about, as SPHERE's notification kinds; ``UpstreamEvent`` arrives in F6.
+#: What a notification is about, as SPHERE's notification kinds.
 ORGANIZATION_INVITATION = "OrganizationInvitation"
 SYSTEM = "System"
 COMPOSITION_UPDATED = "CompositionUpdated"
@@ -26,11 +26,17 @@ RUN_FINISHED = "RunFinished"
 RUN_FAILED = "RunFailed"
 #: A version was adopted in a composition environment (F4): told to its operator and the composition's followers.
 COMPOSITION_ADOPTED = "CompositionAdopted"
-KINDS = (ORGANIZATION_INVITATION, SYSTEM, COMPOSITION_UPDATED, RUN_FINISHED, RUN_FAILED, COMPOSITION_ADOPTED)
+#: A pricing a live composition version reads changed upstream (F6): told to the members who can act.
+UPSTREAM_EVENT = "UpstreamEvent"
+KINDS = (ORGANIZATION_INVITATION, SYSTEM, COMPOSITION_UPDATED, RUN_FINISHED, RUN_FAILED, COMPOSITION_ADOPTED,
+         UPSTREAM_EVENT)
 #: The channels a user chooses per kind.
 CHANNELS = ("inbox", "email")
 #: The channels a kind starts with when the user chose nothing for it: both on, unless listed here.
-DEFAULT_CHANNELS: dict[str, dict[str, bool]] = {COMPOSITION_ADOPTED: {"inbox": True, "email": False}}
+DEFAULT_CHANNELS: dict[str, dict[str, bool]] = {
+    COMPOSITION_ADOPTED: {"inbox": True, "email": False},
+    UPSTREAM_EVENT: {"inbox": True, "email": False},
+}
 
 
 def default_channels(kind: str) -> dict[str, bool]:

@@ -1,0 +1,714 @@
+{
+  "event": true,
+  "category": "binding_invalid",
+  "reasons": [
+    {
+      "code": "plan_removed",
+      "plan": "BASIC"
+    }
+  ],
+  "notify": true,
+  "classifier": "1",
+  "diff": {
+    "schema": "openbinding/upstream-event-diff@1",
+    "pricing": {
+      "sphere": "sphere/openbinding",
+      "registry": null,
+      "pricingId": "6ab0a323697330667ccce891",
+      "title": "OpenBinding"
+    },
+    "old": {
+      "versionId": "6ab3af164191a7ee13e5e7f3",
+      "label": "0.1.5",
+      "createdAt": "2026-09-23T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce891?version=6ab3af164191a7ee13e5e7f3"
+    },
+    "new": {
+      "versionId": "6ada6dbd4b2b5b01c587d17f",
+      "label": "0.2.0",
+      "createdAt": "2026-10-22T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ab0a323697330667ccce891?version=6ada6dbd4b2b5b01c587d17f"
+    },
+    "catalog": {
+      "plans": {
+        "added": [
+          "FREE",
+          "LAB"
+        ],
+        "removed": [
+          "BASIC",
+          "ADVANCED",
+          "PRO"
+        ]
+      },
+      "addOns": {
+        "added": [],
+        "removed": [
+          "COMPUTE_PACK",
+          "COLLABORATION_PACK",
+          "STORAGE_PACK",
+          "FEDERATION_PACK",
+          "CONCURRENCY_PACK",
+          "REPRODUCIBILITY_ARCHIVE"
+        ]
+      },
+      "features": {
+        "added": [
+          "repository",
+          "runs",
+          "generator"
+        ],
+        "removed": [
+          "authoring",
+          "solve",
+          "advancedAnalytics",
+          "reproducibleExport",
+          "publishing",
+          "reproducibilityArchive",
+          "institutionalBranding"
+        ]
+      },
+      "usageLimits": {
+        "added": [
+          "maxProblems",
+          "maxCollections",
+          "maxRepositoryStorage",
+          "solverHours",
+          "maxRunMinutes",
+          "maxConcurrentRuns",
+          "maxStudyCells",
+          "generatedInstances",
+          "maxInstancesPerGeneration",
+          "maxFederatedEngines",
+          "maxPrivateProjects",
+          "maxApiKeys"
+        ],
+        "removed": [
+          "taskStarts",
+          "solverSeconds",
+          "federatedTaskStarts",
+          "concurrentJobs",
+          "federatedEngines",
+          "apiKeys",
+          "maxTimeoutSeconds",
+          "maxIterations",
+          "maxPayloadBytes",
+          "maxInstanceComplexityLog10",
+          "jobHistoryDays",
+          "studyRuns",
+          "organizations",
+          "members",
+          "projects",
+          "privateProjects",
+          "collections",
+          "studies",
+          "storageBytes"
+        ]
+      }
+    },
+    "entries": [
+      {
+        "task": "solve",
+        "candidate": "engine.openbinding.basic",
+        "selection": {
+          "plan": "BASIC",
+          "addOns": [],
+          "billing": null,
+          "seats": 1
+        },
+        "comparison": {
+          "plan": {
+            "before": {
+              "id": "BASIC",
+              "known": true,
+              "name": "BASIC"
+            },
+            "after": {
+              "id": "BASIC",
+              "known": false,
+              "name": null
+            },
+            "changed": false,
+            "renamedTo": null
+          },
+          "addOns": {
+            "added": [],
+            "removedByUser": [],
+            "removedByReconciliation": [],
+            "quantityChanged": [],
+            "unchanged": []
+          },
+          "features": {
+            "gained": [
+              {
+                "id": "repository",
+                "name": "repository",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "runs",
+                "name": "runs",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              },
+              {
+                "id": "generator",
+                "name": "generator",
+                "before": {
+                  "kind": "none"
+                },
+                "after": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "presence": "after-only"
+              }
+            ],
+            "lost": [
+              {
+                "id": "authoring",
+                "name": "authoring",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              },
+              {
+                "id": "solve",
+                "name": "solve",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              },
+              {
+                "id": "reproducibleExport",
+                "name": "reproducibleExport",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              },
+              {
+                "id": "publishing",
+                "name": "publishing",
+                "before": {
+                  "kind": "boolean",
+                  "value": true
+                },
+                "after": {
+                  "kind": "none"
+                },
+                "presence": "before-only"
+              }
+            ],
+            "changed": [],
+            "unchanged": [
+              "studies",
+              "federatedEngines",
+              "collaboration",
+              "apiAccess",
+              "advancedAnalytics",
+              "reproducibilityArchive",
+              "institutionalBranding"
+            ]
+          },
+          "usageLimits": [
+            {
+              "id": "maxProblems",
+              "name": "maxProblems",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "25"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "problem"
+            },
+            {
+              "id": "maxCollections",
+              "name": "maxCollections",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "5"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "collection"
+            },
+            {
+              "id": "maxRepositoryStorage",
+              "name": "maxRepositoryStorage",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "500"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "MB"
+            },
+            {
+              "id": "solverHours",
+              "name": "solverHours",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "5"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "hour/month"
+            },
+            {
+              "id": "maxRunMinutes",
+              "name": "maxRunMinutes",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "5"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "minute"
+            },
+            {
+              "id": "maxConcurrentRuns",
+              "name": "maxConcurrentRuns",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "1"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "run"
+            },
+            {
+              "id": "maxStudyCells",
+              "name": "maxStudyCells",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "500"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "cell"
+            },
+            {
+              "id": "generatedInstances",
+              "name": "generatedInstances",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "1000"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "instance/month"
+            },
+            {
+              "id": "maxInstancesPerGeneration",
+              "name": "maxInstancesPerGeneration",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "100"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "instance"
+            },
+            {
+              "id": "maxFederatedEngines",
+              "name": "maxFederatedEngines",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "1"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "engine"
+            },
+            {
+              "id": "maxPrivateProjects",
+              "name": "maxPrivateProjects",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "1"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "project"
+            },
+            {
+              "id": "maxApiKeys",
+              "name": "maxApiKeys",
+              "before": {
+                "kind": "none"
+              },
+              "after": {
+                "kind": "number",
+                "value": "2"
+              },
+              "direction": "increased",
+              "presence": "after-only",
+              "unit": "key"
+            },
+            {
+              "id": "taskStarts",
+              "name": "taskStarts",
+              "before": {
+                "kind": "number",
+                "value": "10"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "solve/month"
+            },
+            {
+              "id": "solverSeconds",
+              "name": "solverSeconds",
+              "before": {
+                "kind": "number",
+                "value": "900"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "second/month"
+            },
+            {
+              "id": "federatedTaskStarts",
+              "name": "federatedTaskStarts",
+              "before": {
+                "kind": "number",
+                "value": "5"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "solve/month"
+            },
+            {
+              "id": "concurrentJobs",
+              "name": "concurrentJobs",
+              "before": {
+                "kind": "number",
+                "value": "1"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "job"
+            },
+            {
+              "id": "federatedEngines",
+              "name": "federatedEngines",
+              "before": {
+                "kind": "number",
+                "value": "1"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "engine"
+            },
+            {
+              "id": "apiKeys",
+              "name": "apiKeys",
+              "before": {
+                "kind": "number",
+                "value": "1"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "key"
+            },
+            {
+              "id": "maxTimeoutSeconds",
+              "name": "maxTimeoutSeconds",
+              "before": {
+                "kind": "number",
+                "value": "60"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "second"
+            },
+            {
+              "id": "maxIterations",
+              "name": "maxIterations",
+              "before": {
+                "kind": "number",
+                "value": "10000"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "iteration"
+            },
+            {
+              "id": "maxPayloadBytes",
+              "name": "maxPayloadBytes",
+              "before": {
+                "kind": "number",
+                "value": "8388608"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "byte"
+            },
+            {
+              "id": "maxInstanceComplexityLog10",
+              "name": "maxInstanceComplexityLog10",
+              "before": {
+                "kind": "number",
+                "value": "9"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "log10 combinations"
+            },
+            {
+              "id": "jobHistoryDays",
+              "name": "jobHistoryDays",
+              "before": {
+                "kind": "number",
+                "value": "7"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "day"
+            },
+            {
+              "id": "studyRuns",
+              "name": "studyRuns",
+              "before": {
+                "kind": "number",
+                "value": "3"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "run/month"
+            },
+            {
+              "id": "organizations",
+              "name": "organizations",
+              "before": {
+                "kind": "number",
+                "value": "1"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "organization"
+            },
+            {
+              "id": "members",
+              "name": "members",
+              "before": {
+                "kind": "number",
+                "value": "2"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "member"
+            },
+            {
+              "id": "projects",
+              "name": "projects",
+              "before": {
+                "kind": "number",
+                "value": "3"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "project"
+            },
+            {
+              "id": "privateProjects",
+              "name": "privateProjects",
+              "before": {
+                "kind": "number",
+                "value": "1"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "project"
+            },
+            {
+              "id": "collections",
+              "name": "collections",
+              "before": {
+                "kind": "number",
+                "value": "2"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "collection"
+            },
+            {
+              "id": "studies",
+              "name": "studies",
+              "before": {
+                "kind": "number",
+                "value": "1"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "study"
+            },
+            {
+              "id": "storageBytes",
+              "name": "storageBytes",
+              "before": {
+                "kind": "unlimited"
+              },
+              "after": {
+                "kind": "none"
+              },
+              "direction": "decreased",
+              "presence": "before-only",
+              "unit": "byte"
+            }
+          ],
+          "price": {
+            "before": {
+              "subtotal": "0.000000",
+              "requiresQuote": false,
+              "currency": "EUR",
+              "billing": "monthly",
+              "unit": "EUR/month"
+            },
+            "after": {
+              "subtotal": null,
+              "requiresQuote": false,
+              "currency": "EUR",
+              "billing": null,
+              "unit": null
+            },
+            "billingPeriodChanged": true,
+            "differenceOmitted": "plan"
+          }
+        },
+        "attributes": [],
+        "requirements": [],
+        "reasons": [
+          {
+            "code": "plan_removed",
+            "plan": "BASIC"
+          }
+        ],
+        "originMismatch": []
+      }
+    ],
+    "global": [],
+    "notes": [
+      "no_value_origins",
+      "values_not_reevaluated"
+    ]
+  }
+}

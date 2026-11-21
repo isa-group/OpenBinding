@@ -7,6 +7,14 @@ Code outside ``modules/plans`` reaches the module through this package only
 
 from ..domain import entitlement_map, pricing2yaml, quotas
 from ..domain.errors import PricingDiagnostic, PricingError, PricingInvalid
+from ..domain.content_hash import functional_hash
+from ..domain.pricing2yaml.compare import (
+    Selection,
+    SelectionComparison,
+    catalog_diff,
+    compare_selections,
+    identical_plan,
+)
 from ..domain.money import (
     MAX_AMOUNT,
     AmountOutOfRange,
@@ -41,6 +49,7 @@ from .discovery import manifest as sphere_manifest
 from .own_pricing import OwnPricing, OwnPricingUnavailable, own_pricing
 from .connections import credential_for, mark_invalid
 from .parsing import ParsedPricing, parse, parse_sync
+from ..domain.snapshots import canonical_url, url_source_key
 from .snapshots import (
     Snapshotted,
     account_stored_bytes,
@@ -94,17 +103,24 @@ __all__ = [
     "SearchPage",
     "SearchQuery",
     "SearchRow",
+    "Selection",
+    "SelectionComparison",
     "Snapshotted",
     "SphereEndpoint",
     "SphereOrganization",
     "SphereUser",
     "VersionRead",
     "account_stored_bytes",
+    "canonical_url",
+    "catalog_diff",
+    "compare_selections",
     "connections",
     "credential_for",
     "discovery",
     "entitlement_map",
     "exact",
+    "functional_hash",
+    "identical_plan",
     "in_range",
     "get_pricing_source",
     "installed_pricing_source",
@@ -132,4 +148,5 @@ __all__ = [
     "snapshot_version",
     "sphere_manifest",
     "url_snapshot_bytes",
+    "url_source_key",
 ]

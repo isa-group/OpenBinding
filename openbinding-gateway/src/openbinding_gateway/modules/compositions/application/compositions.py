@@ -35,10 +35,12 @@ from ....db.models import (
     CompositionEvaluation,
     CompositionFollow,
     CompositionKind,
+    CompositionUpstreamEvent,
     CompositionVersion,
     Organization,
     OrganizationMembership,
     OrganizationRole,
+    PricingWatchRef,
     User,
 )
 from ....models.errors import api_error
@@ -395,6 +397,9 @@ async def delete_composition(session: AsyncSession, composition: Composition, ac
             environments=environments,
         )
     versions = select(CompositionVersion.id).where(CompositionVersion.composition_id == composition.id)
+    # F6: its upstream events and watch references go first (they name its versions); the watches stay.
+    await session.execute(delete(CompositionUpstreamEvent).where(CompositionUpstreamEvent.composition_id == composition.id))
+    await session.execute(delete(PricingWatchRef).where(PricingWatchRef.composition_id == composition.id))
     await session.execute(delete(CompositionFollow).where(CompositionFollow.composition_id == composition.id))
     await session.execute(delete(CompositionDerivation).where(CompositionDerivation.version_id.in_(versions)))
     await session.execute(delete(CompositionEvaluation).where(CompositionEvaluation.version_id.in_(versions)))

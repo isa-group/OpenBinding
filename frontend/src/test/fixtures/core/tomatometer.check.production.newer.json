@@ -4,14 +4,14 @@
     "status": "valid",
     "toolchain": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4"
   },
-  "checkedAt": "2026-01-01T00:00:17Z",
+  "checkedAt": "2026-01-01T00:00:19Z",
   "offering": {
     "latest": {
-      "createdAt": "2026-01-01T00:00:10Z",
+      "createdAt": "2026-01-01T00:00:12Z",
       "versionName": "1.0.0"
     },
     "pinned": {
-      "createdAt": "2026-01-01T00:00:10Z",
+      "createdAt": "2026-01-01T00:00:12Z",
       "versionName": "1.0.0"
     },
     "source": {
@@ -22,9 +22,9 @@
   "upstream": [
     {
       "latest": {
-        "createdAt": "2026-01-01T00:00:18Z",
-        "name": "2027-01",
-        "versionId": "6ffffffffffffffffffffff1"
+        "createdAt": "2026-01-01T00:00:20Z",
+        "name": "2026-11",
+        "versionId": "6fff00000000000000000001"
       },
       "pinned": {
         "createdAt": "2026-01-01T00:00:08Z",
@@ -38,12 +38,12 @@
     },
     {
       "latest": {
-        "createdAt": "2026-01-01T00:00:09Z",
+        "createdAt": "2026-01-01T00:00:10Z",
         "name": "2021",
         "versionId": "687e4b68102baa50f3a5c7b7"
       },
       "pinned": {
-        "createdAt": "2026-01-01T00:00:09Z",
+        "createdAt": "2026-01-01T00:00:10Z",
         "name": "2021",
         "versionId": "687e4b68102baa50f3a5c7b7"
       },

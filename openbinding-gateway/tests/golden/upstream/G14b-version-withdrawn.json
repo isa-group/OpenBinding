@@ -1,0 +1,58 @@
+{
+  "event": true,
+  "category": "binding_invalid",
+  "reasons": [
+    {
+      "code": "source_unavailable",
+      "detail": "version_withdrawn"
+    }
+  ],
+  "notify": true,
+  "classifier": "1",
+  "diff": {
+    "schema": "openbinding/upstream-event-diff@1",
+    "pricing": {
+      "sphere": "danruilop1/brevo",
+      "registry": null,
+      "pricingId": "6ade2d4440e55445692b07f1",
+      "title": "brevo"
+    },
+    "old": {
+      "versionId": "6ade2d444b2b5b01c587d80d",
+      "label": "2026-10",
+      "createdAt": "2026-10-25T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d"
+    },
+    "new": {
+      "versionId": "6fff00000000000000000001",
+      "label": "2026-11",
+      "createdAt": "2026-11-15T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6fff00000000000000000001"
+    },
+    "catalog": null,
+    "entries": [
+      {
+        "task": "dailySummary",
+        "candidate": "email.brevo.professional",
+        "selection": {
+          "plan": "PROFESSIONAL",
+          "addOns": [],
+          "billing": "monthly",
+          "seats": 1
+        },
+        "reasons": [
+          {
+            "code": "source_unavailable",
+            "detail": "version_withdrawn"
+          }
+        ]
+      }
+    ],
+    "global": [],
+    "notes": [
+      "values_not_reevaluated"
+    ]
+  }
+}

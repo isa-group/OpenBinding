@@ -1,0 +1,207 @@
+{
+  "event": true,
+  "category": "no_impact",
+  "reasons": [],
+  "notify": false,
+  "classifier": "1",
+  "diff": {
+    "schema": "openbinding/upstream-event-diff@1",
+    "pricing": {
+      "sphere": "danruilop1/mailgun",
+      "registry": null,
+      "pricingId": "6ade364540e55445692b0eda",
+      "title": "Mailgun"
+    },
+    "old": {
+      "versionId": "6ade36454b2b5b01c587db3d",
+      "label": "2026-10",
+      "createdAt": "2026-10-25T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6ade36454b2b5b01c587db3d"
+    },
+    "new": {
+      "versionId": "6fff0000000000000000a001",
+      "label": "2026-10 (scale)",
+      "createdAt": "2026-11-01T00:00:00.000Z",
+      "snapshotId": null,
+      "url": "https://sphere.score.us.es/p/6ade364540e55445692b0eda?version=6fff0000000000000000a001"
+    },
+    "catalog": {
+      "plans": {
+        "added": [],
+        "removed": []
+      },
+      "addOns": {
+        "added": [],
+        "removed": []
+      },
+      "features": {
+        "added": [],
+        "removed": []
+      },
+      "usageLimits": {
+        "added": [],
+        "removed": []
+      }
+    },
+    "entries": [
+      {
+        "task": "dailySummary",
+        "candidate": "email.mailgun.foundation",
+        "selection": {
+          "plan": "FOUNDATION",
+          "addOns": [],
+          "billing": "monthly",
+          "seats": 1
+        },
+        "comparison": {
+          "plan": {
+            "before": {
+              "id": "FOUNDATION",
+              "known": true,
+              "name": "FOUNDATION"
+            },
+            "after": {
+              "id": "FOUNDATION",
+              "known": true,
+              "name": "FOUNDATION"
+            },
+            "changed": false,
+            "renamedTo": null
+          },
+          "addOns": {
+            "added": [],
+            "removedByUser": [],
+            "removedByReconciliation": [],
+            "quantityChanged": [],
+            "unchanged": []
+          },
+          "features": {
+            "gained": [],
+            "lost": [],
+            "changed": [],
+            "unchanged": [
+              "smtpRelays",
+              "restfulEmailApi",
+              "mailingLists",
+              "recipientVariables",
+              "customSendingDomains",
+              "logRetention",
+              "bounceClassification",
+              "messageRetention",
+              "analytics",
+              "scheduledAnalyticsReports",
+              "inboundRouting",
+              "emailTemplates",
+              "webhooks",
+              "apiKeys",
+              "guaranteedUptimeSla",
+              "sendTimeOptimization",
+              "emailValidations",
+              "suppressionManagement",
+              "automatedDedicatedIpWarmUp",
+              "authenticationProtocols",
+              "linkTracking",
+              "dedicatedIps",
+              "dedicatedIpPools",
+              "rapidFireSla",
+              "twoFactorAuthentication",
+              "userAccounts",
+              "multiUserAccess",
+              "userRolesAndPermissions",
+              "samlSso",
+              "subaccounts",
+              "rbacApiKeys",
+              "knowledgeCenter",
+              "comprehensiveSdks",
+              "customerFeedbackForum",
+              "documentation",
+              "ticketSupport",
+              "chatSupport",
+              "phoneSupport"
+            ]
+          },
+          "usageLimits": [],
+          "price": {
+            "before": {
+              "subtotal": "35.000000",
+              "requiresQuote": false,
+              "currency": "USD",
+              "billing": "monthly",
+              "unit": "USD/month"
+            },
+            "after": {
+              "subtotal": "35.000000",
+              "requiresQuote": false,
+              "currency": "USD",
+              "billing": "monthly",
+              "unit": "USD/month"
+            },
+            "billingPeriodChanged": false,
+            "difference": "0.000000"
+          }
+        },
+        "attributes": [
+          {
+            "target": "availability",
+            "targetKind": "feature",
+            "sourceKind": "guarantee",
+            "before": "0.999500",
+            "after": "0.999500",
+            "delta": null
+          },
+          {
+            "target": "subscription",
+            "targetKind": "feature",
+            "sourceKind": "priced",
+            "before": "35.000000",
+            "after": "35.000000",
+            "delta": "0.000000"
+          },
+          {
+            "target": "emailsPerDay",
+            "targetKind": "property",
+            "sourceKind": "limit",
+            "before": "100000000.000000",
+            "after": "100000000.000000",
+            "delta": null
+          },
+          {
+            "target": "emailsPerMonth",
+            "targetKind": "property",
+            "sourceKind": "limit",
+            "before": "50000.000000",
+            "after": "50000.000000",
+            "delta": null
+          }
+        ],
+        "requirements": [
+          {
+            "name": "emailsPerDay",
+            "kind": "limit",
+            "demand": "1000.000000",
+            "before": true,
+            "after": true,
+            "valueBefore": "100000000.000000",
+            "valueAfter": "100000000.000000"
+          },
+          {
+            "name": "emailsPerMonth",
+            "kind": "limit",
+            "demand": "30000.000000",
+            "before": true,
+            "after": true,
+            "valueBefore": "50000.000000",
+            "valueAfter": "50000.000000"
+          }
+        ],
+        "reasons": [],
+        "originMismatch": []
+      }
+    ],
+    "global": [],
+    "notes": [
+      "values_not_reevaluated"
+    ]
+  }
+}

@@ -1,9 +1,11 @@
 """The one Python reading of Pricing2Yaml 3.x, shared by the F3 expansion, the offering check and F6.
 
 Pure: no I/O. ``normalise`` reads a loaded document, ``normalise_text`` loads one with ``yaml12`` first,
-``effective`` gives the values and price of one selection, ``summary`` the wizard's JSON.
+``effective`` gives the values and price of one selection, ``compare_selections`` compares one selection across
+two versions, ``summary`` the wizard's JSON.
 """
 
+from .compare import Selection, SelectionComparison, catalog_diff, compare_selections, identical_plan
 from .effective import Effective, PricePart, add_on_quantity, effective, single_variants
 from .model import (
     AddOn,
@@ -35,12 +37,17 @@ __all__ = [
     "Plan",
     "Price",
     "PricePart",
+    "Selection",
+    "SelectionComparison",
     "Unlimited",
     "Value",
     "add_on_quantity",
     "as_json",
+    "catalog_diff",
+    "compare_selections",
     "effective",
     "effective_json",
+    "identical_plan",
     "normalise",
     "normalise_text",
     "price_json",

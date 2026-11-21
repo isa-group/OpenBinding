@@ -1,0 +1,1723 @@
+{
+ "note": "Golden cases of the upstream classifier (tools/dump_upstream_goldens.py, F6 G1-G20). Pricings are recorded (`ref` pricingId@versionId), derived (`scenario`, fixtures/sphere/scenarios.json) or files, optionally edited by dotted path (the recorder's YamlText). Origins come from a generator golden (tests/golden/sphere) or are `computed` from the old version with the generator's own functions. `expect` is the category the test asserts (null: no event).",
+ "cases": [
+  {
+   "name": "G01-metadata-only",
+   "golden": "G1",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "sphere/openbinding",
+    "registry": null,
+    "pricingId": "6ab0a323697330667ccce891",
+    "title": "OpenBinding"
+   },
+   "old": {
+    "ref": "6ab0a323697330667ccce891@6a9d1d9293628b97bbf63ab0"
+   },
+   "new": {
+    "ref": "6ab0a323697330667ccce891@6a9d355893628b97bbf63be6"
+   },
+   "entries": [
+    {
+     "task": "solve",
+     "candidate": "engine.openbinding.basic",
+     "selection": {
+      "plan": "BASIC",
+      "addOns": [],
+      "billing": null,
+      "seats": 1
+     },
+     "origins": null,
+     "recipe": null
+    },
+    {
+     "task": "solve",
+     "candidate": "engine.openbinding.pro",
+     "selection": {
+      "plan": "PRO",
+      "addOns": [],
+      "billing": null,
+      "seats": 1
+     },
+     "origins": null,
+     "recipe": null
+    }
+   ],
+   "context": {
+    "valuesStatus": "declared"
+   },
+   "expect": "no_impact"
+  },
+  {
+   "name": "G02a-other-plan-mailgun",
+   "golden": "G2",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/mailgun",
+    "registry": null,
+    "pricingId": "6ade364540e55445692b0eda",
+    "title": "Mailgun"
+   },
+   "old": {
+    "ref": "6ade364540e55445692b0eda@6ade36454b2b5b01c587db3d"
+   },
+   "new": {
+    "file": "fixtures/sphere/derived/mailgun-scale.yml",
+    "pricingId": "6ade364540e55445692b0eda",
+    "versionId": "6fff0000000000000000a001",
+    "label": "2026-10 (scale)",
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.mailgun.foundation",
+     "selection": {
+      "plan": "FOUNDATION",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.mailgun.foundation"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade364540e55445692b0eda"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "no_impact"
+  },
+  {
+   "name": "G02b-other-plan-openbinding",
+   "golden": "G2",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "sphere/openbinding",
+    "registry": null,
+    "pricingId": "6ab0a323697330667ccce891",
+    "title": "OpenBinding"
+   },
+   "old": {
+    "ref": "6ab0a323697330667ccce891@6a9d355893628b97bbf63be6"
+   },
+   "new": {
+    "ref": "6ab0a323697330667ccce891@6ab29c8a4191a7ee13e5e5f6"
+   },
+   "entries": [
+    {
+     "task": "solve",
+     "candidate": "engine.openbinding.basic",
+     "selection": {
+      "plan": "BASIC",
+      "addOns": [],
+      "billing": null,
+      "seats": 1
+     },
+     "origins": null,
+     "recipe": null
+    }
+   ],
+   "context": {
+    "valuesStatus": "declared"
+   },
+   "expect": "no_impact"
+  },
+  {
+   "name": "G03-price-raise",
+   "golden": "G3",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": {
+    "scenario": "brevo-professional-up"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.brevo.professional"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "values_changed"
+  },
+  {
+   "name": "G04-guarantee",
+   "golden": "G4",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": {
+    "scenario": "brevo-sla"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.brevo.professional"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "values_changed"
+  },
+  {
+   "name": "G05a-limit-mailgun",
+   "golden": "G5",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/mailgun",
+    "registry": null,
+    "pricingId": "6ade364540e55445692b0eda",
+    "title": "Mailgun"
+   },
+   "old": {
+    "ref": "6ade364540e55445692b0eda@6ade36454b2b5b01c587db3d"
+   },
+   "new": {
+    "file": "fixtures/sphere/derived/mailgun-scale.yml",
+    "pricingId": "6ade364540e55445692b0eda",
+    "versionId": "6fff0000000000000000a001",
+    "label": "2026-10 (scale)",
+    "createdAt": "2026-11-01T00:00:00.000Z"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.mailgun.scale",
+     "selection": {
+      "plan": "SCALE",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.mailgun.scale"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade364540e55445692b0eda"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "values_changed"
+  },
+  {
+   "name": "G05b-limit-openbinding",
+   "golden": "G5",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "sphere/openbinding",
+    "registry": null,
+    "pricingId": "6ab0a323697330667ccce891",
+    "title": "OpenBinding"
+   },
+   "old": {
+    "ref": "6ab0a323697330667ccce891@6a9d355893628b97bbf63be6"
+   },
+   "new": {
+    "ref": "6ab0a323697330667ccce891@6ab29c8a4191a7ee13e5e5f6"
+   },
+   "entries": [
+    {
+     "task": "solve",
+     "candidate": "engine.openbinding.pro",
+     "selection": {
+      "plan": "PRO",
+      "addOns": [],
+      "billing": null,
+      "seats": 1
+     },
+     "origins": null,
+     "recipe": null
+    }
+   ],
+   "context": {
+    "valuesStatus": "declared"
+   },
+   "expect": "values_changed"
+  },
+  {
+   "name": "G05c-limit-unlimited",
+   "golden": "G5",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "sphere/openbinding",
+    "registry": null,
+    "pricingId": "6ab0a323697330667ccce891",
+    "title": "OpenBinding"
+   },
+   "old": {
+    "ref": "6ab0a323697330667ccce891@6ab397694191a7ee13e5e7c2"
+   },
+   "new": {
+    "ref": "6ab0a323697330667ccce891@6ab3af164191a7ee13e5e7f3"
+   },
+   "entries": [
+    {
+     "task": "solve",
+     "candidate": "engine.openbinding.pro",
+     "selection": {
+      "plan": "PRO",
+      "addOns": [],
+      "billing": null,
+      "seats": 1
+     },
+     "origins": null,
+     "recipe": null
+    }
+   ],
+   "context": {
+    "valuesStatus": "declared"
+   },
+   "expect": "values_changed"
+  },
+  {
+   "name": "G06-bound-add-on",
+   "golden": "G6",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": {
+    "scenario": "brevo-addon"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [
+       "samlSso"
+      ],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": "computed",
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "values_changed"
+  },
+  {
+   "name": "G07a-plan-removed",
+   "golden": "G7",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": {
+    "scenario": "brevo-professional-retired"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.brevo.professional"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "binding_invalid"
+  },
+  {
+   "name": "G07b-plan-removed-openbinding",
+   "golden": "G7",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "sphere/openbinding",
+    "registry": null,
+    "pricingId": "6ab0a323697330667ccce891",
+    "title": "OpenBinding"
+   },
+   "old": {
+    "ref": "6ab0a323697330667ccce891@6ab3af164191a7ee13e5e7f3"
+   },
+   "new": {
+    "ref": "6ab0a323697330667ccce891@6ada6dbd4b2b5b01c587d17f"
+   },
+   "entries": [
+    {
+     "task": "solve",
+     "candidate": "engine.openbinding.basic",
+     "selection": {
+      "plan": "BASIC",
+      "addOns": [],
+      "billing": null,
+      "seats": 1
+     },
+     "origins": null,
+     "recipe": null
+    }
+   ],
+   "context": {
+    "valuesStatus": "declared"
+   },
+   "expect": "binding_invalid"
+  },
+  {
+   "name": "G08-plan-renamed",
+   "golden": "G8",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": {
+    "scenario": "brevo-professional-renamed"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.brevo.professional"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "binding_invalid"
+  },
+  {
+   "name": "G09-required-feature-lost",
+   "golden": "G9",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": {
+    "scenario": "brevo-addon"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [
+       "samlSso"
+      ],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": "computed",
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1",
+      "edit": {
+       "tasks.0.require.features": [
+        "ssoSaml"
+       ]
+      }
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "binding_invalid"
+  },
+  {
+   "name": "G10-required-limit-below-demand",
+   "golden": "G10",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": {
+    "scenario": "brevo-daily-limit"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.brevo.professional"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "binding_invalid"
+  },
+  {
+   "name": "G11a-plan-private",
+   "golden": "G11",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": {
+    "scenario": "brevo-private"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.brevo.professional"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "binding_invalid"
+  },
+  {
+   "name": "G11b-price-label",
+   "golden": "G11",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": {
+    "scenario": "brevo-label"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.brevo.professional"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "binding_invalid"
+  },
+  {
+   "name": "G11c-price-expression",
+   "golden": "G11",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "atenea/dropbox",
+    "registry": null,
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "title": "Dropbox"
+   },
+   "old": {
+    "ref": "6ab0a323697330667ccce9c1@687e4b68102baa50f3a5c7b7"
+   },
+   "new": {
+    "ref": "6ab0a323697330667ccce9c1@687e4b68102baa50f3a5c7b6"
+   },
+   "entries": [
+    {
+     "task": "export",
+     "candidate": "storage.dropbox.plus",
+     "selection": {
+      "plan": "PLUS",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "dropbox-2021",
+      "candidate": "sphere-storage/storage.dropbox.plus"
+     },
+     "recipe": {
+      "case": "dropbox-2021",
+      "task": "export",
+      "pricing": "6ab0a323697330667ccce9c1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 11.99,
+      "unit": "USD/month"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     }
+    }
+   },
+   "expect": "binding_invalid"
+  },
+  {
+   "name": "G12-value-unmapped",
+   "golden": "G12",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "sphere/openbinding",
+    "registry": null,
+    "pricingId": "6ab0a323697330667ccce891",
+    "title": "OpenBinding"
+   },
+   "old": {
+    "ref": "6ab0a323697330667ccce891@6ab3af164191a7ee13e5e7f3"
+   },
+   "new": {
+    "ref": "6ab0a323697330667ccce891@6ada6dbd4b2b5b01c587d17f"
+   },
+   "entries": [
+    {
+     "task": "solve",
+     "candidate": "engine.openbinding.research",
+     "selection": {
+      "plan": "RESEARCH",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": "computed",
+     "recipe": {
+      "recipe": {
+       "recipeVersion": "1",
+       "currency": "EUR",
+       "billing": "monthly",
+       "features": {},
+       "tasks": [
+        {
+         "task": "solve",
+         "capability": "service/solver",
+         "from": [
+          {
+           "sphere": {
+            "pricing": "6ab0a323697330667ccce891",
+            "version": "6ab3af164191a7ee13e5e7f3"
+           },
+           "provider": "openbinding",
+           "plans": [
+            "RESEARCH"
+           ],
+           "addons": []
+          }
+         ],
+         "properties": {
+          "keys": "limit:apiKeys"
+         }
+        }
+       ]
+      },
+      "task": "solve",
+      "pricing": "6ab0a323697330667ccce891"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified"
+   },
+   "expect": "binding_invalid"
+  },
+  {
+   "name": "G13-pricing-unreadable",
+   "golden": "G13",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "atenea/dropbox",
+    "registry": null,
+    "pricingId": "6ab0a323697330667ccce9c1",
+    "title": "Dropbox"
+   },
+   "old": {
+    "ref": "6ab0a323697330667ccce9c1@687e4b68102baa50f3a5c7b6"
+   },
+   "new": {
+    "ref": "6ab0a323697330667ccce9c1@687e4b68102baa50f3a5c7b5"
+   },
+   "entries": [
+    {
+     "task": "export",
+     "candidate": "storage.dropbox.plus",
+     "selection": {
+      "plan": "PLUS",
+      "addOns": [],
+      "billing": null,
+      "seats": 1
+     },
+     "origins": null,
+     "recipe": null
+    }
+   ],
+   "context": {
+    "valuesStatus": "declared"
+   },
+   "expect": "binding_invalid"
+  },
+  {
+   "name": "G14a-family-not-found",
+   "golden": "G14",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": null,
+   "gone": true,
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.brevo.professional"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "binding_invalid"
+  },
+  {
+   "name": "G14b-version-withdrawn",
+   "golden": "G14",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": {
+    "scenario": "brevo-professional-up"
+   },
+   "withdrawn": true,
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.brevo.professional"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "binding_invalid"
+  },
+  {
+   "name": "G15a-rename-mailgun",
+   "golden": "G15",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/mailgun",
+    "registry": null,
+    "pricingId": "6ade364540e55445692b0eda",
+    "title": "Mailgun"
+   },
+   "old": {
+    "ref": "6ade364540e55445692b0eda@6ade36454b2b5b01c587db3d"
+   },
+   "sameId": true,
+   "new": {
+    "file": "fixtures/sphere/derived/mailgun-renamed.yml",
+    "pricingId": "6ade364540e55445692b0eda",
+    "versionId": "6ade36454b2b5b01c587db3d",
+    "label": "2026-10"
+   },
+   "entries": [],
+   "expect": null
+  },
+  {
+   "name": "G15b-rename-family",
+   "golden": "G15",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "sameId": true,
+   "new": {
+    "scenario": "brevo-renamed-family"
+   },
+   "entries": [],
+   "expect": null
+  },
+  {
+   "name": "G16a-offering-zero-delta",
+   "golden": "G16a",
+   "kind": "offering",
+   "pricing": {
+    "sphere": "sphere/tomatometer",
+    "registry": null,
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "title": "TomatoMeter"
+   },
+   "old": {
+    "ref": "6ab0a323697330667ccce8cd@6921867e7004563bd918e7e8"
+   },
+   "new": {
+    "scenario": "tomatometer-1.1.0-fis-like"
+   },
+   "environments": [
+    {
+     "environment": "production",
+     "adoption": 1,
+     "evaluation": "production-evaluation",
+     "users": 1000,
+     "values": {
+      "subscription": {
+       "value": 508.99,
+       "unit": "USD/month"
+      }
+     }
+    }
+   ],
+   "latest": {
+    "version": "1.1.0",
+    "users": null,
+    "values": {
+     "subscription": {
+      "value": 29.99,
+      "unit": "USD/month"
+     }
+    }
+   },
+   "expect": "offering_changed"
+  },
+  {
+   "name": "G16b-offering-margins-move",
+   "golden": "G16b",
+   "kind": "offering",
+   "pricing": {
+    "sphere": "sphere/tomatometer",
+    "registry": null,
+    "pricingId": "6ab0a323697330667ccce8cd",
+    "title": "TomatoMeter"
+   },
+   "old": {
+    "ref": "6ab0a323697330667ccce8cd@6921867e7004563bd918e7e8"
+   },
+   "new": {
+    "scenario": "tomatometer-1.2.0"
+   },
+   "environments": [
+    {
+     "environment": "production",
+     "adoption": 1,
+     "evaluation": "production-evaluation",
+     "users": 1000,
+     "values": {
+      "subscription": {
+       "value": 508.99,
+       "unit": "USD/month"
+      }
+     }
+    }
+   ],
+   "latest": {
+    "version": "1.1.0",
+    "users": null,
+    "values": {
+     "subscription": {
+      "value": 29.99,
+      "unit": "USD/month"
+     }
+    }
+   },
+   "expect": "offering_changed"
+  },
+  {
+   "name": "G17a-url-same-bytes",
+   "golden": "G17",
+   "kind": "offering",
+   "pricing": {
+    "url": "https://pricings.example.org/mailgun.yml",
+    "registry": null,
+    "pricingId": null,
+    "title": "Mailgun"
+   },
+   "old": {
+    "ref": "6ade364540e55445692b0eda@6ade36454b2b5b01c587db3d"
+   },
+   "new": {
+    "ref": "6ade364540e55445692b0eda@6ade36454b2b5b01c587db3d"
+   },
+   "environments": [],
+   "expect": null
+  },
+  {
+   "name": "G17b-url-saas-name-only",
+   "golden": "G17",
+   "kind": "offering",
+   "pricing": {
+    "url": "https://pricings.example.org/mailgun.yml",
+    "registry": null,
+    "pricingId": null,
+    "title": "Mailgun"
+   },
+   "old": {
+    "ref": "6ade364540e55445692b0eda@6ade36454b2b5b01c587db3d"
+   },
+   "new": {
+    "file": "fixtures/sphere/derived/mailgun-renamed.yml",
+    "pricingId": null,
+    "versionId": null,
+    "label": "2026-10"
+   },
+   "environments": [],
+   "expect": null
+  },
+  {
+   "name": "G17c-url-other-content",
+   "golden": "G17",
+   "kind": "offering",
+   "pricing": {
+    "url": "https://pricings.example.org/mailgun.yml",
+    "registry": null,
+    "pricingId": null,
+    "title": "Mailgun"
+   },
+   "old": {
+    "ref": "6ade364540e55445692b0eda@6ade36454b2b5b01c587db3d"
+   },
+   "new": {
+    "file": "fixtures/sphere/derived/mailgun-scale.yml",
+    "pricingId": null,
+    "versionId": null,
+    "label": "2026-10"
+   },
+   "environments": [
+    {
+     "environment": "production",
+     "adoption": 1,
+     "evaluation": "production-evaluation",
+     "users": 100,
+     "values": {
+      "subscription": {
+       "value": 508.99,
+       "unit": "USD/month"
+      }
+     }
+    }
+   ],
+   "expect": "offering_changed"
+  },
+  {
+   "name": "G18-two-tasks-one-family",
+   "golden": "G18",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": {
+    "scenario": "brevo-professional-up"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.brevo.professional"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    },
+    {
+     "task": "alerts",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.brevo.professional"
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 1007.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "values_changed"
+  },
+  {
+   "name": "G19-unlimited-sentinel",
+   "golden": "G19",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "sphere/openbinding",
+    "registry": null,
+    "pricingId": "6ab0a323697330667ccce891",
+    "title": "OpenBinding"
+   },
+   "old": {
+    "ref": "6ab0a323697330667ccce891@6ab3af164191a7ee13e5e7f3"
+   },
+   "new": {
+    "ref": "6ab0a323697330667ccce891@6ab3af164191a7ee13e5e7f3",
+    "edits": [
+     [
+      "set",
+      "plans.PRO.usageLimits.maxPayloadBytes.value",
+      "268435456"
+     ]
+    ],
+    "versionId": "6fff0000000000000000a002",
+    "label": "0.1.5 (payload)"
+   },
+   "entries": [
+    {
+     "task": "solve",
+     "candidate": "engine.openbinding.pro",
+     "selection": {
+      "plan": "PRO",
+      "addOns": [],
+      "billing": null,
+      "seats": 1
+     },
+     "origins": null,
+     "recipe": null
+    }
+   ],
+   "context": {
+    "valuesStatus": "declared"
+   },
+   "expect": "no_impact"
+  },
+  {
+   "name": "G20-origin-mismatch",
+   "golden": "G20",
+   "kind": "binding",
+   "pricing": {
+    "sphere": "danruilop1/brevo",
+    "registry": null,
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "title": "brevo"
+   },
+   "old": {
+    "ref": "6ade2d4440e55445692b07f1@6ade2d444b2b5b01c587d80d"
+   },
+   "new": {
+    "scenario": "brevo-professional-up"
+   },
+   "entries": [
+    {
+     "task": "dailySummary",
+     "candidate": "email.brevo.professional",
+     "selection": {
+      "plan": "PROFESSIONAL",
+      "addOns": [],
+      "billing": "monthly",
+      "seats": 1
+     },
+     "origins": {
+      "golden": "tomatometer-email",
+      "candidate": "sphere-email/email.brevo.professional",
+      "edit": {
+       "subscription": 450
+      }
+     },
+     "recipe": {
+      "case": "tomatometer-email",
+      "task": "dailySummary",
+      "pricing": "6ade2d4440e55445692b07f1"
+     }
+    }
+   ],
+   "context": {
+    "valuesStatus": "verified",
+    "values": {
+     "subscription": {
+      "value": 508.99,
+      "unit": "USD/month"
+     },
+     "availability": {
+      "value": 0.98,
+      "unit": "1"
+     },
+     "latency": {
+      "value": 850,
+      "unit": "ms"
+     }
+    },
+    "features": {
+     "subscription": {
+      "aggregation": "sum",
+      "scope": "selectedCandidate",
+      "unit": "USD/month"
+     },
+     "availability": {
+      "aggregation": "product",
+      "scope": "invocation",
+      "unit": "1"
+     },
+     "latency": {
+      "aggregation": "sum",
+      "scope": "invocation",
+      "unit": "ms"
+     }
+    }
+   },
+   "expect": "values_changed"
+  }
+ ]
+}

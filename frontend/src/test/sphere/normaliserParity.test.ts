@@ -406,3 +406,135 @@ describe('the same plan across two versions compares as the goldens say (the inp
     );
   });
 });
+
+// The F6 classifier's comparisons (openbinding-gateway/tests/golden/upstream, copied to fixtures/sphere/upstream by
+// tools/dump_frontend_fixtures.py): pricing-renderer's compareSelections, given each golden entry's selection with
+// its billing period, must agree with the Python port (plans/domain/pricing2yaml/compare.py) on the plan, the
+// add-on reconciliation, the features gained, lost and changed, the usage limits and the price. The one documented
+// difference (two NUMERIC values of at least 1e8 are both Unlimited for the gateway) must be listed by the port as
+// `sentinel`, never silently skipped.
+interface PortValue {
+  kind: string;
+  value?: unknown;
+}
+interface PortComparison {
+  plan: { after: { known: boolean } };
+  addOns: { removedByReconciliation: Array<{ id: string; reason: string }> };
+  features: {
+    gained: Array<{ id: string }>;
+    lost: Array<{ id: string }>;
+    changed: Array<{ id: string }>;
+  };
+  usageLimits: Array<{ id: string; before: PortValue; after: PortValue }>;
+  price: {
+    before: { subtotal: string | null };
+    after: { subtotal: string | null };
+    difference?: string;
+  };
+  sentinel?: string[];
+}
+interface PortEntry {
+  selection: { plan: string; addOns: string[]; billing: string | null };
+  comparison?: PortComparison | null;
+}
+interface UpstreamGolden {
+  event: boolean;
+  diff?: { entries?: PortEntry[] };
+}
+
+const UPSTREAM = join(DIRECTORY, 'upstream');
+
+function portValue(value: PortValue): unknown {
+  if (value.kind === 'none') return null;
+  if (value.kind === 'unlimited') return UNLIMITED;
+  if (value.kind === 'number') return Number(value.value);
+  return value.value ?? null;
+}
+
+function ids(items: Array<{ id: string }>): string[] {
+  return items.map(item => item.id).sort();
+}
+
+describe('the F6 classifier compares two versions of a selection as pricing-renderer does', () => {
+  const cases = readdirSync(UPSTREAM)
+    .filter(name => name.endsWith('.json'))
+    .map(name => name.slice(0, -'.json'.length))
+    .sort();
+
+  it('has upstream goldens to compare', () => {
+    expect(cases.length).toBeGreaterThanOrEqual(20);
+  });
+
+  for (const name of cases) {
+    const golden = JSON.parse(
+      readFileSync(join(UPSTREAM, `${name}.json`), 'utf8')
+    ) as UpstreamGolden;
+    const entries = (golden.diff?.entries ?? []).filter(entry => Boolean(entry.comparison));
+    if (!golden.event || entries.length === 0) continue;
+    const before = parsePricingYaml(readFileSync(join(UPSTREAM, `${name}.old.yml`), 'utf8')).value;
+    const after = parsePricingYaml(readFileSync(join(UPSTREAM, `${name}.new.yml`), 'utf8')).value;
+    if (!before || !after) continue;
+
+    it(name, () => {
+      for (const entry of entries) {
+        const port = entry.comparison!;
+        const addOns: PricingSelection['addOns'] = {};
+        for (const id of entry.selection.addOns) addOns[id] = { selected: true, quantity: 1 };
+        const selection: Partial<PricingSelection> = { planId: entry.selection.plan, addOns };
+        if (entry.selection.billing) selection.billingPeriod = entry.selection.billing;
+        const renderer = compareSelections({
+          before: { pricing: before, selection },
+          after: { pricing: after, selection },
+          expression: EXPRESSION,
+        });
+        const sentinel = new Set(port.sentinel ?? []);
+        expect(renderer.plan.after.known, `${name} plan known`).toBe(port.plan.after.known);
+        expect(
+          renderer.addOns.removedByReconciliation.map(item => [item.id, item.reason]),
+          `${name} add-on reconciliation`
+        ).toEqual(port.addOns.removedByReconciliation.map(item => [item.id, item.reason]));
+        for (const kind of ['gained', 'lost', 'changed'] as const) {
+          const theirs = ids(renderer.features[kind]).filter(id => !sentinel.has(id));
+          expect(theirs, `${name} features ${kind}`).toEqual(ids(port.features[kind]));
+        }
+        const limits = new Map(port.usageLimits.map(change => [change.id, change]));
+        for (const change of renderer.usageLimits.changed) {
+          const ours = limits.get(change.id);
+          if (ours === undefined) {
+            // O18: two numbers of at least 1e8 are both Unlimited for the gateway, and the port says so.
+            expect(sentinel.has(change.id), `${name} usage limit ${change.id} is a sentinel`).toBe(
+              true
+            );
+            continue;
+          }
+          expect(fromCompared(change.before, true, true), `${name} ${change.id} before`).toEqual(
+            portValue(ours.before)
+          );
+          expect(fromCompared(change.after, true, true), `${name} ${change.id} after`).toEqual(
+            portValue(ours.after)
+          );
+        }
+        if (
+          port.plan.after.known &&
+          port.price.before.subtotal !== null &&
+          port.price.after.subtotal !== null
+        ) {
+          expect(
+            close(renderer.price.before.subtotal, Number(port.price.before.subtotal)),
+            `${name} price before`
+          ).toBe(true);
+          expect(
+            close(renderer.price.after.subtotal, Number(port.price.after.subtotal)),
+            `${name} price after`
+          ).toBe(true);
+          if (port.price.difference !== undefined && renderer.price.difference !== undefined) {
+            expect(
+              close(renderer.price.difference, Number(port.price.difference)),
+              `${name} price difference`
+            ).toBe(true);
+          }
+        }
+      }
+    });
+  }
+});

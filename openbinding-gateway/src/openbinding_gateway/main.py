@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import space_client
 from .jobs import reconciler as job_reconciler
+from .modules.compositions.application import upstream_watcher
 from .access.dependencies import session_dependency, set_key_admission, set_session_resolver
 from .access.work_limits import ANONYMOUS_READ_ROUTES, WORK_ROUTES
 from .core import revision
@@ -61,6 +62,8 @@ from .modules.compositions.adapters.public_routes import me_router as own_compos
 from .modules.compositions.adapters.public_routes import router as public_compositions_router
 from .modules.compositions.adapters.routes import router as compositions_router
 from .modules.compositions.adapters.environment_routes import router as composition_environments_router
+from .modules.compositions.adapters.upstream_routes import me_router as own_upstream_events_router
+from .modules.compositions.adapters.upstream_routes import router as upstream_events_router
 from .modules.compositions.adapters.template_routes import public_router as composition_templates_router
 from .modules.compositions.adapters.template_routes import router as composition_from_template_router
 from .modules.execution.adapters.preset_routes import router as run_presets_router
@@ -244,15 +247,19 @@ async def _lifespan(settings: Settings):
             await session.commit()
 
     reconciler = None
+    watcher = None
     if settings.database_url:
         reconciler = asyncio.create_task(job_reconciler.run_reconciler())
+        # F6: the upstream watcher, beside the reconciler; one replica works per cycle (its own advisory lock).
+        watcher = asyncio.create_task(upstream_watcher.run_upstream_watcher(settings))
     try:
         yield
     finally:
-        if reconciler is not None:
-            reconciler.cancel()
-            with suppress(asyncio.CancelledError):
-                await reconciler
+        for task in (reconciler, watcher):
+            if task is not None:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
         gate = space_client.get_gate()
         if hasattr(gate, "aclose"):
             await gate.aclose()
@@ -538,6 +545,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(problems_router)
     app.include_router(compositions_router)
     app.include_router(composition_environments_router)
+    app.include_router(upstream_events_router)
+    app.include_router(own_upstream_events_router)
     app.include_router(composition_from_template_router)
     app.include_router(bim_router)
     app.include_router(composition_language_router)

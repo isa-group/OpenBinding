@@ -1,6 +1,6 @@
 """Margins per offering plan: revenue of each plan minus the upstream cost per user (plan §7.1).
 
-``compute`` is the one implementation (F6's "offering changed" deltas call it too): pure, Decimal throughout inside
+``compute`` is the one implementation (the upstream classifier's "offering changed" margins call it too): pure, Decimal throughout inside
 ``money_context()`` (34 digits, traps on), every amount quantized stepwise to six places half-even, so the numbers
 shown always subtract exactly. ``margins`` reads its inputs: an evaluation of the version (the current one by default,
 the adoption's pinned one for an environment) and the offering snapshot that evaluation read.

@@ -20,7 +20,7 @@ from ....composition import text
 from ....core import revision as etags
 from ....db.models import OrganizationRole, User
 from ....models.errors import CONFLICT_RESPONSE, FORBIDDEN_RESPONSE, NOT_FOUND_RESPONSE, ErrorResponse, api_error
-from ..application import adoption, environments, feed, feed_keys
+from ..application import adoption, environments, feed, feed_keys, upstream_events
 from ..application.check import check_environment
 from ..domain.environments import AdoptRole
 from .schemas import (
@@ -46,6 +46,7 @@ from .schemas import (
     EnvironmentOffering,
     EnvironmentOperator,
     EnvironmentPerson,
+    EnvironmentUpstreamSummary,
     EnvironmentVersion,
 )
 
@@ -121,7 +122,7 @@ def in_effect_view(found: environments.InEffect | None) -> EnvironmentInEffect |
     )
 
 
-def view(detail: environments.Detail) -> CompositionEnvironmentView:
+def view(detail: environments.Detail, upstream: dict | None = None) -> CompositionEnvironmentView:
     row = detail.environment
     in_effect = in_effect_view(detail.in_effect)
     operator = detail.operator
@@ -152,12 +153,14 @@ def view(detail: environments.Detail) -> CompositionEnvironmentView:
         keyCount=detail.key_count,
         createdAt=row.created_at,
         updatedAt=row.updated_at,
+        upstream=None if upstream is None else EnvironmentUpstreamSummary(**upstream),
     )
 
 
 async def viewed(session: AsyncSession, organization, composition, row, role) -> CompositionEnvironmentView:
     (detail,) = await environments.details(session, organization, composition, [row], role)
-    return view(detail)
+    counts = await upstream_events.counts_for_environments(session, [row])
+    return view(detail, counts[row.id])
 
 
 @router.get(
@@ -177,8 +180,10 @@ async def list_composition_environments(
     organization, found, role = await environments.operating_composition(session, org, composition, user)
     rows = await environments.list_environments(session, found)
     headers(response)
+    counts = await upstream_events.counts_for_environments(session, rows)
     return CompositionEnvironmentList(
-        environments=[view(detail) for detail in await environments.details(session, organization, found, rows, role)],
+        environments=[view(detail, counts[detail.environment.id])
+                      for detail in await environments.details(session, organization, found, rows, role)],
     )
 
 

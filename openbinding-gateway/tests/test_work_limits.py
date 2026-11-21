@@ -117,6 +117,8 @@ OPERATION_WRITES = {
     ("POST", ENVIRONMENTS),
     ("POST", f"{ENVIRONMENTS}/{{environment}}/adopt"),
     ("POST", f"{ENVIRONMENTS}/{{environment}}/keys"),
+    # F6: reviewing an upstream event writes its state and note, nothing else.
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/upstream-events/{event}/review"),
 }
 
 

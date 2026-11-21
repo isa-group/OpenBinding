@@ -12,9 +12,9 @@
   offering: its bytes now against the pinned snapshot's digest, in memory).
 
 It writes nothing: no snapshot, row, audit, event or notification, and the feed and its ETag stay as they were. It
-reads manifests through the pricing port (its cache and back-off), at most ``MAX_MANIFEST_READS`` of them, outside
-any transaction and within ``DEADLINE_S``; every port error is ``unavailable``, never a 5xx. Classification, watches,
-events and badges are F6's poller, which reuses these reads.
+reads manifests through the pricing port (its cache and back-off) with ``upstream_reads.ManifestReads``, at most
+``MAX_MANIFEST_READS`` of them, outside any transaction and within ``DEADLINE_S``; every failure is ``unavailable``,
+never a 5xx. Watching, classification and events are ``upstream_watcher``'s; this check stays manual and read-only.
 """
 
 from __future__ import annotations
@@ -41,14 +41,15 @@ from ....db.models import (
 )
 from ....models.errors import api_error
 from ...plans.application import (
+    Manifest,
     NotModified,
     SphereEndpoint,
     credential_for,
     get_pricing_source,
-    sphere_manifest,
 )
 from . import seal, upstream, versions
 from .language import diagnostic_view
+from .upstream_reads import ManifestReads
 
 #: Manifests one check may read.
 MAX_MANIFEST_READS = 8
@@ -63,39 +64,32 @@ def _named(version_id: str | None, name: str | None, created_at: str | None) -> 
 
 
 class _Reads:
-    """The manifest reads of one check: bounded, shared by rows naming the same pricing, never raising."""
+    """The manifest reads of one check: ``ManifestReads`` with every failure mapped to ``unavailable``."""
 
-    def __init__(self, session: AsyncSession, organization: Organization) -> None:
+    def __init__(self, session: AsyncSession, organization: Organization, *, max_reads: int = MAX_MANIFEST_READS) -> None:
         self.session = session
         self.organization = organization
-        self.left = MAX_MANIFEST_READS
-        self.found: dict[tuple[str | None, str], Any] = {}
+        self.reads = ManifestReads(max_reads=max_reads, deadline_s=DEADLINE_S, revalidate=False)
         self.credential: Any = None
         self.credential_read = False
 
     async def latest(self, registry: str | None, pricing_id: str) -> dict[str, Any] | None:
         """The manifest's latest version, or ``None`` when it cannot be read now (or the budget is spent)."""
-        key = (registry, pricing_id)
-        if key not in self.found:
-            if self.left <= 0:
-                return None
-            self.left -= 1
+        if registry is None and not self.credential_read and self.reads.left > 0:
+            self.credential_read = True
             try:
-                if registry is None and not self.credential_read:
-                    self.credential_read = True
-                    self.credential = await credential_for(self.session, self.organization.id)
-                manifest = await sphere_manifest(
-                    SphereEndpoint(registry), pricing_id, self.credential if registry is None else None,
-                )
-                latest = manifest.version(manifest.latest_version_id)
-                self.found[key] = {
-                    "versionId": manifest.latest_version_id,
-                    "name": latest.label if latest is not None else None,
-                    "createdAt": latest.created_at if latest is not None else None,
-                }
-            except Exception:  # noqa: BLE001 - busy, down, private without a connection: unavailable
-                self.found[key] = None
-        return self.found[key]
+                self.credential = await credential_for(self.session, self.organization.id)
+            except Exception:  # noqa: BLE001 - no usable key: read anonymously
+                self.credential = None
+        answer = await self.reads.read(SphereEndpoint(registry), pricing_id, self.credential)
+        if not isinstance(answer, Manifest):
+            return None  # busy, down, private without a connection, not found: unavailable
+        latest = answer.version(answer.latest_version_id)
+        return {
+            "versionId": answer.latest_version_id,
+            "name": latest.label if latest is not None else None,
+            "createdAt": latest.created_at if latest is not None else None,
+        }
 
 
 async def _binding(
@@ -221,7 +215,6 @@ async def _upstream_unread(
     session: AsyncSession, organization: Organization, version: CompositionVersion,
 ) -> list[dict[str, Any]]:
     """The upstream rows when the deadline passed: what is pinned, and nothing known of what is latest."""
-    reads = _Reads(session, organization)
-    reads.left = 0
+    reads = _Reads(session, organization, max_reads=0)
     rows = await _upstream(session, organization, version, reads)
     return rows

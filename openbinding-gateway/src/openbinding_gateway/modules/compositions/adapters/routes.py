@@ -66,7 +66,19 @@ from ....models.errors import (
     api_error,
 )
 from ....security.apikeys import authenticated_api_key, boundary_of
-from ..application import compositions, derive, evaluate, graph, language, listing, offering, seal, upstream, versions
+from ..application import (
+    compositions,
+    derive,
+    evaluate,
+    graph,
+    language,
+    listing,
+    offering,
+    seal,
+    upstream,
+    upstream_events,
+    versions,
+)
 from ..application import margins as margins_module
 from ..application.fork import NameTaken, fork_composition
 from ..application.language import decode, diagnostic_view
@@ -76,6 +88,7 @@ from .language_routes import MAX_DOCUMENT_BYTES, YAML_BODY, YAML_MEDIA_TYPES, do
 from .schemas import (
     CompositionMargins,
     DerivedVersion,
+    UpstreamSummary,
     UpstreamView,
     EvaluationOffering,
     CheckResult,
@@ -180,9 +193,22 @@ def entry_view(entry: listing.Entry) -> CompositionView:
     return _view(entry.composition, entry.organization, entry.summary, entry)
 
 
+async def with_upstream(session: AsyncSession, views: list[CompositionView]) -> list[CompositionView]:
+    """Member views with their upstream summaries (F6; one grouped query)."""
+    counts = await upstream_events.counts_for_compositions(session, [view.id for view in views])
+    return [view.model_copy(update={"upstream": UpstreamSummary(**counts[view.id])}) for view in views]
+
+
+async def versions_with_upstream(session: AsyncSession, views: list) -> list:
+    counts = await upstream_events.counts_for_versions(session, [view.id for view in views])
+    return [view.model_copy(update={"upstream": UpstreamSummary(**counts[view.id])}) for view in views]
+
+
 async def _viewed(session: AsyncSession, composition: Composition, organization: Organization) -> CompositionView:
+    """A member's view of one composition, with its upstream summary."""
     (entry,) = await listing.gather(session, [(composition, organization)])
-    return entry_view(entry)
+    (view,) = await with_upstream(session, [entry_view(entry)])
+    return view
 
 
 @router.get(
@@ -255,6 +281,8 @@ async def list_compositions(
     views = [entry_view(entry) for entry in listed.entries]
     if reader.public:
         views = [view.model_copy(update={"created_by_id": None}) for view in views]
+    else:
+        views = await with_upstream(session, views)
     if derived is not None:
         views = [view.model_copy(update={"derivedVersions": derived[view.id]}) for view in views]
     return CompositionList(
@@ -320,7 +348,8 @@ async def create_composition(
         kind=CompositionKind(payload.kind),
     )
     etags.set_etag(response, created)
-    return _view(created, organization, versions.Summary(None, 0))
+    (view,) = await with_upstream(session, [_view(created, organization, versions.Summary(None, 0))])
+    return view
 
 
 @router.get(
@@ -342,7 +371,7 @@ async def get_composition(
     etags.set_etag(response, found)
     _read_headers(response.headers, reader)
     view = await _viewed(session, found, organization)
-    return view.model_copy(update={"created_by_id": None}) if reader.public else view
+    return view.model_copy(update={"created_by_id": None, "upstream": None}) if reader.public else view
 
 
 @router.patch(
@@ -665,9 +694,10 @@ async def list_composition_versions(
     whole = "evaluations" in included
     shown = await versions.details(session, rows, light=not whole)
     views = [_version_view(item, analytics="analytics" in included, evaluations=whole) for item in shown]
-    return CompositionVersionList(
-        versions=await _for_reader(session, reader, found, views), total=total, limit=limit, offset=offset,
-    )
+    shown_views = await _for_reader(session, reader, found, views)
+    if not reader.public:
+        shown_views = await versions_with_upstream(session, shown_views)
+    return CompositionVersionList(versions=shown_views, total=total, limit=limit, offset=offset)
 
 
 @router.post(
@@ -795,6 +825,8 @@ async def get_composition_version(
     response.headers["ETag"] = _content_tag(row)
     _read_headers(response.headers, reader)
     (view,) = await _for_reader(session, reader, found, [_version_view(detail, document=document)])
+    if not reader.public:
+        (view,) = await versions_with_upstream(session, [view])
     return view
 
 

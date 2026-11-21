@@ -250,6 +250,8 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "problems": {"problem", "problems"},
             "studies": {"study", "studies"},
             "compositions": {"composition", "compositions"},
+            # A composition's upstream changes, also listed across organizations under /users/me.
+            "upstream-events": {"composition", "compositions"},
             "runs": {"run", "runs"},
             "presets": {"preset", "presets"},
             "cells": {"cell", "cells"},
@@ -361,8 +363,8 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
     if path == "/v1/users":
         # Finding users by username, to invite them to an organization.
         return frozenset({ApiKeyPermission.ORGANIZATIONS_READ.value})
-    if path.startswith("/v1/users/me/compositions"):
-        # The caller's compositions across their organizations: a read of compositions.
+    if path.startswith(("/v1/users/me/compositions", "/v1/users/me/upstream-events")):
+        # The caller's compositions, and their upstream events, across their organizations: a read of compositions.
         return frozenset({ApiKeyPermission.COMPOSITIONS_READ.value})
     if path.startswith("/v1/users/me"):
         return frozenset(

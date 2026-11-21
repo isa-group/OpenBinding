@@ -1,6 +1,6 @@
 {
   "adoptRole": "ADMIN",
-  "createdAt": "2026-01-01T00:00:19Z",
+  "createdAt": "2026-01-01T00:00:21Z",
   "description": "What TomatoMeter reads in production.",
   "expectedUsers": 1000,
   "feed": {
@@ -9,7 +9,7 @@
   },
   "id": "00000000-0000-4000-8000-000000000040",
   "inEffect": {
-    "adoptedAt": "2026-01-01T00:00:13Z",
+    "adoptedAt": "2026-01-01T00:00:15Z",
     "adoptedBy": {
       "displayName": "fixture-author",
       "username": "fixture-author"
@@ -37,7 +37,7 @@
     },
     "note": "Back to Brevo",
     "offering": {
-      "createdAt": "2026-01-01T00:00:10Z",
+      "createdAt": "2026-01-01T00:00:12Z",
       "status": "read",
       "versionName": "1.0.0"
     },
@@ -50,7 +50,7 @@
   "keyCount": 1,
   "keys": [
     {
-      "createdAt": "2026-01-01T00:00:20Z",
+      "createdAt": "2026-01-01T00:00:22Z",
       "createdBy": "fixture-author",
       "creatorIsMember": true,
       "hint": "obe_f1c7a5e0…",
@@ -67,5 +67,12 @@
     "username": "fixture-author"
   },
   "slug": "production",
-  "updatedAt": "2026-01-01T00:00:21Z"
+  "updatedAt": "2026-01-01T00:00:23Z",
+  "upstream": {
+    "bindingInvalid": 0,
+    "open": 0,
+    "resolvedBy": null,
+    "reviewed": 0,
+    "worst": null
+  }
 }

@@ -46,7 +46,7 @@ from ..domain.snapshots import (
     sphere_source_key,
     url_source_key,
 )
-from ..domain.sources import Credential, FamilyIdentity, NotModified, SphereEndpoint, is_sphere_id
+from ..domain.sources import Credential, FamilyIdentity, Manifest, NotModified, SphereEndpoint, is_sphere_id
 from .parsing import ParsedPricing, parse
 from .pricing_source import (
     PricingNotFound,
@@ -235,8 +235,12 @@ async def snapshot_version(
     signed_in: bool = True,
     refresh: bool = False,
     source: PricingSource | None = None,
+    manifest: Manifest | None = None,
 ) -> Snapshotted:
-    """The snapshot of one SPHERE or registry version, read at most once per scope (see the module docstring)."""
+    """The snapshot of one SPHERE or registry version, read at most once per scope (see the module docstring).
+
+    ``manifest``, when the caller already read it (the upstream watcher), is used instead of reading it again.
+    """
     if not is_sphere_id(pricing_id) or not is_sphere_id(version_id):
         raise PricingNotFound("not a SPHERE pricing or version id")
     source = source or get_pricing_source()
@@ -248,7 +252,7 @@ async def snapshot_version(
         return Snapshotted(stored, "reused")
     await _close_read(session)
 
-    read = await read_version(source, where, pricing_id, version_id, credential)
+    read = await read_version(source, where, pricing_id, version_id, credential, manifest=manifest)
     if read.entry.private:
         if where.registry:
             scope = registry_scope(where.registry)

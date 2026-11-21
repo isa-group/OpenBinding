@@ -431,6 +431,21 @@ for a missing environment).
 | `operator_not_member` | 422 | the operator named is not a member of the organization |
 | `feed_rate_limited` | 429 | `getEnvironmentFeed` read more than `FEED_RATE_PER_MINUTE` times (60) in a minute with one credential; `Retry-After` says when |
 
+## Upstream events
+
+The upstream events of a composition (`…/compositions/{composition}/upstream-events`) and the caller's list
+(`/v1/users/me/upstream-events`; [ADR 0057](adr/0057-upstream-watches-and-events.md)). Every route needs a credential
+(401 before any lookup); a caller without a role gets the composition's 404 parity: `Composition not found.` for a
+private or missing composition, `Upstream event not found.` for every event route of a public one (the body a member
+gets for a missing event, or another composition's).
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `not_found` | 404 | no such composition or event, or the caller cannot read them (the parity above) |
+| `organization_forbidden` | 403 | `reviewUpstreamEvent` by a role weaker than MEMBER |
+| `event_not_reviewable` | 409 | `reviewUpstreamEvent` of an event already reviewed or resolved: an event is reviewed once, and only a person's seal resolves it |
+| `precondition_failed` | 412 | `reviewUpstreamEvent` with a stale `If-Match`; the current `ETag` is in the header |
+
 ## Composition templates
 
 The composition template catalog (`GET /v1/compositions/templates[/{template}]`, open to anybody) and

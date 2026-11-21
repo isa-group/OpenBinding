@@ -9,10 +9,13 @@ nothing of the gateway, so it runs with any Python 3.11.
     python tools/record_sphere_fixtures.py --update   # overwrite changed files
     python tools/record_sphere_fixtures.py --check    # report drift against the live API, write nothing
     python tools/record_sphere_fixtures.py --check-readme   # offline: the README and routes.json match the files
+    python tools/record_sphere_fixtures.py --derive         # offline: write the derived files and the README
+    python tools/record_sphere_fixtures.py --check-derived  # offline: the derived files match what is derived
 
 Every answer is stored with the headers the tests need (``ETag``, ``Cache-Control``, ``Vary``, ``RateLimit-*``)
 and listed in ``routes.json`` by path and query, which is what ``tests/sphere_recorded.py`` serves. The
-``derived/`` files are synthetic and generated here from recorded files (see the README).
+``derived/`` files and ``scenarios.json`` are synthetic and generated here from recorded files, offline (see the
+README); deriving reads the gateway's content-hash port for each scenario's ``contentHash``.
 
 The recorded pricings belong to their SPHERE authors; they are kept for the repository's tests only.
 """
@@ -67,7 +70,7 @@ FAMILIES: dict[str, tuple[str, object]] = {
     "6ab0a323697330667cccea2d": ("Dropbox EUR (atenea)", "all"),
     "6ab0a323697330667ccce93d": ("Dropbox (atenea), latest 2.1", "all"),
     "6ab0a323697330667ccce9d9": ("Dropbox (atenea)", "latest"),
-    "6ab0a323697330667ccce891": ("OpenBinding", ["6ada6dbd4b2b5b01c587d17f"]),
+    "6ab0a323697330667ccce891": ("OpenBinding", "all"),
 }
 
 #: Discovery answers (``GET /api/v1/pricings``), as the gateway asks for them.
@@ -190,28 +193,285 @@ class Recorder:
 
     def derive(self) -> None:
         """The synthetic cases, built from recorded files (never fetched)."""
-        mailgun = "6ade364540e55445692b0eda"
-        manifest = json.loads((ROOT / mailgun / "manifest.json").read_text())
-        version = manifest["latestVersionId"]
-        source = (ROOT / mailgun / f"{version}.yml").read_text(encoding="utf-8")
-        renamed = re.sub(r"^saasName:.*$", "saasName: Mailgun Renamed", source, count=1, flags=re.M)
-        self._store("derived/mailgun-renamed.yml", renamed.encode())
-        scale = _change_scale_limit(source)
-        self._store("derived/mailgun-scale.yml", scale.encode())
-        user = {
-            "id": "6b00000000000000000000aa",
-            "username": "fixture-user",
-            "email": "fixture-user@example.invalid",
-            "role": "USER",
-            "firstName": "Fixture",
-            "apiKey": {
-                "id": "6b00000000000000000000ab",
-                "scopes": [
-                    {"organizationId": "6ade2ce94b2b5b01c587d7c6", "scope": "MANAGEMENT"},
-                ],
-            },
-        }
-        self._store("users-me.json", (json.dumps(user, indent=2, sort_keys=True) + "\n").encode())
+        for relative, content in derived_files().items():
+            self._store(relative, content)
+
+
+def derived_files() -> dict[str, bytes]:
+    """Every synthetic file, computed offline from the recorded ones (``--check-derived`` compares them)."""
+    out: dict[str, bytes] = {}
+    mailgun = "6ade364540e55445692b0eda"
+    manifest = json.loads((ROOT / mailgun / "manifest.json").read_text())
+    version = manifest["latestVersionId"]
+    source = (ROOT / mailgun / f"{version}.yml").read_text(encoding="utf-8")
+    renamed = re.sub(r"^saasName:.*$", "saasName: Mailgun Renamed", source, count=1, flags=re.M)
+    out["derived/mailgun-renamed.yml"] = renamed.encode()
+    out["derived/mailgun-scale.yml"] = _change_scale_limit(source).encode()
+    files, catalog = scenario_files()
+    out.update(files)
+    out["scenarios.json"] = (json.dumps(catalog, indent=2) + "\n").encode()
+    user = {
+        "id": "6b00000000000000000000aa",
+        "username": "fixture-user",
+        "email": "fixture-user@example.invalid",
+        "role": "USER",
+        "firstName": "Fixture",
+        "apiKey": {
+            "id": "6b00000000000000000000ab",
+            "scopes": [
+                {"organizationId": "6ade2ce94b2b5b01c587d7c6", "scope": "MANAGEMENT"},
+            ],
+        },
+    }
+    out["users-me.json"] = (json.dumps(user, indent=2, sort_keys=True) + "\n").encode()
+    return out
+
+
+# -- Scenarios: synthetic "new upstream versions" (F6) ------------------------------------------------------------
+
+BREVO = "6ade2d4440e55445692b07f1"
+BREVO_2026_10 = "6ade2d444b2b5b01c587d80d"
+TOMATOMETER = "6ab0a323697330667ccce8cd"
+TOMATOMETER_100 = "6921867e7004563bd918e7e8"
+
+#: Every scenario: its family, the version it starts from (another scenario's name for ``after``), a synthetic
+#: versionId (prefix ``6fff``, never a real SPHERE id), its label and creation date, whether the lab may publish it,
+#: the scenario it must follow, a manifest name change, and the edits (dotted paths into the YAML text).
+SCENARIOS: list[dict[str, object]] = [
+    {"scenario": "brevo-professional-up", "pricingId": BREVO, "from": BREVO_2026_10,
+     "versionId": "6fff00000000000000000001", "label": "2026-11", "createdAt": "2026-11-15",
+     "publishable": True, "after": None, "nameChange": None,
+     "edits": [("set", "variables.professionalPrices.150000", "549")]},
+    {"scenario": "brevo-professional-retired", "pricingId": BREVO, "from": "brevo-professional-up",
+     "versionId": "6fff00000000000000000002", "label": "2027-01", "createdAt": "2027-01-10",
+     "publishable": True, "after": "brevo-professional-up", "nameChange": None,
+     "edits": [("delete", "plans.PROFESSIONAL", None), ("drop-item", "addOns.*.availableFor", "PROFESSIONAL")]},
+    {"scenario": "brevo-renamed-family", "pricingId": BREVO, "from": BREVO_2026_10,
+     "versionId": BREVO_2026_10, "label": "2026-10", "createdAt": None,
+     "publishable": True, "after": None, "nameChange": "Brevo",
+     "edits": [("set", "saasName", "Brevo")]},
+    {"scenario": "tomatometer-1.2.0", "pricingId": TOMATOMETER, "from": TOMATOMETER_100,
+     "versionId": "6fff00000000000000000003", "label": "1.2.0", "createdAt": "2026-11-20",
+     "publishable": True, "after": None, "nameChange": None,
+     "edits": [("set", "plans.basic.price", "0.99"),
+               ("set", "plans.basic.features", "\n      dailySummary:\n        value: true"),
+               ("set", "plans.basic.usageLimits", "\n      maxPomodoroTimers:\n        value: 5")]},
+    {"scenario": "brevo-professional-renamed", "pricingId": BREVO, "from": BREVO_2026_10,
+     "versionId": "6fff00000000000000000011", "label": "2026-11-renamed", "createdAt": "2026-11-16",
+     "publishable": False, "after": None, "nameChange": None,
+     "edits": [("rename", "plans.PROFESSIONAL", "PROFESSIONAL_PLUS"),
+               ("rename-item", "addOns.*.availableFor", "PROFESSIONAL=PROFESSIONAL_PLUS")]},
+    {"scenario": "brevo-sla", "pricingId": BREVO, "from": BREVO_2026_10,
+     "versionId": "6fff00000000000000000012", "label": "2026-11-sla", "createdAt": "2026-11-16",
+     "publishable": False, "after": None, "nameChange": None,
+     "edits": [("insert", "plans.PROFESSIONAL.features", "sla:\n  value: true")]},
+    {"scenario": "brevo-daily-limit", "pricingId": BREVO, "from": BREVO_2026_10,
+     "versionId": "6fff00000000000000000013", "label": "2026-11-daily-limit", "createdAt": "2026-11-16",
+     "publishable": False, "after": None, "nameChange": None,
+     "edits": [("set", "plans.PROFESSIONAL.usageLimits.emailsPerDay.value", "500")]},
+    {"scenario": "brevo-private", "pricingId": BREVO, "from": BREVO_2026_10,
+     "versionId": "6fff00000000000000000014", "label": "2026-11-private", "createdAt": "2026-11-16",
+     "publishable": False, "after": None, "nameChange": None,
+     "edits": [("insert", "plans.PROFESSIONAL", "private: true")]},
+    {"scenario": "brevo-label", "pricingId": BREVO, "from": BREVO_2026_10,
+     "versionId": "6fff00000000000000000015", "label": "2026-11-label", "createdAt": "2026-11-16",
+     "publishable": False, "after": None, "nameChange": None,
+     "edits": [("set", "plans.PROFESSIONAL.price", "Contact sales")]},
+    {"scenario": "brevo-addon", "pricingId": BREVO, "from": BREVO_2026_10,
+     "versionId": "6fff00000000000000000016", "label": "2026-11-addon", "createdAt": "2026-11-16",
+     "publishable": False, "after": None, "nameChange": None,
+     "edits": [("set", "addOns.samlSso.features.ssoSaml.value", "false")]},
+    {"scenario": "tomatometer-1.1.0-fis-like", "pricingId": TOMATOMETER, "from": TOMATOMETER_100,
+     "versionId": "6fff00000000000000000017", "label": "1.1.0-fis-like", "createdAt": "2026-11-10",
+     "publishable": False, "after": None, "nameChange": None,
+     "edits": [("set", "plans.basic.features", "\n      dailySummary:\n        value: true"),
+               ("set", "plans.basic.usageLimits", "\n      maxPomodoroTimers:\n        value: 5")]},
+]
+
+
+class YamlText:
+    """Edits of a block-style YAML text by dotted path, keeping every other byte (indentation of two spaces).
+
+    ``set`` replaces a key's inline value (a value starting with a newline becomes a nested block), ``delete``
+    removes a key with its block, ``rename`` renames a key, ``insert`` adds lines as the first children of a
+    mapping, ``drop-item`` and ``rename-item`` edit ``- item`` lines of a list (``*`` matches every key at that
+    level; an emptied list becomes ``[]``, never null, which would mean "every plan").
+    """
+
+    def __init__(self, text: str) -> None:
+        self.lines = text.splitlines(keepends=True)
+
+    def text(self) -> str:
+        return "".join(self.lines)
+
+    @staticmethod
+    def _indent(line: str) -> int:
+        return len(line) - len(line.lstrip(" "))
+
+    @staticmethod
+    def _key(line: str) -> str | None:
+        match = re.match(r"^\s*(?:'([^']*)'|\"([^\"]*)\"|([^\s:#'\"-][^:#]*?)):(?:\s|$)", line)
+        if not match:
+            return None
+        return next(group for group in match.groups() if group is not None)
+
+    def _end(self, index: int) -> int:
+        """The index after the block of the key at ``index``."""
+        indent = self._indent(self.lines[index])
+        end = index + 1
+        while end < len(self.lines):
+            line = self.lines[end]
+            if line.strip() and self._indent(line) <= indent and not (
+                line.lstrip().startswith("- ") and self._indent(line) == indent
+                and self.lines[index].rstrip().endswith(":")
+            ):
+                break
+            end += 1
+        return end
+
+    def find(self, path: str) -> list[int]:
+        """The line indexes of every key the dotted path names (``*`` matches any key)."""
+        found = [(-1, len(self.lines), -1)]
+        for segment in path.split("."):
+            nxt = []
+            for parent, end, indent in found:
+                start = parent + 1
+                child = None
+                for index in range(start, end):
+                    line = self.lines[index]
+                    if not line.strip() or line.lstrip().startswith("#"):
+                        continue
+                    level = self._indent(line)
+                    if level <= indent:
+                        break
+                    if child is None:
+                        child = level
+                    if level != child:
+                        continue
+                    key = self._key(line)
+                    if key is not None and (segment == "*" or key == segment):
+                        nxt.append((index, self._end(index), level))
+            found = nxt
+        if not found:
+            raise KeyError(path)
+        return [index for index, _, _ in found]
+
+    def apply(self, operation: str, path: str, value: str | None) -> None:
+        if operation == "set":
+            (index,) = self.find(path)
+            line = self.lines[index]
+            head = line[: line.index(":") + 1]
+            end = self._end(index)
+            assert value is not None
+            if value.startswith("\n"):
+                self.lines[index:end] = [head + "\n"] + [part + "\n" for part in value[1:].split("\n")]
+            else:
+                self.lines[index:end] = [f"{head} {value}\n"]
+        elif operation == "delete":
+            for index in reversed(self.find(path)):
+                del self.lines[index:self._end(index)]
+        elif operation == "rename":
+            assert value is not None
+            for index in self.find(path):
+                line = self.lines[index]
+                key = self._key(line)
+                assert key is not None
+                self.lines[index] = line.replace(key, value, 1)
+        elif operation == "insert":
+            (index,) = self.find(path)
+            line = self.lines[index]
+            assert value is not None
+            if line.rstrip().endswith("null"):
+                head = line[: line.index(":") + 1]
+                self.lines[index] = head + "\n"
+            pad = " " * (self._indent(line) + 2)
+            self.lines[index + 1:index + 1] = [pad + part + "\n" for part in value.split("\n")]
+        elif operation in ("drop-item", "rename-item"):
+            assert value is not None
+            old, _, new = value.partition("=")
+            for index in reversed(self.find(path)):
+                end = self._end(index)
+                items = [i for i in range(index + 1, end) if self.lines[i].strip() == f"- {old}"]
+                for item in reversed(items):
+                    if operation == "rename-item":
+                        self.lines[item] = self.lines[item].replace(f"- {old}", f"- {new}", 1)
+                    else:
+                        del self.lines[item]
+                end = self._end(index)
+                if operation == "drop-item" and items and not any(
+                    self.lines[i].lstrip().startswith("- ") for i in range(index + 1, end)
+                ):
+                    line = self.lines[index]
+                    self.lines[index] = line[: line.index(":") + 1] + " []\n"
+        else:
+            raise ValueError(operation)
+
+
+def _scenario_text(scenario: dict[str, object], texts: dict[str, str]) -> str:
+    start = str(scenario["from"])
+    base = texts[start] if start in texts else (ROOT / str(scenario["pricingId"]) / f"{start}.yml").read_text(
+        encoding="utf-8"
+    )
+    document = YamlText(base)
+    for operation, path, value in scenario["edits"]:  # type: ignore[union-attr]
+        document.apply(operation, path, value)
+    if scenario["createdAt"] is not None:
+        document.apply("set", "version", f"'{scenario['label']}'")
+        document.apply("set", "createdAt", f"'{scenario['createdAt']}'")
+    return document.text()
+
+
+def scenario_files() -> tuple[dict[str, bytes], list[dict[str, object]]]:
+    """The derived YAML of every scenario and the catalog (``scenarios.json``)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+    from openbinding_gateway.modules.plans.domain.content_hash import functional_hash
+
+    texts: dict[str, str] = {}
+    files: dict[str, bytes] = {}
+    catalog: list[dict[str, object]] = []
+    for scenario in SCENARIOS:
+        name = str(scenario["scenario"])
+        text = _scenario_text(scenario, texts)
+        texts[name] = text
+        data = text.encode("utf-8")
+        relative = f"derived/{name}.yml"
+        files[relative] = data
+        created = scenario["createdAt"]
+        if created is None:
+            entry = json.loads((ROOT / str(scenario["pricingId"]) / "manifest.json").read_text())
+            created_at = next(v["createdAt"] for v in entry["versions"] if v["versionId"] == scenario["versionId"])
+        else:
+            created_at = f"{created}T00:00:00.000Z"
+        catalog.append({
+            "scenario": name,
+            "pricingId": scenario["pricingId"],
+            "versionId": scenario["versionId"],
+            "label": scenario["label"],
+            "createdAt": created_at,
+            "file": relative,
+            "contentHash": functional_hash(data),
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "publishable": scenario["publishable"],
+            "after": scenario["after"],
+            "manifest": {"nameChange": scenario["nameChange"]},
+        })
+    return files, catalog
+
+
+def check_derived() -> list[str]:
+    """Offline: every synthetic file equals what ``derived_files`` computes now."""
+    problems = []
+    for relative, content in derived_files().items():
+        target = ROOT / relative
+        if not target.exists():
+            problems.append(f"{relative} is missing")
+        elif target.read_bytes() != content:
+            problems.append(f"{relative} differs from what the recorder derives")
+    known = set(derived_files())
+    for path in sorted((ROOT / "derived").glob("*.yml")):
+        if f"derived/{path.name}" not in known:
+            problems.append(f"derived/{path.name} is not derived by the recorder")
+    return problems
 
 
 def _change_scale_limit(text: str) -> str:
@@ -277,9 +537,11 @@ def readme(routes: dict[str, dict[str, str]]) -> str:
         "",
         "**Licence note.** The pricings belong to their SPHERE authors (the `sphere`, `danruilop1`, `danvelcam`",
         "and `atenea` organizations). They are recorded for this repository's tests only and are not",
-        "redistributed beyond them. `derived/` and `users-me.json` are synthetic (see below). The frontend's copy",
-        "(`frontend/src/test/fixtures/sphere`, written by `tools/dump_frontend_fixtures.py`), which its unit tests and",
-        "mocked Playwright specs draw and preview, is under the same note.",
+        "redistributed beyond them. `derived/`, `scenarios.json` and `users-me.json` are synthetic (see below). The",
+        "frontend's copy (`frontend/src/test/fixtures/sphere`, written by `tools/dump_frontend_fixtures.py`), which its",
+        "unit tests and mocked Playwright specs draw and preview, is under the same note. Using them in the local lab",
+        "(the lab's SPHERE stand-in, built on this machine from this directory and never published as an image)",
+        "counts as test use.",
         "",
         "## Versions",
         "",
@@ -329,6 +591,28 @@ def readme(routes: dict[str, dict[str, str]]) -> str:
         "  for the cross-version comparisons; no recorded real family has two 3.x versions sharing a numeric plan).",
         "- `users-me.json`: a `/users/me` answer with no real personal data (the email is `example.invalid`).",
         "",
+        "## Scenarios (synthetic upstream versions, never published to SPHERE)",
+        "",
+        "`scenarios.json` lists each \"new upstream version\" the F6 tests, goldens, frontend fixtures and the lab",
+        "stand-in publish, derived here from a recorded version by explicit dotted-path edits (`SCENARIOS`). Version",
+        "ids start with `6fff` and are never real SPHERE ids; each `createdAt` comes after the family's recorded latest,",
+        "so a published version becomes `latestVersionId` by SPHERE's order. They are synthetic and never published",
+        "to SPHERE.",
+        "",
+        "| scenario | pricingId | versionId | label | what changed | publishable | after |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for scenario in SCENARIOS:
+        changed = "; ".join(f"{op} `{path}`" + (f" = `{value.strip()}`" if value and "\\n" not in value and "\n" not in value else "")
+                            for op, path, value in scenario["edits"])  # type: ignore[union-attr]
+        if scenario["nameChange"]:
+            changed += f"; manifest name `{scenario['nameChange']}`"
+        lines.append(
+            f"| `{scenario['scenario']}` | `{scenario['pricingId']}` | `{scenario['versionId']}` | {scenario['label']} | "
+            f"{changed} | {'yes' if scenario['publishable'] else 'no'} | {scenario['after'] or '-'} |"
+        )
+    lines += [
+        "",
         f"{len(routes)} recorded requests.",
         "",
     ]
@@ -353,7 +637,22 @@ def main(argv: list[str] | None = None) -> int:
     group.add_argument("--check", action="store_true", help="report drift against the live API; write nothing")
     group.add_argument("--update", action="store_true", help="overwrite changed files")
     group.add_argument("--check-readme", action="store_true", help="offline: README and routes.json match the files")
+    group.add_argument("--check-derived", action="store_true", help="offline: the derived files match the recorder")
+    group.add_argument("--derive", action="store_true", help="offline: write the derived files and the README only")
     args = parser.parse_args(argv)
+    if args.check_derived:
+        problems = check_derived()
+        for problem in problems:
+            print(problem)
+        return 1 if problems else 0
+    if args.derive:
+        recorder = Recorder("update")
+        recorder.derive()
+        routes = json.loads((ROOT / "routes.json").read_text())
+        recorder._store("README.md", readme(routes).encode())
+        for name in recorder.written:
+            print(f"wrote {name}")
+        return 0
     if args.check_readme:
         problems = check_readme()
         for problem in problems:

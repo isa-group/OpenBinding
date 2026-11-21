@@ -110,7 +110,7 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 | `problems` | problems of an organization, their sealed revisions (the uploaded `.bim.zip` and its digests) and compilations (one per revision and toolchain, insert-only), the stateless BIM services (`/v1/bim/validate`, `/v1/bim/templates`) | `BimPort`, `BlobStore` | `modules/problems` (domain, application, adapters; F0b); `integrations/bim*.py`, the engine protocol document in `services/engines.py` |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
 | `execution` | runs of an organization: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood; run presets (F1) | `EngineTransport`, `BimPort`, `PlanPort` | `modules/execution` (the run request and the runs API `/v1/organizations/{org}/runs`; F0b); `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py` |
-| `compositions` | compositions of an organization, their sealed versions (canonical Composition2Yaml bytes), their evaluations (one per toolchain, or one declared) and derivations, forks into another organization, composition environments with their adoption history, feed keys and feed, margins per offering plan (F4), and the stateless language services (`/v1/compositions/validate`, `parse`, `serialise`, `diff`, `schema`). The language itself is the pure library `openbinding_gateway/composition` (contract `composition-library-pure`) | `BimPort`; `problems` and `execution` application APIs | `modules/compositions` (F1) |
+| `compositions` | compositions of an organization, their sealed versions (canonical Composition2Yaml bytes), their evaluations (one per toolchain, or one declared) and derivations, forks into another organization, composition environments with their adoption history, feed keys and feed, margins per offering plan (F4), the watches of the pricings its live versions read with their upstream events and the upstream watcher (F6), and the stateless language services (`/v1/compositions/validate`, `parse`, `serialise`, `diff`, `schema`). The language itself is the pure library `openbinding_gateway/composition` (contract `composition-library-pure`) | `BimPort`; `problems` and `execution` application APIs | `modules/compositions` (F1) |
 | `laboratory` | studies of an organization (the editable matrix inline), study runs that freeze their definition and pin each revision's compilation, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py` (`/v1/organizations/{org}/studies`; F0b); the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
 | `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `problems` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
 | `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH by verified institutional email, or an administrator) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `modules/plans` (entitlement map, per-account quotas, the package copy of the pricing; F0b); `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`. Local metering and billing sponsorship were removed in F0b |
@@ -462,6 +462,16 @@ transaction that creates it, and account deletion deletes it with everything it 
 exception to runs being history)
 ([ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md), [ADR 0056](adr/0056-identity-bff-session.md) addendum).
 
+**As built after F6-A.** Four tables keep what live versions read upstream
+([ADR 0057](adr/0057-upstream-watches-and-events.md)):
+
+| Table | What it holds | Mutability and deletion |
+|---|---|---|
+| `pricing_watches` | one watched source per read scope (`public`, a registry, or an organization for keyed reads and URL offerings): the manifest's ETag, the whole version order, the latest version and its snapshot, status, schedule, back-off, lease and the `gone` debounce | watcher state, mutable; key, source and scope `protect`ed; an organization-scoped watch is deleted with its organization, a shared one stays |
+| `pricing_watch_refs` | what a sealed version reads: version × watch × subject (`binding`, `offering`) × pinned version, with the tasks, the selection and the pinned snapshot; unresolved rows name the family without a watch | insert-only (`immutable`); deleted with its composition or organization |
+| `pricing_ref_attempts` | the back-off of an organization's unresolved `from` entries (failures, last error, next attempt) | mutable; deleted once resolved, or with its organization |
+| `composition_upstream_events` | one classified change per (version, watch, old → new) for bindings and per (composition, watch, new) for the offering (`~<n>` when a URL's content returns to a hash already named): category, reasons, the bounded diff, both snapshots, `notify`, state, note and stamps | written once (`ON CONFLICT DO NOTHING` on partial unique keys); only state (`open` → `reviewed` → `resolved`, a `state_machine` trigger), the note and the stamps change; deleted with its composition or organization |
+
 Versions, evaluations and derivations name problem compilations (and runs) through `RESTRICT` foreign keys, so a
 problem a composition links answers `409 problem_has_compositions` on delete, and the admin purge keeps the terminal
 runs a version or derivation names. Deleting an organization locks its compositions before its problems and deletes
@@ -579,6 +589,38 @@ order:
 Margins per offering plan (`GET …/versions/{version}/margins`, and `users` on `evaluate`) are computed once, on the
 gateway, from a stored evaluation and the offering snapshot it read ([ADR 0055](adr/0055-margins-per-offering-plan.md)).
 `check` reports the version in effect against what its sources publish now and writes nothing.
+
+#### Upstream watches and events (F6-A)
+
+Every sealed version records what it reads upstream: `seal_into` inserts its **watch references**
+(`pricing_watch_refs`, insert-only) to the **watches** (`pricing_watches`, one per source and read scope) of its `from`
+entries, the value origins of its linked revision and its offering, from stored data only; a `from` without a stored
+snapshot is an unresolved ref, resolved later on its own back-off (`pricing_ref_attempts`). The **upstream watcher**
+(`modules/compositions/application/upstream_watcher.py`) is a second task of the gateway lifespan beside the job
+reconciler: every replica starts it, one works per cycle (its own advisory lock), and it claims due watches that a
+**live** version (a composition's latest, or an adopted one) references, asks each manifest conditionally, snapshots a
+new latest version as a system read, classifies it against each live version with the pure classifier
+(`upstream_classify`) and records an **upstream event** (`composition_upstream_events`), telling the members who can
+act. Events change only their state (`open` → `reviewed` → `resolved`), the review note and the stamps; a person's
+seal resolves them (`resolve_on_seal`, inside `seal_into`), never a route. Badges are computed when read, so nothing
+the watcher does moves an environment's ETag or a feed ([ADR 0057](adr/0057-upstream-watches-and-events.md)).
+
+| Setting | Default | What it does |
+|---|---|---|
+| `UPSTREAM_WATCH_ENABLED` | `true` | polls watched pricings (with `SPHERE_ENABLED` off nothing of the default SPHERE is read) |
+| `UPSTREAM_POLL_INTERVAL_S` | `300` | how often a watch is asked, staggered per watch; at least 60 in production, 10 elsewhere (the lab keeps 300 until F6-C sets 20 with its SPHERE stand-in) |
+| `UPSTREAM_POLL_BATCH` | `50` | watches claimed per cycle |
+| `UPSTREAM_READS_PER_CYCLE` | `20` | SPHERE requests a cycle may send (manifests, YAML, family reads) |
+| `UPSTREAM_CLASSIFY_PER_CYCLE` | `100` | classifier calls per cycle |
+| `UPSTREAM_NOT_FOUND_CONFIRMATIONS` | `2` | 404s, from requests actually sent at least one interval apart, before a family is gone |
+| `UPSTREAM_FAILURE_BACKOFF_MAX_S` | `3600` | the longest a failing watch waits |
+| `UPSTREAM_RESOLVE_PER_CYCLE` | `2` | attempts at unresolved refs per cycle |
+| `UPSTREAM_RESOLVE_BACKOFF_MAX_S` | `21600` | the longest an unresolved ref waits |
+| `PROPOSAL_EXECUTION_DEADLINE_S` | `600` | how long a proposal may run without progress before housekeeping closes it (F6-B) |
+
+`/v1/admin/queues` carries an `upstreamWatch` block (watches by status, what is due, the last observation, the
+events of the last day by category); `/health/ready` ignores the watcher, so a slow SPHERE never takes a gateway out of
+rotation.
 
 ### 7.4 Study
 

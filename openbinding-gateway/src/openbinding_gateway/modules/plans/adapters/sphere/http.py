@@ -17,6 +17,9 @@ SPHERE must be on a global address; a registry alias, configured by the operator
   (``Retry-After`` capped at ``SPHERE_BACKOFF_MAX_S``); ``RateLimit-Remaining`` at 10 % of ``RateLimit-Limit``
   closes the bucket until ``RateLimit-Reset``; a 404 or 503 on one path is a 60 s negative-cache entry for
   that path and bucket (what one caller may not read another may); connect errors and timeouts back the host off exponentially, 5 to 60 s.
+- **Revalidation on request.** ``manifest(..., revalidate=True)`` (the upstream watcher) skips the fresh-entry
+  shortcut and the negative cache and always sends a conditional request; the windows and the host back-off
+  still apply. A 304 refreshes the entry's age; a 404 still refreshes the negative entry for other readers.
 - **401 with a key**: the credential's ``on_rejected`` is awaited (the connection is marked invalid) and the
   call is retried anonymously, so a stale key never blocks a public pricing.
 - **Integrity.** The SHA-256 of a version's bytes must equal its quoted ``ETag``; otherwise the read fails.
@@ -173,7 +176,7 @@ class SphereHttpSource:
             return f"registry:{target.registry}"
         return "anonymous"
 
-    def _before(self, target: _Target, bucket: str, path_key: str) -> None:
+    def _before(self, target: _Target, bucket: str, path_key: str, *, revalidate: bool = False) -> None:
         now = self.clock()
         until, _ = self._host_backoff.get(target.base, (0.0, 0.0))
         if until > now:
@@ -181,7 +184,7 @@ class SphereHttpSource:
         window = self._windows.get((target.base, bucket), 0.0)
         if window > now:
             raise PricingSourceBusy(int(window - now) + 1)
-        negative = self._negative.get((target.base, bucket, path_key))
+        negative = None if revalidate else self._negative.get((target.base, bucket, path_key))
         if negative is not None and negative[0] > now:
             if negative[1] == "not_found":
                 raise PricingNotFound("not found (recently)")
@@ -244,6 +247,7 @@ class SphereHttpSource:
         cacheable: bool = True,
         accept: str = "application/json",
         if_none_match: str | None = None,
+        revalidate: bool = False,
     ) -> _Answer | NotModified:
         target = self._target(where)
         if target.registry is not None:
@@ -254,17 +258,22 @@ class SphereHttpSource:
         anonymous = credential is None and target.key is None
         use_cache = cacheable and anonymous
         now = self.clock()
-        if use_cache:
+        if use_cache and not revalidate:
             entry = self._cache.get(cache_key)
             if entry is not None and entry.expires > now:
                 self._cache.move_to_end(cache_key)
                 if if_none_match and entry.etag == if_none_match:
                     return NotModified(entry.etag)
                 return _Answer(200, httpx.Headers({"etag": entry.etag or ""}), entry.body)
-        self._before(target, bucket, path_key)
+        self._before(target, bucket, path_key, revalidate=revalidate)
         headers = self._headers(target, credential, accept)
         cached = self._cache.get(cache_key) if use_cache else None
-        if cached is not None and cached.etag:
+        if revalidate and if_none_match:
+            # The caller's tag decides; the cached entry is reused only when it is the same answer.
+            headers["if-none-match"] = if_none_match
+            if cached is not None and cached.etag != if_none_match:
+                cached = None
+        elif cached is not None and cached.etag:
             headers["if-none-match"] = cached.etag
         elif if_none_match:
             headers["if-none-match"] = if_none_match
@@ -283,7 +292,10 @@ class SphereHttpSource:
             if credential.on_rejected is not None:
                 callback: Callable[[], Awaitable[None]] = credential.on_rejected
                 await callback()
-            return await self._get(where, path, query, None, cacheable=cacheable, accept=accept, if_none_match=if_none_match)
+            return await self._get(
+                where, path, query, None, cacheable=cacheable, accept=accept, if_none_match=if_none_match,
+                revalidate=revalidate,
+            )
         if answer.status == 429:
             retry = _retry_after(answer.headers.get("retry-after"))
             hold = min(retry, float(self.settings.sphere_backoff_max_s))
@@ -341,12 +353,19 @@ class SphereHttpSource:
         return _shape(parse_search, data)
 
     async def manifest(
-        self, where: SphereEndpoint, pricing_id: str, credential: Credential | None, *, if_none_match: str | None = None
+        self,
+        where: SphereEndpoint,
+        pricing_id: str,
+        credential: Credential | None,
+        *,
+        if_none_match: str | None = None,
+        revalidate: bool = False,
     ) -> Manifest | NotModified:
         if not is_sphere_id(pricing_id):
             raise PricingNotFound("not a SPHERE pricing id")
         data, etag = await self._json(
-            where, f"{API}/public/pricings/{quote(pricing_id, safe='')}", None, credential, if_none_match=if_none_match
+            where, f"{API}/public/pricings/{quote(pricing_id, safe='')}", None, credential,
+            if_none_match=if_none_match, revalidate=revalidate,
         )
         if isinstance(data, NotModified):
             return data
