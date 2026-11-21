@@ -245,11 +245,6 @@ def _insert(session: AsyncSession, values: dict[str, Any], subject: str):
             .returning(CompositionUpstreamEvent.id))
 
 
-async def _event_exists(session: AsyncSession, **key: Any) -> bool:
-    conditions = [getattr(CompositionUpstreamEvent, name) == value for name, value in key.items()]
-    return bool(await session.scalar(select(exists().where(*conditions))))
-
-
 async def lacking(session: AsyncSession, watch: PricingWatch, target: str) -> list[PricingWatchRef]:
     """The refs of ``watch`` on live versions that may still need an event against ``target`` (the catch-up set):
     binding refs whose pinned version differs from the target with no event yet, and offering refs (filtered per
@@ -270,19 +265,19 @@ async def lacking(session: AsyncSession, watch: PricingWatch, target: str) -> li
     offering = select(PricingWatchRef).where(
         PricingWatchRef.watch_id == watch.id, PricingWatchRef.version_id.in_(live),
         PricingWatchRef.subject == "offering",
-        ~exists().where(
-            CompositionUpstreamEvent.composition_id == PricingWatchRef.composition_id,
-            CompositionUpstreamEvent.watch_id == watch.id,
-            CompositionUpstreamEvent.subject == "offering",
-            CompositionUpstreamEvent.new_ref == target,
-        ),
     )
     rows = list((await session.scalars(binding.order_by(PricingWatchRef.created_at, PricingWatchRef.id))).all())
     rows += list((await session.scalars(offering.order_by(PricingWatchRef.created_at, PricingWatchRef.id))).all())
     order = list(watch.version_order or [])
     equivalent = {tuple(pair) for pair in (watch.equivalent or [])}
     kept = []
+    heads: dict[uuid.UUID, str | None] = {}
     for ref in rows:
+        if ref.subject == "offering":
+            if ref.composition_id not in heads:
+                heads[ref.composition_id] = await _offering_head(session, ref.composition_id, watch.id)
+            if _ref_base(heads[ref.composition_id]) == target:
+                continue
         if ref.subject == "binding":
             pinned = ref.pinned_version_id
             if (pinned, target) in equivalent:
@@ -291,6 +286,39 @@ async def lacking(session: AsyncSession, watch: PricingWatch, target: str) -> li
                 continue
         kept.append(ref)
     return kept
+
+
+def _ref_base(new_ref: str | None) -> str | None:
+    """An offering event's ``new_ref`` without the ``~<n>`` a content seen again carries."""
+    return new_ref.split("~", 1)[0] if new_ref is not None else None
+
+
+async def _offering_head(session: AsyncSession, composition_id: uuid.UUID, watch_id: uuid.UUID) -> str | None:
+    """The ``new_ref`` of the composition's latest offering event on the watch: what its offering was last compared
+    with. A URL whose content returns to an earlier hash needs a new event although one names that hash already."""
+    return await session.scalar(
+        select(CompositionUpstreamEvent.new_ref).where(
+            CompositionUpstreamEvent.composition_id == composition_id, CompositionUpstreamEvent.watch_id == watch_id,
+            CompositionUpstreamEvent.subject == "offering",
+        ).order_by(CompositionUpstreamEvent.detected_at.desc(), CompositionUpstreamEvent.id.desc()).limit(1)
+    )
+
+
+async def _offering_ref(session: AsyncSession, composition_id: uuid.UUID, watch_id: uuid.UUID, target: str) -> str:
+    """``target``, or ``target~<n>`` when the composition already has ``n`` offering events naming it (the unique
+    key stays one event per (composition, watch, new_ref), so two writers still record one)."""
+    seen = await session.scalar(select(func.count()).select_from(CompositionUpstreamEvent).where(
+        CompositionUpstreamEvent.composition_id == composition_id, CompositionUpstreamEvent.watch_id == watch_id,
+        CompositionUpstreamEvent.subject == "offering",
+        (CompositionUpstreamEvent.new_ref == target) | CompositionUpstreamEvent.new_ref.like(f"{target}~%"),
+    )) or 0
+    return target if seen == 0 else f"{target}~{seen}"
+
+
+def _aware(moment: Any) -> Any:
+    from datetime import timezone
+
+    return moment.replace(tzinfo=timezone.utc) if moment is not None and moment.tzinfo is None else moment
 
 
 async def record(session: AsyncSession, watch: PricingWatch, *, budget: list[int]) -> Recorded:
@@ -384,29 +412,32 @@ async def _record_offering(session: AsyncSession, watch: PricingWatch, ref: Pric
     if reference is None:
         return None
     gone = target.startswith(f"{GONE}:")
+    if _ref_base(await _offering_head(session, composition_id, watch.id)) == target:
+        return None
     evaluation = await _current(session, reference)
-    # The baseline: the newest of the composition's last offering event and the reference version's evaluation.
+    # The baseline: what was observed last, the composition's last offering event or the reference version's
+    # evaluation, whichever came later (a URL may serve an earlier snapshot again, so not by ``fetched_at``).
     last_event = await session.scalar(
         select(CompositionUpstreamEvent).where(
             CompositionUpstreamEvent.composition_id == composition_id, CompositionUpstreamEvent.watch_id == watch.id,
             CompositionUpstreamEvent.subject == "offering", CompositionUpstreamEvent.new_snapshot_id.is_not(None),
-        ).order_by(CompositionUpstreamEvent.detected_at.desc()).limit(1)
+        ).order_by(CompositionUpstreamEvent.detected_at.desc(), CompositionUpstreamEvent.id.desc()).limit(1)
     )
     candidates = []
-    if last_event is not None:
-        candidates.append(await session.get(PricingSnapshot, last_event.new_snapshot_id))
     if evaluation is not None and evaluation.offering_snapshot_id is not None:
-        candidates.append(await session.get(PricingSnapshot, evaluation.offering_snapshot_id))
-    candidates = [c for c in candidates if c is not None and snapshot_watch_key(c) == watch.watch_key]
-    baseline = max(candidates, key=lambda s: s.fetched_at) if candidates else None
+        candidates.append((_aware(evaluation.created_at),
+                           await session.get(PricingSnapshot, evaluation.offering_snapshot_id)))
+    if last_event is not None:
+        candidates.append((_aware(last_event.detected_at),
+                           await session.get(PricingSnapshot, last_event.new_snapshot_id)))
+    candidates = [(at, snapshot) for at, snapshot in candidates
+                  if snapshot is not None and snapshot_watch_key(snapshot) == watch.watch_key]
+    baseline = max(candidates, key=lambda pair: pair[0])[1] if candidates else None
     new_snapshot = await session.get(PricingSnapshot, watch.latest_snapshot_id) if (
         not gone and watch.latest_snapshot_id) else None
     if not gone and (new_snapshot is None or baseline is None):
         return None
     if not gone and (baseline.id == new_snapshot.id or baseline.content_hash == new_snapshot.content_hash):
-        return None
-    if await _event_exists(session, composition_id=composition_id, watch_id=watch.id, subject="offering",
-                           new_ref=target):
         return None
     old = await _side(baseline, url=_permanent(watch, baseline.version_id if baseline else None))
     new = None if gone else await _side(new_snapshot, url=_permanent(watch, new_snapshot.version_id))
@@ -441,7 +472,8 @@ async def _record_offering(session: AsyncSession, watch: PricingWatch, ref: Pric
     if found is None:
         return None
     return await _write(session, watch, reference, ref, "offering", found, old_ref=_ref_of_snapshot(baseline) or "-",
-                        new_ref=target, old_snapshot=baseline, new_snapshot=new_snapshot)
+                        new_ref=await _offering_ref(session, composition_id, watch.id, target),
+                        old_snapshot=baseline, new_snapshot=new_snapshot)
 
 
 async def _write(session: AsyncSession, watch: PricingWatch, version: CompositionVersion, ref: PricingWatchRef,

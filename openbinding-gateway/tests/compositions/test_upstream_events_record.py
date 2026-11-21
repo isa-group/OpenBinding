@@ -5,6 +5,7 @@ The template-seeded TomatoMeter: 1.0.0 (Brevo PROFESSIONAL) adopted in ``product
 
 from __future__ import annotations
 
+import hashlib
 import logging
 
 import pytest
@@ -350,6 +351,7 @@ async def test_a_url_offering_is_watched_through_its_snapshots(api_client, regis
     await db_session.commit()
     shop_id = shop.id
     feed = await api_client.get(f"{base}/shop/environments/production/composition", headers=found.headers)
+    clocks.advance(86400)  # the events' clock past the evaluation's (which is not frozen)
 
     await cycle(db_session, source)
     assert await _events(db_session, composition_id=shop_id) == []
@@ -365,3 +367,17 @@ async def test_a_url_offering_is_watched_through_its_snapshots(api_client, regis
     assert event.diff["margins"]["environments"][0]["environment"] == "production"
     again = await api_client.get(f"{base}/shop/environments/production/composition", headers=found.headers)
     assert again.headers["etag"] == feed.headers["etag"]
+    # Back to the earlier content, then forward again: each move is an event against what was observed last,
+    # although the URL serves the snapshots it served before.
+    sphere.serve("/shop/pricing.yml", renamed, {"content-type": "application/yaml", "etag": '"v4"'})
+    clocks.advance(30)
+    await cycle(db_session, source)
+    sphere.serve("/shop/pricing.yml", scale, {"content-type": "application/yaml", "etag": '"v5"'})
+    clocks.advance(30)
+    await cycle(db_session, source)
+    first, back, forward = await _events(db_session, composition_id=shop_id)
+    assert back.old_ref == first.new_ref and back.new_ref == f"sha256:{hashlib.sha256(renamed).hexdigest()}"
+    assert (forward.old_ref, forward.new_ref) == (back.new_ref, f"{first.new_ref}~1")
+    assert forward.new_snapshot_id == first.new_snapshot_id and forward.notify is True
+    await cycle(db_session, source)
+    assert len(await _events(db_session, composition_id=shop_id)) == 3
