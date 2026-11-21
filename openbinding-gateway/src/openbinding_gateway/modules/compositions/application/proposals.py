@@ -341,6 +341,16 @@ class SealDerivedKind:
     async def check_permission(self, context: Context, step: Any) -> None:
         if ROLE_STRENGTH[context.role] < ROLE_STRENGTH[self.role]:
             raise forbidden(self.role)
+        source = (step.params or {}).get("source") or {}
+        if context.api_key is not None and source.get("run"):
+            # A key sees only the runs of the engines it may use. A run this key cannot see is refused here, with the
+            # proposal left pending, rather than read by the pre-flight as a run that is gone (stale).
+            try:
+                run_id = uuid.UUID(str(source["run"]))
+            except ValueError:
+                return
+            if await run_solutions(context.session, context.organization.id, run_id, context.caller) is None:
+                raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Run not found.")
 
     async def check_deferred(self, context: Context, step: Any, outputs: dict[int, dict[str, Any]]) -> None:
         reference = domain.parse_reference((step.params.get("source") or {}).get("revision"))

@@ -565,3 +565,25 @@ async def test_a_run_interrupted_after_its_last_outcome_is_closed_completed(api_
     await _housekeeping(db_session)
 
     assert (await db_session.get(Proposal, uuid.UUID(made["id"]), populate_existing=True)).status == "completed"
+
+
+ENGINE = {"namespace": "openbinding", "name": "random-search", "version": "1.0.0", "digest": "sha256-" + "e" * 64}
+
+
+async def test_a_run_the_key_cannot_see_is_refused_and_leaves_the_proposal_pending(api_client, registration, db_session, gate):  # noqa: F811
+    """A key sees only the runs of the engines it may use: a run it cannot see is 404 at confirm, not a stale proposal
+    (the same run, confirmed in the browser, applies)."""
+    from test_composition_derive_api import SIMPLE_BINDING, composition_of
+
+    headers, linked, base = await composition_of(api_client, registration, db_session, gate)
+    run = await finished_run(db_session, linked, [bim_binding(linked, SIMPLE_BINDING)])
+    await api_client.post(f"{base}/environments", headers=headers, json={"slug": "production", "name": "P"})
+    made = (await api_client.post(f"{base}/proposals", headers=headers, json={
+        "kind": "derive_and_adopt", "source": {"run": str(run.id)}, "environment": "production"})).json()
+    url = f"/v1/organizations/{linked.organization.slug}/proposals/{made['id']}/confirm"
+    key = await make_key(api_client, headers, ["compositions:read", "compositions:write", "compositions:adopt"])
+    refused = await api_client.post(url, headers=key)
+    assert refused.status_code == 404 and code(refused) == "not_found", refused.text
+    assert (await db_session.get(Proposal, uuid.UUID(made["id"]), populate_existing=True)).status == "pending"
+    confirmed = await api_client.post(url, headers=headers)
+    assert confirmed.status_code == 200 and confirmed.json()["status"] == "completed", confirmed.text
