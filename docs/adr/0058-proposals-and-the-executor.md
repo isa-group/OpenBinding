@@ -68,7 +68,8 @@ each step. Confirmation answers synchronous JSON; an `on_step` hook lets F7 stre
 **Interrupted runs** are closed by the upstream watcher's housekeeping, as SPHERE's `closeInterrupted(id, staleBefore)`
 judges `updatedAt`: an `executing` proposal with no progress for `PROPOSAL_EXECUTION_DEADLINE_S` (600) has its `adopt`
 steps reconciled from `composition_adoptions.proposal_id`, the step that was running marked `failed` ("check whether
-it was applied"), later ones `skipped`, and ends `partial` or `failed`. Every write is conditional, so the closure and
+it was applied"), later ones `skipped`, and ends as the executor would: `completed` when every step is done, else
+`partial` or `failed`. Every write is conditional, so the closure and
 a late outcome never both land; this is the one write of the watcher that is not its own state, and it only ends what
 a person started.
 

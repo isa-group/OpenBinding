@@ -30,8 +30,8 @@ from their adoptions.
 
 :func:`close_interrupted` (the upstream watcher's housekeeping) closes executions with no progress for
 ``PROPOSAL_EXECUTION_DEADLINE_S``: an ``adopt`` step whose adoption exists is recorded ``done``; the step that was
-running is ``failed`` ("check whether it was applied"), later ones ``skipped``; ``partial`` when a step is done, else
-``failed``. Every write is conditional, so whichever of the executor and the closure writes first wins.
+running is ``failed`` ("check whether it was applied"), later ones ``skipped``; ``completed`` when every step is done,
+``partial`` when some are, else ``failed``. Every write is conditional, so whichever of the executor and the closure writes first wins.
 """
 
 from __future__ import annotations
@@ -371,7 +371,8 @@ async def _close_one(session: AsyncSession, proposal_id: uuid.UUID, deadline_s: 
     statuses = list((await session.scalars(select(ProposalStep.status).where(ProposalStep.proposal_id == proposal_id)
                                            .execution_options(populate_existing=True))).all())
     done = statuses.count("done")
-    final = "partial" if done else "failed"
+    # As the executor ends a run: every step done (the last outcome written, or an adoption reconciled) is completed.
+    final = "completed" if done == len(statuses) else "partial" if done else "failed"
     await session.execute(
         update(Proposal).where(Proposal.id == proposal_id, Proposal.status == "executing")
         .values(status=final, completed_at=now, progressed_at=now).execution_options(synchronize_session=False)

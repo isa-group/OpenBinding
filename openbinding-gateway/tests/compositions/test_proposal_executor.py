@@ -450,7 +450,8 @@ async def test_an_adoption_made_before_the_interruption_is_reconciled(api_client
     (step,) = (await db_session.scalars(select(ProposalStep).where(ProposalStep.proposal_id == row.id)
                                         .execution_options(populate_existing=True))).all()
     assert step.status == "done" and step.result["ordinal"] == ordinal and step.result["reconciled"]
-    assert row.status == "partial"
+    # Every step done: the run is recorded as it ended, completed.
+    assert row.status == "completed"
 
 
 async def test_a_closure_racing_a_live_run_wins_and_stops_it(api_client, registration, db_session, gate, monkeypatch):  # noqa: F811
@@ -550,3 +551,17 @@ async def test_a_key_bounded_to_another_composition_reaches_no_proposal_of_this_
         "proposals"]] == [made["id"]]
     confirmed = await confirm(api_client, t, reaching, made["id"])
     assert confirmed.status_code == 200 and confirmed.json()["status"] == "completed", confirmed.text
+
+
+async def test_a_run_interrupted_after_its_last_outcome_is_closed_completed(api_client, registration, db_session, gate, monkeypatch):  # noqa: F811
+    Clocks(monkeypatch)
+    t = await tomato_team(api_client, registration, db_session, gate)
+    made = await propose(api_client, t, t.member, adopt("1.1.0"))
+    await _executing(db_session, made["id"], minutes_ago=30)
+    await db_session.execute(update(ProposalStep).where(ProposalStep.proposal_id == uuid.UUID(made["id"])).values(
+        status="done", result={"ordinal": 2}, finished_at=clock.utcnow()))
+    await db_session.commit()
+
+    await _housekeeping(db_session)
+
+    assert (await db_session.get(Proposal, uuid.UUID(made["id"]), populate_existing=True)).status == "completed"
