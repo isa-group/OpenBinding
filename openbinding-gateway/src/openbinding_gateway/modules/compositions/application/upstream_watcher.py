@@ -678,6 +678,10 @@ async def run_upstream_watcher(settings: Settings | None = None) -> None:
     """Run cycles until cancelled (the gateway lifespan); errors are logged and the loop continues."""
     settings = settings or get_settings()
     tick = tick_of(settings.upstream_poll_interval_s)
+    if not polling_enabled(settings):
+        # Said once at start, where an operator reads it: housekeeping still runs, nothing upstream is read.
+        logger.info("upstream_watch_skipped reason=disabled sphere_enabled=%s upstream_watch_enabled=%s",
+                    settings.sphere_enabled, settings.upstream_watch_enabled)
     while True:
         try:
             await asyncio.sleep(tick)

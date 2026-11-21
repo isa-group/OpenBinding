@@ -334,3 +334,27 @@ async def test_the_admin_queue_names_the_watches(api_client, registration, db_se
     assert found["watches"]["active"] == 4 and found["eventsLastDay"] == {}
     assert json.dumps(found)
     await db_session.execute(update(PricingWatch).values(status="active"))
+
+
+async def test_the_lifespan_loop_says_once_that_it_is_off_and_reads_nothing(sphere, monkeypatch, caplog) -> None:
+    """With SPHERE off (the compose integration's gateway) the loop starts, logs it once at INFO, runs its cycles
+    without a read and never crashes."""
+    import asyncio
+    import logging
+
+    from openbinding_gateway.db import base as db_base
+
+    ticks = []
+
+    async def sleep(seconds):
+        ticks.append(seconds)
+        if len(ticks) > 2:
+            raise asyncio.CancelledError
+
+    monkeypatch.setattr(uw.asyncio, "sleep", sleep)
+    monkeypatch.setattr(db_base, "is_configured", lambda: False)
+    before = len(sphere.requests)
+    with caplog.at_level(logging.INFO), pytest.raises(asyncio.CancelledError):
+        await uw.run_upstream_watcher(_settings(sphere_enabled=False))
+    assert "upstream_watch_skipped reason=disabled" in caplog.text and len(sphere.requests) == before
+    assert ticks[0] == uw.tick_of(20)
