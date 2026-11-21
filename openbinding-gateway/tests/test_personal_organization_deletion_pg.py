@@ -146,3 +146,48 @@ async def test_the_personal_organization_is_deleted_whole_by_the_real_foreign_ke
         assert await session.scalar(
             select(func.count()).select_from(CompositionVersion).join(Composition).where(Composition.organization_id == team_id)
         ) == 1
+
+
+async def test_no_run_can_be_added_while_the_deletion_holds_the_organization(pg) -> None:
+    """The deletion locks the personal organization before it counts its runs, until it commits: a run inserted
+    meanwhile (by a member, or by a key of the account not yet revoked) waits, then finds the organization gone."""
+    import asyncio
+
+    from sqlalchemy import func, select
+    from sqlalchemy.exc import IntegrityError
+
+    from _problem_helpers import run_refs, seed_problem_run
+    from openbinding_gateway.db.models import Job, JobState
+    from openbinding_gateway.routes.organizations import delete_personal_organization, lock_personal_organization
+    from openbinding_gateway.routes.users import _stop_personal_runs
+
+    async with pg.session() as setup:
+        user = await a_user(setup)
+        personal = await ensure_personal_organization(setup, user)
+        seeded = await seed_problem_run(setup, created_by_id=user.id, organization_id=personal.id)
+        await setup.commit()
+        user_id, personal_id, refs = user.id, personal.id, run_refs(seeded)
+
+    async with pg.session() as deleting, pg.session() as launching:
+        await lock_personal_organization(deleting, await deleting.get(Organization, personal_id))
+        assert await _stop_personal_runs(deleting, personal_id) == 0
+
+        async def launch() -> None:
+            launching.add(Job(created_by_id=user_id, engine_id="random-search", engine_job_id="late", service_url="inline",
+                              state=JobState.QUEUED, original_request={}, options={}, provenance={}, **refs))
+            await launching.commit()
+
+        late = asyncio.create_task(launch())
+        await asyncio.sleep(1.0)
+        assert not late.done(), "a run was added to an organization being deleted"
+
+        await deleting.execute(update(User).where(User.id == user_id).values(deleted_at=utcnow()))
+        await delete_personal_organization(deleting, await deleting.get(Organization, personal_id))
+        await deleting.commit()
+        with pytest.raises(IntegrityError):
+            await late
+        await launching.rollback()
+
+    async with pg.session() as check:
+        assert await check.get(Organization, personal_id) is None
+        assert await check.scalar(select(func.count()).select_from(Job).where(Job.organization_id == personal_id)) == 0

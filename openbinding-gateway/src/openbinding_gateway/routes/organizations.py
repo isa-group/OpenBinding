@@ -703,11 +703,28 @@ async def delete_organization(
 
 
 async def _lock_subtree(session: AsyncSession, unique_descendants: list[uuid.UUID]) -> None:
-    for model, column in ((Study, Study.organization_id), (Composition, Composition.organization_id),
-                          (BindingCase, BindingCase.organization_id), (Organization, Organization.id)):
-        await session.execute(
-            select(model.id).where(column.in_(unique_descendants)).order_by(model.id).with_for_update()
-        )
+    """Lock what a subtree holds, then its organizations, in the order writers take them. Its problems' revisions and
+    compilations come before the organizations' rows: a run's insert checks its compilation (a key-share lock) before
+    its organization, so it either waits at the compilation holding nothing of ours or finishes before we lock."""
+    cases = select(BindingCase.id).where(BindingCase.organization_id.in_(unique_descendants))
+    revisions = select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id.in_(cases))
+    for model, condition in (
+        (Study, Study.organization_id.in_(unique_descendants)),
+        (Composition, Composition.organization_id.in_(unique_descendants)),
+        (BindingCase, BindingCase.organization_id.in_(unique_descendants)),
+        (BindingCaseRevision, BindingCaseRevision.binding_case_id.in_(cases)),
+        (ProblemCompilation, ProblemCompilation.revision_id.in_(revisions)),
+        (Organization, Organization.id.in_(unique_descendants)),
+    ):
+        await session.execute(select(model.id).where(condition).order_by(model.id).with_for_update())
+
+
+async def lock_personal_organization(session: AsyncSession, organization: Organization) -> None:
+    """Lock a personal organization as ``deleteOrganization`` locks a subtree before its history check: its studies,
+    compositions, problems and row, ``FOR UPDATE``. Until the transaction ends no run, study run or resource can be
+    added to it (an insert takes a key-share lock on the organization's row), so the runs counted under the lock are
+    all the runs it has when it is deleted."""
+    await _lock_subtree(session, [organization.id])
 
 
 async def delete_personal_organization(session: AsyncSession, organization: Organization) -> None:

@@ -66,7 +66,7 @@ from ..db.platform_models import RunState
 from ..jobs import lifecycle
 from ..jobs import remote_attempts
 from ..study_jobs import StudyRunTerminal, cancel_run as cancel_study_run
-from .organizations import delete_personal_organization
+from .organizations import delete_personal_organization, lock_personal_organization
 from ..services.entitlements import entitlement_service
 from ..space_client import PricingUnavailable, get_gate
 
@@ -639,6 +639,10 @@ async def delete_own_account(
             )
 
     personal = await session.scalar(select(Organization).where(Organization.personal_owner_id == user.id))
+    if personal is not None:
+        # Locked before its runs are counted, and until the commit: no run can be added (by a member, or by a key or
+        # session of this account) between the count and the delete.
+        await lock_personal_organization(session, personal)
     if personal is not None and await _stop_personal_runs(session, personal.id):
         # The cancellations stand (the workers carry them to the engines); the account waits for them.
         await session.commit()
