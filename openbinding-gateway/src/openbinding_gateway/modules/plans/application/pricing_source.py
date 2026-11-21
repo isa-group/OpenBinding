@@ -70,8 +70,20 @@ class PricingSource(Protocol):
     ) -> SearchPage: ...
 
     async def manifest(
-        self, where: SphereEndpoint, pricing_id: str, credential: Credential | None, *, if_none_match: str | None = None
-    ) -> Manifest | NotModified: ...
+        self,
+        where: SphereEndpoint,
+        pricing_id: str,
+        credential: Credential | None,
+        *,
+        if_none_match: str | None = None,
+        revalidate: bool = False,
+    ) -> Manifest | NotModified:
+        """A family's manifest, or ``NotModified`` when ``if_none_match`` still names it.
+
+        ``revalidate`` sends a conditional request even when a fresh cached answer or a recent negative answer
+        exists; rate-limit windows and the host back-off still apply.
+        """
+        ...
 
     async def version_yaml(
         self, where: SphereEndpoint, pricing_id: str, version_id: str, credential: Credential | None
