@@ -318,3 +318,53 @@ async def test_an_organization_deleted_while_its_proposal_runs_ends_the_run_with
     assert await _confirm(pg, w, proposal_id) == "not_found"
     async with pg.session() as session:
         assert await session.get(Organization, w.organization_id) is None
+
+
+async def _held_by_an_organization_delete(pg, w):
+    """A session that holds the organization's subtree as ``deleteOrganization`` locks it (proposals included)."""
+    from openbinding_gateway.routes.organizations import _lock_subtree
+
+    holder = pg.session()
+    session = await holder.__aenter__()
+    await _lock_subtree(session, [w.organization_id])
+    return holder, session
+
+
+async def test_deleting_an_environment_while_its_organization_is_deleted_closes_no_lock_cycle(pg) -> None:
+    """The organization delete holds the subtree (compositions, proposals, the organization) and then deletes the
+    environments; the environment delete waits at the composition, holding nothing the other needs, and then finds the
+    environment gone. Neither is a deadlock."""
+    from fastapi import HTTPException
+
+    from openbinding_gateway.db.models import Composition, CompositionEnvironment, Organization, User
+    from openbinding_gateway.modules.compositions.application import environments
+    from openbinding_gateway.routes.organizations import _delete_subtree
+
+    w, environment_id = await _operated(pg)
+    await _adopt_proposal(pg, w)
+    holder, held = await _held_by_an_organization_delete(pg, w)
+
+    async def delete_environment() -> str:
+        async with pg.session() as session:
+            composition = await session.get(Composition, w.composition_id)
+            row = await session.get(CompositionEnvironment, environment_id)
+            user = await session.get(User, w.user_id)
+            try:
+                await environments.delete_environment(session, composition, row, user)
+                await session.commit()
+            except HTTPException as error:
+                await session.rollback()
+                return str(error.status_code)
+            return "deleted"
+
+    try:
+        racing = asyncio.create_task(delete_environment())
+        await asyncio.sleep(0.3)
+        assert not racing.done()  # waiting at the composition
+        organization = await held.get(Organization, w.organization_id)
+        await _delete_subtree(held, organization, [w.organization_id])
+        await held.commit()
+    finally:
+        await holder.__aexit__(None, None, None)
+    assert await asyncio.wait_for(racing, timeout=10) == "404"
+

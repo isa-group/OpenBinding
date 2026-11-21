@@ -299,6 +299,8 @@ async def delete_composition_environment(
     """Delete an environment with its feed keys and its adoption history (ADMIN); its feed stops answering."""
     _, found, row, role = await environments.readable_environment(session, org, composition, environment, user)
     environments.require(role, OrganizationRole.ADMIN)
+    # The composition before the environment's row (the guard updates it), the order an organization delete takes.
+    await environments.lock_composition(session, found)
     await etags.guard(session, row, if_match)
     await environments.delete_environment(session, found, row, user)
 

@@ -241,9 +241,10 @@ async def delete_environment(
 ) -> None:
     """Delete ``environment`` with its feed keys and its adoption history, in one transaction.
 
-    The row is locked first, as an adopt locks it, so an adopt in flight either commits before the delete
-    counts the history or waits and finds the environment gone.
+    Its composition is share-locked first (:func:`lock_composition`), then the row, as an adopt locks them, so an adopt
+    in flight either commits before the delete counts the history or waits and finds the environment gone.
     """
+    await lock_composition(session, composition)
     locked = await session.scalar(
         select(CompositionEnvironment).where(CompositionEnvironment.id == environment.id)
         .with_for_update().execution_options(populate_existing=True)
@@ -270,15 +271,28 @@ async def delete_environment(
     await session.flush()
 
 
+async def lock_composition(session: AsyncSession, composition: Composition) -> None:
+    """``FOR KEY SHARE`` on the composition, before an environment's row is touched: deleting the organization locks
+    its compositions first and its environments last, so an environment write that waited on the organization (its
+    audit row) or on a proposal while holding the environment would close a lock cycle; this way it waits at the
+    composition, holding nothing the organization delete needs."""
+    await session.execute(select(Composition.id).where(Composition.id == composition.id)
+                          .with_for_update(read=True, key_share=True))
+
+
 async def stale_proposals_adopting_in(
     session: AsyncSession, composition: Composition, environment: CompositionEnvironment, actor: User,
 ) -> int:
     """F6-B: every pending proposal of ``composition`` with an ``adopt`` step in ``environment`` becomes ``stale`` (in
-    the caller's transaction), so it can neither run nor dangle once the environment is deleted; how many."""
+    the caller's transaction), so it cannot run once the environment is deleted; how many.
+
+    The environment is already locked here, and deleting its organization locks proposals before environments, so a
+    proposal another transaction holds is skipped rather than waited for (``SKIP LOCKED``): one an organization delete
+    holds goes with it, and any other still finds its environment missing at confirm (stale then)."""
     candidates = (await session.execute(
         select(Proposal.id, ProposalStep.params).join(ProposalStep, ProposalStep.proposal_id == Proposal.id).where(
             Proposal.composition_id == composition.id, Proposal.status == "pending", ProposalStep.kind == "adopt",
-        )
+        ).with_for_update(skip_locked=True, of=Proposal)
     )).all()
     ids = sorted({row.id for row in candidates if str((row.params or {}).get("environment")) == str(environment.id)})
     staled = 0
