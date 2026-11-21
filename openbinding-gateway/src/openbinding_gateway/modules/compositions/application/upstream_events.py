@@ -328,13 +328,19 @@ async def record(session: AsyncSession, watch: PricingWatch, *, budget: list[int
     target = await target_of(session, watch)
     if target is None:
         return done
-    refs = await lacking(session, watch, target)
+    ref_ids = [ref.id for ref in await lacking(session, watch, target)]
     watch_id = watch.id
     offering_seen: set[uuid.UUID] = set()
-    for ref in refs:
-        version_id = ref.version_id
+    held = False
+    for ref_id in ref_ids:
         if budget[0] <= 0:
             break
+        # Read again: a failed classification's rollback expires what the session holds.
+        ref = await session.get(PricingWatchRef, ref_id)
+        watch = await session.get(PricingWatch, watch_id)
+        if ref is None or watch is None:
+            continue
+        version_id = ref.version_id
         if ref.subject == "offering":
             if ref.composition_id in offering_seen:
                 continue
@@ -342,14 +348,17 @@ async def record(session: AsyncSession, watch: PricingWatch, *, budget: list[int
         try:
             inserted = await (_record_offering(session, watch, ref, target, budget) if ref.subject == "offering"
                               else _record_binding(session, watch, ref, target, budget))
-        except Exception:  # noqa: BLE001 - one classification never stops the cycle
+        except Exception:  # noqa: BLE001 - one classification never stops the cycle, nor the watch's other refs
             await session.rollback()
             logger.warning("upstream_classify_failed watch=%s version=%s", watch_id, version_id, exc_info=True)
-            await session.execute(update(PricingWatch).where(PricingWatch.id == watch_id).values(
-                classify_after=clock.after(session, CLASSIFY_RETRY_S), last_error="classify_failed",
-            ).execution_options(synchronize_session=False))
-            await session.commit()
-            break
+            if not held:
+                # The watch waits before it is classified again; its other refs are still recorded now.
+                held = True
+                await session.execute(update(PricingWatch).where(PricingWatch.id == watch_id).values(
+                    classify_after=clock.after(session, CLASSIFY_RETRY_S), last_error="classify_failed",
+                ).execution_options(synchronize_session=False))
+                await session.commit()
+            continue
         if inserted is not None:
             done.classified += 1
             if inserted:

@@ -414,3 +414,26 @@ async def test_a_url_host_answering_429_holds_only_its_own_watches(api_client, r
     held = await db_session.get(PricingWatch, keyed_id, populate_existing=True)
     assert held.retry_after_until is None and held.last_error is None
     assert report.busy == 1 and url.retry_after_until is not None and url.last_error == "url_busy"
+
+
+async def test_a_ref_whose_classification_fails_never_holds_the_others_back(api_client, registration, db_session, gate, sphere, source, clocks, monkeypatch):  # noqa: F811
+    """Two organizations read the public Brevo watch; the first one's ref raises every time. The second still gets
+    its event in the same cycle, and the watch waits ``classify_after`` before the failing ref is tried again."""
+    first = await seeded(api_client, registration, db_session, gate)
+    second = await seeded(api_client, registration, db_session, gate)
+    await cycle(db_session, source)
+    real = upstream_events._record_binding
+    broken = first.ids["composition"]
+
+    async def failing(session, watch, ref, target, budget):
+        if ref.composition_id == broken:
+            raise RuntimeError("a classification that always fails")
+        return await real(session, watch, ref, target, budget)
+
+    monkeypatch.setattr(upstream_events, "_record_binding", failing)
+    sphere.publish("brevo-professional-up")
+    clocks.advance(30)
+    await cycle(db_session, source)
+    assert [event.composition_id for event in await _events(db_session)] == [second.ids["composition"]]
+    brevo = await watch_of(db_session, BREVO)
+    assert brevo.classify_after is not None and brevo.last_error == "classify_failed"
