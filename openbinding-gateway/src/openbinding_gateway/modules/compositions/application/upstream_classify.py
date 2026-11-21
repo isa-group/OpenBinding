@@ -227,6 +227,10 @@ def _price_not_numeric(price: pricing2yaml.Price) -> bool:
     return isinstance(price, pricing2yaml.Label) or (isinstance(price, pricing2yaml.Expression) and price.value is None)
 
 
+def _not_subscription(add_on: Any) -> bool:
+    return bool(add_on.metered or add_on.private or add_on.depends_on)
+
+
 def _renamed_to(old: pricing2yaml.NormalisedPricing, new: pricing2yaml.NormalisedPricing, plan: str) -> str | None:
     twins = [name for name in new.plans if name not in old.plans and identical_plan(plan, name, old, new)]
     return twins[0] if len(twins) == 1 else None
@@ -244,7 +248,8 @@ def _judge(entry: EntryInput, pricing: pricing2yaml.NormalisedPricing, features:
 
 def _structural(entry: EntryInput, old: pricing2yaml.NormalisedPricing | None,
                 new: pricing2yaml.NormalisedPricing) -> list[dict[str, Any]]:
-    """The plan, add-on, price, currency and billing checks every entry gets."""
+    """The plan, add-on, price, currency and billing checks every entry gets. A state the pinned side already had (a
+    hand-written ``from`` on a private plan or a dependent add-on) is no new reason: only what became so counts."""
     selection = entry.selection
     reasons: list[dict[str, Any]] = []
     plan = new.plans.get(selection.plan)
@@ -252,7 +257,8 @@ def _structural(entry: EntryInput, old: pricing2yaml.NormalisedPricing | None,
         reasons.append(_reason(Reason.PLAN_REMOVED, plan=selection.plan,
                                renamedTo=_renamed_to(old, new, selection.plan) if old is not None else None))
         return reasons
-    if plan.private:
+    pinned_plan = old.plans.get(selection.plan) if old is not None else None
+    if plan.private and not (pinned_plan is not None and pinned_plan.private):
         reasons.append(_reason(Reason.PLAN_PRIVATE, plan=selection.plan))
     if entry.origins:
         reads_price = any(o.source_kind == "priced" for o in entry.origins)
@@ -264,12 +270,15 @@ def _structural(entry: EntryInput, old: pricing2yaml.NormalisedPricing | None,
         reasons.append(_reason(Reason.PRICE_NOT_NUMERIC, plan=selection.plan))
     for name in selection.add_ons:
         add_on = new.add_ons.get(name)
+        pinned = old.add_ons.get(name) if old is not None else None
         if add_on is None:
             reasons.append(_reason(Reason.ADDON_REMOVED, addOn=name))
         elif selection.plan not in add_on.available_for:
-            reasons.append(_reason(Reason.ADDON_UNAVAILABLE, addOn=name))
-        elif add_on.metered or add_on.private or add_on.depends_on:
-            reasons.append(_reason(Reason.ADDON_NOT_SUBSCRIPTION, addOn=name))
+            if pinned is None or selection.plan in pinned.available_for:
+                reasons.append(_reason(Reason.ADDON_UNAVAILABLE, addOn=name))
+        elif _not_subscription(add_on):
+            if pinned is None or not _not_subscription(pinned):
+                reasons.append(_reason(Reason.ADDON_NOT_SUBSCRIPTION, addOn=name))
         elif reads_price and _price_not_numeric(add_on.price):
             reasons.append(_reason(Reason.PRICE_NOT_NUMERIC, addOn=name))
     if old is not None and reads_price and old.currency != new.currency:
@@ -311,7 +320,8 @@ def _entry(entry: EntryInput, old: Side, new: Side, context: BindingContext, not
         judged_after = _judge(entry, new.pricing, features)
         if old.pricing is not None:
             judged_before = _judge(entry, old.pricing, features)
-        if judged_after is not None and not judged_after.eligible:
+        refused_before = judged_before.reason if judged_before is not None and not judged_before.eligible else None
+        if judged_after is not None and not judged_after.eligible and judged_after.reason != refused_before:
             code = judged_after.reason or ""
             if code in _UNMAPPED:
                 target = next((d.extra.get("target") or d.extra.get("limit") or d.extra.get("feature")

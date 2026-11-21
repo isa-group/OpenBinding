@@ -50,6 +50,20 @@ def test_a_period_change_at_the_same_amount_is_a_value_change() -> None:
     assert found["category"] == "values_changed" and found["notify"] is True
 
 
+def test_a_selection_already_private_is_not_invalidated_again() -> None:
+    """A hand-written ``from`` on a plan that was already private: a later version changing nothing it reads is no
+    new invalidity (the reasons compare with the pinned side)."""
+    case = CASES["G11a-plan-private"]
+    entries = [{key: value for key, value in entry.items() if key not in ("origins", "recipe")}
+               for entry in case["entries"]]
+    later = dict(case["new"], versionId="6fff0000000000000000a004", label="2026-12")
+    found = _run("G11a-plan-private", old=case["new"], new=later, entries=entries)
+    assert found["category"] == "no_impact" and found["reasons"] == []
+    assert _run("G11a-plan-private", entries=entries)["category"] == "binding_invalid"  # it became private
+    # With value origins too: the recipe refusing both sides the same way is no new reason.
+    assert _run("G11a-plan-private", old=case["new"], new=later)["category"] == "no_impact"
+
+
 def test_a_guarantee_changes_without_a_delta() -> None:
     found = _run("G04-guarantee")
     (attribute,) = [a for a in found["diff"]["entries"][0]["attributes"] if a["target"] == "availability"]
