@@ -224,12 +224,18 @@ async def _write(factory, watch_id: uuid.UUID, **values: Any) -> None:
         await session.commit()
 
 
-async def _observed(factory, watch: PricingWatch, interval: int, **values: Any) -> None:
+async def _observed(factory, watch: PricingWatch, interval: int, *, settled: bool = True, **values: Any) -> None:
+    """A 200 or a 304: ends any disappearance. ``settled=False`` when a snapshot read still follows (``_manifest``):
+    the failures and an ``unavailable`` status wait for it, so a snapshot that keeps failing keeps backing off."""
     async with factory() as session:
         now = clock.now(session)
         moment = await clock.read_now(session)
+        if settled:
+            values.update(status="active", failures=0)
+        else:
+            values.update(status=case((PricingWatch.status == "unavailable", "unavailable"), else_="active"))
         await session.execute(update(PricingWatch).where(PricingWatch.id == watch.id).values(
-            status="active", observed_at=now, polled_at=now, failures=0, not_found_count=0, not_found_since=None,
+            observed_at=now, polled_at=now, not_found_count=0, not_found_since=None,
             next_poll_at=next_slot(moment, interval, phase_of(watch.id, interval)), **values,
         ).execution_options(synchronize_session=False))
         await session.commit()
@@ -237,9 +243,9 @@ async def _observed(factory, watch: PricingWatch, interval: int, **values: Any) 
 
 async def _failed(factory, watch: PricingWatch, settings: Settings, reason: str) -> None:
     interval = settings.upstream_poll_interval_s
-    failures = watch.failures + 1
-    delay = min(interval * 2 ** min(failures, 4), settings.upstream_failure_backoff_max_s)
     async with factory() as session:
+        failures = (await session.scalar(select(PricingWatch.failures).where(PricingWatch.id == watch.id)) or 0) + 1
+        delay = min(interval * 2 ** min(failures, 4), settings.upstream_failure_backoff_max_s)
         await session.execute(update(PricingWatch).where(PricingWatch.id == watch.id).values(
             failures=PricingWatch.failures + 1, status=_unless_gone("unavailable"), last_error=reason[:80],
             polled_at=clock.now(session), next_poll_at=clock.after(session, delay),
@@ -421,7 +427,7 @@ async def _manifest(
     # 1. Observed, committed before any snapshot read (snapshot_version manages its own transactions). The ETag, the
     #    order and the latest move only with the snapshot (3.), so a failed snapshot is read again on the next poll
     #    (the old ETag gets a 200) and nothing is ever classified against a snapshot of an older version.
-    await _observed(factory, watch, settings.upstream_poll_interval_s, last_error=last_error)
+    await _observed(factory, watch, settings.upstream_poll_interval_s, settled=False, last_error=last_error)
     if previous is not None and latest != previous:
         report.new_versions += 1
     # 2. Snapshot the latest in a fresh session, with the manifest already read (no second manifest request).
@@ -448,7 +454,7 @@ async def _manifest(
         await _write(factory, watch.id, last_error="invalid")
         return
     # 3. The watch points at it, with the manifest's facts.
-    await _write(factory, watch.id, latest_snapshot_id=snapshot_id, **facts)
+    await _write(factory, watch.id, latest_snapshot_id=snapshot_id, status="active", failures=0, **facts)
 
 
 async def _snapshotted(factory, watch: PricingWatch, latest: str) -> bool:

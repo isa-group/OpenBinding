@@ -224,6 +224,21 @@ async def test_a_failure_between_404s_never_starts_a_second_disappearance(api_cl
     assert (brevo.status, brevo.gone_epoch) == ("gone", 2)
 
 
+async def test_a_snapshot_that_keeps_failing_backs_off_to_the_cap(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
+    await _first(db_session, source, api_client, registration, gate)
+    entry = sphere.publish("brevo-professional-up")
+    sphere.unavailable(sphere.yaml_path(BREVO, entry["versionId"]), status=503)
+    delays, statuses = [], []
+    for _ in range(6):
+        clocks.advance(4000)
+        await _cycle(db_session, source, upstream_failure_backoff_max_s=300)
+        brevo = await _watch(db_session, BREVO)
+        statuses.append(brevo.status)
+        delays.append(int((brevo.next_poll_at.replace(tzinfo=timezone.utc) - clocks.now).total_seconds()))
+    assert brevo.failures == 6 and set(statuses) == {"unavailable"}
+    assert delays[:3] == [40, 80, 160] and delays[3:] == [300, 300, 300]
+
+
 async def test_a_rewritten_version_is_logged_only_on_a_verified_snapshot(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
     await _first(db_session, source, api_client, registration, gate)
     manifest = sphere.manifest(BREVO)
