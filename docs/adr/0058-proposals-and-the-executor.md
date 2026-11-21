@@ -76,8 +76,14 @@ a person started.
 **Locks** follow the delete paths' order: a composition, then its proposals, then their steps. Creating a proposal
 share-locks its composition first; the executor writes a step's outcome after its proposal's stamp; deleting a
 composition, an organization or an account's personal organization locks proposals before steps. Deleting an
-environment makes the pending proposals that adopt in it `stale`; deleting an account cancels its pending proposals
-in other organizations and deletes its personal organization's with it.
+environment share-locks its composition before the environment's row and makes the pending proposals that adopt in it
+`stale`, skipping one another transaction holds (`SKIP LOCKED`; the pre-flight finds the environment missing anyway);
+deleting an account cancels its pending proposals in other organizations before its memberships go (skipping held
+ones too) and deletes its personal organization's with it.
+
+**Keys.** A proposal's own routes and the caller's list name no composition, so the key's boundary is checked against
+the proposal's composition there; at confirm each step's own key permission is checked, and a run the key may not see
+is refused rather than read as gone.
 
 **Nothing moves a feed but an adoption.** Making, superseding, cancelling or finding a proposal stale writes no
 environment; a `completed` proposal changes a feed once, through `adoption.adopt()`.

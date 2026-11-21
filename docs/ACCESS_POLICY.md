@@ -86,6 +86,10 @@ left pending. A browser session is not key-checked; its role is, step by step. C
 `evaluate` work (a seal step derives the document it shows, and confirming derives it again before sealing it);
 cancelling is an operation write. `GET /v1/users/me/proposals` lists only the caller's own proposals in organizations
 where they hold a role, and needs `compositions:read`; the proposal routes resolve to the key kind `compositions`.
+A proposal's own routes and the caller's list name no composition, so a key's boundary (`organizations`, `slugs`) is
+checked against the proposal's organization and composition there: a proposal outside it answers `404` "Proposal not
+found." and is left out of the list (a key bounded by slugs reaches no proposal without a composition). A seal step
+from a run the confirming key may not see (another Engine) is `404 Run not found.`, with the proposal left pending.
 
 ## Public compositions
 
