@@ -163,7 +163,7 @@ async def proposal_view(session: AsyncSession, row, caller: User, *, detail: boo
         403: {**FORBIDDEN_RESPONSE, "description": "The caller's role is weaker than MEMBER (`organization_forbidden`)."},
         409: {**CONFLICT_RESPONSE, "description": "`composition_archived`, or `proposal_conflict` (another proposal of "
                                                   "the caller's was made at the same time)."},
-        422: {"model": ErrorResponse, "description": "`proposal_invalid`: `errors` lists `{step, code, message}`."},
+        422: {"description": "`proposal_invalid`: `errors` lists `{step, code, message}`."},
         **EVALUATING,
     },
 )
@@ -272,8 +272,8 @@ async def cancel_proposal(
                                                    "`insufficient_api_key_permission` (a step's key permission)."},
         409: {**CONFLICT_RESPONSE, "description": "`proposal_not_pending`, or `proposal_stale` (`stale` lists "
                                                   "`{step, kind, reason, base, current}`)."},
-        422: {"model": ErrorResponse, "description": "`confirmation_required` or `confirmation_mismatch`: a destructive "
-                                                     "step needs its typed phrase."},
+        422: {"description": "`confirmation_required` or `confirmation_mismatch`: a destructive step needs its typed "
+                             "phrase."},
         **EVALUATING,
     },
 )
