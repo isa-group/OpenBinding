@@ -1066,6 +1066,11 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
                 operation["x-conditional-api-key-permissions"] = {
                     "review=true": ["engines:moderate"]
                 }
+            if path == "/v1/organizations/{org}/proposals/{proposal}/confirm" and method == "post":
+                # The executor checks each step's own permission (the route table is keyed by path).
+                operation["x-conditional-api-key-permissions"] = {
+                    "a step of kind adopt": ["compositions:adopt"]
+                }
             responses.setdefault(
                 "403",
                 refusal(

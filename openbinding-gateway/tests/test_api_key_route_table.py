@@ -52,8 +52,8 @@ def test_the_route_table_has_the_v1_surface():
     # token route and the local logout, then the four US CAS routes and the two linked-identity routes (191); F5-D adds
     # what deleting the account deletes with it (192); F6-A adds the upstream events: list, read, review and the
     # caller's list (196); F6-B adds the proposals: a composition's (make, list), an organization's (read, cancel) and the
-    # caller's list (201).
-    assert len(ROUTES) == 201
+    # caller's list, and confirming one (202).
+    assert len(ROUTES) == 202
 
 
 def test_the_unclassified_permission_cannot_be_granted():

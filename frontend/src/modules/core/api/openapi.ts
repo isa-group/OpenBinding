@@ -2721,6 +2721,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/proposals/{proposal}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm a proposal and apply it step by step
+         * @description Its author only. Every step's stored base is checked first (a base that no longer holds makes the proposal `stale`: 409 `proposal_stale`, nothing changed), and the caller's permissions for each step: its role, and for a personal API key each step's own permission (`compositions:adopt` for an `adopt` step, beyond the `compositions:write` this route asks for). Then the steps run in order, each committed by itself, and the answer is the proposal as recorded: `completed`, `partial` (each step's outcome says what was applied) or `failed`. A step whose dependency did not complete is `skipped`; nothing is retried or rolled back.
+         */
+        post: operations["confirmProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/runs": {
         parameters: {
             query?: never;
@@ -8510,6 +8530,17 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+        };
+        /**
+         * ProposalConfirm
+         * @description Confirm a proposal; a destructive step needs its typed phrase.
+         */
+        ProposalConfirm: {
+            /**
+             * Confirmation
+             * @description The proposal's `confirmationPhrase`, typed (case and spaces aside).
+             */
+            confirmation?: string | null;
         };
         /**
          * ProposalCreate
@@ -22563,6 +22594,98 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    confirmProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                proposal: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ProposalConfirm"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalView"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `proposal_not_yours`, `organization_forbidden` (a step's role) or `insufficient_api_key_permission` (a step's key permission). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `Proposal not found.`: no such proposal in this organization, or the caller is not a member. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `proposal_not_pending`, or `proposal_stale` (`stale` lists `{step, kind, reason, base, current}`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `confirmation_required` or `confirmation_mismatch`: a destructive step needs its typed phrase. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The toolchain does not answer (`bim_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

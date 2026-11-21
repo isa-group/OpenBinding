@@ -89,6 +89,8 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
     ("POST", "/v1/organizations/{org}/compositions/{composition}/derive"): "evaluate",
     # A proposal with a seal step derives the document it shows (F6), as a derivation does.
     ("POST", "/v1/organizations/{org}/compositions/{composition}/proposals"): "evaluate",
+    # Confirming one derives again and seals what a seal step shows, and adopts.
+    ("POST", "/v1/organizations/{org}/proposals/{proposal}/confirm"): "evaluate",
     # A template's instantiation compiles its problem, generates and compiles a revision per SPHERE recipe, and
     # derives and seals the first version: one request of the costliest class it does.
     ("POST", "/v1/organizations/{org}/compositions/from-template"): "compile",

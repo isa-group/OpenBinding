@@ -12923,6 +12923,27 @@
         "title": "ProposalComposition",
         "type": "object"
       },
+      "ProposalConfirm": {
+        "additionalProperties": false,
+        "description": "Confirm a proposal; a destructive step needs its typed phrase.",
+        "properties": {
+          "confirmation": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The proposal's `confirmationPhrase`, typed (case and spaces aside).",
+            "title": "Confirmation"
+          }
+        },
+        "title": "ProposalConfirm",
+        "type": "object"
+      },
       "ProposalCreate": {
         "description": "A proposal to build, by `kind`: `adopt` or `derive_and_adopt`.",
         "discriminator": {
@@ -38185,6 +38206,160 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/proposals/{proposal}/confirm": {
+      "post": {
+        "description": "Its author only. Every step's stored base is checked first (a base that no longer holds makes the proposal `stale`: 409 `proposal_stale`, nothing changed), and the caller's permissions for each step: its role, and for a personal API key each step's own permission (`compositions:adopt` for an `adopt` step, beyond the `compositions:write` this route asks for). Then the steps run in order, each committed by itself, and the answer is the proposal as recorded: `completed`, `partial` (each step's outcome says what was applied) or `failed`. A step whose dependency did not complete is `skipped`; nothing is retried or rolled back.",
+        "operationId": "confirmProposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proposal",
+            "required": true,
+            "schema": {
+              "title": "Proposal",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ProposalConfirm"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential, or one that is not valid (`unauthorized`)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`proposal_not_yours`, `organization_forbidden` (a step's role) or `insufficient_api_key_permission` (a step's key permission)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`Proposal not found.`: no such proposal in this organization, or the caller is not a member."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`proposal_not_pending`, or `proposal_stale` (`stale` lists `{step, kind, reason, base, current}`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`confirmation_required` or `confirmation_mismatch`: a destructive step needs its typed phrase."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain does not answer (`bim_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Confirm a proposal and apply it step by step",
+        "tags": [
+          "Proposals"
+        ],
+        "x-conditional-api-key-permissions": {
+          "a step of kind adopt": [
+            "compositions:adopt"
+          ]
+        },
+        "x-required-api-key-permissions": [
+          "compositions:write"
         ]
       }
     },

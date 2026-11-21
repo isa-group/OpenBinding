@@ -53,11 +53,12 @@ from ....db.models import (
     User,
 )
 from ....models.errors import api_error
+from ...execution.application import run_solutions
 from ...shared.application import audit
 from ..domain import proposals as domain
 from ..domain.proposals import Reference
-from . import derive, language
-from .environments import environment_by_ref
+from . import adoption, derive, language
+from .environments import environment_by_ref, forbidden
 from .versions import version_by_ref
 
 #: The audit target type of a proposal.
@@ -176,6 +177,20 @@ def _message(error: HTTPException) -> tuple[str, dict[str, Any]]:
                                                                           "code": detail.get("code"), **extra}
 
 
+def _stale(reason: str, base: Any = None, current: Any = None) -> dict[str, Any]:
+    return {"reason": reason, "base": base, "current": current}
+
+
+def output_of(outputs: dict[int, dict[str, Any]], reference: Reference) -> Any:
+    """The value an earlier step's result gives for ``reference`` (``None`` when it gives none)."""
+    return (outputs.get(reference.step) or {}).get(reference.output)
+
+
+def changed(message: str, **extra: Any) -> HTTPException:
+    """A deferred part that no longer holds at apply time: the step fails, nothing of it is applied."""
+    return api_error(status.HTTP_409_CONFLICT, "derivation_changed", message, **extra)
+
+
 # -- seal_derived ----------------------------------------------------------------------------------------------------
 
 
@@ -276,6 +291,82 @@ class SealDerivedKind:
             warnings = (f"Version {label} already holds this document: confirming seals nothing new.", *warnings)
         return Built(params=stored, base=base, description=description, preview=derived.content, warnings=warnings)
 
+    def _source(self, step: Any, outputs: dict[int, dict[str, Any]] | None = None) -> dict[str, Any]:
+        """The derivation's arguments from the stored parameters; a referenced revision read from ``outputs``."""
+        parsed = SealDerivedParams.model_validate(step.params)
+        source = parsed.source
+        arguments: dict[str, Any] = {"label": parsed.label, "kind": parsed.kind, "offering": parsed.offering}
+        if isinstance(source, RunSource):
+            arguments.update(run=source.run, point=source.point)
+        else:
+            revision = source.revision
+            reference = domain.parse_reference(revision)
+            if reference is not None:
+                value = output_of(outputs or {}, reference)
+                revision = value if isinstance(value, str) else None
+            arguments.update(revision=revision, binding=dict(source.binding))
+        return arguments
+
+    async def check_base(self, context: Context, step: Any) -> list[dict[str, Any]]:
+        composition = context.composition
+        if composition is None:
+            return [_stale("composition_archived")]
+        if composition.archived:
+            return [_stale("composition_archived")]
+        found: list[dict[str, Any]] = []
+        head = await head_version(context.session, composition)
+        current = None if head is None else str(head.id)
+        if current != step.base.get("headVersionId"):
+            found.append(_stale("head_version_changed", step.base.get("headVersionId"), current))
+        arguments = self._source(step)
+        if arguments.get("run") is not None:
+            run = await run_solutions(context.session, context.organization.id, arguments["run"], context.caller)
+            if run is None or not run.completed:
+                found.append(_stale("run_unreadable", str(arguments["run"]), None if run is None else run.state.value))
+        if "contentDigest" in (step.base.get("deferred") or []) or found:
+            return found
+        try:
+            derived = await derive.derive_version(
+                context.session, context.organization, composition, caller=context.caller, **arguments)
+        except HTTPException as error:
+            message, detail = _message(error)
+            return [_stale("derivation_changed", step.base.get("contentDigest"), detail.get("code") or message)]
+        digest = derived.assessment.content_digest
+        if digest != step.base.get("contentDigest"):
+            return [_stale("derivation_changed", step.base.get("contentDigest"), digest)]
+        context.derived[step.ordinal] = derived
+        return []
+
+    async def check_permission(self, context: Context, step: Any) -> None:
+        if ROLE_STRENGTH[context.role] < ROLE_STRENGTH[self.role]:
+            raise forbidden(self.role)
+
+    async def check_deferred(self, context: Context, step: Any, outputs: dict[int, dict[str, Any]]) -> None:
+        reference = domain.parse_reference((step.params.get("source") or {}).get("revision"))
+        if reference is None:
+            return
+        if not isinstance(output_of(outputs, reference), str):
+            raise changed(f"Step {reference.step} gave no revision to derive from.")
+
+    async def apply(self, context: Context, step: Any, outputs: dict[int, dict[str, Any]]) -> dict[str, Any]:
+        assert context.composition is not None
+        arguments = self._source(step, outputs)
+        deferred = "contentDigest" in (step.base.get("deferred") or [])
+        try:
+            stored = await derive.derive_and_seal(
+                context.session, context.organization, context.composition, caller=context.caller,
+                expect_digest=None if deferred else step.base.get("contentDigest"),
+                derived=None if deferred else context.derived.get(step.ordinal), **arguments,
+            )
+        except HTTPException as error:
+            if deferred and error.status_code in (404, 422):
+                message, detail = _message(error)
+                raise changed(f"The revision step {domain.parse_reference(step.params['source']['revision']).step}"
+                              f" made cannot be derived: {message}", cause=detail) from None
+            raise
+        version = stored.sealed.version
+        return {"version": {"id": str(version.id), "label": version.label}, "created": stored.sealed.created}
+
 
 # -- adopt -----------------------------------------------------------------------------------------------------------
 
@@ -335,6 +426,80 @@ class AdoptKind:
             params={"environment": str(environment.id), "version": str(version.id), "note": parsed.note},
             base=base, description=f"Adopt {version.label} in {environment.name}",
         )
+
+    async def _environment(self, context: Context, step: Any) -> CompositionEnvironment | None:
+        try:
+            environment_id = uuid.UUID(str(step.params.get("environment")))
+        except ValueError:
+            return None
+        found = await context.session.scalar(
+            select(CompositionEnvironment).where(CompositionEnvironment.id == environment_id)
+            .execution_options(populate_existing=True)
+        )
+        if found is None or context.composition is None or found.composition_id != context.composition.id:
+            return None
+        return found
+
+    async def check_base(self, context: Context, step: Any) -> list[dict[str, Any]]:
+        composition = context.composition
+        if composition is None or composition.archived:
+            return [_stale("composition_archived")]
+        environment = await self._environment(context, step)
+        if environment is None:
+            return [_stale("environment_missing", step.params.get("environment"))]
+        found: list[dict[str, Any]] = []
+        current = etags.etag_for(environment)
+        if current != step.base.get("environmentEtag"):
+            found.append(_stale("environment_changed", step.base.get("environmentEtag"), current))
+        version = step.params.get("version")
+        if domain.parse_reference(version) is None:
+            exists = await context.session.scalar(select(CompositionVersion.id).where(
+                CompositionVersion.composition_id == composition.id, CompositionVersion.id == uuid.UUID(str(version))))
+            if exists is None:
+                found.append(_stale("version_missing", version))
+        return found
+
+    async def check_permission(self, context: Context, step: Any) -> None:
+        environment = await self._environment(context, step)
+        if environment is not None and ROLE_STRENGTH[context.role] < ROLE_STRENGTH[
+                OrganizationRole(environment.adopt_role)]:
+            raise forbidden(environment.adopt_role)
+
+    def _version(self, step: Any, outputs: dict[int, dict[str, Any]]) -> str | None:
+        version = step.params.get("version")
+        reference = domain.parse_reference(version)
+        if reference is None:
+            return str(version)
+        value = output_of(outputs, reference)
+        return str(value.get("id")) if isinstance(value, dict) and value.get("id") else None
+
+    async def check_deferred(self, context: Context, step: Any, outputs: dict[int, dict[str, Any]]) -> None:
+        reference = domain.parse_reference(step.params.get("version"))
+        if reference is None:
+            return
+        version = self._version(step, outputs)
+        assert context.composition is not None
+        exists = None if version is None else await context.session.scalar(select(CompositionVersion.id).where(
+            CompositionVersion.composition_id == context.composition.id, CompositionVersion.id == uuid.UUID(version)))
+        if exists is None:
+            raise changed(f"Step {reference.step} gave no version of this composition to adopt.")
+
+    async def apply(self, context: Context, step: Any, outputs: dict[int, dict[str, Any]]) -> dict[str, Any]:
+        assert context.composition is not None and context.proposal is not None
+        environment = await self._environment(context, step)
+        if environment is None:
+            raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Environment not found.")
+        adopted = await adoption.adopt(
+            context.session, organization=context.organization, composition=context.composition,
+            environment=environment, role=context.role, version_ref=self._version(step, outputs) or "",
+            actor=context.caller, if_match=step.base.get("environmentEtag"), note=step.params.get("note") or "",
+            source="proposal", proposal_id=context.proposal.id,
+        )
+        version = await context.session.get(CompositionVersion, adopted.adoption.version_id)
+        return {
+            "ordinal": adopted.adoption.ordinal, "environment": adopted.environment.slug,
+            "feedEtag": f'"{adopted.adoption.content_digest}"', "versionLabel": None if version is None else version.label,
+        }
 
 
 SEAL_DERIVED = domain.register(SealDerivedKind())
@@ -659,6 +824,8 @@ async def pending_count(session: AsyncSession, composition: Composition) -> int:
 
 __all__ = [
     "ADOPT",
+    "changed",
+    "output_of",
     "SEAL_DERIVED",
     "AdoptKind",
     "Built",

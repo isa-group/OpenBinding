@@ -42,6 +42,7 @@ EVALUATE = "/v1/organizations/{org}/compositions/{composition}/evaluate"
 NEIGHBORHOOD = "/v1/organizations/{org}/compositions/{composition}/neighborhood"
 DERIVE = "/v1/organizations/{org}/compositions/{composition}/derive"
 PROPOSALS = "/v1/organizations/{org}/compositions/{composition}/proposals"
+CONFIRM = "/v1/organizations/{org}/proposals/{proposal}/confirm"
 CONNECTION = "/v1/organizations/{org}/connections/sphere"
 FROM_TEMPLATE = "/v1/organizations/{org}/compositions/from-template"
 NO_TEMPLATE = {"content": b'{"template": "nothing"}', "headers": {"content-type": "application/json"}}
@@ -82,6 +83,8 @@ REQUESTS = {
     ("POST", DERIVE): ("POST", "/v1/organizations/{org}/compositions/none/derive", EMPTY_JSON),
     # A proposal derives the document a seal step would store (F6-B): the first is a 422, the second a 429.
     ("POST", PROPOSALS): ("POST", "/v1/organizations/{org}/compositions/none/proposals", EMPTY_JSON),
+    # Counted before the proposal is looked up: the first is a 404, the second a 429.
+    ("POST", CONFIRM): ("POST", "/v1/organizations/{org}/proposals/none/confirm", EMPTY_JSON),
     # Counted before the template is looked up: the first is a 404, the second a 429.
     ("POST", FROM_TEMPLATE): ("POST", FROM_TEMPLATE, NO_TEMPLATE),
     # Counted before the key is checked: the first is a 422, the second a 429.
@@ -210,6 +213,8 @@ def test_a_route_added_under_the_compiling_prefixes_has_to_be_classified():
             "/v1/compositions/", "/v1/bim/", "/v1/organizations/{org}/problems",
             # Any POST below an organization's compositions: a composition's routes and from-template.
             "/v1/organizations/{org}/compositions/",
+            # Any POST on an organization's proposals (F6-B): confirming one derives, seals and adopts.
+            "/v1/organizations/{org}/proposals",
         )))
         or (method in {"PUT", "POST"} and path.startswith("/v1/organizations/{org}/connections"))
         or path.startswith("/v1/organizations/{org}/sphere")
@@ -247,6 +252,7 @@ def test_compile_read_and_evaluate_are_the_classes_the_policy_states():
     assert {route for route, work_class in WORK_ROUTES.items() if work_class == "evaluate"} == {
         ("POST", VERSIONS), ("POST", f"{VERSIONS}/check"), ("POST", FORK),
         ("POST", REEVALUATE), ("POST", EVALUATE), ("GET", NEIGHBORHOOD), ("POST", DERIVE), ("POST", PROPOSALS),
+        ("POST", CONFIRM),
     }
 
 

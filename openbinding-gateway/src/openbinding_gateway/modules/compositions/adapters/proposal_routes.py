@@ -11,9 +11,9 @@ organization's. Making, superseding or cancelling a proposal never moves an envi
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....access.dependencies import get_current_user, session_dependency
@@ -27,10 +27,11 @@ from ....models.errors import (
     UNAVAILABLE_RESPONSE,
     ErrorResponse,
 )
-from ..application import compositions, environments, proposals
+from ..application import compositions, environments, proposal_executor, proposals
 from .schemas import (
     CompositionOrganization,
     ProposalComposition,
+    ProposalConfirm,
     ProposalCreate,
     ProposalEnvironment,
     ProposalList,
@@ -249,6 +250,51 @@ async def cancel_proposal(
     cancelled = await proposals.cancel(session, row, user)
     headers(response, cancelled)
     return await proposal_view(session, cancelled, user)
+
+
+@organization_router.post(
+    "/{proposal}/confirm",
+    response_model=ProposalView,
+    operation_id="confirmProposal",
+    summary="Confirm a proposal and apply it step by step",
+    description=(
+        "Its author only. Every step's stored base is checked first (a base that no longer holds makes the proposal "
+        "`stale`: 409 `proposal_stale`, nothing changed), and the caller's permissions for each step: its role, and "
+        "for a personal API key each step's own permission (`compositions:adopt` for an `adopt` step, beyond the "
+        "`compositions:write` this route asks for). Then the steps run in order, each committed by itself, and the "
+        "answer is the proposal as recorded: `completed`, `partial` (each step's outcome says what was applied) or "
+        "`failed`. A step whose dependency did not complete is `skipped`; nothing is retried or rolled back."
+    ),
+    dependencies=[Depends(limit_work)],
+    responses={
+        **PROPOSAL_UNREADABLE,
+        403: {**FORBIDDEN_RESPONSE, "description": "`proposal_not_yours`, `organization_forbidden` (a step's role) or "
+                                                   "`insufficient_api_key_permission` (a step's key permission)."},
+        409: {**CONFLICT_RESPONSE, "description": "`proposal_not_pending`, or `proposal_stale` (`stale` lists "
+                                                  "`{step, kind, reason, base, current}`)."},
+        422: {"model": ErrorResponse, "description": "`confirmation_required` or `confirmation_mismatch`: a destructive "
+                                                     "step needs its typed phrase."},
+        **EVALUATING,
+    },
+)
+async def confirm_proposal(
+    org: str,
+    proposal: str,
+    request: Request,
+    response: Response,
+    payload: Optional[ProposalConfirm] = None,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> ProposalView:
+    """Confirm a pending proposal (its author): the steps are applied in order and reported one by one."""
+    organization, role = await organization_scope(session, org, user)
+    finished = await proposal_executor.confirm(
+        session, organization, proposal, user, role=role,
+        confirmation=None if payload is None else payload.confirmation,
+        api_key=getattr(request.state, "api_key", None),
+    )
+    headers(response, finished)
+    return await proposal_view(session, finished, user, detail=True)
 
 
 @me_router.get("", response_model=ProposalList, operation_id="listOwnProposals", responses=UNAUTHENTICATED)
