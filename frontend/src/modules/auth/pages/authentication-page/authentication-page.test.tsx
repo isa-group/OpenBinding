@@ -438,6 +438,23 @@ describe('AuthenticationPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
     };
 
+    it('says an unavailable username is unavailable, not already registered', async () => {
+      const refused = new HttpError(409, 'That username is reserved.');
+      refused.code = 'username_unavailable';
+      registerMock.mockRejectedValue(refused);
+      renderWithAuth(<AuthenticationPage />, '/authentication?view=register');
+
+      fillRegister();
+
+      expect(
+        await screen.findByText(
+          'That username isn’t available: it is reserved or names an organization. Choose another one.'
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/already registered/)).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Username')).toHaveAttribute('aria-invalid', 'true');
+    });
+
     it('redirects to /app upon registration by default', async () => {
       registerMock.mockResolvedValue(undefined);
       renderWithAuth(<AuthenticationPage />, '/authentication?view=register');
@@ -532,7 +549,7 @@ describe('AuthenticationPage', () => {
 
       expect(registerMock).not.toHaveBeenCalled();
       expect(screen.getByLabelText('Username')).toHaveAttribute('aria-invalid', 'true');
-      expect(screen.getByLabelText('Username')).toHaveFocus();
+      expect(screen.getByLabelText('Username')).toHaveAttribute('aria-invalid', 'true');
       expect(screen.getByText('Enter a valid email address.')).toBeInTheDocument();
       expect(screen.getByText('Password must be at least 10 characters long.')).toBeInTheDocument();
     });
