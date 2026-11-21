@@ -181,7 +181,8 @@ async function stops(page: Page, token: string): Promise<Stop[]> {
     },
     { id: 'calculator-margins', path: `/compositions/${ORG}/tomatometer/configuration` },
     { id: 'template-cards', path: `/compositions/new?org=${ORG}` },
-    // F5-D: the owner's personal organization (its list's Personal section is `org-list`): no Leave, no Transfer.
+    // F5-D: the owner's personal organization (its list's Personal section is `org-list`): no Leave, no Transfer, in the
+    // header or in Members.
     { id: 'org-personal', path: `/orgs/${LAB_USERS.owner}` },
     { id: 'org-personal-members', path: `/orgs/${LAB_USERS.owner}/members` },
   ];

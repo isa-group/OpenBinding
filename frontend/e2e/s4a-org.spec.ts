@@ -859,6 +859,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const members = main.getByRole('region', { name: 'Members' });
       await expect(members.getByText('@marco')).toBeVisible();
       await expect(members.getByRole('button', { name: /^Transfer ownership/ })).toHaveCount(0);
+      await expect(members.getByRole('button', { name: 'Leave organization' })).toHaveCount(0);
       await page.goto('/orgs/lucia-vega/hierarchy');
       await expect(
         main.getByText('A personal organization has no sub-organizations.')

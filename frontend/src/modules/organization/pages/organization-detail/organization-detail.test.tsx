@@ -260,6 +260,7 @@ describe('/orgs/:org of a personal organization', () => {
     renderPage(`/orgs/${mine.slug}/members`, { tree: [mine], gateway: personalRoutes() });
     expect(await screen.findByText('@marco')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Transfer ownership/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Leave organization' })).not.toBeInTheDocument();
   });
 
   it('shows no Add child in its hierarchy', async () => {
