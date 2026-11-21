@@ -535,6 +535,34 @@ class Settings(BaseSettings):
     offering_url_max_redirects: int = Field(default=3, ge=0, le=10)
     #: A URL read again within this many seconds of its last snapshot in a scope reuses it (``OFFERING_URL_MIN_INTERVAL_S``).
     offering_url_min_interval_s: float = Field(default=300.0, gt=0)
+    # -- Upstream watching (F6) --------------------------------------------
+    # The watcher (modules/compositions/application/upstream_watcher.py) runs in every gateway replica's
+    # lifespan and works in one replica per cycle. It reads only through the pricing port.
+    #: Whether watched pricings are polled (``UPSTREAM_WATCH_ENABLED``); with SPHERE_ENABLED off nothing of the
+    #: default SPHERE is read either way.
+    upstream_watch_enabled: bool = True
+    #: How often each watched pricing is asked for its manifest, staggered per watch (``UPSTREAM_POLL_INTERVAL_S``):
+    #: at least 60 s in production, 10 s elsewhere (the lab uses 20 s).
+    upstream_poll_interval_s: int = Field(default=300, ge=10)
+    #: Watches claimed per cycle (``UPSTREAM_POLL_BATCH``).
+    upstream_poll_batch: int = Field(default=50, ge=1, le=1000)
+    #: SPHERE requests one cycle may send: manifests, YAML and family reads (``UPSTREAM_READS_PER_CYCLE``).
+    upstream_reads_per_cycle: int = Field(default=20, ge=3, le=1000)
+    #: Classifier calls one cycle may make (``UPSTREAM_CLASSIFY_PER_CYCLE``).
+    upstream_classify_per_cycle: int = Field(default=100, ge=1, le=10000)
+    #: 404s from requests actually sent, at least one interval apart, before a family is gone
+    #: (``UPSTREAM_NOT_FOUND_CONFIRMATIONS``).
+    upstream_not_found_confirmations: int = Field(default=2, ge=1, le=10)
+    #: The longest a failing watch waits before its next poll (``UPSTREAM_FAILURE_BACKOFF_MAX_S``).
+    upstream_failure_backoff_max_s: int = Field(default=3600, ge=60)
+    #: Attempts to resolve unresolved watch references per cycle (``UPSTREAM_RESOLVE_PER_CYCLE``).
+    upstream_resolve_per_cycle: int = Field(default=2, ge=0, le=100)
+    #: The longest an unresolved reference waits before its next attempt (``UPSTREAM_RESOLVE_BACKOFF_MAX_S``).
+    upstream_resolve_backoff_max_s: int = Field(default=21600, ge=60)
+    #: How long a proposal may stay ``executing`` without progress before the watcher closes it
+    #: (``PROPOSAL_EXECUTION_DEADLINE_S``; F6-B's executor).
+    proposal_execution_deadline_s: int = Field(default=600, ge=60)
+
     #: The on-premise SPHERE registries a Composition2Yaml document may name
     #: (``SPHERE_REGISTRIES``), as JSON keyed by alias, for example
     #: ``{"lab": {"url": "https://sphere.lab.local", "api_key": "..."}}``. A
@@ -582,6 +610,13 @@ class Settings(BaseSettings):
     federation_require_https: bool = True
 
     # -- Startup checks --------------------------------------------------
+
+    @model_validator(mode="after")
+    def _upstream_poll_floor(self) -> "Settings":
+        """Even a 304 makes SPHERE hash every version of a family: production polls at most once a minute."""
+        if self.app_env == "prod" and self.upstream_poll_interval_s < 60:
+            raise ValueError("UPSTREAM_POLL_INTERVAL_S must be at least 60 in production")
+        return self
 
     @field_validator("sphere_url", mode="before")
     @classmethod

@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import space_client
 from .jobs import reconciler as job_reconciler
+from .modules.compositions.application import upstream_watcher
 from .access.dependencies import session_dependency, set_key_admission, set_session_resolver
 from .access.work_limits import ANONYMOUS_READ_ROUTES, WORK_ROUTES
 from .core import revision
@@ -244,15 +245,19 @@ async def _lifespan(settings: Settings):
             await session.commit()
 
     reconciler = None
+    watcher = None
     if settings.database_url:
         reconciler = asyncio.create_task(job_reconciler.run_reconciler())
+        # F6: the upstream watcher, beside the reconciler; one replica works per cycle (its own advisory lock).
+        watcher = asyncio.create_task(upstream_watcher.run_upstream_watcher(settings))
     try:
         yield
     finally:
-        if reconciler is not None:
-            reconciler.cancel()
-            with suppress(asyncio.CancelledError):
-                await reconciler
+        for task in (reconciler, watcher):
+            if task is not None:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
         gate = space_client.get_gate()
         if hasattr(gate, "aclose"):
             await gate.aclose()

@@ -49,8 +49,9 @@ ABANDONED_GRACE_S = 120.0
 STUDY_RESYNC_BATCH = 100
 
 
-async def acquire_cycle_lock(session: AsyncSession) -> bool:
-    """Whether this replica is the one that runs the reconciliation cycle.
+async def acquire_cycle_lock(session: AsyncSession, key: int = RECONCILER_LOCK_KEY) -> bool:
+    """Whether this replica is the one that runs the cycle of ``key`` (the reconciler's by default; the upstream
+    watcher passes its own).
 
     On PostgreSQL a transaction-level advisory lock on a fixed key: the replica
     that gets it keeps the lock for as long as ``session``'s transaction stays
@@ -62,8 +63,7 @@ async def acquire_cycle_lock(session: AsyncSession) -> bool:
     if not clock.uses_db_clock(session):
         return True
     # A BigInteger parameter: the key does not fit in the 32 bits a plain int is sent as.
-    key = literal(RECONCILER_LOCK_KEY, BigInteger)
-    return bool(await session.scalar(select(func.pg_try_advisory_xact_lock(key))))
+    return bool(await session.scalar(select(func.pg_try_advisory_xact_lock(literal(key, BigInteger)))))
 
 
 def _still_as_read(session: AsyncSession, job: Job) -> list:

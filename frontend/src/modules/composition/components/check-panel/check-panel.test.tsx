@@ -25,7 +25,7 @@ describe('the check panel', () => {
     expect(rows.at(-1)).toHaveTextContent('Valid on the installed toolchain.');
     for (const row of rows.slice(0, -2)) expect(row).toHaveTextContent(/is the latest.*Latest$/);
     expect(
-      screen.getByText(/Nothing was changed\. OpenBinding will watch these pricings for you/)
+      screen.getByText(/Nothing was changed\. OpenBinding also watches these pricings every few minutes/)
     ).toBeInTheDocument();
   });
 

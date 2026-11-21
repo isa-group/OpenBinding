@@ -220,3 +220,14 @@ def test_the_composition_slots_and_the_read_budget_have_defaults():
     assert configured.work_rate_limit_read_requests == 60
     with pytest.raises(ValueError):
         settings(composition_language_slots=0)
+
+
+def test_the_upstream_poll_interval_has_a_production_floor():
+    from openbinding_gateway.core.settings import Settings
+
+    assert Settings(app_env="dev", upstream_poll_interval_s=20).upstream_poll_interval_s == 20
+    with pytest.raises(ValueError, match="UPSTREAM_POLL_INTERVAL_S"):
+        Settings(app_env="prod", upstream_poll_interval_s=30, gateway_jwt_secret="x" * 64)
+    defaults = Settings()
+    assert (defaults.upstream_watch_enabled, defaults.upstream_poll_interval_s, defaults.upstream_reads_per_cycle,
+            defaults.upstream_not_found_confirmations) == (True, 300, 20, 2)
