@@ -694,6 +694,10 @@ async def _store(
             await session.flush()
         except IntegrityError as error:
             await session.rollback()
+            # A rollback expires every row the session holds: read them again before the retry (or the caller's reply).
+            for held in (organization, composition, caller):
+                if held is not None:
+                    await session.refresh(held)
             if _lost_pending_race(error) and attempt == 1:
                 continue
             if _lost_pending_race(error):

@@ -387,3 +387,12 @@ async def test_cancelling_an_accounts_proposals_does_not_wait_on_one_an_organiza
     assert cancelled == 0
     async with pg.session() as session:
         assert (await session.get(Proposal, proposal_id)).status == "pending"
+
+
+async def test_the_create_that_loses_the_one_pending_race_supersedes_the_winner(pg) -> None:
+    """The loser of the unique index rolls back, reads its rows again and supersedes the winner on its retry: both
+    answer, neither is a server error (the rows a rollback expired are refreshed)."""
+    w, _ = await _operated(pg)
+    for _ in range(3):
+        made = await asyncio.gather(_adopt_proposal(pg, w), _adopt_proposal(pg, w, "1.0.0"), return_exceptions=True)
+        assert all(isinstance(item, uuid.UUID) for item in made), made
