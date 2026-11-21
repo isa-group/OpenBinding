@@ -47,9 +47,19 @@ def test_two_runs_write_byte_identical_trees(two_runs) -> None:
            "tomatometer-email.version.json", "tomatometer-email.upstream.json", "templates.json",
            "template.tomatometer.json"]
         + [f"tomatometer.{name}" for name in OPERATION]
+        + [f"upstream.{name}" for name in UPSTREAM]
     )
 
 
+#: F6's upstream fixtures: events of each category, the views with their counts, the inbox and the admin queue.
+UPSTREAM = (
+    "admin.queues.json", "brevo.2026-10.yaml", "brevo.2026-11.yaml", "me.events.json", "notifications.json",
+    "tomatometer.composition.json", "tomatometer.environment.production.json",
+    "tomatometer.event.binding-invalid.json", "tomatometer.event.offering-changed.json",
+    "tomatometer.event.reviewed.json", "tomatometer.event.unavailable.json", "tomatometer.event.values-changed.json",
+    "tomatometer.event.withdrawn.json", "tomatometer.events.json", "tomatometer.events.two.json",
+    "tomatometer.versions.json",
+)
 #: F4's operation fixtures (environments, adoptions, keys, the feed, margins, checks, what-if evaluations).
 OPERATION = (
     "adoptions.production.json", "check.production.json", "check.production.newer.json",
@@ -214,3 +224,31 @@ def test_ids_and_instants_are_replaced_in_order_of_first_appearance() -> None:
         },
         "b.json": {"when": "2026-01-01T00:00:01Z", "z": "00000000-0000-4000-8000-000000000002"},
     }
+
+
+def test_the_upstream_fixtures_hold_each_category_the_screens_draw(two_runs) -> None:
+    """F6: what the watcher records for TomatoMeter, as the gateway answers it, after every earlier fixture."""
+    first, _ = two_runs
+    core = first / "core"
+
+    def read(name: str):
+        return json.loads((core / name).read_text(encoding="utf-8"))
+
+    cases = {
+        "values-changed": ("values_changed", []), "binding-invalid": ("binding_invalid", ["plan_removed"]),
+        "offering-changed": ("offering_changed", []), "unavailable": ("binding_invalid", ["source_unavailable"]),
+        "withdrawn": ("binding_invalid", ["source_unavailable"]),
+    }
+    for name, (category, reasons) in cases.items():
+        event = read(f"upstream.tomatometer.event.{name}.json")
+        assert event["category"] == category and [r["code"] for r in event["reasons"]] == reasons, name
+    assert read("upstream.tomatometer.event.values-changed.json")["diff"]["global"][0]["delta"] == "50.000000"
+    assert read("upstream.tomatometer.event.reviewed.json")["state"] == "reviewed"
+    assert read("upstream.tomatometer.event.withdrawn.json")["reasons"][0]["detail"] == "version_withdrawn"
+    assert read("upstream.tomatometer.composition.json")["upstream"]["open"] == 1
+    assert read("upstream.notifications.json")[0]["kind"] == "UpstreamEvent"
+    assert read("upstream.admin.queues.json")["upstreamWatch"]["watches"]["active"] == 4
+    newer = read("tomatometer.check.production.newer.json")
+    assert any(row.get("status") == "newer" and row["latest"]["name"] == "2026-11" for row in newer["upstream"])
+    names = sorted(path.name for path in core.iterdir())
+    assert names.index("upstream.admin.queues.json") > names.index("tomatometer.versions.json")

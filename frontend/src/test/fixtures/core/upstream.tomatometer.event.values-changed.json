@@ -1,0 +1,356 @@
+{
+  "category": "values_changed",
+  "classifier": "1",
+  "detectedAt": "2026-01-01T00:00:32Z",
+  "diff": {
+    "catalog": {
+      "addOns": {
+        "added": [],
+        "removed": []
+      },
+      "features": {
+        "added": [],
+        "removed": []
+      },
+      "plans": {
+        "added": [],
+        "removed": []
+      },
+      "usageLimits": {
+        "added": [],
+        "removed": []
+      }
+    },
+    "entries": [
+      {
+        "attributes": [
+          {
+            "after": "0.990000",
+            "before": "0.990000",
+            "delta": null,
+            "sourceKind": "guarantee",
+            "target": "availability",
+            "targetKind": "feature"
+          },
+          {
+            "after": "549.000000",
+            "before": "499.000000",
+            "delta": "50.000000",
+            "sourceKind": "priced",
+            "target": "subscription",
+            "targetKind": "feature"
+          },
+          {
+            "after": "100000000.000000",
+            "before": "100000000.000000",
+            "delta": null,
+            "sourceKind": "limit",
+            "target": "emailsPerDay",
+            "targetKind": "property"
+          },
+          {
+            "after": "150000.000000",
+            "before": "150000.000000",
+            "delta": null,
+            "sourceKind": "limit",
+            "target": "emailsPerMonth",
+            "targetKind": "property"
+          }
+        ],
+        "candidate": "email.brevo.professional",
+        "comparison": {
+          "addOns": {
+            "added": [],
+            "quantityChanged": [],
+            "removedByReconciliation": [],
+            "removedByUser": [],
+            "unchanged": []
+          },
+          "features": {
+            "changed": [],
+            "gained": [],
+            "lost": [],
+            "unchanged": [
+              "emailAndSmsCampaigns",
+              "userAccounts",
+              "auraAi",
+              "mcpForAiAssistants",
+              "advancedReporting",
+              "dragAndDropEmailEditor",
+              "emailTemplates",
+              "mobileOptimization",
+              "abTesting",
+              "removeBrevoBranding",
+              "aiContentGenerator",
+              "dynamicContent",
+              "aiSendTimeOptimization",
+              "contentFeeds",
+              "emailFrequencyManagement",
+              "reusableContentSections",
+              "openAndClickReports",
+              "clickHeatmaps",
+              "geographyAndDeviceReports",
+              "dedicatedIp",
+              "smsCampaigns",
+              "landingPages",
+              "popups",
+              "adsRetargetingAndLookalikes",
+              "webPushNotifications",
+              "mobilePushNotifications",
+              "whatsappCampaigns",
+              "brevoWallet",
+              "multichannelAttribution",
+              "multichannelAutomation",
+              "realTimeEventTriggers",
+              "multipleEntryPoints",
+              "multiBranchTesting",
+              "pathwayReporting",
+              "ecommerceIntegrations",
+              "abandonedCartRecovery",
+              "aiProductRecommendations",
+              "backInStockAlerts",
+              "priceDropAlerts",
+              "dynamicCoupons",
+              "loyalty",
+              "contactStorage",
+              "customSignupForms",
+              "contactTimeline",
+              "advancedSegmentation",
+              "unlimitedCustomFields",
+              "webAndEventTracking",
+              "identityResolution",
+              "contactScoring",
+              "aiSegmentation",
+              "randomizedListSplits",
+              "gdprCompliance",
+              "multiLevelDataModel",
+              "unlimitedCompanies",
+              "customObjects",
+              "transactionalEmail",
+              "transactionalSms",
+              "transactionalWhatsapp",
+              "realTimeEmailStatistics",
+              "customizedLogRetention",
+              "websiteAndCmsIntegrations",
+              "plugins",
+              "zapierConnector",
+              "apis",
+              "outboundWebhooks",
+              "inboundWebhooks",
+              "salesforcePlugin",
+              "dataWarehouseAndSftp",
+              "dataTransformation",
+              "preBuiltDashboards",
+              "dashboardBuilder",
+              "aiDataAnalyst",
+              "userPermissions",
+              "tagsAndFolders",
+              "assetSharing",
+              "ssoSaml",
+              "subaccountManagement",
+              "sla",
+              "emailSupport",
+              "phoneSupport",
+              "deliverabilitySpecialist",
+              "tailoredOnboarding",
+              "customerSuccessManager",
+              "salesMultiUserAccess",
+              "openDeals",
+              "salesAutomation",
+              "automatedMeetingScheduling",
+              "phoneVoip",
+              "salesPipelines",
+              "stageRules",
+              "multipleCurrencies",
+              "revenueReport",
+              "salesCycleReport",
+              "teamPerformanceReport",
+              "forecasting",
+              "salesWorkflows",
+              "realTimeSalesEventTriggers",
+              "aiContactAndCompanyEnrichment",
+              "outreachSequences",
+              "taskManagementAndReminders",
+              "taskNavigator",
+              "notesAndFiles",
+              "connectedCalendars",
+              "bookingPages",
+              "inBrowserVideoCalling",
+              "meetingReminders",
+              "roundRobinScheduling",
+              "brevoPayments",
+              "mailboxSynchronization",
+              "conversationsMobileApp",
+              "instagramDms",
+              "facebookMessenger",
+              "sms1to1Messages",
+              "whatsapp1to1Messages",
+              "liveChat",
+              "chatbotScenarios",
+              "targetedChatAndLeadCaptureChatbot",
+              "aiChatbot",
+              "aiConversationsAgent",
+              "removeBrevoBrandingOnChat",
+              "savedReplies",
+              "conversationRouting",
+              "chatAvailability",
+              "chatRatings",
+              "liveVisitorInsights",
+              "conversationsAnalytics",
+              "worldwideCalling",
+              "unlimitedPhoneLines",
+              "callRecordingAndVoicemail",
+              "callMenu",
+              "callTransfer",
+              "aiCallTranscriptionsAndSummaries",
+              "callStatistics",
+              "aiFollowUpEmails",
+              "clickToDial",
+              "phoneMobileApp",
+              "multiLanguagePack"
+            ]
+          },
+          "plan": {
+            "after": {
+              "id": "PROFESSIONAL",
+              "known": true,
+              "name": "PROFESSIONAL"
+            },
+            "before": {
+              "id": "PROFESSIONAL",
+              "known": true,
+              "name": "PROFESSIONAL"
+            },
+            "changed": false,
+            "renamedTo": null
+          },
+          "price": {
+            "after": {
+              "billing": "monthly",
+              "currency": "USD",
+              "requiresQuote": false,
+              "subtotal": "549.000000",
+              "unit": "USD/month"
+            },
+            "before": {
+              "billing": "monthly",
+              "currency": "USD",
+              "requiresQuote": false,
+              "subtotal": "499.000000",
+              "unit": "USD/month"
+            },
+            "billingPeriodChanged": false,
+            "difference": "50.000000"
+          },
+          "usageLimits": []
+        },
+        "originMismatch": [],
+        "reasons": [],
+        "requirements": [
+          {
+            "after": true,
+            "before": true,
+            "demand": "1000.000000",
+            "kind": "limit",
+            "name": "emailsPerDay",
+            "valueAfter": "100000000.000000",
+            "valueBefore": "100000000.000000"
+          },
+          {
+            "after": true,
+            "before": true,
+            "demand": "30000.000000",
+            "kind": "limit",
+            "name": "emailsPerMonth",
+            "valueAfter": "150000.000000",
+            "valueBefore": "150000.000000"
+          }
+        ],
+        "selection": {
+          "addOns": [],
+          "billing": "monthly",
+          "plan": "PROFESSIONAL",
+          "seats": 1
+        },
+        "task": "dailySummary"
+      }
+    ],
+    "global": [
+      {
+        "after": "558.990000",
+        "before": "508.990000",
+        "delta": "50.000000",
+        "feature": "subscription",
+        "rule": "sum/selectedCandidate",
+        "unit": "USD/month"
+      }
+    ],
+    "new": {
+      "createdAt": "2026-01-01T00:00:20Z",
+      "label": "2026-11",
+      "snapshotId": "00000000-0000-4000-8000-000000000048",
+      "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6fff00000000000000000001",
+      "versionId": "6fff00000000000000000001"
+    },
+    "notes": [
+      "domain_may_change",
+      "values_not_reevaluated"
+    ],
+    "old": {
+      "createdAt": "2026-01-01T00:00:08Z",
+      "label": "2026-10",
+      "snapshotId": "00000000-0000-4000-8000-000000000026",
+      "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+      "versionId": "6ade2d444b2b5b01c587d80d"
+    },
+    "pricing": {
+      "pricingId": "6ade2d4440e55445692b07f1",
+      "registry": null,
+      "sphere": "danruilop1/brevo",
+      "title": "brevo",
+      "url": null
+    },
+    "schema": "openbinding/upstream-event-diff@1"
+  },
+  "environments": [
+    "production"
+  ],
+  "id": "00000000-0000-4000-8000-000000000047",
+  "new": {
+    "label": "2026-11",
+    "snapshotId": "00000000-0000-4000-8000-000000000048",
+    "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6fff00000000000000000001",
+    "versionId": "6fff00000000000000000001"
+  },
+  "newVersionWithdrawn": false,
+  "note": "",
+  "notify": true,
+  "old": {
+    "label": "2026-10",
+    "snapshotId": "00000000-0000-4000-8000-000000000026",
+    "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+    "versionId": "6ade2d444b2b5b01c587d80d"
+  },
+  "pricing": {
+    "pricingId": "6ade2d4440e55445692b07f1",
+    "registry": null,
+    "sphere": "danruilop1/brevo",
+    "title": "brevo",
+    "url": null
+  },
+  "reasons": [],
+  "rebindingRecommended": false,
+  "resolvedBy": null,
+  "reviewedAt": null,
+  "reviewedBy": null,
+  "state": "open",
+  "subject": "binding",
+  "supersededBy": null,
+  "tasks": [
+    "dailySummary"
+  ],
+  "version": {
+    "id": "00000000-0000-4000-8000-000000000036",
+    "label": "1.0.0"
+  }
+}

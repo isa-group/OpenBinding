@@ -1,0 +1,32 @@
+[
+  {
+    "body": "brevo 2026-10 -> 2026-11 changes TomatoMeter 1.0.0 (in effect in production).",
+    "created_at": "2026-01-01T00:00:33Z",
+    "id": "00000000-0000-4000-8000-000000000049",
+    "kind": "UpstreamEvent",
+    "payload": {
+      "category": "values_changed",
+      "composition": "tomatometer",
+      "environments": [
+        "production"
+      ],
+      "event": "00000000-0000-4000-8000-000000000047",
+      "events": [
+        "00000000-0000-4000-8000-000000000047"
+      ],
+      "newVersion": "2026-11",
+      "organization": "fixtures",
+      "pricing": {
+        "sphere": "danruilop1/brevo",
+        "title": "brevo",
+        "url": null
+      },
+      "resolvedBy": null,
+      "versions": [
+        "1.0.0"
+      ]
+    },
+    "read_at": null,
+    "subject": "brevo 2026-11: TomatoMeter values changed"
+  }
+]

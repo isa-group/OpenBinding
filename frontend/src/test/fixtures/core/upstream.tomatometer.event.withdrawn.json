@@ -1,0 +1,96 @@
+{
+  "category": "binding_invalid",
+  "classifier": "1",
+  "detectedAt": "2026-01-01T00:00:42Z",
+  "diff": {
+    "catalog": null,
+    "entries": [
+      {
+        "candidate": "email.resend.pro",
+        "reasons": [
+          {
+            "code": "source_unavailable",
+            "detail": "version_withdrawn"
+          }
+        ],
+        "selection": {
+          "addOns": [],
+          "billing": "monthly",
+          "plan": "PRO",
+          "seats": 1
+        },
+        "task": "dailySummary"
+      }
+    ],
+    "global": [],
+    "new": {
+      "createdAt": "2026-01-01T00:00:43Z",
+      "label": "2026-12",
+      "snapshotId": "00000000-0000-4000-8000-000000000055",
+      "url": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6fff0000000000000000d001",
+      "versionId": "6fff0000000000000000d001"
+    },
+    "notes": [
+      "values_not_reevaluated"
+    ],
+    "old": {
+      "createdAt": "2026-01-01T00:00:08Z",
+      "label": "2026-10",
+      "snapshotId": "00000000-0000-4000-8000-000000000029",
+      "url": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+      "versionId": "6ade2d254b2b5b01c587d7ee"
+    },
+    "pricing": {
+      "pricingId": "6ade2d2540e55445692b07c6",
+      "registry": null,
+      "sphere": "danruilop1/resend",
+      "title": "Resend",
+      "url": null
+    },
+    "schema": "openbinding/upstream-event-diff@1"
+  },
+  "environments": [],
+  "id": "00000000-0000-4000-8000-000000000056",
+  "new": {
+    "label": "2026-12",
+    "snapshotId": "00000000-0000-4000-8000-000000000055",
+    "url": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6fff0000000000000000d001",
+    "versionId": "6fff0000000000000000d001"
+  },
+  "newVersionWithdrawn": false,
+  "note": "",
+  "notify": true,
+  "old": {
+    "label": "2026-10",
+    "snapshotId": "00000000-0000-4000-8000-000000000029",
+    "url": "https://sphere.score.us.es/p/6ade2d2540e55445692b07c6?version=6ade2d254b2b5b01c587d7ee",
+    "versionId": "6ade2d254b2b5b01c587d7ee"
+  },
+  "pricing": {
+    "pricingId": "6ade2d2540e55445692b07c6",
+    "registry": null,
+    "sphere": "danruilop1/resend",
+    "title": "Resend",
+    "url": null
+  },
+  "reasons": [
+    {
+      "code": "source_unavailable",
+      "detail": "version_withdrawn"
+    }
+  ],
+  "rebindingRecommended": true,
+  "resolvedBy": null,
+  "reviewedAt": null,
+  "reviewedBy": null,
+  "state": "open",
+  "subject": "binding",
+  "supersededBy": null,
+  "tasks": [
+    "dailySummary"
+  ],
+  "version": {
+    "id": "00000000-0000-4000-8000-000000000038",
+    "label": "1.1.0"
+  }
+}

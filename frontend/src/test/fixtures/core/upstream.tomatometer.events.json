@@ -1,0 +1,107 @@
+{
+  "counts": {
+    "noImpact": 0,
+    "open": 1,
+    "resolved": 0,
+    "reviewed": 0
+  },
+  "events": [
+    {
+      "category": "values_changed",
+      "classifier": "1",
+      "detectedAt": "2026-01-01T00:00:32Z",
+      "environments": [
+        "production"
+      ],
+      "id": "00000000-0000-4000-8000-000000000047",
+      "new": {
+        "label": "2026-11",
+        "snapshotId": "00000000-0000-4000-8000-000000000048",
+        "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6fff00000000000000000001",
+        "versionId": "6fff00000000000000000001"
+      },
+      "newVersionWithdrawn": false,
+      "note": "",
+      "notify": true,
+      "old": {
+        "label": "2026-10",
+        "snapshotId": "00000000-0000-4000-8000-000000000026",
+        "url": "https://sphere.score.us.es/p/6ade2d4440e55445692b07f1?version=6ade2d444b2b5b01c587d80d",
+        "versionId": "6ade2d444b2b5b01c587d80d"
+      },
+      "pricing": {
+        "pricingId": "6ade2d4440e55445692b07f1",
+        "registry": null,
+        "sphere": "danruilop1/brevo",
+        "title": "brevo",
+        "url": null
+      },
+      "reasons": [],
+      "rebindingRecommended": false,
+      "resolvedBy": null,
+      "reviewedAt": null,
+      "reviewedBy": null,
+      "state": "open",
+      "subject": "binding",
+      "supersededBy": null,
+      "tasks": [
+        "dailySummary"
+      ],
+      "version": {
+        "id": "00000000-0000-4000-8000-000000000036",
+        "label": "1.0.0"
+      }
+    }
+  ],
+  "nextBefore": null,
+  "watches": [
+    {
+      "latestLabel": "2021",
+      "observedAt": "2026-01-01T00:00:32Z",
+      "pricing": {
+        "pricingId": "6ab0a323697330667ccce9c1",
+        "registry": null,
+        "sphere": "atenea/dropbox",
+        "title": null,
+        "url": null
+      },
+      "status": "active"
+    },
+    {
+      "latestLabel": "2026-11",
+      "observedAt": "2026-01-01T00:00:32Z",
+      "pricing": {
+        "pricingId": "6ade2d4440e55445692b07f1",
+        "registry": null,
+        "sphere": "danruilop1/brevo",
+        "title": null,
+        "url": null
+      },
+      "status": "active"
+    },
+    {
+      "latestLabel": "2026-10",
+      "observedAt": "2026-01-01T00:00:32Z",
+      "pricing": {
+        "pricingId": "6ade2d2540e55445692b07c6",
+        "registry": null,
+        "sphere": "danruilop1/resend",
+        "title": null,
+        "url": null
+      },
+      "status": "active"
+    },
+    {
+      "latestLabel": "1.0.0",
+      "observedAt": "2026-01-01T00:00:32Z",
+      "pricing": {
+        "pricingId": "6ab0a323697330667ccce8cd",
+        "registry": null,
+        "sphere": "sphere/tomatometer",
+        "title": null,
+        "url": null
+      },
+      "status": "active"
+    }
+  ]
+}

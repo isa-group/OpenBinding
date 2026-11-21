@@ -367,7 +367,123 @@ async def _sphere_imports(client, headers: dict[str, str], session) -> tuple[dic
         client, headers, session, template["composition"]["binding"], revision=latest,
         recipe=json.loads((examples / "tomatometer-recipe.json").read_text()),
     ))
+    core.update(await _upstream(client, headers, session))
     return core, sphere
+
+
+async def _upstream(client, headers: dict[str, str], session) -> dict[str, Any]:
+    """F6: what the watcher records for ``tomatometer`` (``production`` has 1.0.0 in effect, 1.1.0 is the latest), as
+    the gateway answers it. Every file is named ``upstream.*``, so it sorts after the earlier fixtures.
+
+    A first cycle reads every watched manifest; Brevo then publishes 2026-11 (a values-changed event on 1.0.0, which
+    is reviewed), 2027-01 (PROFESSIONAL retired: binding invalid), TomatoMeter its 1.2.0 offering, Dropbox answers 404
+    twice an interval apart (source unavailable) and Resend's manifest stops listing the version 1.1.0 pins
+    (withdrawn). The watcher's clock is moved by hand; nothing sleeps.
+    """
+    from datetime import timedelta as _delta
+
+    from sqlalchemy import select as _select, update as _update
+    from sqlalchemy.ext.asyncio import async_sessionmaker as _sessions
+
+    from openbinding_gateway.db.models import CompositionUpstreamEvent, User, UserRole, utcnow
+    from openbinding_gateway.jobs import clock
+    from openbinding_gateway.modules.compositions.application import upstream_watcher
+    from openbinding_gateway.modules.plans.application import get_pricing_source
+
+    out: dict[str, Any] = {}
+    compositions = "/v1/organizations/fixtures/compositions/tomatometer"
+    events = f"{compositions}/upstream-events"
+    factory = _sessions(session.bind, expire_on_commit=False)
+    moment = [utcnow()]
+    original = clock.utcnow
+    clock.utcnow = lambda: moment[0]
+    settings = _SETTINGS.model_copy(update={"sphere_enabled": True, "upstream_watch_enabled": True,
+                                            "upstream_poll_interval_s": 20})
+
+    async def run(seconds: float = 30) -> None:
+        moment[0] = moment[0] + _delta(seconds=seconds)
+        await session.commit()
+        await upstream_watcher.run_cycle(factory, get_pricing_source(), force=True, settings=settings)
+
+    async def newest(**where: Any) -> str:
+        query = _select(CompositionUpstreamEvent.id).order_by(CompositionUpstreamEvent.detected_at.desc())
+        for name, value in where.items():
+            query = query.where(getattr(CompositionUpstreamEvent, name) == value)
+        found = await session.scalar(query.limit(1))
+        assert found is not None, where
+        return str(found)
+
+    try:
+        await run()
+        _RECORDED.publish("brevo-professional-up")
+        await run()
+        raised = await newest(category="values_changed")
+        out["upstream.tomatometer.events.json"] = _ok(await client.get(events, headers=headers), 200).json()
+        out["upstream.tomatometer.event.values-changed.json"] = _ok(
+            await client.get(f"{events}/{raised}", headers=headers), 200).json()
+        out["upstream.tomatometer.composition.json"] = _ok(await client.get(compositions, headers=headers), 200).json()
+        out["upstream.tomatometer.environment.production.json"] = _ok(
+            await client.get(f"{compositions}/environments/production", headers=headers), 200).json()
+        out["upstream.tomatometer.versions.json"] = _ok(
+            await client.get(f"{compositions}/versions", headers=headers), 200).json()
+        detail = out["upstream.tomatometer.event.values-changed.json"]
+        for side in ("old", "new"):
+            snapshot = detail[side]["snapshotId"]
+            out[f"upstream.brevo.{detail[side]['label']}.yaml"] = _ok(await client.get(
+                f"/v1/organizations/fixtures/pricing-snapshots/{snapshot}/yaml", headers=headers), 200).text
+        out["upstream.notifications.json"] = _ok(
+            await client.get("/v1/notifications", params={"kind": "UpstreamEvent"}, headers=headers), 200).json()
+        out["upstream.me.events.json"] = _ok(await client.get("/v1/users/me/upstream-events", headers=headers), 200).json()
+        out["upstream.tomatometer.event.reviewed.json"] = _ok(await client.post(
+            f"{events}/{raised}/review", json={"note": "Seen; re-solving"}, headers=headers), 200).json()
+        _RECORDED.publish("brevo-professional-retired")
+        await run()
+        out["upstream.tomatometer.event.binding-invalid.json"] = _ok(await client.get(
+            f"{events}/{await newest(category='binding_invalid')}", headers=headers), 200).json()
+        out["upstream.tomatometer.events.two.json"] = _ok(
+            await client.get(events, params={"subject": "binding"}, headers=headers), 200).json()
+        _RECORDED.publish("tomatometer-1.2.0")
+        await run()
+        out["upstream.tomatometer.event.offering-changed.json"] = _ok(await client.get(
+            f"{events}/{await newest(subject='offering')}", headers=headers), 200).json()
+        dropbox = "/api/v1/public/pricings/6ab0a323697330667ccce9c1"
+        _RECORDED.not_found(dropbox, times=2)
+        await run()
+        await run(25)
+        unavailable = await newest(new_ref="gone:1")
+        out["upstream.tomatometer.event.unavailable.json"] = _ok(
+            await client.get(f"{events}/{unavailable}", headers=headers), 200).json()
+        resend = "6ade2d2540e55445692b07c6"
+        manifest = _RECORDED.manifest(resend)
+        pinned = manifest["latestVersionId"]
+        data = (_RECORDED.root / resend / f"{pinned}.yml").read_text().replace(
+            "version: ", "version: '2026-12' # ", 1).encode()
+        import hashlib as _hashlib
+
+        later = "6fff0000000000000000d001"
+        manifest["versions"] = [{"versionId": later, "version": "2026-12", "createdAt": "2026-12-01T00:00:00.000Z",
+                                 "contentHash": "0" * 64}]
+        manifest["latestVersionId"] = later
+        _RECORDED.serve_manifest(resend, manifest)
+        _RECORDED.serve(f"/api/v1/public/pricings/{resend}/versions/{later}/yaml", data,
+                        {"content-type": "application/yaml", "etag": '"' + _hashlib.sha256(data).hexdigest() + '"'})
+        await run()
+        out["upstream.tomatometer.event.withdrawn.json"] = _ok(
+            await client.get(f"{events}/{await newest(new_ref=later)}", headers=headers), 200).json()
+        me = _ok(await client.get("/v1/users/me", headers=headers), 200).json()
+        await session.execute(_update(User).where(User.username == me["username"]).values(role=UserRole.ADMIN))
+        await session.commit()
+        queues = _ok(await client.get("/v1/admin/queues", headers=headers), 200).json()
+        out["upstream.admin.queues.json"] = {"upstreamWatch": queues["upstreamWatch"]}
+        await session.execute(_update(User).where(User.username == me["username"]).values(role=UserRole.USER))
+        await session.commit()
+    finally:
+        clock.utcnow = original
+        _RECORDED.extra.clear()
+        _RECORDED.scripts.clear()
+        _RECORDED.published.clear()
+        _fresh_pricing_source()
+    return out
 
 
 async def _operation(
@@ -378,8 +494,8 @@ async def _operation(
 
     1.1.0 binds Resend PRO instead of Brevo PROFESSIONAL, from the same revision; ``production`` (an operator, ADMIN adopts, 1000 expected users, one feed
     key with the fixed ``FIXTURE_FEED_KEY``) adopts 1.0.0, 1.1.0 and 1.0.0 again; ``staging`` (MEMBER adopts) is
-    empty. ``tomatometer.check.production.newer.json`` is the same check over a scripted Brevo manifest that names
-    a newer version: the only fixture with ``newer``. ``tomatometer.evaluate.revision.json`` evaluates against a
+    empty. ``tomatometer.check.production.newer.json`` is the same check once Brevo published its scenario 2026-11
+    (``RecordedSphere.publish``): the only fixture with ``newer``. ``tomatometer.evaluate.revision.json`` evaluates against a
     demand variant, revision 4 (the combined recipe with twice the demand).
     """
     import copy
@@ -433,17 +549,13 @@ async def _operation(
     _fresh_pricing_source()
     out["tomatometer.check.production.json"] = _ok(
         await client.post(f"{environments}/production/check", headers=headers), 200).json()
-    # The recorded manifest route of set-B Brevo (the family the e-mail plan was read from).
-    brevo = next(route for route in _RECORDED.routes if route.endswith("/public/pricings/6ade2d4440e55445692b07f1"))
-    manifest = json.loads((_RECORDED.root / _RECORDED.routes[brevo]["file"]).read_text())
-    newer = {"versionId": "6ffffffffffffffffffffff1", "version": "2027-01", "createdAt": "2027-01-15T00:00:00.000Z",
-             "contentHash": "0" * 64}
-    scripted = {**manifest, "latestVersionId": newer["versionId"], "versions": [newer, *manifest["versions"]]}
-    _RECORDED.serve(brevo, json.dumps(scripted).encode(), {"content-type": "application/json"})
+    # Set-B Brevo (the family the e-mail plan was read from) publishes its scenario 2026-11 (scenarios.json).
+    _RECORDED.publish("brevo-professional-up")
     _fresh_pricing_source()
     out["tomatometer.check.production.newer.json"] = _ok(
         await client.post(f"{environments}/production/check", headers=headers), 200).json()
     _RECORDED.extra.clear()
+    _RECORDED.published.clear()
     _fresh_pricing_source()
     out["tomatometer.versions.json"] = _ok(await client.get(f"{compositions}/versions", headers=headers), 200).json()
     # The calculator: a what-if binding with users, and the same against a demand variant (revision 3).

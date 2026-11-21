@@ -1,0 +1,175 @@
+{
+  "limit": 50,
+  "offset": 0,
+  "total": 2,
+  "versions": [
+    {
+      "analytics": null,
+      "based_on": null,
+      "content_digest": "sha256-8f3be077d629c797d4cd93693f0026d07ee93015cbce5e90648dcf1ae8a878a1",
+      "created_at": "2026-01-01T00:00:29Z",
+      "created_by_id": "00000000-0000-4000-8000-000000000003",
+      "current_evaluation": {
+        "basis": "bim",
+        "compilation": {
+          "compilation_digest": "sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c",
+          "semantic_digest": "sha256-1430132ab32ba230127c567a8c19895124711b893883e1d6ff862ef49b2de508",
+          "toolchain": {
+            "apiVersion": "bim/v1",
+            "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+            "name": "bim-core",
+            "version": "0.2.0"
+          }
+        },
+        "created_at": "2026-01-01T00:00:30Z",
+        "id": "00000000-0000-4000-8000-000000000039",
+        "outcome": "verified"
+      },
+      "current_evaluation_id": "00000000-0000-4000-8000-000000000039",
+      "derivation": {
+        "point": null,
+        "revision": {
+          "id": "00000000-0000-4000-8000-000000000034",
+          "revision": 3
+        },
+        "run": null,
+        "source": "binding"
+      },
+      "document": null,
+      "evaluations": [],
+      "evidence_run": null,
+      "forked_from": null,
+      "id": "00000000-0000-4000-8000-000000000038",
+      "kind": "application",
+      "label": "1.1.0",
+      "offering": {
+        "sphere": "sphere/tomatometer"
+      },
+      "ordinal": 2,
+      "problem": {
+        "linked_compilation": {
+          "compilation_digest": "sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c",
+          "id": "00000000-0000-4000-8000-000000000035",
+          "semantic_digest": "sha256-1430132ab32ba230127c567a8c19895124711b893883e1d6ff862ef49b2de508"
+        },
+        "problem": {
+          "id": "00000000-0000-4000-8000-000000000037",
+          "name": "TomatoMeter e-mail",
+          "slug": "tomatometer-email"
+        },
+        "revision": {
+          "id": "00000000-0000-4000-8000-000000000034",
+          "revision": 3
+        }
+      },
+      "size_bytes": 945,
+      "syntax_version": "1.0",
+      "upstream": {
+        "bindingInvalid": 0,
+        "open": 0,
+        "reviewed": 0,
+        "worst": null
+      },
+      "values": {
+        "availability": {
+          "unit": "1",
+          "value": 0.9682605702
+        },
+        "latency": {
+          "unit": "ms",
+          "value": 495.0
+        },
+        "subscription": {
+          "unit": "USD/month",
+          "value": 29.990000000000002
+        }
+      },
+      "values_status": "verified",
+      "verified": true
+    },
+    {
+      "analytics": null,
+      "based_on": null,
+      "content_digest": "sha256-f8877f33423f7fa96418c4a7af8d6388696c0275e3c9b53482610b0c4b63172d",
+      "created_at": "2026-01-01T00:00:13Z",
+      "created_by_id": "00000000-0000-4000-8000-000000000003",
+      "current_evaluation": {
+        "basis": "bim",
+        "compilation": {
+          "compilation_digest": "sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c",
+          "semantic_digest": "sha256-1430132ab32ba230127c567a8c19895124711b893883e1d6ff862ef49b2de508",
+          "toolchain": {
+            "apiVersion": "bim/v1",
+            "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+            "name": "bim-core",
+            "version": "0.2.0"
+          }
+        },
+        "created_at": "2026-01-01T00:00:14Z",
+        "id": "00000000-0000-4000-8000-000000000033",
+        "outcome": "verified"
+      },
+      "current_evaluation_id": "00000000-0000-4000-8000-000000000033",
+      "derivation": {
+        "point": null,
+        "revision": {
+          "id": "00000000-0000-4000-8000-000000000034",
+          "revision": 3
+        },
+        "run": null,
+        "source": "binding"
+      },
+      "document": null,
+      "evaluations": [],
+      "evidence_run": null,
+      "forked_from": null,
+      "id": "00000000-0000-4000-8000-000000000036",
+      "kind": "application",
+      "label": "1.0.0",
+      "offering": {
+        "sphere": "sphere/tomatometer"
+      },
+      "ordinal": 1,
+      "problem": {
+        "linked_compilation": {
+          "compilation_digest": "sha256-6e4bbc51a917d0af3ba539af517c18cf7f999369f8d882cd37e34cf7d0a7b29c",
+          "id": "00000000-0000-4000-8000-000000000035",
+          "semantic_digest": "sha256-1430132ab32ba230127c567a8c19895124711b893883e1d6ff862ef49b2de508"
+        },
+        "problem": {
+          "id": "00000000-0000-4000-8000-000000000037",
+          "name": "TomatoMeter e-mail",
+          "slug": "tomatometer-email"
+        },
+        "revision": {
+          "id": "00000000-0000-4000-8000-000000000034",
+          "revision": 3
+        }
+      },
+      "size_bytes": 949,
+      "syntax_version": "1.0",
+      "upstream": {
+        "bindingInvalid": 0,
+        "open": 1,
+        "reviewed": 0,
+        "worst": "values_changed"
+      },
+      "values": {
+        "availability": {
+          "unit": "1",
+          "value": 0.9682605702
+        },
+        "latency": {
+          "unit": "ms",
+          "value": 615.0
+        },
+        "subscription": {
+          "unit": "USD/month",
+          "value": 508.99
+        }
+      },
+      "values_status": "verified",
+      "verified": true
+    }
+  ]
+}
