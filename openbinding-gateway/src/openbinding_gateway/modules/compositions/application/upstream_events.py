@@ -533,6 +533,8 @@ async def notify_inserted(session: AsyncSession, event_ids: list[uuid.UUID]) -> 
         main = max(events, key=lambda event: SEVERITY[Category(event.category)])
         composition = await session.get(Composition, composition_id)
         organization = await session.get(Organization, main.organization_id)
+        if composition is None or organization is None:
+            continue  # deleted since its events committed: nobody to tell, and the other groups still are
         labels = []
         for event in events:
             version = await session.get(CompositionVersion, event.version_id)

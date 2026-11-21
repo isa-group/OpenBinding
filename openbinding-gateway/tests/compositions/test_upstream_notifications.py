@@ -169,6 +169,46 @@ async def test_two_affected_versions_give_one_notification_naming_both(api_clien
     assert row.payload["event"] in row.payload["events"] and row.payload["environments"] == ["production"]
 
 
+async def test_a_composition_deleted_before_its_notification_is_skipped(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
+    """A delete committing between the events' commit and the notification step: that group is skipped, the
+    others are still told."""
+    from openbinding_gateway.db.models import Composition, CompositionUpstreamEvent
+    from openbinding_gateway.modules.compositions.application import upstream_events
+
+    found = await seeded(api_client, registration, db_session, gate)
+    await cycle(db_session, source)
+    sphere.publish("brevo-professional-up")
+    clocks.advance(30)
+    await cycle(db_session, source)
+    ids = list((await db_session.scalars(select(CompositionUpstreamEvent.id))).all())
+    other = await seeded(api_client, registration, db_session, gate)
+    sphere.source._cache.clear()
+    await cycle(db_session, source)
+    ids += [event_id for event_id in (await db_session.scalars(select(CompositionUpstreamEvent.id))).all()
+            if event_id not in ids]
+    assert len(ids) == 2
+
+    class Vanished:
+        """The session, but the first composition reads as deleted."""
+
+        def __init__(self, session) -> None:
+            self._session = session
+
+        def __getattr__(self, name):
+            return getattr(self._session, name)
+
+        async def get(self, model, key, **kwargs):
+            if model is Composition and key == found.ids["composition"]:
+                return None
+            return await self._session.get(model, key, **kwargs)
+
+    await db_session.execute(Notification.__table__.delete())
+    await db_session.commit()
+    told = await upstream_events.notify_inserted(Vanished(db_session), ids)
+    await db_session.commit()
+    assert told == 1 and set(await _told(db_session)) == {str(other.ids["user"])}
+
+
 async def test_the_stream_delivers_the_row_once_committed(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
     found = await seeded(api_client, registration, db_session, gate)
     await cycle(db_session, source)
