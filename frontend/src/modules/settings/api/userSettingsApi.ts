@@ -4,7 +4,8 @@
 // Changes: OpenBinding's gateway routes and generated types (`PATCH /v1/users/me` for the email and the password,
 // notification preferences per kind × channel, beta features, the plan); refusals throw the typed error
 // `readApiError` reads; the revisions (`ETag`) come back so a write can send `If-Match`. The display name and the avatar go
-// through the same `PATCH /v1/users/me`; SPHERE's profile blob, social links, avatar upload and Google identity calls are not
+// through the same `PATCH /v1/users/me`; what deleting the account deletes with it (`GET /v1/users/me/deletion`) is
+// OpenBinding's; SPHERE's profile blob, social links, avatar upload and Google identity calls are not
 // ported.
 
 import { useCallback, useMemo } from 'react';
@@ -19,6 +20,7 @@ export type UpdateProfileRequest = Schemas['UpdateProfileRequest'];
 export type NotificationPreferences = Schemas['NotificationPreferences'];
 export type KindChannels = Schemas['KindChannels'];
 export type BetaFeatures = Schemas['BetaFeatures'];
+export type AccountDeletionPreview = Schemas['AccountDeletionPreview'];
 export type { UsageView };
 
 /** An answer with the revision it was read at, to send back as `If-Match`. */
@@ -54,6 +56,12 @@ export function useUserSettingsApi() {
   const updateProfile = useCallback(
     (changes: UpdateProfileRequest) =>
       call<UserProfile>(ME, { method: 'PATCH', body: JSON.stringify(changes) }),
+    [call]
+  );
+
+  /** What deleting the account deletes with it: its personal organization and what that holds. */
+  const getDeletionPreview = useCallback(
+    () => call<AccountDeletionPreview>(`${ME}/deletion`),
     [call]
   );
 
@@ -106,6 +114,7 @@ export function useUserSettingsApi() {
   return useMemo(
     () => ({
       updateProfile,
+      getDeletionPreview,
       deleteAccount,
       getNotificationPreferences,
       updateNotificationPreferences,
@@ -116,6 +125,7 @@ export function useUserSettingsApi() {
     }),
     [
       updateProfile,
+      getDeletionPreview,
       deleteAccount,
       getNotificationPreferences,
       updateNotificationPreferences,

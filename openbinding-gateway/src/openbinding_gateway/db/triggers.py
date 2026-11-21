@@ -119,6 +119,12 @@ def retain_when(table: str, when: tuple[str, str], columns: tuple[str, ...], *, 
     return _trigger(name, table, "DELETE", message, when[0], when[1], columns)
 
 
+#: Joins a study (``s``) to its organization when that is the personal organization of a deleted account.
+_DELETED_PERSONAL = (
+    "JOIN organizations o ON o.id = s.organization_id JOIN users u ON u.id = o.personal_owner_id "
+    "AND u.deleted_at IS NOT NULL"
+)
+
 TRIGGERS: tuple[Trigger, ...] = (
     *immutable("binding_case_revisions", delete=False),
     *immutable("problem_compilations", delete=False),
@@ -129,12 +135,27 @@ TRIGGERS: tuple[Trigger, ...] = (
     *immutable("composition_derivations", delete=False),
     protect("study_runs", ("study_id", "run_number", "matrix_digest", "definition", "definition_digest"),
             json_columns=("definition",)),
-    retain("study_runs"),
+    # History, but for the one exception (F5-D, SPHERE's rule): a deleted account's personal organization goes whole,
+    # its study runs and cells too. The account is pseudonymised (``deleted_at``) before its organization is deleted.
+    retain_when(
+        "study_runs",
+        (f"NOT EXISTS (SELECT 1 FROM studies s {_DELETED_PERSONAL} WHERE s.id = OLD.study_id)",) * 2,
+        ("study_id",),
+        name="retain_study_runs",
+        message="study_runs history is retained",
+    ),
     protect("study_cells",
             ("study_run_id", "ordinal", "binding_case_revision_id", "compilation_id", "engine_ref", "parameters",
              "seed", "fingerprint"),
             json_columns=("engine_ref", "parameters")),
-    retain("study_cells"),
+    retain_when(
+        "study_cells",
+        ("NOT EXISTS (SELECT 1 FROM study_runs r JOIN studies s ON s.id = r.study_id "
+         f"{_DELETED_PERSONAL} WHERE r.id = OLD.study_run_id)",) * 2,
+        ("study_run_id",),
+        name="retain_study_cells",
+        message="study_cells history is retained",
+    ),
     # Pricing snapshots are insert-only; public and registry rows are shared by every organization and are
     # never deleted, an organization's own rows go with it (routes/organizations._delete_subtree).
     *immutable("pricing_snapshots", delete=False, message="pricing snapshots are immutable"),

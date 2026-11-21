@@ -51,6 +51,7 @@ from ..db.models import (
     PricingSnapshot,
     RunPreset,
     Study,
+    StudyCell,
     StudyRun,
     User,
     utcnow,
@@ -688,11 +689,7 @@ async def delete_organization(
 
     descendants = await descendant_ids(session, organization.id)
     unique_descendants = list(dict.fromkeys(descendants))
-    for model, column in ((Study, Study.organization_id), (Composition, Composition.organization_id),
-                          (BindingCase, BindingCase.organization_id), (Organization, Organization.id)):
-        await session.execute(
-            select(model.id).where(column.in_(unique_descendants)).order_by(model.id).with_for_update()
-        )
+    await _lock_subtree(session, unique_descendants)
     # Runs and study runs are history: an organization that has any is kept.
     if await session.scalar(select(Job.id).where(Job.organization_id.in_(unique_descendants)).limit(1)) or await session.scalar(
         select(StudyRun.id).join(Study, Study.id == StudyRun.study_id)
@@ -705,11 +702,34 @@ async def delete_organization(
         raise _historical_references() from exc
 
 
+async def _lock_subtree(session: AsyncSession, unique_descendants: list[uuid.UUID]) -> None:
+    for model, column in ((Study, Study.organization_id), (Composition, Composition.organization_id),
+                          (BindingCase, BindingCase.organization_id), (Organization, Organization.id)):
+        await session.execute(
+            select(model.id).where(column.in_(unique_descendants)).order_by(model.id).with_for_update()
+        )
+
+
+async def delete_personal_organization(session: AsyncSession, organization: Organization) -> None:
+    """Delete an account's personal organization with everything it holds, its runs included, as SPHERE deletes it
+    with the account (``UserService.ts:281-285``); called by ``DELETE /v1/users/me`` only, once its runs have stopped
+    and the account is pseudonymised (``deleted_at`` is what lets the retain triggers of its study runs go).
+
+    The one exception to runs being history: a team organization that holds runs is still refused. A personal
+    organization is a root without children, and nothing outside it refers to what it holds (problems are private to
+    their organization, a fork keeps a ``forked_from`` snapshot), so nothing outside it stops the delete.
+    """
+    await _lock_subtree(session, [organization.id])
+    await _delete_subtree(session, organization, [organization.id], with_runs=True)
+
+
 def _historical_references() -> HTTPException:
     return api_error(409, "historical_references", "Organizations with runs or study runs cannot be deleted; their history is kept.")
 
 
-async def _delete_subtree(session: AsyncSession, organization: Organization, unique_descendants: list[uuid.UUID]) -> None:
+async def _delete_subtree(
+    session: AsyncSession, organization: Organization, unique_descendants: list[uuid.UUID], *, with_runs: bool = False,
+) -> None:
     for oid in unique_descendants:
         await session.execute(
             delete(OrganizationMembership).where(OrganizationMembership.organization_id == oid)
@@ -720,6 +740,14 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
         await session.execute(
             delete(AuditEvent).where(AuditEvent.organization_id == oid)
         )
+        if with_runs:
+            # A deleted account's personal organization: its study runs and cells go first, while their studies still
+            # name the organization (the retain triggers let only those go).
+            study_runs = select(StudyRun.id).join(Study, Study.id == StudyRun.study_id).where(Study.organization_id == oid)
+            await session.execute(delete(StudyCell).where(StudyCell.study_run_id.in_(study_runs)))
+            await session.execute(
+                delete(StudyRun).where(StudyRun.study_id.in_(select(Study.id).where(Study.organization_id == oid)))
+            )
         await session.execute(delete(Study).where(Study.organization_id == oid))
         # Run presets: no run or history refers to one, a run copies the settings it expands.
         await session.execute(delete(RunPreset).where(RunPreset.organization_id == oid))
@@ -739,6 +767,10 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
         await session.execute(delete(CompositionEvaluation).where(CompositionEvaluation.version_id.in_(versions)))
         await session.execute(delete(CompositionVersion).where(CompositionVersion.composition_id.in_(held)))
         await session.execute(delete(Composition).where(Composition.organization_id == oid))
+        if with_runs:
+            # Only a personal organization's: its study runs and cells went with its studies above, and its runs'
+            # engine attempts and evidence go with them; the compositions that named a run as evidence are gone.
+            await session.execute(delete(Job).where(Job.organization_id == oid))
         cases = select(BindingCase.id).where(BindingCase.organization_id == oid)
         revisions = select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id.in_(cases))
         await session.execute(delete(ProblemValueOrigin).where(ProblemValueOrigin.revision_id.in_(revisions)))

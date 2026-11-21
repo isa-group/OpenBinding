@@ -322,6 +322,21 @@ async function mockApi(
     if (method === 'DELETE') return (state.refuse.delete ?? noContent)(route);
     return json(state.account)(route);
   });
+  // What deleting the account deletes with it (F5-D): the personal organization and what it holds.
+  await page.route(
+    `${API}/v1/users/me/deletion`,
+    json({
+      personal_organization: {
+        slug: 'lucia-vega',
+        name: 'lucia.vega PERSONAL',
+        compositions: 2,
+        public_compositions: 1,
+        problems: 1,
+        runs: 4,
+        feed_environments: 0,
+      },
+    })
+  );
   await page.route(`${API}/v1/users/me/pricing-token`, route => state.pricingToken(route));
   await page.route(`${API}/v1/users/me/usage`, route => state.usage(route));
 
@@ -839,6 +854,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const dialog = page.getByRole('dialog', { name: 'Confirm deletion' });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole('button', { name: 'Delete account' })).toBeDisabled();
+      await expect(dialog.getByRole('note', { name: 'Your personal organization' })).toContainText(
+        '2 compositions (1 public), 1 problem, 4 runs and 0 environments with a feed'
+      );
       await dialog.getByLabel('Type lucia.vega to confirm').fill('lucia.vega');
       await expect(dialog.getByRole('button', { name: 'Delete account' })).toBeEnabled();
       await capture(page, testInfo, `settings-${name}-danger-dialog`);

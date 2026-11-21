@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = 'd8fdf85883ef'
+revision: str = '72c9f83f7d02'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -26,9 +26,9 @@ SQLITE_TRIGGERS = (
     "CREATE TRIGGER immutable_composition_evaluations_update BEFORE UPDATE ON composition_evaluations BEGIN SELECT RAISE(ABORT, 'composition_evaluations rows are sealed and immutable'); END",
     "CREATE TRIGGER immutable_composition_derivations_update BEFORE UPDATE ON composition_derivations BEGIN SELECT RAISE(ABORT, 'composition_derivations rows are sealed and immutable'); END",
     "CREATE TRIGGER protect_study_runs BEFORE UPDATE ON study_runs WHEN OLD.study_id IS NOT NEW.study_id OR OLD.run_number IS NOT NEW.run_number OR OLD.matrix_digest IS NOT NEW.matrix_digest OR OLD.definition IS NOT NEW.definition OR OLD.definition_digest IS NOT NEW.definition_digest BEGIN SELECT RAISE(ABORT, 'the protected columns of study_runs are immutable'); END",
-    "CREATE TRIGGER retain_study_runs BEFORE DELETE ON study_runs BEGIN SELECT RAISE(ABORT, 'study_runs history is retained'); END",
+    "CREATE TRIGGER retain_study_runs BEFORE DELETE ON study_runs WHEN NOT EXISTS (SELECT 1 FROM studies s JOIN organizations o ON o.id = s.organization_id JOIN users u ON u.id = o.personal_owner_id AND u.deleted_at IS NOT NULL WHERE s.id = OLD.study_id) BEGIN SELECT RAISE(ABORT, 'study_runs history is retained'); END",
     "CREATE TRIGGER protect_study_cells BEFORE UPDATE ON study_cells WHEN OLD.study_run_id IS NOT NEW.study_run_id OR OLD.ordinal IS NOT NEW.ordinal OR OLD.binding_case_revision_id IS NOT NEW.binding_case_revision_id OR OLD.compilation_id IS NOT NEW.compilation_id OR OLD.engine_ref IS NOT NEW.engine_ref OR OLD.parameters IS NOT NEW.parameters OR OLD.seed IS NOT NEW.seed OR OLD.fingerprint IS NOT NEW.fingerprint BEGIN SELECT RAISE(ABORT, 'the protected columns of study_cells are immutable'); END",
-    "CREATE TRIGGER retain_study_cells BEFORE DELETE ON study_cells BEGIN SELECT RAISE(ABORT, 'study_cells history is retained'); END",
+    "CREATE TRIGGER retain_study_cells BEFORE DELETE ON study_cells WHEN NOT EXISTS (SELECT 1 FROM study_runs r JOIN studies s ON s.id = r.study_id JOIN organizations o ON o.id = s.organization_id JOIN users u ON u.id = o.personal_owner_id AND u.deleted_at IS NOT NULL WHERE r.id = OLD.study_run_id) BEGIN SELECT RAISE(ABORT, 'study_cells history is retained'); END",
     "CREATE TRIGGER immutable_pricing_snapshots_update BEFORE UPDATE ON pricing_snapshots BEGIN SELECT RAISE(ABORT, 'pricing snapshots are immutable'); END",
     "CREATE TRIGGER retain_pricing_snapshots_shared BEFORE DELETE ON pricing_snapshots WHEN OLD.scope_key = 'public' OR substr(OLD.scope_key, 1, 9) = 'registry:' BEGIN SELECT RAISE(ABORT, 'shared pricing snapshots are retained'); END",
     "CREATE TRIGGER protect_composition_environments BEFORE UPDATE ON composition_environments WHEN OLD.organization_id IS NOT NEW.organization_id OR OLD.composition_id IS NOT NEW.composition_id OR OLD.slug IS NOT NEW.slug OR OLD.created_by_id IS NOT NEW.created_by_id OR OLD.created_at IS NOT NEW.created_at BEGIN SELECT RAISE(ABORT, 'the protected columns of composition_environments are immutable'); END",
@@ -52,11 +52,11 @@ POSTGRESQL_TRIGGERS = (
     'CREATE TRIGGER immutable_composition_derivations_update BEFORE UPDATE ON composition_derivations FOR EACH ROW EXECUTE FUNCTION immutable_composition_derivations_update()',
     "CREATE OR REPLACE FUNCTION protect_study_runs() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.study_id IS DISTINCT FROM NEW.study_id OR OLD.run_number IS DISTINCT FROM NEW.run_number OR OLD.matrix_digest IS DISTINCT FROM NEW.matrix_digest OR OLD.definition::jsonb IS DISTINCT FROM NEW.definition::jsonb OR OLD.definition_digest IS DISTINCT FROM NEW.definition_digest THEN RAISE EXCEPTION 'the protected columns of study_runs are immutable'; END IF; RETURN NEW; END $$",
     'CREATE TRIGGER protect_study_runs BEFORE UPDATE ON study_runs FOR EACH ROW EXECUTE FUNCTION protect_study_runs()',
-    "CREATE OR REPLACE FUNCTION retain_study_runs() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'study_runs history is retained'; END $$",
+    "CREATE OR REPLACE FUNCTION retain_study_runs() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NOT EXISTS (SELECT 1 FROM studies s JOIN organizations o ON o.id = s.organization_id JOIN users u ON u.id = o.personal_owner_id AND u.deleted_at IS NOT NULL WHERE s.id = OLD.study_id) THEN RAISE EXCEPTION 'study_runs history is retained'; END IF; RETURN OLD; END $$",
     'CREATE TRIGGER retain_study_runs BEFORE DELETE ON study_runs FOR EACH ROW EXECUTE FUNCTION retain_study_runs()',
     "CREATE OR REPLACE FUNCTION protect_study_cells() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.study_run_id IS DISTINCT FROM NEW.study_run_id OR OLD.ordinal IS DISTINCT FROM NEW.ordinal OR OLD.binding_case_revision_id IS DISTINCT FROM NEW.binding_case_revision_id OR OLD.compilation_id IS DISTINCT FROM NEW.compilation_id OR OLD.engine_ref::jsonb IS DISTINCT FROM NEW.engine_ref::jsonb OR OLD.parameters::jsonb IS DISTINCT FROM NEW.parameters::jsonb OR OLD.seed IS DISTINCT FROM NEW.seed OR OLD.fingerprint IS DISTINCT FROM NEW.fingerprint THEN RAISE EXCEPTION 'the protected columns of study_cells are immutable'; END IF; RETURN NEW; END $$",
     'CREATE TRIGGER protect_study_cells BEFORE UPDATE ON study_cells FOR EACH ROW EXECUTE FUNCTION protect_study_cells()',
-    "CREATE OR REPLACE FUNCTION retain_study_cells() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'study_cells history is retained'; END $$",
+    "CREATE OR REPLACE FUNCTION retain_study_cells() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NOT EXISTS (SELECT 1 FROM study_runs r JOIN studies s ON s.id = r.study_id JOIN organizations o ON o.id = s.organization_id JOIN users u ON u.id = o.personal_owner_id AND u.deleted_at IS NOT NULL WHERE r.id = OLD.study_run_id) THEN RAISE EXCEPTION 'study_cells history is retained'; END IF; RETURN OLD; END $$",
     'CREATE TRIGGER retain_study_cells BEFORE DELETE ON study_cells FOR EACH ROW EXECUTE FUNCTION retain_study_cells()',
     "CREATE OR REPLACE FUNCTION immutable_pricing_snapshots_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'pricing snapshots are immutable'; END $$",
     'CREATE TRIGGER immutable_pricing_snapshots_update BEFORE UPDATE ON pricing_snapshots FOR EACH ROW EXECUTE FUNCTION immutable_pricing_snapshots_update()',

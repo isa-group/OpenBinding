@@ -1039,6 +1039,19 @@ function userRoutes(request: Request): Reply {
       return ok({ pricing_token: PRICING_TOKEN });
     case 'usage':
       return ok(USAGE);
+    case 'deletion':
+      // What deleting the account deletes with it: alex.rivera's personal organization, empty.
+      return ok({
+        personal_organization: {
+          slug: 'alex-rivera',
+          name: 'alex.rivera PERSONAL',
+          compositions: 0,
+          public_compositions: 0,
+          problems: 0,
+          runs: 0,
+          feed_environments: 0,
+        },
+      });
     case 'api-keys':
       return subId ? { status: 204 } : ok({ api_keys: API_KEYS });
     case 'settings':

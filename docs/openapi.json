@@ -51,6 +51,23 @@
         "title": "AccountDeleteRequest",
         "type": "object"
       },
+      "AccountDeletionPreview": {
+        "description": "``GET /v1/users/me/deletion``: what ``DELETE /v1/users/me`` would delete beyond the account itself.",
+        "properties": {
+          "personal_organization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonalOrganizationLoss"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "AccountDeletionPreview",
+        "type": "object"
+      },
       "AdminAuditEventView": {
         "properties": {
           "action": {
@@ -11111,6 +11128,50 @@
           "location"
         ],
         "title": "PermanentLink",
+        "type": "object"
+      },
+      "PersonalOrganizationLoss": {
+        "description": "What deleting the account deletes with its personal organization (the Danger Zone says it before asking).",
+        "properties": {
+          "compositions": {
+            "title": "Compositions",
+            "type": "integer"
+          },
+          "feed_environments": {
+            "title": "Feed Environments",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "problems": {
+            "title": "Problems",
+            "type": "integer"
+          },
+          "public_compositions": {
+            "title": "Public Compositions",
+            "type": "integer"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "compositions",
+          "public_compositions",
+          "problems",
+          "runs",
+          "feed_environments"
+        ],
+        "title": "PersonalOrganizationLoss",
         "type": "object"
       },
       "PlansPricingView": {
@@ -38857,7 +38918,7 @@
     },
     "/v1/users/me": {
       "delete": {
-        "description": "Delete the account.\n\nThe user row stays, so that the runs, revisions and engines it created keep\nnaming somebody, but nothing in it identifies a person any more: the\nusername and email are replaced, the password is unusable, the preferences\nare emptied and ``deleted_at`` is set. Every credential, membership,\nidentity, notification and invitation of the account is deleted, its\nfederated engines are deactivated and an administrator becomes an ordinary\n(inactive) user. The SPACE contract is removed last, before the commit; if\nthat fails, nothing is changed (503).",
+        "description": "Delete the account.\n\nThe user row stays, so that the runs, revisions and engines it created keep\nnaming somebody, but nothing in it identifies a person any more: the\nusername and email are replaced, the password is unusable, the preferences\nare emptied and ``deleted_at`` is set. Every credential, membership,\nidentity, notification and invitation of the account is deleted, its\nfederated engines are deactivated and an administrator becomes an ordinary\n(inactive) user. Its personal organization is deleted with everything it\nholds, runs included, as SPHERE deletes it: its queued runs and study runs\nare cancelled first, and while a run of it is still running (or an engine\nattempt is still being told to stop) the cancellation is committed and the\nanswer is ``409 personal_runs_stopping``, so no solver is left orphaned. The SPACE contract is removed last, before the commit; if\nthat fails, nothing is changed (503).",
         "operationId": "deleteOwnAccount",
         "requestBody": {
           "content": {
@@ -38901,7 +38962,7 @@
                 }
               }
             },
-            "description": "The account is the last OWNER of an organization (`last_owner`)."
+            "description": "`last_owner` (the account is the last OWNER of an organization other than its personal one) and `personal_runs_stopping` (runs of its personal organization were running: they are being cancelled; delete again once they have stopped)."
           },
           "422": {
             "content": {
@@ -39802,6 +39863,69 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:read"
+        ]
+      }
+    },
+    "/v1/users/me/deletion": {
+      "get": {
+        "description": "The personal organization ``DELETE /v1/users/me`` deletes, with what it holds; nothing is changed.",
+        "operationId": "previewOwnAccountDeletion",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeletionPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "What deleting the account deletes with it",
+        "tags": [
+          "Users"
+        ],
+        "x-required-api-key-permissions": [
+          "account:read"
         ]
       }
     },

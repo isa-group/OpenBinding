@@ -5,7 +5,9 @@ removes the SPACE contract first (a 503 there changes nothing), and then, in one
 transaction, replaces the username, email and password, empties the preferences, sets
 ``deleted_at``, deletes every credential, identity, notification, membership and
 invitation of the account, deactivates its federated engines (their revisions stay, past
-runs name them) and audits ``account.deleted`` without personal data. A username that
+runs name them) and audits ``account.deleted`` without personal data. Its personal
+organization does not count as an organization it owns: it is deleted with everything it
+holds, its runs included, as SPHERE deletes it, once its runs have stopped. A username that
 names engines stays reserved for good.
 """
 
@@ -20,7 +22,8 @@ import pytest
 from sqlalchemy import func, select
 
 from _fake_space import FakePricingGate
-from _pricing import fixture_catalog
+from _pricing import fixture_catalog, largest_plan
+from test_compositions_public_list import published
 from openbinding_gateway import space_client
 from openbinding_gateway.db.models import (
     IdentitySession,
@@ -31,13 +34,20 @@ from openbinding_gateway.db.models import (
     EngineRevision,
     Job,
     JobState,
+    Composition,
+    CompositionVersion,
     Notification,
+    Organization,
     OrganizationInvitationCode,
     OrganizationMembership,
     PasswordResetToken,
+    Study,
+    StudyCell,
+    StudyRun,
     User,
     utcnow,
 )
+from openbinding_gateway.db.platform_models import RunState
 from openbinding_gateway.space_client import PricingUnavailable
 
 PASSWORD = "correct-horse-battery"
@@ -147,6 +157,8 @@ async def test_deletion_pseudonymises_the_row_and_removes_what_was_the_accounts_
     text = json.dumps(audit.detail)
     assert details["username"] not in text and details["email"] not in text
     assert audit.detail == {"engine_registrations_deactivated": 1}
+    # Its personal organization went with it.
+    assert await count(db_session, Organization, Organization.personal_owner_id == user_id) == 0
 
     # The old credentials are dead, and the colleague's organization goes on without the account.
     assert (await api_client.get("/v1/users/me", headers=headers)).status_code == 401
@@ -190,6 +202,150 @@ async def test_the_last_owner_cannot_delete_the_account(api_client, registration
     assert refused.json()["detail"]["code"] == "last_owner"
     db_session.expire_all()
     assert (await db_session.get(User, uuid.UUID(profile["id"]))).deleted_at is None
+
+
+async def test_the_personal_organization_is_deleted_with_the_account(api_client, registration, db_session):
+    """As SPHERE (``UserService.ts:281-285``): the personal organization goes, everything in it, its runs included."""
+    profile, headers, details = await signed_in(api_client, registration)
+    friend, friend_headers, _ = await signed_in(api_client, registration)
+    space_client.get_gate().plans[uuid.UUID(profile["id"])] = largest_plan()
+    user_id = uuid.UUID(profile["id"])
+    listed = (await api_client.get("/v1/organizations", headers=headers)).json()
+    personal = next(row for row in listed if row["is_personal"])
+    personal_id = uuid.UUID(personal["id"])
+    # A friend in it, invitation codes of the account's and of the friend's, a public composition, and history.
+    assert (await api_client.put(
+        f"/v1/organizations/{personal['slug']}/members/{friend['id']}", headers=headers,
+        json={"user_id": friend["id"], "role": "ADMIN"},
+    )).status_code == 200
+    assert (await api_client.post(f"/v1/organizations/{personal['slug']}/invitations", headers=headers, json={})).status_code == 201
+    assert (await api_client.post(f"/v1/organizations/{personal['slug']}/invitations", headers=friend_headers, json={})).status_code == 201
+    await published(api_client, headers, personal["slug"], "menu")
+    finished = Job(
+        created_by_id=user_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="inline",
+        state=JobState.COMPLETED, original_request={}, options={}, provenance={},
+        **{**placeholder_refs(), "organization_id": personal_id},
+    )
+    db_session.add(finished)
+    study = Study(organization_id=personal_id, slug="s", name="S", definition={}, definition_digest="sha256-x",
+                  created_by_id=user_id)
+    db_session.add(study)
+    await db_session.flush()
+    study_run = StudyRun(study_id=study.id, run_number=1, state=RunState.COMPLETED, matrix_digest="m",
+                         definition={}, definition_digest="d", created_by_id=user_id)
+    db_session.add(study_run)
+    await db_session.flush()
+    db_session.add(StudyCell(study_run_id=study_run.id, ordinal=1, binding_case_revision_id=uuid.uuid4(),
+                             compilation_id=uuid.uuid4(), engine_ref={}, seed=1, fingerprint="f",
+                             state=RunState.COMPLETED, job_id=finished.id))
+    await db_session.commit()
+    finished_id, study_run_id = finished.id, study_run.id
+
+    preview = await api_client.get("/v1/users/me/deletion", headers=headers)
+    assert preview.status_code == 200, preview.text
+    assert preview.json() == {"personal_organization": {
+        "slug": personal["slug"], "name": personal["name"], "compositions": 1, "public_compositions": 1,
+        "problems": 0, "runs": 1, "feed_environments": 0,
+    }}
+
+    deleted = await delete(api_client, profile, headers)
+
+    assert deleted.status_code == 204, deleted.text
+    db_session.expire_all()
+    assert await db_session.get(Organization, personal_id) is None
+    for model, column in (
+        (OrganizationMembership, OrganizationMembership.organization_id),
+        (OrganizationInvitationCode, OrganizationInvitationCode.organization_id),
+        (Composition, Composition.organization_id),
+        (Job, Job.organization_id),
+        (AuditEvent, AuditEvent.organization_id),
+    ):
+        assert await count(db_session, model, column == personal_id) == 0, model.__name__
+    assert await db_session.get(Job, finished_id) is None
+    # Study runs are history everywhere else; the triggers let a deleted account's personal ones go.
+    assert await db_session.get(StudyRun, study_run_id) is None
+    assert await count(db_session, StudyCell, StudyCell.study_run_id == study_run_id) == 0
+    audit = (await db_session.execute(select(AuditEvent).where(AuditEvent.action == "account.deleted"))).scalars().one()
+    assert audit.detail == {"engine_registrations_deactivated": 0}
+    # The friend lost it with its other members; the old slug answers nothing, and the username's namespace is free.
+    assert (await api_client.get(f"/v1/organizations/{personal['slug']}", headers=friend_headers)).status_code == 404
+    assert (await api_client.get("/v1/compositions", params={"q": "menu"})).json()["compositions"] == []
+    again = await api_client.post("/v1/auth/register", json={**registration(), "username": details["username"]})
+    assert again.status_code == 201, again.text
+
+
+async def test_a_fork_in_another_organization_survives_the_deletion(api_client, registration, db_session):
+    profile, headers, _ = await signed_in(api_client, registration)
+    space_client.get_gate().plans[uuid.UUID(profile["id"])] = largest_plan()
+    _, friend_headers, _ = await signed_in(api_client, registration)
+    personal = next(row for row in (await api_client.get("/v1/organizations", headers=headers)).json() if row["is_personal"])
+    base = await published(api_client, headers, personal["slug"], "card")
+    team = await api_client.post(
+        "/v1/organizations", headers=friend_headers, json={"slug": f"t-{uuid.uuid4().hex[:8]}", "name": "Team"},
+    )
+    assert team.status_code == 201, team.text
+    forked = await api_client.post(
+        f"{base}/fork", headers=friend_headers, json={"version": "1.0.0", "targetOrganization": team.json()["slug"]},
+    )
+    assert forked.status_code == 201, forked.text
+
+    assert (await delete(api_client, profile, headers)).status_code == 204
+
+    copy = await api_client.get(f"/v1/organizations/{team.json()['slug']}/compositions/card/versions/1.0.0", headers=friend_headers)
+    assert copy.status_code == 200, copy.text
+    # What it was forked from stays in its own snapshot, though the source is gone (and so is named to nobody).
+    assert copy.json()["forked_from"] is not None
+    stored = (await db_session.execute(
+        select(CompositionVersion.forked_from).join(Composition).where(Composition.organization_id == uuid.UUID(team.json()["id"]))
+    )).scalar_one()
+    assert stored["organization"]["name"] == personal["slug"]
+
+
+async def test_a_running_run_of_the_personal_organization_is_stopped_before_the_deletion(api_client, registration, db_session):
+    profile, headers, _ = await signed_in(api_client, registration)
+    user_id = uuid.UUID(profile["id"])
+    personal = next(row for row in (await api_client.get("/v1/organizations", headers=headers)).json() if row["is_personal"])
+    personal_id = uuid.UUID(personal["id"])
+    refs = {**placeholder_refs(), "organization_id": personal_id}
+    queued = Job(created_by_id=user_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="inline",
+                 state=JobState.QUEUED, original_request={}, options={}, provenance={}, **refs)
+    running = Job(created_by_id=user_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="inline",
+                  state=JobState.RUNNING, original_request={}, options={}, provenance={}, lease_token="worker-1",
+                  lease_until=utcnow() + timedelta(minutes=5), **refs)
+    db_session.add_all([queued, running])
+    await db_session.commit()
+    queued_id, running_id = queued.id, running.id
+
+    refused = await delete(api_client, profile, headers)
+
+    # The queued run is cancelled on the spot; the running one is left to its worker, flagged; nothing else changed.
+    assert refused.status_code == 409 and refused.json()["detail"]["code"] == "personal_runs_stopping"
+    db_session.expire_all()
+    assert (await db_session.get(Job, queued_id)).state is JobState.CANCELLED
+    still = await db_session.get(Job, running_id)
+    assert still.state is JobState.RUNNING and still.cancellation_requested is True
+    assert (await db_session.get(User, user_id)).deleted_at is None
+    assert await db_session.get(Organization, personal_id) is not None
+
+    # Once its worker has stopped it, the account goes, and the organization with it.
+    still.state, still.lease_token, still.lease_until, still.finished_at = JobState.CANCELLED, None, None, utcnow()
+    await db_session.commit()
+    assert (await delete(api_client, profile, headers)).status_code == 204
+    db_session.expire_all()
+    assert await db_session.get(Organization, personal_id) is None
+
+
+async def test_a_team_organization_with_runs_is_still_refused(api_client, registration, db_session):
+    profile, headers, _ = await signed_in(api_client, registration)
+    team = await api_client.post("/v1/organizations", headers=headers, json={"slug": f"t-{uuid.uuid4().hex[:8]}", "name": "T"})
+    db_session.add(Job(
+        created_by_id=uuid.UUID(profile["id"]), engine_id="random-search", engine_job_id=str(uuid.uuid4()),
+        service_url="inline", state=JobState.COMPLETED, original_request={}, options={}, provenance={},
+        **{**placeholder_refs(), "organization_id": uuid.UUID(team.json()["id"])},
+    ))
+    await db_session.commit()
+    refused = await api_client.delete(f"/v1/organizations/{team.json()['slug']}", headers=headers)
+    assert refused.status_code == 409 and refused.json()["detail"]["code"] == "historical_references"
 
 
 @pytest.fixture
