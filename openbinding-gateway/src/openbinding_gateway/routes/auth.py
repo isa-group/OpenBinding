@@ -47,6 +47,7 @@ from ..models.errors import (
     api_error,
 )
 from ..security.passwords import hash_password, password_complaint, verify_password
+from ..services import organizations as organization_profiles
 from .users import profile_of
 from ..modules.identity.application import (
     access_token_for,
@@ -141,7 +142,9 @@ async def register(
             "already_registered",
             "That username or email is already in use.",
         )
-    if await username_reserved(session, request.username):
+    if await username_reserved(session, request.username) or not await organization_profiles.personal_slug_free(
+        session, request.username
+    ):
         raise username_unavailable()
 
     # The plan a sign-up starts on is configuration (SPACE_DEFAULT_PLAN). Unset,
@@ -171,6 +174,11 @@ async def register(
             "already_registered",
             "That username or email is already in use.",
         ) from None
+    # Every account has a personal organization (SPHERE's rule), created with it: a refusal rolls both back.
+    try:
+        await organization_profiles.ensure_personal_organization(session, user)
+    except organization_profiles.PersonalSlugTaken:
+        raise username_unavailable() from None
 
     # A contract is what entitles the account to anything, but registration
     # does not depend on SPACE being up: the account is created either way and

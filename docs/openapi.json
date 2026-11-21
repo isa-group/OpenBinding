@@ -8829,6 +8829,10 @@
             "title": "Id",
             "type": "string"
           },
+          "is_personal": {
+            "title": "Is Personal",
+            "type": "boolean"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -8856,6 +8860,7 @@
           "name",
           "avatar",
           "parent_id",
+          "is_personal",
           "has_access"
         ],
         "title": "HierarchyNode",
@@ -10759,6 +10764,10 @@
             "title": "Id",
             "type": "string"
           },
+          "is_personal": {
+            "title": "Is Personal",
+            "type": "boolean"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -10805,6 +10814,7 @@
           "slug",
           "name",
           "parent_id",
+          "is_personal",
           "created_at"
         ],
         "title": "OrganizationView",
@@ -12572,6 +12582,10 @@
             "title": "Id",
             "type": "string"
           },
+          "is_personal": {
+            "title": "Is Personal",
+            "type": "boolean"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -12591,6 +12605,7 @@
           "name",
           "description",
           "avatar",
+          "is_personal",
           "public_compositions"
         ],
         "title": "PublicOrganizationView",
@@ -24439,7 +24454,7 @@
                 }
               }
             },
-            "description": "`slug_conflict`: the slug is in use."
+            "description": "`slug_conflict` (the slug is in use, by an organization or as a username) and `personal_organization` (the parent is a personal organization)."
           },
           "422": {
             "content": {
@@ -24663,7 +24678,7 @@
                 }
               }
             },
-            "description": "`historical_references`: the organization or one below it has runs or study runs."
+            "description": "`historical_references` (the organization or one below it has runs or study runs) and `personal_organization` (it goes with its account)."
           },
           "422": {
             "content": {
@@ -24880,6 +24895,16 @@
               }
             },
             "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`personal_organization`: an account's personal organization is not transferred, left by its owner, moved, given sub-organizations, renamed or deleted on its own."
           },
           "412": {
             "content": {
@@ -31899,7 +31924,7 @@
                 }
               }
             },
-            "description": "The change names the owner (code `owner_transfer_required`): an organization has one owner, and the seat moves only by `PUT .../owner`."
+            "description": "`owner_transfer_required` (the change names the owner, whose seat moves only by `PUT .../owner`) and `personal_organization` (the owner of a personal organization leaving it)."
           },
           "422": {
             "content": {
@@ -32119,6 +32144,16 @@
               }
             },
             "description": "No such organization, the caller is not a member of it, or the recipient is not (code `not_found`)."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`personal_organization`: an account's personal organization is not transferred, left by its owner, moved, given sub-organizations, renamed or deleted on its own."
           },
           "422": {
             "content": {

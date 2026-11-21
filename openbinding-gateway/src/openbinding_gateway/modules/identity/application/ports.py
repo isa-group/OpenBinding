@@ -52,3 +52,18 @@ class OidcClient(Protocol):
     async def end_session(self, refresh_token: str) -> bool: ...
 
     async def verify(self, tokens, *, nonce: str | None = None, subject: str | None = None): ...
+
+
+class AccountHook(Protocol):
+    """What the rest of the gateway does when an account is created, installed by the composition root
+    (``main``) so that identity imports nothing above it: the account's personal organization
+    (``services.organizations.PersonalOrganizationHook``)."""
+
+    async def name_free(self, db, username: str) -> bool:
+        """Whether ``username`` may be given to a new account (its personal organization's slug is free)."""
+        ...
+
+    async def created(self, db, user) -> bool:
+        """Give the new ``user`` its personal organization in the caller's transaction; ``False`` when its
+        slug was taken meanwhile."""
+        ...

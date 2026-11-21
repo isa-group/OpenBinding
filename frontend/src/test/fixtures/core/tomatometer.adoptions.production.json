@@ -3,8 +3,8 @@
     {
       "adoptedAt": "2026-01-01T00:00:13Z",
       "adoptedBy": {
-        "displayName": "fixtures",
-        "username": "fixtures"
+        "displayName": "fixture-author",
+        "username": "fixture-author"
       },
       "evaluation": {
         "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
@@ -30,8 +30,8 @@
     {
       "adoptedAt": "2026-01-01T00:00:14Z",
       "adoptedBy": {
-        "displayName": "fixtures",
-        "username": "fixtures"
+        "displayName": "fixture-author",
+        "username": "fixture-author"
       },
       "evaluation": {
         "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
@@ -57,8 +57,8 @@
     {
       "adoptedAt": "2026-01-01T00:00:15Z",
       "adoptedBy": {
-        "displayName": "fixtures",
-        "username": "fixtures"
+        "displayName": "fixture-author",
+        "username": "fixture-author"
       },
       "evaluation": {
         "basisKey": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",

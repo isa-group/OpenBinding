@@ -116,6 +116,29 @@ OWNER_SEAT_RESPONSES = {
 }
 
 
+PERSONAL_RESPONSES = {
+    409: {
+        "model": ErrorResponse,
+        "description": "`personal_organization`: an account's personal organization is not transferred, left by its "
+        "owner, moved, given sub-organizations, renamed or deleted on its own.",
+    }
+}
+
+
+def _personal_refusal(action: str) -> HTTPException:
+    """409 ``personal_organization``: what SPHERE's personal organizations refuse (``OrbitPlanService``,
+    ``OrganizationExitButton``). The organization goes with its account (pseudonymised, ``DELETE /v1/users/me``)."""
+    return api_error(
+        status.HTTP_409_CONFLICT,
+        "personal_organization",
+        f"A personal organization cannot be {action}; it goes with its account.",
+    )
+
+
+def _is_personal(organization: Organization) -> bool:
+    return organization.personal_owner_id is not None
+
+
 def _owner_seat_refusal(**detail):
     return api_error(
         status.HTTP_409_CONFLICT,
@@ -140,6 +163,7 @@ def _profile_view(organization: Organization, role: OrganizationRole | None, sta
         description=organization.description or "",
         avatar=profiles.avatar_view(organization),
         parent_id=organization.parent_id,
+        is_personal=_is_personal(organization),
         effective_role=role.value if role else None,
         stats=stats,
         created_at=organization.created_at,
@@ -227,7 +251,7 @@ def _public_view(organization: Organization, count: int) -> PublicOrganizationVi
     return PublicOrganizationView(
         id=organization.id, slug=organization.slug, name=organization.name,
         description=organization.description or "", avatar=profiles.avatar_view(organization),
-        public_compositions=count,
+        is_personal=_is_personal(organization), public_compositions=count,
     )
 
 
@@ -237,7 +261,11 @@ def _public_view(organization: Organization, count: int) -> PublicOrganizationVi
     status_code=status.HTTP_201_CREATED,
     operation_id="createOrganization",
     responses={
-        409: {"model": ErrorResponse, "description": "`slug_conflict`: the slug is in use."},
+        409: {
+            "model": ErrorResponse,
+            "description": "`slug_conflict` (the slug is in use, by an organization or as a username) and "
+            "`personal_organization` (the parent is a personal organization).",
+        },
         422: {
             "description": "`slug_reserved` (the slug names a page of the application), `slug_underivable` (no "
             "slug given, and the name yields fewer than three letters or digits) and request validation errors.",
@@ -273,6 +301,8 @@ async def create_organization(
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Parent organization not found.")
     if parent is not None:
         await require_role(session, parent, user, OrganizationRole.ADMIN)
+        if _is_personal(parent):
+            raise _personal_refusal("given sub-organizations")
     organization = Organization(
         parent_id=parent.id if parent else None,
         slug=slug,
@@ -352,7 +382,7 @@ async def get_organization_hierarchy(
         HierarchyNode(
             id=node.organization.id, slug=node.organization.slug, name=node.organization.name,
             avatar=profiles.avatar_view(node.organization), parent_id=node.organization.parent_id,
-            has_access=node.role is not None, effective_role=node.role.value if node.role else None,
+            is_personal=_is_personal(node.organization), has_access=node.role is not None, effective_role=node.role.value if node.role else None,
         )
         for node in sorted(nodes.values(), key=lambda node: (node.organization.name.casefold(), node.organization.slug))
     ]
@@ -364,6 +394,7 @@ async def get_organization_hierarchy(
     operation_id="updateOrganization",
     responses={
         **revision.EDIT_RESPONSES,
+        **PERSONAL_RESPONSES,
         422: {"description": "`ambiguous_parent` and request validation errors."},
     },
 )
@@ -377,6 +408,11 @@ async def update_organization(
 ) -> OrganizationView:
     organization = await _required_org(session, org)
     await require_role(session, organization, user, OrganizationRole.ADMIN)
+    if _is_personal(organization):
+        if payload.name is not None and payload.name != organization.name:
+            raise _personal_refusal("renamed")
+        if payload.parent_id is not None:
+            raise _personal_refusal("moved")
     # The target parent is an authorisation question too, so it is settled
     # before the revision is checked; validation comes after it.
     new_parent = None
@@ -385,6 +421,8 @@ async def update_organization(
         if new_parent is None:
             raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "New parent not found.")
         await require_role(session, new_parent, user, OrganizationRole.ADMIN)
+        if _is_personal(new_parent):
+            raise _personal_refusal("given sub-organizations")
     await revision.guard(session, organization, if_match)
     if payload.name is not None:
         organization.name = payload.name
@@ -618,7 +656,8 @@ async def get_default_avatar(name: str) -> FileResponse:
     responses={
         409: {
             "model": ErrorResponse,
-            "description": "`historical_references`: the organization or one below it has runs or study runs.",
+            "description": "`historical_references` (the organization or one below it has runs or study runs) and "
+            "`personal_organization` (it goes with its account).",
         },
     },
 )
@@ -644,6 +683,8 @@ async def delete_organization(
     organization = await _required_org(session, org)
     if not user.is_admin:
         await require_role(session, organization, user, OrganizationRole.ADMIN)
+    if _is_personal(organization):
+        raise _personal_refusal("deleted")
 
     descendants = await descendant_ids(session, organization.id)
     unique_descendants = list(dict.fromkeys(descendants))
@@ -918,7 +959,11 @@ async def upsert_member(
     status_code=204,
     operation_id="removeOrganizationMember",
     responses={
-        **OWNER_SEAT_RESPONSES,
+        409: {
+            "model": ErrorResponse,
+            "description": "`owner_transfer_required` (the change names the owner, whose seat moves only by "
+            "`PUT .../owner`) and `personal_organization` (the owner of a personal organization leaving it).",
+        },
         404: {"model": ErrorResponse, "description": "No such member, or a caller leaving is not a member."},
     },
 )
@@ -939,6 +984,8 @@ async def remove_member(
             await session.delete(own)
             _audit(session, user, "organization.member.left", own, organization.id, role=own.role.value)
             return
+        if own is not None and organization.personal_owner_id == user.id:
+            raise _personal_refusal("left by its owner")
     organization = await _required_org(session, org)
     await require_role(session, organization, user, OrganizationRole.ADMIN)
     membership = await organization_repository.get_membership(session, organization.id, member_id)
@@ -1016,6 +1063,7 @@ async def list_invitations(
         },
         404: {"model": ErrorResponse, "description": "No such organization, the caller is not a member of it, or "
               "the recipient is not (code `not_found`)."},
+        **PERSONAL_RESPONSES,
         422: {"description": "`already_owner` (the caller names themselves) and request validation errors."},
     },
 )
@@ -1043,6 +1091,8 @@ async def transfer_ownership(
             status.HTTP_403_FORBIDDEN, "owner_transfer_requires_owner",
             "Only the owner of the organization can hand it over.",
         )
+    if _is_personal(organization):
+        raise _personal_refusal("transferred")
     recipient = await session.get(User, payload.user_id)
     if (
         recipient is None or not recipient.is_active

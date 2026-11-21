@@ -11,8 +11,8 @@
   "inEffect": {
     "adoptedAt": "2026-01-01T00:00:13Z",
     "adoptedBy": {
-      "displayName": "fixtures",
-      "username": "fixtures"
+      "displayName": "fixture-author",
+      "username": "fixture-author"
     },
     "adoption": 3,
     "binding": {
@@ -51,7 +51,7 @@
   "keys": [
     {
       "createdAt": "2026-01-01T00:00:20Z",
-      "createdBy": "fixtures",
+      "createdBy": "fixture-author",
       "creatorIsMember": true,
       "hint": "obe_f1c7a5e0…",
       "id": "00000000-0000-4000-8000-000000000041",
@@ -62,9 +62,9 @@
   ],
   "name": "Production",
   "operator": {
-    "displayName": "fixtures",
+    "displayName": "fixture-author",
     "member": true,
-    "username": "fixtures"
+    "username": "fixture-author"
   },
   "slug": "production",
   "updatedAt": "2026-01-01T00:00:21Z"

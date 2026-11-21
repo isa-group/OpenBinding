@@ -2,7 +2,8 @@
 
 Ported from SPHERE (SCORELabUS/SPHERE, MIT licence, revision 73779a8a), ``api/src/main/utils/slug-manager.ts``
 (``generateSlug``, ``deduplicateSlug``), ``api/src/main/config/defaultAvatars.ts`` (the predefined avatars and
-the colour check) and ``OrganizationService.updateAvatar``/``removeAvatar``. Kept from OpenBinding: slugs never
+the colour check) and ``OrganizationService.updateAvatar``/``removeAvatar``, and the personal organizations of
+``OrganizationService.ensurePersonalOrganizationForUser`` (SCORELabUS/SPHERE at ``fc776b4d``). Kept from OpenBinding: slugs never
 change once given, the reserved slugs are never derived, and an upload is a blob of the organization (content
 addressed, never deleted on the request path) rather than a file in a static folder.
 """
@@ -18,11 +19,13 @@ from pathlib import Path
 from typing import Awaitable, Callable, Iterable
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..collaboration import ROLE_STRENGTH, ancestor_ids
 from ..core.like import LIKE_ESCAPE, like_contains
 from ..db.models import (
+    AuditEvent,
     BindingCase,
     Blob,
     Composition,
@@ -32,6 +35,7 @@ from ..db.models import (
     OrganizationMembership,
     OrganizationRole,
     Study,
+    User,
 )
 from ..models.platform import (
     RESERVED_ORGANIZATION_SLUGS,
@@ -97,6 +101,82 @@ async def derived_slug(session: AsyncSession, name: str) -> str | None:
         ) is not None
 
     return await deduplicate_slug(base, taken)
+
+
+# -- Personal organizations -----------------------------------------------------------------------------
+
+#: What follows the username in a personal organization's name, as SPHERE's ``displayName``.
+PERSONAL_NAME_SUFFIX = " PERSONAL"
+
+
+class PersonalSlugTaken(Exception):
+    """The slug a personal organization needs names another organization already."""
+
+
+def personal_slug(username: str) -> str:
+    """The slug of ``username``'s personal organization: the username lower-cased, as SPHERE names it.
+
+    A username may hold ``.`` and ``_``, which a slug may not (composition references name organizations by
+    slug), so each becomes ``-``, and a trailing one is dropped; a username always starts with a letter or
+    digit."""
+    return re.sub(r"[._]", "-", username.lower()).rstrip("-")
+
+
+async def personal_slug_free(session: AsyncSession, username: str) -> bool:
+    """Whether ``username`` may be given to a new account: its personal organization's slug is not reserved
+    and names no organization. Organizations and usernames share one namespace."""
+    slug = personal_slug(username)
+    return slug not in RESERVED_ORGANIZATION_SLUGS and await session.scalar(
+        select(Organization.id).where(Organization.slug == slug).limit(1)
+    ) is None
+
+
+async def ensure_personal_organization(session: AsyncSession, user: User) -> Organization:
+    """``user``'s personal organization, created in the caller's transaction when it has none.
+
+    Ported from SPHERE's ``ensurePersonalOrganizationForUser``: named ``<username> PERSONAL``, its slug the
+    username (``personal_slug``), no description or avatar, and the user its OWNER. Raises
+    ``PersonalSlugTaken`` when the slug names another organization, so that the caller refuses the account.
+    """
+    existing = await session.scalar(select(Organization).where(Organization.personal_owner_id == user.id))
+    if existing is not None:
+        return existing
+    if not await personal_slug_free(session, user.username):
+        raise PersonalSlugTaken(personal_slug(user.username))
+    organization = Organization(
+        slug=personal_slug(user.username),
+        name=f"{user.username}{PERSONAL_NAME_SUFFIX}",
+        description="",
+        created_by_id=user.id,
+        personal_owner_id=user.id,
+    )
+    session.add(organization)
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        # An organization took the slug meanwhile (the unique slug); the caller's transaction is lost with it.
+        raise PersonalSlugTaken(organization.slug) from exc
+    session.add(OrganizationMembership(organization_id=organization.id, user_id=user.id, role=OrganizationRole.OWNER))
+    session.add(AuditEvent(
+        organization_id=organization.id, actor_id=user.id, action="organization.created",
+        target_type="Organization", target_id=organization.id, detail={"personal": True},
+    ))
+    await session.flush()
+    return organization
+
+
+class PersonalOrganizationHook:
+    """The identity module's ``AccountHook``: a first SCORETech sign-in gets its personal organization."""
+
+    async def name_free(self, db: AsyncSession, username: str) -> bool:
+        return await personal_slug_free(db, username)
+
+    async def created(self, db: AsyncSession, user: User) -> bool:
+        try:
+            await ensure_personal_organization(db, user)
+        except PersonalSlugTaken:
+            return False
+        return True
 
 
 # -- Avatars ---------------------------------------------------------------------------------------------

@@ -452,15 +452,16 @@ needs `compositions:write` and `problems:write`, and a key bounded by `resourceK
 | `code` | Status | Meaning |
 |---|---|---|
 | `slug_reserved` | 422 | `createOrganization` with a slug that names an address of the application (`new` and `join`, the static children of `/orgs/`, and `public`) |
-| `slug_conflict` | 409 | the organization slug is in use |
+| `slug_conflict` | 409 | the organization slug is in use, by an organization or by an account's personal organization (organizations and usernames share one namespace) |
 | `historical_references` | 409 | `deleteOrganization`: the organization, or one below it, has runs or study runs, which are kept as history |
+| `personal_organization` | 409 | an account's personal organization (`is_personal`) cannot be transferred (`PUT …/owner`), left by its owner, given a parent or sub-organizations, renamed or deleted (`deleteOrganization`, even by an administrator); it goes with its account, pseudonymised by `DELETE /v1/users/me` |
 
 ## Accounts and plans
 
 | `code` | Status | Meaning |
 |---|---|---|
 | `quota_exceeded` | 402 | a per-account limit of the plan would be passed: `maxApiKeys`, `maxFederatedEngines`, `maxProblems`, `maxRepositoryStorage`. `quota` names `limit_id`, `limit` and `used` |
-| `username_unavailable` | 409 | registration or a first SCORETech Identity sign-in asked for a reserved username: one that names engines or engine registrations already (engine namespaces are usernames baked into immutable manifests, and they outlive a deleted account), or one starting with `deleted-`, the pseudonyms of deleted accounts; a first SCORETech sign-in also refuses the platform's own names (`admin`, `identity`, `support`, …) |
+| `username_unavailable` | 409 | registration or a first SCORETech Identity sign-in asked for a reserved username: one that names engines or engine registrations already (engine namespaces are usernames baked into immutable manifests, and they outlive a deleted account), or one starting with `deleted-`, the pseudonyms of deleted accounts, or one whose personal organization's slug (the username lower-cased, `.` and `_` as `-`) names an organization or a reserved address already; a first SCORETech sign-in also refuses the platform's own names (`admin`, `identity`, `support`, …) |
 | `last_owner` | 409 | `DELETE /v1/users/me`: the account owns an organization; it hands it over first |
 | `owner_transfer_required` | 409 | a member route named the owner of the organization: the owner's seat moves only by `PUT /v1/organizations/{org}/owner` |
 

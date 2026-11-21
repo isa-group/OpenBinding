@@ -6693,6 +6693,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Is Personal */
+            is_personal: boolean;
             /** Name */
             name: string;
             /** Parent Id */
@@ -7447,6 +7449,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Is Personal */
+            is_personal: boolean;
             /** Name */
             name: string;
             /** Parent Id */
@@ -8205,6 +8209,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Is Personal */
+            is_personal: boolean;
             /** Name */
             name: string;
             /** Public Compositions */
@@ -14641,7 +14647,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description `slug_conflict`: the slug is in use. */
+            /** @description `slug_conflict` (the slug is in use, by an organization or as a username) and `personal_organization` (the parent is a personal organization). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14838,7 +14844,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description `historical_references`: the organization or one below it has runs or study runs. */
+            /** @description `historical_references` (the organization or one below it has runs or study runs) and `personal_organization` (it goes with its account). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14921,6 +14927,15 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `personal_organization`: an account's personal organization is not transferred, left by its owner, moved, given sub-organizations, renamed or deleted on its own. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description `If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision. */
@@ -19077,7 +19092,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The change names the owner (code `owner_transfer_required`): an organization has one owner, and the seat moves only by `PUT .../owner`. */
+            /** @description `owner_transfer_required` (the change names the owner, whose seat moves only by `PUT .../owner`) and `personal_organization` (the owner of a personal organization leaving it). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -19150,6 +19165,15 @@ export interface operations {
             };
             /** @description No such organization, the caller is not a member of it, or the recipient is not (code `not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `personal_organization`: an account's personal organization is not transferred, left by its owner, moved, given sub-organizations, renamed or deleted on its own. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -111,6 +111,7 @@ from openbinding_gateway.integrations import bim, packages
 from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSIONS, hash_key
 from openbinding_gateway.security.passwords import hash_password
 from openbinding_gateway.services.engines import manifest as engine_manifest, protocol_digest
+from openbinding_gateway.services.organizations import ensure_personal_organization
 from openbinding_gateway.modules.problems.application import add_revision, create_problem
 from openbinding_gateway.study_jobs import StudyLaunchError, create_study_run, launch_study_cell
 from bim_core.canonical import digest
@@ -211,6 +212,8 @@ async def ensure_users(session: AsyncSession) -> dict[str, User]:
             logger.info("Updated existing user '%s' (plan: %s)", username, plan)
 
         user_map[username] = user
+        # Every account has its personal organization (created once).
+        await ensure_personal_organization(session, user)
 
         # Ensure API key
         full_key, prefix, s_hash = dev_api_key(username, entry["key_suffix"])

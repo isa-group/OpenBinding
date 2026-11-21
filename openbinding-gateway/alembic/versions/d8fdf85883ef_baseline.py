@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '12aab73a59f5'
+revision: str = 'd8fdf85883ef'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -194,6 +194,7 @@ def upgrade() -> None:
     sa.Column('slug', sa.String(length=64), nullable=False),
     sa.Column('name', sa.String(length=160), nullable=False),
     sa.Column('description', sa.String(length=500), server_default='', nullable=False),
+    sa.Column('personal_owner_id', sa.Uuid(), nullable=True),
     sa.Column('avatar', sa.String(length=80), nullable=True),
     sa.Column('avatar_bg_color', sa.String(length=7), nullable=True),
     sa.Column('avatar_fg_color', sa.String(length=7), nullable=True),
@@ -201,9 +202,12 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.CheckConstraint('parent_id IS NULL OR parent_id <> id', name=op.f('ck_organizations_organization_not_own_parent')),
+    sa.CheckConstraint('personal_owner_id IS NULL OR parent_id IS NULL', name=op.f('ck_organizations_personal_organization_is_root')),
     sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_organizations_created_by_id_users'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['parent_id'], ['organizations.id'], name=op.f('fk_organizations_parent_id_organizations'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_organizations'))
+    sa.ForeignKeyConstraint(['personal_owner_id'], ['users.id'], name=op.f('fk_organizations_personal_owner_id_users'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_organizations')),
+    sa.UniqueConstraint('personal_owner_id', name=op.f('uq_organizations_personal_owner_id'))
     )
     op.create_index(op.f('ix_organizations_parent_id'), 'organizations', ['parent_id'], unique=False)
     op.create_index(op.f('ix_organizations_slug'), 'organizations', ['slug'], unique=True)

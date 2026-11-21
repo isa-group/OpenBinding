@@ -180,6 +180,7 @@ class Organization(Base):
     __tablename__ = "organizations"
     __table_args__ = (
         CheckConstraint("parent_id IS NULL OR parent_id <> id", name="organization_not_own_parent"),
+        CheckConstraint("personal_owner_id IS NULL OR parent_id IS NULL", name="personal_organization_is_root"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -189,6 +190,12 @@ class Organization(Base):
     slug: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     description: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
+    #: The account whose personal organization this is (SPHERE's ``isPersonal``): one per account, always a
+    #: root, never transferred, left, moved, renamed or deleted on its own. Cleared when the account is
+    #: pseudonymised, which leaves the organization as history.
+    personal_owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, unique=True
+    )
     #: The organization's image: one of the predefined avatars (its file name, ``avatar-3.svg``), or the
     #: ``sha256-`` digest of an uploaded image kept as a blob of the organization; null for the initials.
     avatar: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
