@@ -200,6 +200,9 @@ class SelectionComparison:
             and not (self.features["gained"] or self.features["lost"] or self.features["changed"])
             and not self.usage_limits
             and not price["billingPeriodChanged"]
+            # The same number for another period (``account/month`` -> ``account/year``) is another price; a unit
+            # spelt otherwise for the same period is not (``unit`` is ``<currency>/<period>``).
+            and price["before"].get("unit") == price["after"].get("unit")
             and (
                 (price.get("differenceOmitted") is None and Decimal(price.get("difference") or "0") == 0)
                 or (price.get("differenceOmitted") == "quote" and price["before"] == price["after"])

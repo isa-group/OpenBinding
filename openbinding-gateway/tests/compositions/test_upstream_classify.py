@@ -40,6 +40,16 @@ def test_the_price_raise_has_its_direct_delta() -> None:
     assert diff["notes"] == ["domain_may_change", "values_not_reevaluated"]
 
 
+def test_a_period_change_at_the_same_amount_is_a_value_change() -> None:
+    yearly = {"ref": CASES["G03-price-raise"]["old"]["ref"], "edits": [["set", "plans.PROFESSIONAL.unit", "account/year"]],
+              "versionId": "6fff0000000000000000a003", "label": "2026-10 (yearly)"}
+    found = _run("G03-price-raise", new=yearly)
+    price = found["diff"]["entries"][0]["comparison"]["price"]
+    assert (price["before"]["unit"], price["after"]["unit"]) == ("USD/month", "USD/year")
+    assert price["before"]["subtotal"] == price["after"]["subtotal"]
+    assert found["category"] == "values_changed" and found["notify"] is True
+
+
 def test_a_guarantee_changes_without_a_delta() -> None:
     found = _run("G04-guarantee")
     (attribute,) = [a for a in found["diff"]["entries"][0]["attributes"] if a["target"] == "availability"]
