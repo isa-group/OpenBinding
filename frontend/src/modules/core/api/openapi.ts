@@ -2816,7 +2816,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Stream Run Events */
+        /**
+         * Stream Run Events
+         * @description Server-sent events of a run: a `job` event with `{id, status, cancellationRequested, finishedAt}` whenever that changes (the first at once), until the run ends or after 900 polls; `session-ended` when the caller's session ends. While nothing changes, a `: keep-alive` comment is sent every 15 seconds, which every event-stream reader ignores, so a quiet run does not look like a dropped connection.
+         */
         get: operations["streamRunEvents"];
         put?: never;
         post?: never;
