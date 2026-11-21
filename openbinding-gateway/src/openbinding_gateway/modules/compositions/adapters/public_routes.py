@@ -22,7 +22,7 @@ from ....db.models import CompositionKind, User
 from ....models.errors import UNAUTHORIZED_RESPONSE
 from ..application import compositions, listing
 from .list_query import BY_NAME, BY_UPDATE, ListQuery, facets_view
-from .routes import entry_view, figures_of
+from .routes import entry_view, figures_of, with_upstream
 from .schemas import (
     CompositionKindName,
     CompositionList,
@@ -116,6 +116,6 @@ async def list_own_compositions(
         order=query.order, limit=limit, offset=offset,
     )
     return CompositionList(
-        compositions=[entry_view(entry) for entry in listed.entries],
+        compositions=await with_upstream(session, [entry_view(entry) for entry in listed.entries]),
         total=listed.total, limit=limit, offset=offset, facets=facets_view(listed.facets),
     )

@@ -220,3 +220,50 @@ async def test_two_seals_racing_on_one_family_make_one_watch(pg) -> None:
     async with pg.session() as check:
         rows = (await check.scalars(select(PricingWatch).where(PricingWatch.pricing_id == family))).all()
         assert len(rows) == 1 and rows[0].status == "pending"
+
+
+@pytest.mark.parametrize("first", ["review", "seal"])
+async def test_a_review_racing_a_resolving_seal_never_fails(pg, first) -> None:
+    """Either the review lands and the seal resolves the reviewed event, or the seal resolves and the review answers
+    409 ``event_not_reviewable``; the trigger never surfaces as a 500."""
+    from fastapi import HTTPException
+
+    from openbinding_gateway.db.models import Composition, CompositionVersion, User
+    from openbinding_gateway.modules.compositions.application import upstream_events
+
+    async with pg.session() as setup:
+        w = await world(setup)
+        watch_id = await watch(setup, version_order=[BREVO_2026_11, BREVO_2026_10])
+        event_id = await event(setup, w, watch_id)
+        later = w.versions[1]
+        await ref(setup, w, watch_id, version_index=1, pinned=BREVO_2026_11)
+        await setup.commit()
+    async with pg.session() as reviewing, pg.session() as sealing:
+        composition = await sealing.scalar(select(Composition).where(Composition.id == w.composition_id)
+                                           .with_for_update(key_share=True))
+        found = await reviewing.get(CompositionUpstreamEvent, event_id)
+        reviewer = await reviewing.get(User, w.user_id)
+
+        async def review():
+            target = await reviewing.get(Composition, w.composition_id)
+            return await upstream_events.review(reviewing, target, found, reviewer, "Seen")
+
+        async def seal():
+            version = await sealing.get(CompositionVersion, later)
+            resolved = await upstream_events.resolve_on_seal(sealing, composition, version,
+                                                             await sealing.get(User, w.user_id))
+            await sealing.commit()
+            return resolved
+
+        if first == "review":
+            await review()
+            assert await seal() == [event_id]
+        else:
+            assert await seal() == [event_id]
+            with pytest.raises(HTTPException) as refused:
+                await review()
+            assert refused.value.status_code == 409
+    async with pg.session() as check:
+        row = await check.get(CompositionUpstreamEvent, event_id)
+        assert row.state == "resolved"
+        assert (row.note == "Seen") is (first == "review")

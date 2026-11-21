@@ -6,7 +6,8 @@
       "plan": null,
       "snapshot": null,
       "status": "not_snapshotted",
-      "task": "login"
+      "task": "login",
+      "watch": null
     },
     {
       "candidate": "email.brevo.professional",
@@ -39,7 +40,12 @@
         "versionName": "2026-10"
       },
       "status": "snapshotted",
-      "task": "dailySummary"
+      "task": "dailySummary",
+      "watch": {
+        "nextPollAt": "2026-01-01T00:00:09Z",
+        "observedAt": null,
+        "status": "pending"
+      }
     },
     {
       "candidate": "storage.dropbox.plus",
@@ -58,7 +64,7 @@
         "unit": "account"
       },
       "snapshot": {
-        "createdAt": "2026-01-01T00:00:09Z",
+        "createdAt": "2026-01-01T00:00:10Z",
         "id": "00000000-0000-4000-8000-000000000031",
         "owner": "atenea",
         "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce9c1?version=687e4b68102baa50f3a5c7b7",
@@ -71,7 +77,12 @@
         "versionName": "2021"
       },
       "status": "snapshotted",
-      "task": "export"
+      "task": "export",
+      "watch": {
+        "nextPollAt": "2026-01-01T00:00:11Z",
+        "observedAt": null,
+        "status": "pending"
+      }
     },
     {
       "candidate": "quotes.zenquotes.free",
@@ -79,13 +90,14 @@
       "plan": null,
       "snapshot": null,
       "status": "not_snapshotted",
-      "task": "quotes"
+      "task": "quotes",
+      "watch": null
     }
   ],
   "offering": {
-    "createdAt": "2026-01-01T00:00:10Z",
+    "createdAt": "2026-01-01T00:00:12Z",
     "snapshot": {
-      "createdAt": "2026-01-01T00:00:10Z",
+      "createdAt": "2026-01-01T00:00:12Z",
       "id": "00000000-0000-4000-8000-000000000032",
       "owner": "sphere",
       "permanentUrl": "https://sphere.score.us.es/p/6ab0a323697330667ccce8cd?version=6921867e7004563bd918e7e8",

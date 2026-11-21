@@ -523,8 +523,280 @@ async def resolve_on_seal(session: AsyncSession, composition: Composition, versi
     return resolved
 
 
+# -- Reading (A12) ---------------------------------------------------------------------------------------------------
+
+
+def _summary(rows: Iterable[tuple[Any, ...]]) -> dict[str, Any]:
+    """``{open, reviewed, bindingInvalid, worst}`` of ``(key, state, category, subject)`` rows: stacked events of
+    one (version, watch, subject) count once (open wins over reviewed)."""
+    from ..domain.upstream import worst
+
+    best: dict[Any, tuple[str, set[str]]] = {}
+    invalid = 0
+    for key, state, category, subject in rows:
+        if subject == "offering" and state != "open":
+            continue
+        if category == "binding_invalid":
+            invalid += 1
+        current = best.get(key)
+        if current is None:
+            best[key] = (state, {category})
+        else:
+            best[key] = ("open" if "open" in (state, current[0]) else current[0], current[1] | {category})
+    found = worst([category for _, categories in best.values() for category in categories])
+    return {
+        "open": sum(1 for state, _ in best.values() if state == "open"),
+        "reviewed": sum(1 for state, _ in best.values() if state == "reviewed"),
+        "bindingInvalid": invalid,
+        "worst": found.value if found is not None else None,
+    }
+
+
+_COUNTED = (CompositionUpstreamEvent.notify.is_(True), CompositionUpstreamEvent.state.in_(("open", "reviewed")),
+            CompositionUpstreamEvent.category != "no_impact")
+
+
+async def counts_for_compositions(session: AsyncSession, ids: list[uuid.UUID]) -> dict[uuid.UUID, dict[str, Any]]:
+    """Per composition, its events on live versions (offering events while open); one grouped query."""
+    if not ids:
+        return {}
+    rows = (await session.execute(
+        select(CompositionUpstreamEvent.composition_id, CompositionUpstreamEvent.version_id,
+               CompositionUpstreamEvent.watch_id, CompositionUpstreamEvent.subject, CompositionUpstreamEvent.state,
+               CompositionUpstreamEvent.category)
+        .where(CompositionUpstreamEvent.composition_id.in_(ids), *_COUNTED,
+               (CompositionUpstreamEvent.subject == "offering")
+               | CompositionUpstreamEvent.version_id.in_(live_versions()))
+    )).all()
+    grouped: dict[uuid.UUID, list[tuple[Any, ...]]] = {cid: [] for cid in ids}
+    for cid, vid, wid, subject, state, category in rows:
+        grouped[cid].append(((vid if subject == "binding" else None, wid, subject), state, category, subject))
+    return {cid: _summary(items) for cid, items in grouped.items()}
+
+
+async def counts_for_versions(session: AsyncSession, ids: list[uuid.UUID]) -> dict[uuid.UUID, dict[str, Any]]:
+    """Per version, its own binding events (and the offering events it is the reference of, while open)."""
+    if not ids:
+        return {}
+    rows = (await session.execute(
+        select(CompositionUpstreamEvent.version_id, CompositionUpstreamEvent.watch_id,
+               CompositionUpstreamEvent.subject, CompositionUpstreamEvent.state, CompositionUpstreamEvent.category)
+        .where(CompositionUpstreamEvent.version_id.in_(ids), *_COUNTED)
+    )).all()
+    grouped: dict[uuid.UUID, list[tuple[Any, ...]]] = {vid: [] for vid in ids}
+    for vid, wid, subject, state, category in rows:
+        grouped[vid].append(((wid, subject), state, category, subject))
+    return {vid: _summary(items) for vid, items in grouped.items()}
+
+
+async def counts_for_environments(
+    session: AsyncSession, environments: list[CompositionEnvironment],
+) -> dict[uuid.UUID, dict[str, Any]]:
+    """Per environment: the events of its version in effect, the composition's open offering events when it has an
+    adoption, and ``resolvedBy`` (the newest version that resolved an event of that version and is not adopted
+    here). Computed when read: never stored, so the environment's ETag and feed never move."""
+    out: dict[uuid.UUID, dict[str, Any]] = {}
+    for environment in environments:
+        if environment.adopted_version_id is None:
+            out[environment.id] = {"open": 0, "reviewed": 0, "bindingInvalid": 0, "worst": None, "resolvedBy": None}
+            continue
+        rows = (await session.execute(
+            select(CompositionUpstreamEvent.version_id, CompositionUpstreamEvent.watch_id,
+                   CompositionUpstreamEvent.subject, CompositionUpstreamEvent.state,
+                   CompositionUpstreamEvent.category)
+            .where(CompositionUpstreamEvent.composition_id == environment.composition_id, *_COUNTED,
+                   (CompositionUpstreamEvent.version_id == environment.adopted_version_id)
+                   | (CompositionUpstreamEvent.subject == "offering"))
+        )).all()
+        summary = _summary([((wid, subject), state, category, subject) for _, wid, subject, state, category in rows])
+        resolver = await session.execute(
+            select(CompositionVersion.id, CompositionVersion.label)
+            .join(CompositionUpstreamEvent, CompositionUpstreamEvent.resolved_by_version_id == CompositionVersion.id)
+            .where(CompositionUpstreamEvent.version_id == environment.adopted_version_id,
+                   CompositionUpstreamEvent.state == "resolved",
+                   CompositionVersion.id != environment.adopted_version_id)
+            .order_by(CompositionVersion.ordinal.desc()).limit(1)
+        )
+        found = resolver.first()
+        summary["resolvedBy"] = {"version": {"id": found.id, "label": found.label}} if found is not None else None
+        out[environment.id] = summary
+    return out
+
+
+@dataclass
+class EventRow:
+    event: CompositionUpstreamEvent
+    version: CompositionVersion
+    watch: PricingWatch
+    environments: list[str]
+    superseded_by: uuid.UUID | None
+    withdrawn: bool
+    reviewed_by: str | None
+    resolved_version: CompositionVersion | None
+    resolved_by: str | None
+
+
+async def rows_of(session: AsyncSession, events: list[CompositionUpstreamEvent]) -> list[EventRow]:
+    """What a view of each event needs, derived when read (environments, supersession, a withdrawn new version)."""
+    from ....db.models import User
+
+    out = []
+    for event in events:
+        version = await session.get(CompositionVersion, event.version_id)
+        watch = await session.get(PricingWatch, event.watch_id)
+        query = select(CompositionEnvironment.slug).where(CompositionEnvironment.composition_id == event.composition_id)
+        if event.subject == "binding":
+            query = query.where(CompositionEnvironment.adopted_version_id == event.version_id)
+        else:
+            query = query.where(CompositionEnvironment.adopted_version_id.is_not(None))
+        environments = list((await session.scalars(query.order_by(CompositionEnvironment.slug))).all())
+        newer = None
+        if event.subject == "binding":
+            newer = await session.scalar(
+                select(CompositionUpstreamEvent.id).where(
+                    CompositionUpstreamEvent.version_id == event.version_id,
+                    CompositionUpstreamEvent.watch_id == event.watch_id,
+                    CompositionUpstreamEvent.subject == "binding",
+                    CompositionUpstreamEvent.old_ref == event.old_ref,
+                    CompositionUpstreamEvent.detected_at > event.detected_at,
+                ).order_by(CompositionUpstreamEvent.detected_at).limit(1)
+            )
+        order = list(watch.version_order or []) if watch is not None else []
+        withdrawn = bool(event.new_version_id and order and event.new_version_id not in order)
+        reviewer = await session.get(User, event.reviewed_by_id) if event.reviewed_by_id else None
+        resolver = await session.get(User, event.resolved_by_id) if event.resolved_by_id else None
+        resolved_version = (await session.get(CompositionVersion, event.resolved_by_version_id)
+                            if event.resolved_by_version_id else None)
+        out.append(EventRow(event, version, watch, environments, newer, withdrawn,
+                            reviewer.username if reviewer else None, resolved_version,
+                            resolver.username if resolver else None))
+    return out
+
+
+async def list_events(
+    session: AsyncSession, composition: Composition, *, state: str | None = None, version: uuid.UUID | None = None,
+    category: str | None = None, subject: str | None = None, limit: int = 20,
+    before: tuple[Any, uuid.UUID] | None = None,
+) -> list[CompositionUpstreamEvent]:
+    """The composition's events, newest first, filtered and paged by ``(detected_at, id)``."""
+    query = select(CompositionUpstreamEvent).where(CompositionUpstreamEvent.composition_id == composition.id)
+    if state is not None:
+        query = query.where(CompositionUpstreamEvent.state == state)
+    if version is not None:
+        query = query.where(CompositionUpstreamEvent.version_id == version)
+    if category is not None:
+        query = query.where(CompositionUpstreamEvent.category == category)
+    if subject is not None:
+        query = query.where(CompositionUpstreamEvent.subject == subject)
+    if before is not None:
+        moment, event_id = before
+        query = query.where((CompositionUpstreamEvent.detected_at < moment)
+                            | ((CompositionUpstreamEvent.detected_at == moment) & (CompositionUpstreamEvent.id < event_id)))
+    query = query.order_by(CompositionUpstreamEvent.detected_at.desc(), CompositionUpstreamEvent.id.desc()).limit(limit)
+    return list((await session.scalars(query)).all())
+
+
+async def state_counts(session: AsyncSession, composition: Composition) -> dict[str, int]:
+    rows = (await session.execute(
+        select(CompositionUpstreamEvent.state, CompositionUpstreamEvent.category, func.count())
+        .where(CompositionUpstreamEvent.composition_id == composition.id)
+        .group_by(CompositionUpstreamEvent.state, CompositionUpstreamEvent.category)
+    )).all()
+    counts = {"open": 0, "reviewed": 0, "resolved": 0, "noImpact": 0}
+    for state, category, count in rows:
+        if category == "no_impact":
+            counts["noImpact"] += int(count)
+        else:
+            counts[state] += int(count)
+    return counts
+
+
+async def watch_summaries(session: AsyncSession, composition: Composition) -> list[tuple[PricingWatch, str | None,
+                                                                                         str | None]]:
+    """The watches the composition's live versions read: ``(watch, sphere_ref, latest label)``."""
+    rows = (await session.execute(
+        select(PricingWatch, func.min(PricingWatchRef.sphere_ref))
+        .join(PricingWatchRef, PricingWatchRef.watch_id == PricingWatch.id)
+        .where(PricingWatchRef.composition_id == composition.id, PricingWatchRef.version_id.in_(live_versions()))
+        .group_by(PricingWatch.id)
+    )).all()
+    out = []
+    for watch, sphere_ref in rows:
+        label = None
+        if watch.latest_snapshot_id is not None:
+            snapshot = await session.get(PricingSnapshot, watch.latest_snapshot_id)
+            label = snapshot.version_label if snapshot is not None else None
+        out.append((watch, sphere_ref, label))
+    return sorted(out, key=lambda item: (item[1] or item[0].url or "", str(item[0].id)))
+
+
+async def event_of(session: AsyncSession, composition: Composition, ref: str) -> CompositionUpstreamEvent | None:
+    try:
+        event_id = uuid.UUID(ref)
+    except ValueError:
+        return None
+    return await session.scalar(select(CompositionUpstreamEvent).where(
+        CompositionUpstreamEvent.id == event_id, CompositionUpstreamEvent.composition_id == composition.id,
+    ))
+
+
+def event_etag(event: CompositionUpstreamEvent) -> str:
+    from ....core import revision as etags
+
+    return etags.opaque_etag("composition_upstream_events", event.id, event.state)
+
+
+async def review(session: AsyncSession, composition: Composition, event: CompositionUpstreamEvent, actor: Any,
+                 note: str) -> CompositionUpstreamEvent:
+    """``open`` -> ``reviewed`` with the note, once (409 ``event_not_reviewable`` otherwise), audited; committed."""
+    from fastapi import status as http
+
+    from ....models.errors import api_error
+    from ...shared.application import audit
+
+    changed = await session.execute(
+        update(CompositionUpstreamEvent).where(
+            CompositionUpstreamEvent.id == event.id, CompositionUpstreamEvent.state == "open",
+        ).values(state="reviewed", note=note, reviewed_by_id=actor.id, reviewed_at=clock.now(session))
+        .returning(CompositionUpstreamEvent.id).execution_options(synchronize_session=False)
+    )
+    if changed.first() is None:
+        await session.rollback()
+        raise api_error(http.HTTP_409_CONFLICT, "event_not_reviewable",
+                        "This upstream event is already reviewed or resolved.")
+    audit(session, actor, "composition.upstream_event_reviewed", "CompositionUpstreamEvent", event.id,
+          composition.organization_id, composition=str(composition.id), noteLength=len(note))
+    await session.commit()
+    return await session.get(CompositionUpstreamEvent, event.id, populate_existing=True)
+
+
+async def mine(session: AsyncSession, organization_ids: list[uuid.UUID], limit: int) -> list[CompositionUpstreamEvent]:
+    """The told events of live versions in these organizations that are open (or reviewed, for binding events)."""
+    if not organization_ids:
+        return []
+    query = select(CompositionUpstreamEvent).where(
+        CompositionUpstreamEvent.organization_id.in_(organization_ids),
+        CompositionUpstreamEvent.notify.is_(True),
+        ((CompositionUpstreamEvent.subject == "binding") & CompositionUpstreamEvent.state.in_(("open", "reviewed"))
+         & CompositionUpstreamEvent.version_id.in_(live_versions()))
+        | ((CompositionUpstreamEvent.subject == "offering") & (CompositionUpstreamEvent.state == "open")),
+    ).order_by(CompositionUpstreamEvent.detected_at.desc(), CompositionUpstreamEvent.id.desc()).limit(limit)
+    return list((await session.scalars(query)).all())
+
+
 __all__ = [
     "Recorded",
+    "counts_for_compositions",
+    "counts_for_environments",
+    "counts_for_versions",
+    "event_etag",
+    "event_of",
+    "list_events",
+    "mine",
+    "review",
+    "rows_of",
+    "state_counts",
+    "watch_summaries",
     "lacking",
     "notify_inserted",
     "pins_of",

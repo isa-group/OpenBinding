@@ -204,6 +204,12 @@
   },
   "size_bytes": 960,
   "syntax_version": "1.0",
+  "upstream": {
+    "bindingInvalid": 0,
+    "open": 0,
+    "reviewed": 0,
+    "worst": null
+  },
   "values": {
     "carbon": {
       "unit": "gCO2e/run",

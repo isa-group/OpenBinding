@@ -27,7 +27,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....composition import text
 from ....composition.document import Document, Provenance
-from ....db.models import Composition, CompositionEvaluation, CompositionVersion, Organization, PricingSnapshot
+from ....db.models import (
+    Composition,
+    CompositionEvaluation,
+    CompositionVersion,
+    Organization,
+    PricingSnapshot,
+    PricingWatch,
+)
 from ...plans.application import (
     PricingError,
     SphereEndpoint,
@@ -164,6 +171,8 @@ async def upstream(
                                          member=member)
         if snapshot is not None and _visible(snapshot, organization.id, member=member):
             item.update(status="snapshotted", snapshot=snapshot_view(snapshot), plan=await _plan_of(snapshot, plan_name))
+            if member:
+                item["watch"] = await _watch_state(session, snapshot)
         entries.append(item)
 
     kinds: dict[str, set[str]] = {}
@@ -195,6 +204,19 @@ async def upstream(
                     offering.update(versionName=snapshot.version_label, createdAt=snapshot.version_created_at,
                                     snapshot=snapshot_view(snapshot))
     return {"version": version.label, "entries": entries, "values": values, "offering": offering}
+
+
+async def _watch_state(session: AsyncSession, snapshot: PricingSnapshot) -> dict[str, Any] | None:
+    """How the watcher follows the family of ``snapshot`` (F6): ``{status, observedAt, nextPollAt}``."""
+    if snapshot.pricing_id is None:
+        return None
+    watch = await session.scalar(select(PricingWatch).where(
+        PricingWatch.pricing_id == snapshot.pricing_id, PricingWatch.scope_key == snapshot.scope_key,
+        PricingWatch.registry.is_(None) if snapshot.registry is None else PricingWatch.registry == snapshot.registry,
+    ))
+    if watch is None:
+        return None
+    return {"status": watch.status, "observedAt": watch.observed_at, "nextPollAt": watch.next_poll_at}
 
 
 async def resolve_provenance(

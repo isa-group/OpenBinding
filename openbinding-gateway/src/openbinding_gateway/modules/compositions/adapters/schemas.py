@@ -214,6 +214,11 @@ class CompositionView(BaseModel):
         description="With `run`: its versions derived from that run, and the environments each is in effect in; "
         "null otherwise.",
     )
+    upstream: Optional["UpstreamSummary"] = Field(
+        default=None,
+        description="Its open and reviewed upstream events on live versions (F6), for members only; null for a "
+        "visitor of a public composition and on the public list.",
+    )
 
 
 class DerivedVersion(BaseModel):
@@ -561,6 +566,9 @@ class CompositionVersionView(BaseModel):
     )
     created_by_id: Optional[uuid.UUID] = Field(description=_MEMBERS_ONLY)
     created_at: datetime
+    upstream: Optional["UpstreamSummary"] = Field(
+        default=None, description="This version's open and reviewed upstream events (F6); members only.",
+    )
 
 
 class CompositionVersionList(BaseModel):
@@ -592,6 +600,144 @@ class CheckResult(BaseModel):
     values: Optional[dict[str, ValueView]] = Field(description="The values a seal would store; null when not valid.")
     content: Optional[str] = Field(description="The exact canonical text a seal would store; null when not valid.")
     diagnostics: list[CompositionDiagnosticView]
+
+
+# -- Upstream events (F6) ----------------------------------------------------------------------------------------
+
+UpstreamCategory = Literal["no_impact", "values_changed", "binding_invalid", "offering_changed"]
+UpstreamState = Literal["open", "reviewed", "resolved"]
+UpstreamSubject = Literal["binding", "offering"]
+
+
+class UpstreamSummary(BaseModel):
+    """Open and reviewed upstream events, each (version, watch, subject) once; no-impact and untold events excluded."""
+
+    open: int = Field(ge=0)
+    reviewed: int = Field(ge=0)
+    bindingInvalid: int = Field(ge=0, description="Open or reviewed events that recommend rebinding.")
+    worst: Optional[UpstreamCategory] = Field(description="The worst category among the counted events.")
+
+
+class UpstreamVersionName(BaseModel):
+    id: uuid.UUID
+    label: str
+
+
+class UpstreamResolvedIn(BaseModel):
+    version: UpstreamVersionName
+
+
+class EnvironmentUpstreamSummary(UpstreamSummary):
+    resolvedBy: Optional[UpstreamResolvedIn] = Field(
+        description="The newest version that resolved an event of the version in effect and is not adopted here.",
+    )
+
+
+class UpstreamWatchState(BaseModel):
+    status: Literal["pending", "active", "unavailable", "not_found", "gone", "credential_missing", "registry_unknown"]
+    observedAt: Optional[datetime] = Field(description="The last answer from upstream (a 200 or a 304).")
+    nextPollAt: datetime
+
+
+class UpstreamPricingRef(BaseModel):
+    sphere: Optional[str] = Field(description="`owner/slug` of the family.")
+    registry: Optional[str]
+    pricingId: Optional[str]
+    url: Optional[str] = Field(description="The offering's URL, for a URL watch.")
+    title: Optional[str]
+
+
+class UpstreamSide(BaseModel):
+    versionId: Optional[str]
+    label: Optional[str]
+    snapshotId: Optional[uuid.UUID]
+    url: Optional[str] = Field(description="Where the version opens in SPHERE.")
+
+
+class UpstreamPerson(BaseModel):
+    username: str
+
+
+class UpstreamResolution(BaseModel):
+    version: UpstreamVersionName
+    by: Optional[UpstreamPerson]
+    at: datetime
+
+
+class UpstreamEventView(BaseModel):
+    """An upstream event: a classified change of a pricing a live version reads (immutable but for its state)."""
+
+    id: uuid.UUID
+    subject: UpstreamSubject
+    category: UpstreamCategory
+    state: UpstreamState
+    notify: bool = Field(description="Whether it is told and badged (false for no impact and untold events).")
+    version: UpstreamVersionName = Field(description="The affected version (an offering event's reference version).")
+    tasks: list[str]
+    reasons: list[dict[str, Any]] = Field(description="Codes with detail, in precedence order.")
+    pricing: UpstreamPricingRef
+    old: UpstreamSide
+    new: Optional[UpstreamSide] = Field(description="Null when the source is gone.")
+    note: str
+    reviewedBy: Optional[UpstreamPerson]
+    reviewedAt: Optional[datetime]
+    resolvedBy: Optional[UpstreamResolution]
+    detectedAt: datetime
+    environments: list[str] = Field(
+        description="Where the affected version is adopted (every adopted environment for an offering event).",
+    )
+    supersededBy: Optional[uuid.UUID] = Field(description="A newer event of the same version and pricing.")
+    newVersionWithdrawn: bool
+    rebindingRecommended: bool
+    classifier: str
+
+
+class UpstreamEventDetail(UpstreamEventView):
+    diff: dict[str, Any] = Field(description="`openbinding/upstream-event-diff@1`, as stored.")
+
+
+class UpstreamWatchSummary(BaseModel):
+    pricing: UpstreamPricingRef
+    latestLabel: Optional[str]
+    observedAt: Optional[datetime]
+    status: str
+
+
+class UpstreamEventCounts(BaseModel):
+    open: int
+    reviewed: int
+    resolved: int
+    noImpact: int
+
+
+class UpstreamEventList(BaseModel):
+    events: list[UpstreamEventView]
+    watches: list[UpstreamWatchSummary] = Field(description="The pricings this composition's live versions read.")
+    counts: UpstreamEventCounts
+    nextBefore: Optional[str] = Field(description="`<detectedAt>,<id>` of the last event, for the next page.")
+
+
+class UpstreamEventReview(BaseModel):
+    """Mark an event reviewed, once, with an optional note."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    note: str = Field(default="", max_length=1000)
+
+
+class MyUpstreamEvent(UpstreamEventView):
+    organization: CompositionOrganization
+    composition: "MyUpstreamComposition"
+
+
+class MyUpstreamComposition(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
+
+
+class MyUpstreamEventList(BaseModel):
+    events: list[MyUpstreamEvent]
 
 
 CompositionView.model_rebuild()
@@ -923,6 +1069,9 @@ class UpstreamEntry(BaseModel):
     status: Literal["snapshotted", "not_snapshotted", "registry_unknown"]
     snapshot: Optional[UpstreamSnapshot]
     plan: Optional[UpstreamPlan] = Field(description="The plan in the snapshot, when the entry names one it has.")
+    watch: Optional["UpstreamWatchState"] = Field(
+        default=None, description="How OpenBinding watches this pricing (F6); members only.",
+    )
 
 
 class UpstreamValue(BaseModel):
@@ -1046,6 +1195,11 @@ class CompositionEnvironmentView(BaseModel):
     keyCount: int = Field(description="How many live feed keys the environment has.")
     createdAt: datetime
     updatedAt: datetime
+    upstream: Optional["EnvironmentUpstreamSummary"] = Field(
+        default=None,
+        description="Upstream events of the version in effect and the composition's open offering events (F6); "
+        "computed when read, so it never moves the environment's ETag or its feed.",
+    )
 
 
 class CompositionEnvironmentList(BaseModel):
@@ -1352,3 +1506,9 @@ class CompositionInstantiated(BaseModel):
     version: CompositionVersionView
     evaluation: EvaluationView
     operation: TemplateOperation
+
+
+CompositionVersionView.model_rebuild()
+CompositionEnvironmentView.model_rebuild()
+UpstreamEntry.model_rebuild()
+MyUpstreamEvent.model_rebuild()

@@ -142,6 +142,12 @@
   },
   "size_bytes": 464,
   "syntax_version": "1.0",
+  "upstream": {
+    "bindingInvalid": 0,
+    "open": 0,
+    "reviewed": 0,
+    "worst": null
+  },
   "values": {
     "latency": {
       "unit": "ms",

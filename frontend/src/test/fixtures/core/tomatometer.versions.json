@@ -7,7 +7,7 @@
       "analytics": null,
       "based_on": null,
       "content_digest": "sha256-8f3be077d629c797d4cd93693f0026d07ee93015cbce5e90648dcf1ae8a878a1",
-      "created_at": "2026-01-01T00:00:27Z",
+      "created_at": "2026-01-01T00:00:29Z",
       "created_by_id": "00000000-0000-4000-8000-000000000003",
       "current_evaluation": {
         "basis": "bim",
@@ -21,7 +21,7 @@
             "version": "0.2.0"
           }
         },
-        "created_at": "2026-01-01T00:00:28Z",
+        "created_at": "2026-01-01T00:00:30Z",
         "id": "00000000-0000-4000-8000-000000000039",
         "outcome": "verified"
       },
@@ -64,6 +64,12 @@
       },
       "size_bytes": 945,
       "syntax_version": "1.0",
+      "upstream": {
+        "bindingInvalid": 0,
+        "open": 0,
+        "reviewed": 0,
+        "worst": null
+      },
       "values": {
         "availability": {
           "unit": "1",
@@ -85,7 +91,7 @@
       "analytics": null,
       "based_on": null,
       "content_digest": "sha256-f8877f33423f7fa96418c4a7af8d6388696c0275e3c9b53482610b0c4b63172d",
-      "created_at": "2026-01-01T00:00:11Z",
+      "created_at": "2026-01-01T00:00:13Z",
       "created_by_id": "00000000-0000-4000-8000-000000000003",
       "current_evaluation": {
         "basis": "bim",
@@ -99,7 +105,7 @@
             "version": "0.2.0"
           }
         },
-        "created_at": "2026-01-01T00:00:12Z",
+        "created_at": "2026-01-01T00:00:14Z",
         "id": "00000000-0000-4000-8000-000000000033",
         "outcome": "verified"
       },
@@ -142,6 +148,12 @@
       },
       "size_bytes": 949,
       "syntax_version": "1.0",
+      "upstream": {
+        "bindingInvalid": 0,
+        "open": 0,
+        "reviewed": 0,
+        "worst": null
+      },
       "values": {
         "availability": {
           "unit": "1",

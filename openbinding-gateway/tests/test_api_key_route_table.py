@@ -50,8 +50,9 @@ def is_open(method: str, path: str) -> bool:
 def test_the_route_table_has_the_v1_surface():
     # 196 with SCORETech Identity (F5-A) and the three composition template routes (F4-B); F5-B deletes the refresh
     # token route and the local logout, then the four US CAS routes and the two linked-identity routes (191); F5-D adds
-    # what deleting the account deletes with it (192).
-    assert len(ROUTES) == 192
+    # what deleting the account deletes with it (192); F6-A adds the upstream events: list, read, review and the
+    # caller's list (196).
+    assert len(ROUTES) == 196
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -268,6 +269,7 @@ def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
     routes = sorted(
         route for route in ROUTES
         if route[1].startswith(compositions) and "/environments" not in route[1] and not route[1].endswith("/from-template")
+        and "/upstream-events" not in route[1]
     )
 
     assert routes == [
@@ -409,3 +411,17 @@ def test_from_template_writes_compositions_and_problems():
     other = {"method": "POST", "path_params": {"org": "acme", "composition": "c"},
              "path": "/v1/organizations/{org}/compositions/{composition}/derive"}
     assert allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["compositions"]}}), **other)
+
+
+def test_upstream_events_are_composition_reads_and_their_review_a_write():
+    events = "/v1/organizations/{org}/compositions/{composition}/upstream-events"
+    routes = sorted(route for route in ROUTES if "upstream-events" in route[1])
+    assert routes == [
+        ("GET", events),
+        ("GET", f"{events}/{{event}}"),
+        ("GET", "/v1/users/me/upstream-events"),
+        ("POST", f"{events}/{{event}}/review"),
+    ]
+    for method, path in routes:
+        expected = "compositions:read" if method == "GET" else "compositions:write"
+        assert required_permissions(path, method) == frozenset({expected}), (method, path)
