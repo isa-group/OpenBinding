@@ -250,6 +250,8 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "problems": {"problem", "problems"},
             "studies": {"study", "studies"},
             "compositions": {"composition", "compositions"},
+            # A composition's upstream changes, also listed across organizations under /users/me.
+            "upstream-events": {"composition", "compositions"},
             "runs": {"run", "runs"},
             "presets": {"preset", "presets"},
             "cells": {"cell", "cells"},

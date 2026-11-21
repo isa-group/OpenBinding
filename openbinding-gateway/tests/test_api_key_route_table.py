@@ -116,6 +116,19 @@ def test_the_facts_of_a_compilation_are_a_problem_read():
     assert not allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["run"]}}), **request)
 
 
+def test_a_composition_scoped_key_reads_every_upstream_event_route():
+    upstream = [route for route in ROUTES if "upstream-events" in route[1]]
+
+    assert ("GET", "/v1/users/me/upstream-events") in upstream and len(upstream) >= 4
+    compositions_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["composition"]}})
+    problems_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["problem"]}})
+    for method, path in upstream:
+        request = {"method": method, "path": path,
+                   "path_params": {"org": "acme", "composition": "c", "event": "e"}}
+        assert allows_request(compositions_only, **request), path
+        assert not allows_request(problems_only, **request), path
+
+
 def test_the_runs_of_an_organization_are_jobs_reads_and_engine_executions():
     runs = "/v1/organizations/{org}/runs"
 
