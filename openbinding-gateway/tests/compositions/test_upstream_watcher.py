@@ -191,6 +191,39 @@ async def test_two_404s_one_interval_apart_make_gone(api_client, registration, d
     assert (brevo.status, brevo.gone_epoch, report.gone) == ("gone", 1, 1)
 
 
+async def test_a_failure_between_404s_never_starts_a_second_disappearance(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
+    await _first(db_session, source, api_client, registration, gate)
+    sphere.not_found(BREVO_MANIFEST)
+    for _ in range(2):
+        clocks.advance(30)
+        await _cycle(db_session, source)
+    assert ((await _watch(db_session, BREVO)).status, (await _watch(db_session, BREVO)).gone_epoch) == ("gone", 1)
+    # A 503, then the family missing again: still the same disappearance (only a 200 or a 304 ends it).
+    sphere.scripts.clear()
+    sphere.unavailable(BREVO_MANIFEST, status=503)
+    clocks.advance(30)
+    await _cycle(db_session, source)
+    brevo = await _watch(db_session, BREVO)
+    assert (brevo.status, brevo.gone_epoch, brevo.last_error) == ("gone", 1, "sphere_unavailable")
+    sphere.scripts.clear()
+    sphere.not_found(BREVO_MANIFEST)
+    clocks.advance(4000)
+    report = await _cycle(db_session, source)
+    brevo = await _watch(db_session, BREVO)
+    assert (brevo.status, brevo.gone_epoch, report.gone) == ("gone", 1, 0)
+    # A 200 ends it; two more 404s one interval apart are a new disappearance.
+    sphere.scripts.clear()
+    clocks.advance(4000)
+    await _cycle(db_session, source)
+    assert (await _watch(db_session, BREVO)).status == "active"
+    sphere.not_found(BREVO_MANIFEST)
+    for _ in range(2):
+        clocks.advance(30)
+        await _cycle(db_session, source)
+    brevo = await _watch(db_session, BREVO)
+    assert (brevo.status, brevo.gone_epoch) == ("gone", 2)
+
+
 async def test_a_rewritten_version_is_logged_only_on_a_verified_snapshot(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
     await _first(db_session, source, api_client, registration, gate)
     manifest = sphere.manifest(BREVO)

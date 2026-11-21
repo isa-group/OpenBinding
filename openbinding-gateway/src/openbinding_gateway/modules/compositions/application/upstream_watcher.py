@@ -211,6 +211,12 @@ async def _give_back(factory: Callable[[], AsyncSession], ids: list[uuid.UUID]) 
 # -- Outcomes --------------------------------------------------------------------------------------------------------
 
 
+def _unless_gone(status: str) -> Any:
+    """``status``, but a gone watch stays gone: only a 200 or a 304 ends a disappearance (``_observed``), so a failure
+    or a credential or registry state between two 404s never starts a second one (a new ``gone_epoch``)."""
+    return case((PricingWatch.status == "gone", "gone"), else_=status)
+
+
 async def _write(factory, watch_id: uuid.UUID, **values: Any) -> None:
     async with factory() as session:
         await session.execute(update(PricingWatch).where(PricingWatch.id == watch_id).values(**values)
@@ -235,7 +241,7 @@ async def _failed(factory, watch: PricingWatch, settings: Settings, reason: str)
     delay = min(interval * 2 ** min(failures, 4), settings.upstream_failure_backoff_max_s)
     async with factory() as session:
         await session.execute(update(PricingWatch).where(PricingWatch.id == watch.id).values(
-            failures=PricingWatch.failures + 1, status="unavailable", last_error=reason[:80],
+            failures=PricingWatch.failures + 1, status=_unless_gone("unavailable"), last_error=reason[:80],
             polled_at=clock.now(session), next_poll_at=clock.after(session, delay),
         ).execution_options(synchronize_session=False))
         await session.commit()
@@ -335,12 +341,12 @@ async def poll_watch(
         await _poll_url(factory, source, watch, settings, report)
         return
     if watch.source_kind == "registry" and watch.registry not in set(source.registries()):
-        await _write(factory, watch.id, status="registry_unknown", last_error="registry_unknown")
+        await _write(factory, watch.id, status=_unless_gone("registry_unknown"), last_error="registry_unknown")
         await _observed_schedule(factory, watch, interval)
         return
     credential, rejected, missing = await _credential(factory, watch)
     if missing:
-        await _write(factory, watch.id, status="credential_missing", last_error="credential_missing")
+        await _write(factory, watch.id, status=_unless_gone("credential_missing"), last_error="credential_missing")
         await _observed_schedule(factory, watch, interval)
         return
     where = SphereEndpoint(watch.registry)
@@ -355,7 +361,7 @@ async def poll_watch(
     except PricingNotFound:
         if rejected:
             report.credential_rejected += 1
-            await _write(factory, watch.id, status="credential_missing", last_error="credential_rejected")
+            await _write(factory, watch.id, status=_unless_gone("credential_missing"), last_error="credential_rejected")
             await _observed_schedule(factory, watch, interval)
             return
         if await _not_found(factory, watch, settings):
@@ -371,7 +377,7 @@ async def poll_watch(
         return
     if rejected:
         report.credential_rejected += 1
-        await _write(factory, watch.id, status="credential_missing", last_error="credential_rejected")
+        await _write(factory, watch.id, status=_unless_gone("credential_missing"), last_error="credential_rejected")
         await _observed_schedule(factory, watch, interval)
         return
     if isinstance(answer, NotModified):
