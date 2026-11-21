@@ -7,6 +7,14 @@ Code outside ``modules/plans`` reaches the module through this package only
 
 from ..domain import entitlement_map, pricing2yaml, quotas
 from ..domain.errors import PricingDiagnostic, PricingError, PricingInvalid
+from ..domain.content_hash import functional_hash
+from ..domain.pricing2yaml.compare import (
+    Selection,
+    SelectionComparison,
+    catalog_diff,
+    compare_selections,
+    identical_plan,
+)
 from ..domain.money import (
     MAX_AMOUNT,
     AmountOutOfRange,
@@ -94,17 +102,23 @@ __all__ = [
     "SearchPage",
     "SearchQuery",
     "SearchRow",
+    "Selection",
+    "SelectionComparison",
     "Snapshotted",
     "SphereEndpoint",
     "SphereOrganization",
     "SphereUser",
     "VersionRead",
     "account_stored_bytes",
+    "catalog_diff",
+    "compare_selections",
     "connections",
     "credential_for",
     "discovery",
     "entitlement_map",
     "exact",
+    "functional_hash",
+    "identical_plan",
     "in_range",
     "get_pricing_source",
     "installed_pricing_source",
