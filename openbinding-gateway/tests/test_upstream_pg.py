@@ -198,3 +198,25 @@ async def test_two_racing_disappearances_raise_the_epoch_once(pg) -> None:
     async with pg.session() as check:
         row = await check.get(PricingWatch, watch_id)
         assert (row.status, row.gone_epoch) == ("gone", 1)
+
+
+async def test_two_seals_racing_on_one_family_make_one_watch(pg) -> None:
+    from openbinding_gateway.modules.compositions.application.watches import watch_for
+
+    family = uuid.uuid4().hex[:24]
+    async with pg.session() as a, pg.session() as b:
+        first = await watch_for(a, "sphere", None, family, "public", None)
+
+        async def racing():
+            found = await watch_for(b, "sphere", None, family, "public", None)
+            await b.commit()
+            return found.id
+
+        task = asyncio.create_task(racing())
+        await asyncio.sleep(0.5)
+        assert not task.done()  # the second insert waits on the unique watch key
+        await a.commit()
+        assert await task == first.id
+    async with pg.session() as check:
+        rows = (await check.scalars(select(PricingWatch).where(PricingWatch.pricing_id == family))).all()
+        assert len(rows) == 1 and rows[0].status == "pending"

@@ -49,6 +49,7 @@ from .discovery import manifest as sphere_manifest
 from .own_pricing import OwnPricing, OwnPricingUnavailable, own_pricing
 from .connections import credential_for, mark_invalid
 from .parsing import ParsedPricing, parse, parse_sync
+from ..domain.snapshots import canonical_url, url_source_key
 from .snapshots import (
     Snapshotted,
     account_stored_bytes,
@@ -110,6 +111,7 @@ __all__ = [
     "SphereUser",
     "VersionRead",
     "account_stored_bytes",
+    "canonical_url",
     "catalog_diff",
     "compare_selections",
     "connections",
@@ -146,4 +148,5 @@ __all__ = [
     "snapshot_version",
     "sphere_manifest",
     "url_snapshot_bytes",
+    "url_source_key",
 ]

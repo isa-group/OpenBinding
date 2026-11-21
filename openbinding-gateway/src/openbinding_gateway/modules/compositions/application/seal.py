@@ -31,7 +31,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from . import follows
+from . import follows, watches
 from ....composition import diagnostics as codes
 from ....composition import spans, text
 from ....composition.diagnostics import Diagnostic, Path, at
@@ -394,6 +394,8 @@ async def seal_into(
     if composition.kind != version.kind:
         composition.kind = version.kind
     await session.flush()
+    # F6: what the new version reads upstream, from stored data only (no network under the lock).
+    await watches.register_version(session, composition, version, effective, evaluation)
     audit(
         session, actor, "composition.version_sealed", TARGET, composition.id, composition.organization_id,
         version_id=str(version.id), ordinal=version.ordinal, label=version.label,
