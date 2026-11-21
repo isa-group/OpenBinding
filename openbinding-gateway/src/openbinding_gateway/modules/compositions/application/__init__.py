@@ -27,6 +27,7 @@ from .fork import Forked, NameTaken, fork_composition
 from .language import LanguageRefusal, diff, diff_stored, parse, serialise, validate
 from .offering import OfferingOutcome, read_offering, with_offering
 from .upstream import resolve_provenance
+from .upstream_watcher import status as upstream_watch_status
 from .seal import Checked, Sealed, check, insert_derivation, insert_evaluation, judge, persist, seal_into
 from .slots import evaluation_slot, language_slot
 from .versions import diff_pair, list_versions, required_version, summaries, version_by_ref
@@ -79,6 +80,7 @@ __all__ = [
     "serialise",
     "summaries",
     "update_composition",
+    "upstream_watch_status",
     "validate",
     "version_by_ref",
 ]

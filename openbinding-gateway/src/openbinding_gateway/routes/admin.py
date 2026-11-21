@@ -25,7 +25,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..modules.compositions.application import upstream_watcher
+from ..modules.compositions.application import upstream_watch_status
 from ..access.contracts import live_pricing_version
 from ..access.dependencies import require_admin, session_dependency
 from ..core import revision
@@ -813,7 +813,7 @@ async def queue_status(
             for job in oldest
         ],
         # F6: the upstream watcher, from the tables (any replica answers).
-        "upstreamWatch": await upstream_watcher.status(session),
+        "upstreamWatch": await upstream_watch_status(session),
     }
 
 
