@@ -252,6 +252,14 @@ class RecordedSphere:
                 return entry
         raise KeyError(name)
 
+    @staticmethod
+    def manifest_path(pricing_id: str) -> str:
+        return f"/api/v1/public/pricings/{pricing_id}"
+
+    @classmethod
+    def yaml_path(cls, pricing_id: str, version_id: str) -> str:
+        return f"{cls.manifest_path(pricing_id)}/versions/{version_id}/yaml"
+
     def manifest(self, pricing_id: str) -> dict[str, Any]:
         """The manifest this recording serves now (recorded, or as published since)."""
         path = f"/api/v1/public/pricings/{pricing_id}"

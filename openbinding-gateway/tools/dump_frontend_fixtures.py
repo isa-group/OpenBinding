@@ -446,7 +446,7 @@ async def _upstream(client, headers: dict[str, str], session) -> dict[str, Any]:
         await run()
         out["upstream.tomatometer.event.offering-changed.json"] = _ok(await client.get(
             f"{events}/{await newest(subject='offering')}", headers=headers), 200).json()
-        dropbox = "/api/v1/public/pricings/6ab0a323697330667ccce9c1"
+        dropbox = _RECORDED.manifest_path("6ab0a323697330667ccce9c1")
         _RECORDED.not_found(dropbox, times=2)
         await run()
         await run(25)
@@ -465,7 +465,7 @@ async def _upstream(client, headers: dict[str, str], session) -> dict[str, Any]:
                                  "contentHash": "0" * 64}]
         manifest["latestVersionId"] = later
         _RECORDED.serve_manifest(resend, manifest)
-        _RECORDED.serve(f"/api/v1/public/pricings/{resend}/versions/{later}/yaml", data,
+        _RECORDED.serve(_RECORDED.yaml_path(resend, later), data,
                         {"content-type": "application/yaml", "etag": '"' + _hashlib.sha256(data).hexdigest() + '"'})
         await run()
         out["upstream.tomatometer.event.withdrawn.json"] = _ok(
