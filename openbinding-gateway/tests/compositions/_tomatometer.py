@@ -45,6 +45,8 @@ class Seeded:
     v110: CompositionVersion
     revision: BindingCaseRevision
     production: CompositionEnvironment | None = None
+    #: Plain ids, readable after the session expires its objects (a watcher cycle does).
+    ids: dict | None = None
 
 
 async def derive_and_seal(session, organization, composition, user, label: str, binding: dict, revision: int,
@@ -71,6 +73,8 @@ async def seeded(api_client, registration, db_session, gate, *, production: bool
     v110 = await derive_and_seal(db_session, organization, composition, user, "1.1.0",
                                  {"dailySummary": "email.resend.pro"}, revision.revision)
     found = Seeded(headers, org, organization, user, composition, v100, v110, revision)
+    found.ids = {"organization": organization.id, "composition": composition.id, "v100": v100.id, "v110": v110.id,
+                 "user": user.id}
     if production:
         environment = CompositionEnvironment(
             organization_id=organization.id, composition_id=composition.id, slug="production", name="Production",

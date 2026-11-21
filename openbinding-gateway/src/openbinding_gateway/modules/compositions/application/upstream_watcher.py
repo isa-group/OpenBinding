@@ -68,7 +68,7 @@ from ...plans.application import (
     snapshot_url,
     snapshot_version,
 )
-from . import watches
+from . import upstream_events, watches
 from .upstream import resolve_provenance
 
 logger = logging.getLogger(__name__)
@@ -539,8 +539,39 @@ def polling_enabled(settings: Settings) -> bool:
 
 
 async def classify(factory, settings: Settings, report: CycleReport, polled: list[uuid.UUID]) -> None:
-    """Step 6: record classified events (``upstream_events.record``, A10)."""
-    return None
+    """Step 6: record classified events for the watches read this cycle, then the catch-up set (every watch with a
+    live ref, oldest observation first, so none starves); ``UPSTREAM_CLASSIFY_PER_CYCLE`` counts classifier calls."""
+    budget = [settings.upstream_classify_per_cycle]
+    async with factory() as session:
+        now = clock.now(session)
+        others = list((await session.scalars(
+            select(PricingWatch.id).where(
+                watches.live_ref_exists(PricingWatch.id),
+                or_(PricingWatch.classify_after.is_(None), PricingWatch.classify_after <= now),
+                or_(PricingWatch.latest_version_id.is_not(None), PricingWatch.latest_snapshot_id.is_not(None),
+                    PricingWatch.status == "gone"),
+            ).order_by(PricingWatch.observed_at.asc().nulls_first(), PricingWatch.id)
+        )).all())
+        await session.commit()
+    order = list(dict.fromkeys([*polled, *others]))
+    for watch_id in order:
+        if budget[0] <= 0:
+            break
+        async with factory() as session:
+            watch = await session.get(PricingWatch, watch_id)
+            if watch is None:
+                continue
+            if watch.classify_after is not None and watch_id in polled:
+                moment = await clock.read_now(session)
+                after = watch.classify_after if watch.classify_after.tzinfo else watch.classify_after.replace(
+                    tzinfo=timezone.utc)
+                current = moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
+                if after > current:
+                    continue
+            done = await upstream_events.record(session, watch, budget=budget)
+            report.classified += done.classified
+            report.events += len(done.inserted)
+            report.notified += done.notified
 
 
 async def run_cycle(

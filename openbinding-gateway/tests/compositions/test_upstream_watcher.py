@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import ast
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -18,56 +18,18 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from _b1_helpers import gate  # noqa: F401
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import PricingRefAttempt, PricingSnapshot, PricingWatch, PricingWatchRef
-from openbinding_gateway.jobs import clock
 from openbinding_gateway.modules.compositions.application import upstream_watcher as uw
 from openbinding_gateway.modules.plans.adapters.sphere import SphereHttpSource
-from sphere_recorded import RecordedSphere
 
 from ._tomatometer import BREVO, BREVO_2026_10, DROPBOX, RESEND, TOMATOMETER, seeded
+from ._watching import START, cycle, settings as _settings
 
 pytestmark = pytest.mark.asyncio
 BREVO_MANIFEST = f"/api/v1/public/pricings/{BREVO}"
-START = datetime(2026, 11, 21, 12, 0, 0, tzinfo=timezone.utc)
 
 
-class Clocks:
-    """The watcher's clock (``jobs.clock.utcnow``) and the adapter's (monotonic seconds), moved together."""
-
-    def __init__(self, monkeypatch) -> None:
-        self.now = START
-        self.adapter = 1000.0
-        monkeypatch.setattr(clock, "utcnow", lambda: self.now)
-
-    def __call__(self) -> float:
-        return self.adapter
-
-    def advance(self, seconds: float) -> None:
-        self.now += timedelta(seconds=seconds)
-        self.adapter += seconds
-
-
-def _settings(**update):
-    return get_settings().model_copy(update={"sphere_enabled": True, "upstream_watch_enabled": True,
-                                             "upstream_poll_interval_s": 20, **update})
-
-
-@pytest.fixture
-def clocks(monkeypatch) -> Clocks:
-    return Clocks(monkeypatch)
-
-
-@pytest.fixture
-def source(sphere: RecordedSphere, clocks: Clocks) -> SphereHttpSource:
-    return SphereHttpSource(get_settings().model_copy(update={"sphere_enabled": True}), transport=sphere.transport(),
-                            clock=clocks)
-
-
-async def _cycle(db_session, source, *, force: bool = True, **settings) -> uw.CycleReport:
-    await db_session.commit()
-    factory = async_sessionmaker(db_session.bind, expire_on_commit=False)
-    report = await uw.run_cycle(factory, source, force=force, settings=_settings(**settings))
-    db_session.expire_all()
-    return report
+async def _cycle(db_session, source, *, force: bool = True, **update) -> uw.CycleReport:
+    return await cycle(db_session, source, force=force, **update)
 
 
 async def _watch(db_session, pricing_id: str) -> PricingWatch:
