@@ -44,3 +44,4 @@ and `tests/` and `tools/` without a prefix to `openbinding-gateway/`.
 | [0054](0054-composition-environments-and-the-feed.md) | F4-A D2-D10, D19, D22 | Composition environments, adoption with a required `If-Match`, the pinned history, environment feed keys and the feed |
 | [0055](0055-margins-per-offering-plan.md) | F4-A D12 | Margins per offering plan: uniform apportionment, explicit users, exact six-place money, statuses |
 | [0056](0056-identity-bff-session.md) | F5 D-a to D-l, O9 | SCORETech Identity through a backend-for-frontend session: cookies, sessions in PostgreSQL, single-flight renewal, never by email |
+| [0057](0057-upstream-watches-and-events.md) | F6 O1–O13, O17, O18, D-a–D-e, D-i–D-l | Upstream watches and events: watch refs written at seal, one watcher per cycle, a pure classifier, immutable events resolved only by a person's seal, computed badges |

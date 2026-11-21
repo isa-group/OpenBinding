@@ -43,6 +43,7 @@ malformed, and a malformed boundary denies everything.
 | `/connections`, `/connections/sphere` (the organization's SPHERE connection) | ADMIN (the list shows the SPHERE user, the key's scopes and the last four characters of the key; never the key) | ADMIN sets (`PUT`, validated by SPHERE, optional `If-Match`) and removes it (`DELETE`); the key is write-only and kept encrypted | `organizations:write` (reads too) |
 | `/compositions`, `/compositions/{composition}`, `/compositions/{composition}/versions/...`, `/compositions/{composition}/diff`, `/compositions/{composition}/fork`, `/compositions/{composition}/evaluate`, `/compositions/{composition}/neighborhood`, `/compositions/{composition}/derive`, `/compositions/{composition}/upstream` (a version's upstream pricings from stored snapshots; a visitor sees public snapshots only) | VIEWER (a non-member gets `404`; anybody reads a public composition, redacted, below); VIEWER also checks a document (`POST …/versions/check`), compares versions, evaluates another binding of a version (`POST …/evaluate`) and explores its neighbourhood | MEMBER creates, edits, seals, re-evaluates (`POST …/versions/{version}/evaluations`) and derives versions (`POST …/derive`, from a run of the organization or a binding of one of its problems); ADMIN deletes and changes `visibility`. A fork needs read on the source (member, or the source is public) and MEMBER on the target organization, which must be another one | `compositions:read` / `compositions:write` |
 | `/compositions/{composition}/environments`, `…/environments/{environment}`, `…/adoptions`, `…/keys`, `…/keys/{key}`, `…/check`, `/compositions/{composition}/versions/{version}/margins` (signed in only: no credential is `401` before any lookup) | VIEWER (a non-member gets the composition's `404`; on a public composition every environment route and margins are `404` for a non-member: members only); MEMBER checks an environment now | ADMIN creates, edits, deletes environments and mints and revokes feed keys; adopting needs the environment's `adoptRole` (ADMIN by default, MEMBER where set) and `If-Match` | `compositions:read` / `compositions:write`; adopting `compositions:adopt` alone; feed keys also `keys:write`; checking `compositions:read` |
+| `/compositions/{composition}/upstream-events`, `…/upstream-events/{event}` (signed in only: `401` before any lookup) | VIEWER (a non-member gets the composition's `404`; on a public composition every event route is `404` "Upstream event not found." for a non-member: members only) | MEMBER marks an event reviewed (`…/review`, once, optional `If-Match`); no route resolves one | `compositions:read` / `compositions:write` |
 | `/compositions/{composition}/environments/{environment}/composition` (the feed) | the environment's feed key, or a member with `compositions:read` | — | `compositions:read` (a feed key has no permission list: it reads this feed only) |
 
 ## Composition environments
@@ -62,6 +63,16 @@ an environment, not a person: they never enter the permission table, open nothin
 never count against anybody's `maxApiKeys`. The feed counts each credential against `FEED_RATE_PER_MINUTE` (60), in
 Redis, before anything is looked up. Creating an environment, adopting and minting a key do no compile, read or
 evaluate work; `check` and the margins are `read` work.
+
+## Upstream events and their counts
+
+Upstream events, their diffs and the counts on the views (`upstream` on a composition, its versions and its
+environments) are for members only, as margins are ([ADR 0057](adr/0057-upstream-watches-and-events.md)): a public
+composition's visitor sees no count (`upstream: null`), the public list carries none, and every event route answers
+the composition's 404 parity. `GET /v1/users/me/upstream-events` lists only organizations where the caller holds a
+role, and needs `compositions:read` from a personal key. Reviewing is an operation write (it reads and evaluates
+nothing) and counts against no work budget. The counts are computed when read, so reading or reviewing never moves an
+environment's ETag or its feed.
 
 ## Public compositions
 

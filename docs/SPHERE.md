@@ -193,7 +193,7 @@ and add-ons). Wherever a document is assessed against its problem, a `from` on a
 revision recorded (`c2y_provenance_mismatch`, an error); an entry without one is valid with
 `c2y_provenance_missing` (a warning). A hand-written `from` on a candidate no import generated is not checked; it is
 snapshotted at seal (at most 8 resolutions over the network per seal), and `resolve_provenance` does the same later
-for F6's poller.
+in the upstream watcher (see "Watching upstream pricings").
 
 ## The offering
 
@@ -207,6 +207,30 @@ is stored on the evaluation (`offering_snapshot_id`, `offering_status`); an unre
 `GET /v1/organizations/{org}/compositions/{composition}/upstream?version=` answers, from stored data only, each binding
 entry's upstream plan and snapshot, the source kinds of each global value and the offering version the current
 evaluation read; a visitor of a public composition sees public snapshots only.
+
+## Watching upstream pricings (F6)
+
+Every sealed version records what it reads upstream as watch references; the upstream watcher asks each watched
+family's manifest once per interval (`UPSTREAM_POLL_INTERVAL_S`, 300 s; staggered per watch) with `If-None-Match` and
+`revalidate=True`, so a fresh cache entry or a recent 404 never answers for SPHERE. A new latest version (SPHERE's
+order: by `createdAt`, never the highest label) is snapshotted as a system read, passing the manifest already read.
+A 429 closes the watch's bucket (every public watch, one registry's, or one organization's) until `Retry-After`, in the
+database, so a leadership change keeps it; a failure backs off exponentially to an hour; a family is gone only after
+two 404s from requests actually sent at least one interval apart by the database clock. An organization-scoped watch
+reads with its connection's key; a missing key, or one SPHERE refuses during the read (the adapter would then answer
+anonymously), is `credential_missing`, never an event. A family rename (a new manifest `name` and ETag, the same
+versions) changes the ETag only. A version whose `contentHash` changes under the same id is logged as
+`content_rewritten`, and only for snapshots whose stored hash was verified against the bytes. At most
+`UPSTREAM_READS_PER_CYCLE` requests are sent per cycle.
+
+The classifier compares the pinned and the new version for each live version's bound selection with
+pricing-renderer's `compareSelections`, ported (`plans/domain/pricing2yaml/compare.py`), and judges the candidate with
+the generator's own functions (`problems/application/sphere/candidate.py`): see
+[ADR 0057](adr/0057-upstream-watches-and-events.md) and `tools/dump_upstream_goldens.py` (goldens G1–G20, offline).
+
+The tests and fixtures publish synthetic upstream versions from the scenario catalog
+(`tests/fixtures/sphere/scenarios.json`, derived offline by `tools/record_sphere_fixtures.py --derive` and checked by
+`--check-derived`; `RecordedSphere.publish(scenario)` serves one). They are never published to SPHERE.
 
 ## Fixtures and the live check
 

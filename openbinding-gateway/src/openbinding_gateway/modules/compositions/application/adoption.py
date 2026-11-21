@@ -1,7 +1,7 @@
 """Adopting a sealed version in a composition environment: the one write that changes what an application runs.
 
-``adopt`` is the only way the version in effect changes. The web route calls it, and F6's proposal executor will
-call it with the ``If-Match`` a proposal recorded; there is no second adopt path. Its rules, in order:
+``adopt`` is the only way the version in effect changes: every caller goes through it with the ``If-Match`` it read,
+and there is no second adopt path (the upstream watcher never calls it). Its rules, in order:
 
 1. ``If-Match`` with an entity-tag is required (428 ``precondition_required`` when absent or ``*``).
 2. The caller's read phase is committed; then the composition is locked ``FOR KEY SHARE`` (it conflicts with a

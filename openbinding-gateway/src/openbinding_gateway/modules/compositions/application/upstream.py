@@ -11,7 +11,7 @@ who is not a member (a public composition's visitor) sees public snapshots only.
 have something to compare against: an entry with a stored snapshot, or whose version is not a SPHERE id, makes no
 call; at most ``network_limit`` entries are resolved over the network (``resolve_family`` keeping the family whose
 manifest lists the version, then ``snapshot_version``); a failure leaves the entry ``not_snapshotted``. It is
-idempotent and runs in the seal pre-phase and, later, in F6's poller.
+idempotent and runs in the seal pre-phase and in the upstream watcher (its scheduled attempts at unresolved refs).
 """
 
 from __future__ import annotations

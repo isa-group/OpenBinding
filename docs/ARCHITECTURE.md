@@ -580,6 +580,38 @@ Margins per offering plan (`GET …/versions/{version}/margins`, and `users` on 
 gateway, from a stored evaluation and the offering snapshot it read ([ADR 0055](adr/0055-margins-per-offering-plan.md)).
 `check` reports the version in effect against what its sources publish now and writes nothing.
 
+#### Upstream watches and events (F6-A)
+
+Every sealed version records what it reads upstream: `seal_into` inserts its **watch references**
+(`pricing_watch_refs`, insert-only) to the **watches** (`pricing_watches`, one per source and read scope) of its `from`
+entries, the value origins of its linked revision and its offering, from stored data only; a `from` without a stored
+snapshot is an unresolved ref, resolved later on its own back-off (`pricing_ref_attempts`). The **upstream watcher**
+(`modules/compositions/application/upstream_watcher.py`) is a second task of the gateway lifespan beside the job
+reconciler: every replica starts it, one works per cycle (its own advisory lock), and it claims due watches that a
+**live** version (a composition's latest, or an adopted one) references, asks each manifest conditionally, snapshots a
+new latest version as a system read, classifies it against each live version with the pure classifier
+(`upstream_classify`) and records an **upstream event** (`composition_upstream_events`), telling the members who can
+act. Events change only their state (`open` → `reviewed` → `resolved`), the review note and the stamps; a person's
+seal resolves them (`resolve_on_seal`, inside `seal_into`), never a route. Badges are computed when read, so nothing
+the watcher does moves an environment's ETag or a feed ([ADR 0057](adr/0057-upstream-watches-and-events.md)).
+
+| Setting | Default | What it does |
+|---|---|---|
+| `UPSTREAM_WATCH_ENABLED` | `true` | polls watched pricings (with `SPHERE_ENABLED` off nothing of the default SPHERE is read) |
+| `UPSTREAM_POLL_INTERVAL_S` | `300` | how often a watch is asked, staggered per watch; at least 60 in production, 10 elsewhere (the lab: 20) |
+| `UPSTREAM_POLL_BATCH` | `50` | watches claimed per cycle |
+| `UPSTREAM_READS_PER_CYCLE` | `20` | SPHERE requests a cycle may send (manifests, YAML, family reads) |
+| `UPSTREAM_CLASSIFY_PER_CYCLE` | `100` | classifier calls per cycle |
+| `UPSTREAM_NOT_FOUND_CONFIRMATIONS` | `2` | 404s, from requests actually sent at least one interval apart, before a family is gone |
+| `UPSTREAM_FAILURE_BACKOFF_MAX_S` | `3600` | the longest a failing watch waits |
+| `UPSTREAM_RESOLVE_PER_CYCLE` | `2` | attempts at unresolved refs per cycle |
+| `UPSTREAM_RESOLVE_BACKOFF_MAX_S` | `21600` | the longest an unresolved ref waits |
+| `PROPOSAL_EXECUTION_DEADLINE_S` | `600` | how long a proposal may run without progress before housekeeping closes it (F6-B) |
+
+`/v1/admin/queues` carries an `upstreamWatch` block (watches by status, what is due, the last observation, the
+events of the last day by category); `/health/ready` ignores the watcher, so a slow SPHERE never takes a gateway out of
+rotation.
+
 ### 7.4 Study
 
 A study selects problem versions, engine modes, parameter sets and seeds. A study run expands the
