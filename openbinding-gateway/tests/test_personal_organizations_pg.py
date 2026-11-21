@@ -47,11 +47,12 @@ async def test_a_personal_organization_is_always_a_root(pg) -> None:
         session.add(parent)
         personal = await ensure_personal_organization(session, user)
         await session.commit()
+        personal_id, parent_id, user_id = personal.id, parent.id, user.id
         with pytest.raises(IntegrityError, match="ck_organizations_personal_organization_is_root"):
-            await session.execute(update(Organization).where(Organization.id == personal.id).values(parent_id=parent.id))
+            await session.execute(update(Organization).where(Organization.id == personal_id).values(parent_id=parent_id))
         await session.rollback()
         # An ordinary organization takes a parent as before.
-        child = Organization(slug=f"c-{uuid.uuid4().hex[:6]}", name="Child", created_by_id=user.id, parent_id=parent.id)
+        child = Organization(slug=f"c-{uuid.uuid4().hex[:6]}", name="Child", created_by_id=user_id, parent_id=parent_id)
         session.add(child)
         await session.commit()
 
@@ -61,15 +62,16 @@ async def test_an_account_with_a_personal_organization_is_not_deleted(pg) -> Non
         user = await a_user(session)
         personal = await ensure_personal_organization(session, user)
         await session.commit()
+        personal_id, user_id = personal.id, user.id
         # The organization's creator is RESTRICT already; the personal owner is too, so a cleared creator would not
         # let a stray hard delete through either.
         await session.execute(
-            update(Organization).where(Organization.id == personal.id).values(created_by_id=(await a_user(session)).id)
+            update(Organization).where(Organization.id == personal_id).values(created_by_id=(await a_user(session)).id)
         )
         await session.commit()
         with pytest.raises(IntegrityError, match="fk_organizations_personal_owner_id_users"):
-            await session.execute(delete(User).where(User.id == user.id))
+            await session.execute(delete(User).where(User.id == user_id))
         await session.rollback()
         # Clearing the owner (what pseudonymisation does) leaves an ordinary organization.
-        await session.execute(update(Organization).where(Organization.id == personal.id).values(personal_owner_id=None))
+        await session.execute(update(Organization).where(Organization.id == personal_id).values(personal_owner_id=None))
         await session.commit()

@@ -20,7 +20,7 @@ from datetime import timedelta
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Request, Response, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -142,9 +142,19 @@ async def register(
             "already_registered",
             "That username or email is already in use.",
         )
-    if await username_reserved(session, request.username) or not await organization_profiles.personal_slug_free(
-        session, request.username
-    ):
+    if await username_reserved(session, request.username):
+        raise username_unavailable()
+    # "Alice" beside "alice" is the same name, already registered (uq_users_username_lower), before it is a name whose
+    # personal organization's slug is taken.
+    if await session.scalar(
+        select(User.id).where(func.lower(User.username) == request.username.casefold()).limit(1)
+    ) is not None:
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            "already_registered",
+            "That username or email is already in use.",
+        )
+    if not await organization_profiles.personal_slug_free(session, request.username):
         raise username_unavailable()
 
     # The plan a sign-up starts on is configuration (SPACE_DEFAULT_PLAN). Unset,
