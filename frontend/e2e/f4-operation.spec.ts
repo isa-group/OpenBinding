@@ -235,7 +235,7 @@ test.describe('J1 · feed keys, J3 · check now', () => {
     if (handle.operation) handle.operation.check = 'newer';
     await sources.getByRole('button', { name: 'Check now' }).click();
     await expect(report).toContainText(
-      'Brevo 2027-01 is newer than the pinned 2026-10 (plan PROFESSIONAL).'
+      'Brevo 2026-11 is newer than the pinned 2026-10 (plan PROFESSIONAL).'
     );
     await expect(report.getByText('Newer', { exact: true })).toBeVisible();
     expect(handle.operation?.adopted).toEqual([]);

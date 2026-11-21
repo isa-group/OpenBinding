@@ -736,8 +736,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expectSettingsNav(page, isMobile, 'Notifications');
       const runsByEmail = main.getByRole('switch', { name: 'Runs finished: Email' });
       await expect(runsByEmail).toHaveAttribute('aria-checked', 'false');
-      await expect(main.getByRole('switch')).toHaveCount(12);
+      await expect(main.getByRole('switch')).toHaveCount(14);
       await expect(main.getByRole('switch', { name: 'Adoptions: Email' })).toHaveAttribute(
+        'aria-checked',
+        'false'
+      );
+      await expect(main.getByRole('switch', { name: 'Upstream changes: Email' })).toHaveAttribute(
         'aria-checked',
         'false'
       );

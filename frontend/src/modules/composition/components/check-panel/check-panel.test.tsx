@@ -25,14 +25,16 @@ describe('the check panel', () => {
     expect(rows.at(-1)).toHaveTextContent('Valid on the installed toolchain.');
     for (const row of rows.slice(0, -2)) expect(row).toHaveTextContent(/is the latest.*Latest$/);
     expect(
-      screen.getByText(/Nothing was changed\. OpenBinding also watches these pricings every few minutes/)
+      screen.getByText(
+        /Nothing was changed\. OpenBinding also watches these pricings every few minutes/
+      )
     ).toBeInTheDocument();
   });
 
   it('names the newer version against the pinned one', async () => {
     const report = await run(newer);
     expect(report).toHaveTextContent(
-      'Brevo 2027-01 is newer than the pinned 2026-10 (plan PROFESSIONAL).'
+      'Brevo 2026-11 is newer than the pinned 2026-10 (plan PROFESSIONAL).'
     );
     expect(report).toHaveTextContent('Dropbox 2021 is the latest (plan PLUS).');
   });
