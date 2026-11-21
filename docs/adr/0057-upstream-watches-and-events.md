@@ -78,8 +78,8 @@ execution module.
 
 ## Consequences
 
-- Detection takes at most one interval (300 s, at least 60 s in production; 20 s in the lab); each watch costs one
-  conditional request per interval, and even a 304 makes SPHERE hash the family's versions.
+- Detection takes at most one interval (300 s, at least 60 s in production; 20 s in the lab from F6-C); each watch
+  costs one conditional request per interval, and even a 304 makes SPHERE hash the family's versions.
 - The "after" global value assumes nothing else changed; only a person's re-evaluation knows constraints and domains.
 - The normaliser's 1e8 `Unlimited` sentinel can make two different large numbers compare equal (`unlimited_sentinel`).
 - A version sealed before F6 has no refs (nothing is in production; labs are reset).

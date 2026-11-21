@@ -608,7 +608,7 @@ the watcher does moves an environment's ETag or a feed ([ADR 0057](adr/0057-upst
 | Setting | Default | What it does |
 |---|---|---|
 | `UPSTREAM_WATCH_ENABLED` | `true` | polls watched pricings (with `SPHERE_ENABLED` off nothing of the default SPHERE is read) |
-| `UPSTREAM_POLL_INTERVAL_S` | `300` | how often a watch is asked, staggered per watch; at least 60 in production, 10 elsewhere (the lab: 20) |
+| `UPSTREAM_POLL_INTERVAL_S` | `300` | how often a watch is asked, staggered per watch; at least 60 in production, 10 elsewhere (the lab keeps 300 until F6-C sets 20 with its SPHERE stand-in) |
 | `UPSTREAM_POLL_BATCH` | `50` | watches claimed per cycle |
 | `UPSTREAM_READS_PER_CYCLE` | `20` | SPHERE requests a cycle may send (manifests, YAML, family reads) |
 | `UPSTREAM_CLASSIFY_PER_CYCLE` | `100` | classifier calls per cycle |
