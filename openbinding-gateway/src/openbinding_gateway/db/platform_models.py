@@ -191,8 +191,8 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     description: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
     #: The account whose personal organization this is (SPHERE's ``isPersonal``): one per account, always a
-    #: root, never transferred, left, moved, renamed or deleted on its own. Cleared when the account is
-    #: pseudonymised, which leaves the organization as history.
+    #: root, never transferred, left, moved, renamed or deleted on its own: it is deleted with its account, by
+    #: ``DELETE /v1/users/me``, runs included.
     personal_owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, unique=True
     )

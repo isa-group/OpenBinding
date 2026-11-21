@@ -619,7 +619,7 @@ async def delete_own_account(
     ):
         raise api_error(status.HTTP_401_UNAUTHORIZED, "invalid_credentials", "The current password is required.")
 
-    # The personal organization does not count: it is pseudonymised with the account.
+    # The personal organization does not count: it is deleted with the account.
     owner_memberships = (await session.execute(select(OrganizationMembership).join(
         Organization, Organization.id == OrganizationMembership.organization_id,
     ).where(

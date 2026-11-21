@@ -128,7 +128,7 @@ PERSONAL_RESPONSES = {
 
 def _personal_refusal(action: str) -> HTTPException:
     """409 ``personal_organization``: what SPHERE's personal organizations refuse (``OrbitPlanService``,
-    ``OrganizationExitButton``). The organization goes with its account (pseudonymised, ``DELETE /v1/users/me``)."""
+    ``OrganizationExitButton``). The organization goes with its account: ``DELETE /v1/users/me`` deletes it whole."""
     return api_error(
         status.HTTP_409_CONFLICT,
         "personal_organization",

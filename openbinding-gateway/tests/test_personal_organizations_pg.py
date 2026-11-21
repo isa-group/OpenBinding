@@ -72,6 +72,7 @@ async def test_an_account_with_a_personal_organization_is_not_deleted(pg) -> Non
         with pytest.raises(IntegrityError, match="fk_organizations_personal_owner_id_users"):
             await session.execute(delete(User).where(User.id == user_id))
         await session.rollback()
-        # Clearing the owner (what pseudonymisation does) leaves an ordinary organization.
+        # With the owner cleared it is an ordinary organization, and the account may go (nothing in the gateway clears it:
+        # DELETE /v1/users/me deletes the organization instead).
         await session.execute(update(Organization).where(Organization.id == personal_id).values(personal_owner_id=None))
         await session.commit()
