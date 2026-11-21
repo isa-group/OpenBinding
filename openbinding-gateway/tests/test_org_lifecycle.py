@@ -217,7 +217,8 @@ async def test_a_reserved_slug_is_refused(api_client, registration, study_gate, 
 
     assert refused.status_code == 422, refused.text
     assert _code(refused) == "slug_reserved"
-    assert (await api_client.get("/v1/organizations", headers=headers)).json() == []
+    # Nothing was created: the account holds its personal organization only.
+    assert [row["is_personal"] for row in (await api_client.get("/v1/organizations", headers=headers)).json()] == [True]
 
 
 async def test_the_slug_of_an_organization_cannot_be_changed(api_client, registration, study_gate) -> None:  # noqa: F811
