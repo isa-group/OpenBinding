@@ -36,6 +36,7 @@ from .problems import (
     slug_from_name,
     store_compilation,
 )
+from .sphere import CandidateValues, SnapshotMeta, candidate_values, recipe_of_revision
 from .sphere import apply as sphere_apply
 from .sphere import dump as dump_document
 from .sphere import expand as sphere_expand
@@ -43,6 +44,10 @@ from .templates import TemplatePackage, TemplateProblem, examples_root, template
 from .validate import validate_package
 
 __all__ = [
+    "CandidateValues",
+    "SnapshotMeta",
+    "candidate_values",
+    "recipe_of_revision",
     "PRICED_KINDS",
     "Provenance",
     "ValueSources",
