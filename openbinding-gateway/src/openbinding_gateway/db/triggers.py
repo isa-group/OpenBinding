@@ -26,7 +26,7 @@ Four builders cover every guard:
 * ``retain(table)``: DELETE is rejected; the rows are history.
 * ``state_machine(table, column, transitions, set_once=...)``: an UPDATE must keep ``column`` or move it along
   ``transitions``, and each ``set_once`` column group may change only on the moves named for it (F6's upstream
-  events and, later, proposals).
+  events and proposals).
 """
 
 from __future__ import annotations
@@ -129,12 +129,13 @@ def state_machine(
     transitions: dict[str, tuple[str, ...]],
     *,
     set_once: tuple[tuple[tuple[str, ...], tuple[tuple[str, str], ...]], ...] = (),
+    json_columns: tuple[str, ...] = (),
     name: str | None = None,
     message: str | None = None,
 ) -> Trigger:
     """An UPDATE of ``table`` is rejected unless ``column`` stays or moves along ``transitions`` (``{old: news}``;
     a state with no entry is terminal), and unless each group of ``set_once`` columns changes only on one of the
-    ``(old, new)`` moves named for it."""
+    ``(old, new)`` moves named for it. ``json_columns`` among them are compared as ``jsonb`` on PostgreSQL."""
     for state, targets in transitions.items():
         for value in (state, *targets):
             if "'" in value:
@@ -152,7 +153,10 @@ def state_machine(
     for group, pairs in set_once:
         columns.extend(group)
         sqlite_changed = " OR ".join(f"OLD.{c} IS NOT NEW.{c}" for c in group)
-        pg_changed = " OR ".join(f"OLD.{c} IS DISTINCT FROM NEW.{c}" for c in group)
+        pg_changed = " OR ".join(
+            f"OLD.{c}::jsonb IS DISTINCT FROM NEW.{c}::jsonb" if c in json_columns else f"OLD.{c} IS DISTINCT FROM NEW.{c}"
+            for c in group
+        )
         sqlite_terms.append(f"(({sqlite_changed}) AND NOT ({moves(pairs)}))")
         pg_terms.append(f"(({pg_changed}) AND NOT ({moves(pairs)}))")
     # SQLite has no FALSE keyword before 3.23; 0 means the same there.
@@ -168,6 +172,12 @@ _UPSTREAM_EVENT_FIXED = (
     "id", "organization_id", "composition_id", "version_id", "watch_id", "subject", "tasks", "category", "reasons",
     "notify", "old_ref", "new_ref", "old_version_id", "new_version_id", "old_label", "new_label", "old_snapshot_id",
     "new_snapshot_id", "diff", "classifier", "detected_at",
+)
+
+#: The columns of a proposal that never change (its status, the supersession and the stamps move).
+_PROPOSAL_FIXED = (
+    "id", "organization_id", "composition_id", "origin", "scope_key", "proposed_by_id", "summary", "warnings",
+    "confirmation_phrase", "upstream_event_id", "created_at",
 )
 
 #: Joins a study (``s``) to its organization when that is the personal organization of a deleted account.
@@ -251,6 +261,31 @@ TRIGGERS: tuple[Trigger, ...] = (
             (("resolved_by_version_id", "resolved_by_id", "resolved_at"), (("open", "resolved"), ("reviewed", "resolved"))),
         ),
         message="an upstream event moves forward only, is reviewed once and resolved once",
+    ),
+    # F6: a proposal never changes what it proposes (its steps, bases and preview included); only its status moves,
+    # forward, with the stamps of each move, and a step's outcome is written once.
+    protect("proposals", _PROPOSAL_FIXED, json_columns=("warnings",),
+            message="a proposal is immutable but for its status and stamps"),
+    state_machine(
+        "proposals", "status",
+        {"pending": ("executing", "cancelled", "superseded", "stale"), "executing": ("completed", "partial", "failed")},
+        set_once=(
+            (("superseded_by_id",), (("pending", "superseded"),)),
+            (("confirmed_at",), (("pending", "executing"),)),
+            (("completed_at",), (("executing", "completed"), ("executing", "partial"), ("executing", "failed"))),
+        ),
+        message="a proposal moves forward only",
+    ),
+    protect("proposal_steps", ("id", "proposal_id", "ordinal", "kind", "description", "params", "base", "preview",
+                               "depends_on", "destructive"),
+            json_columns=("params", "base", "depends_on"), message="a proposal step is immutable but for its outcome"),
+    state_machine(
+        "proposal_steps", "status",
+        {"pending": ("done", "failed", "skipped")},
+        set_once=((("result", "error", "finished_at"),
+                   (("pending", "done"), ("pending", "failed"), ("pending", "skipped"))),),
+        json_columns=("result", "error"),
+        message="a proposal step ends once",
     ),
 )
 

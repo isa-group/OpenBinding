@@ -73,6 +73,7 @@ async def test_an_adoption_names_a_version_and_an_evaluation_of_its_composition(
             row = dict(
                 environment_id=environment_id, ordinal=1, composition_id=w.composition_id,
                 version_id=w.versions[0], evaluation_id=w.evaluations[0], content_digest="d", actor_id=w.user_id,
+                source="direct",
             )
             row.update(values)
             with pytest.raises(IntegrityError, match=constraint):
@@ -209,7 +210,8 @@ async def _adopt(pg, w, environment_id, version: str, tag: str) -> tuple[int, st
         try:
             adopted = await adoption.adopt(
                 session, organization=organization, composition=composition, environment=environment,
-                role=OrganizationRole.OWNER, version_ref=version, actor=actor, if_match=tag,
+                role=OrganizationRole.OWNER, version_ref=version, actor=actor, if_match=tag, source="direct",
+                proposal_id=None,
             )
         except HTTPException as exc:
             await session.rollback()

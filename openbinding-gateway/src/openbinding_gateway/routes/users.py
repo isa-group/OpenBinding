@@ -7,15 +7,15 @@ import uuid
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
     ApiKey, AuditEvent, AuthIdentity, BindingCase, Composition, CompositionEnvironment, CompositionEnvironmentKey,
     IdentitySession, Job, JobEngineAttempt, Notification, NotificationStreamTicket, Organization,
-    OrganizationInvitationCode, OrganizationMembership, OrganizationRole, PasswordResetToken, Study, StudyRun, User,
-    UserRole, utcnow,
+    OrganizationInvitationCode, OrganizationMembership, OrganizationRole, PasswordResetToken, Proposal, Study, StudyRun,
+    User, UserRole, utcnow,
 )
 from ..modules.identity.application import PSEUDONYM_PREFIX, end_all, institutional_email, managed_by_identity, owner_may_use_keys
 from ..models.accounts import (
@@ -659,6 +659,7 @@ async def delete_own_account(
     # pseudonym, a RESTRICT) stops the deletion while the contract still exists;
     # a contract that cannot be removed then rolls the whole request back.
     await pseudonymise(session, user)
+    await cancel_pending_proposals(session, user, personal)
     if personal is not None:
         # After the pseudonymisation: a deleted account's personal organization is the one whose study runs may go.
         await delete_personal_organization(session, personal)
@@ -668,6 +669,29 @@ async def delete_own_account(
         raise pricing_unavailable_error(exc, where="contract removal") from exc
 
 
+
+
+async def cancel_pending_proposals(session: AsyncSession, user: User, personal: Organization | None) -> int:
+    """F6-B: the account's pending proposals in every other organization become ``cancelled`` (audited there), in the
+    caller's transaction; its personal organization's go with it. How many."""
+    query = select(Proposal.id, Proposal.organization_id).where(
+        Proposal.proposed_by_id == user.id, Proposal.status == "pending",
+    )
+    if personal is not None:
+        query = query.where(Proposal.organization_id != personal.id)
+    cancelled = 0
+    for proposal_id, organization_id in (await session.execute(query.order_by(Proposal.id))).all():
+        changed = await session.execute(
+            update(Proposal).where(Proposal.id == proposal_id, Proposal.status == "pending")
+            .values(status="cancelled").execution_options(synchronize_session=False)
+        )
+        if changed.rowcount == 1:
+            cancelled += 1
+            session.add(AuditEvent(
+                organization_id=organization_id, actor_id=user.id, action="composition.proposal_cancelled",
+                target_type="Proposal", target_id=proposal_id, detail={"reason": "account_deleted"},
+            ))
+    return cancelled
 
 
 async def pseudonymise(session: AsyncSession, user: User) -> None:

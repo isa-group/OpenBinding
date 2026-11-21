@@ -1251,6 +1251,13 @@ class AdoptionOffering(BaseModel):
     createdAt: Optional[str]
 
 
+class AdoptionProposal(BaseModel):
+    """The proposal an adoption was made through."""
+
+    id: uuid.UUID
+    summary: str
+
+
 class CompositionAdoptionView(BaseModel):
     """One adoption of an environment's history: insert only."""
 
@@ -1263,6 +1270,10 @@ class CompositionAdoptionView(BaseModel):
     evaluation: Optional[AdoptionEvaluation] = Field(description="The evaluation the adoption pinned.")
     offering: Optional[AdoptionOffering] = Field(description="The offering version that evaluation read.")
     feedEtag: str = Field(description="The feed's `ETag` after this adoption: the version's content digest, quoted.")
+    source: Literal["direct", "proposal"] = Field(
+        description="How a person made it: `direct` (the adopt route) or `proposal` (a confirmed proposal's step).",
+    )
+    proposal: Optional[AdoptionProposal] = Field(description="The proposal that made it; null for a direct adoption.")
 
 
 class CompositionAdoptionList(BaseModel):

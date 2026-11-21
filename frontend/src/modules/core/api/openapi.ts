@@ -3635,6 +3635,19 @@ export interface components {
             /** Versionname */
             versionName: string | null;
         };
+        /**
+         * AdoptionProposal
+         * @description The proposal an adoption was made through.
+         */
+        AdoptionProposal: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Summary */
+            summary: string;
+        };
         AnalysisResult: {
             analysis: {
                 bindingSpace: string;
@@ -4577,6 +4590,14 @@ export interface components {
             ordinal: number;
             /** @description The version in effect before; null for the first. */
             previousVersion: components["schemas"]["VersionName"] | null;
+            /** @description The proposal that made it; null for a direct adoption. */
+            proposal: components["schemas"]["AdoptionProposal"] | null;
+            /**
+             * Source
+             * @description How a person made it: `direct` (the adopt route) or `proposal` (a confirmed proposal's step).
+             * @enum {string}
+             */
+            source: "direct" | "proposal";
             version: components["schemas"]["VersionName"];
         };
         /**

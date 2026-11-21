@@ -19,7 +19,7 @@ import uuid
 from dataclasses import dataclass
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,6 +35,8 @@ from ....db.models import (
     Organization,
     OrganizationRole,
     PricingSnapshot,
+    Proposal,
+    ProposalStep,
     User,
 )
 from ....models.errors import api_error
@@ -258,12 +260,38 @@ async def delete_environment(
     ) or 0)
     await session.execute(delete(CompositionEnvironmentKey).where(CompositionEnvironmentKey.environment_id == locked.id))
     await session.execute(delete(CompositionAdoption).where(CompositionAdoption.environment_id == locked.id))
+    staled = await stale_proposals_adopting_in(session, composition, locked, actor)
     audit(
         session, actor, "composition.environment_deleted", TARGET, locked.id, locked.organization_id,
         composition=composition.slug, environment=locked.slug, version=in_effect, adoptions=adoptions,
+        staleProposals=staled,
     )
     await session.delete(locked)
     await session.flush()
+
+
+async def stale_proposals_adopting_in(
+    session: AsyncSession, composition: Composition, environment: CompositionEnvironment, actor: User,
+) -> int:
+    """F6-B: every pending proposal of ``composition`` with an ``adopt`` step in ``environment`` becomes ``stale`` (in
+    the caller's transaction), so it can neither run nor dangle once the environment is deleted; how many."""
+    candidates = (await session.execute(
+        select(Proposal.id, ProposalStep.params).join(ProposalStep, ProposalStep.proposal_id == Proposal.id).where(
+            Proposal.composition_id == composition.id, Proposal.status == "pending", ProposalStep.kind == "adopt",
+        )
+    )).all()
+    ids = sorted({row.id for row in candidates if str((row.params or {}).get("environment")) == str(environment.id)})
+    staled = 0
+    for proposal_id in ids:
+        changed = await session.execute(
+            update(Proposal).where(Proposal.id == proposal_id, Proposal.status == "pending")
+            .values(status="stale").execution_options(synchronize_session=False)
+        )
+        if changed.rowcount == 1:
+            staled += 1
+            audit(session, actor, "composition.proposal_stale", "Proposal", proposal_id, composition.organization_id,
+                  reasons=["environment_missing"], environment=environment.slug)
+    return staled
 
 
 # -- Reading ---------------------------------------------------------------------------------------------

@@ -345,3 +345,43 @@ async def test_an_organization_with_watches_refs_and_upstream_events_is_deleted(
         assert await _count(reader, model, model.organization_id.in_(ids)) == 0
     assert await _count(reader, PricingWatch, PricingWatch.id == own) == 0
     assert await _count(reader, PricingWatch, PricingWatch.id == shared) == 1
+
+
+async def test_an_organization_whose_environment_holds_a_proposal_made_adoption_is_deleted(two_sessions):
+    """F6-B on the real foreign keys: ``production`` holds an adoption made by a proposal that answers an upstream event,
+    beside a proposal it superseded; adoptions go, then steps and proposals, then events (the lab after smoke 21)."""
+    from _environment_rows import World, _version, adoption, environment
+    from _proposal_rows import proposal, step
+    from _upstream_rows import event, watch
+    from openbinding_gateway.db.models import CompositionAdoption, CompositionUpstreamEvent, Proposal, ProposalStep
+
+    session, reader = two_sessions
+    user = await _user(session)
+    upload = await problem_for(session, user)
+    organization = await session.get(Organization, upload.problem.organization_id)
+    composition = Composition(organization_id=organization.id, slug="tomato", name="Tomato", created_by_id=user.id)
+    session.add(composition)
+    await session.flush()
+    version_id, evaluation_id = await _version(session, composition.id, user.id, 1, "1.0.0")
+    w = World(user.id, organization.id, composition.id, (version_id,), (evaluation_id,), composition.id, version_id,
+              evaluation_id)
+    answered = await event(session, w, await watch(session))
+    done = await proposal(session, w, status="completed", upstream_event_id=answered)
+    await step(session, done, status="done", result={"ordinal": 1}, finished_at=utcnow())
+    older = await proposal(session, w, status="superseded", superseded_by_id=done)
+    await step(session, older)
+    oldest = await proposal(session, w, status="superseded", superseded_by_id=older)
+    await step(session, oldest)
+    environment_id = await environment(session, w, adopted_version_id=version_id, adoption_ordinal=1)
+    await adoption(session, w, environment_id, 1, source="proposal", proposal_id=done)
+    await session.commit()
+    ids, slug = [organization.id], organization.slug
+
+    await delete_organization(org=slug, user=user, session=session)
+    await session.commit()
+
+    assert await _count(reader, Organization, Organization.id.in_(ids)) == 0
+    for model in (Proposal, CompositionUpstreamEvent):
+        assert await _count(reader, model, model.organization_id.in_(ids)) == 0
+    assert await _count(reader, ProposalStep, ProposalStep.proposal_id.in_([done, older, oldest])) == 0
+    assert await _count(reader, CompositionAdoption, CompositionAdoption.environment_id == environment_id) == 0

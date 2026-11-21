@@ -236,3 +236,74 @@ async def test_an_account_whose_personal_organization_watches_pricings_is_delete
                 select(func.count()).select_from(model).where(model.organization_id == personal_id)) == 0, model
         assert await session.get(PricingWatch, own) is None
         assert await session.get(PricingWatch, shared) is not None
+
+
+async def test_an_account_whose_personal_organization_holds_proposals_is_deleted_cleanly(pg) -> None:
+    """F6-B: a personal organization's proposals, their steps and an adoption made through one go with the account."""
+    from sqlalchemy import func, select
+
+    from _environment_rows import World, _version, adoption, environment
+    from _proposal_rows import proposal, step
+    from _upstream_rows import event, watch
+    from openbinding_gateway.db.models import Composition, Proposal, ProposalStep
+    from openbinding_gateway.routes.organizations import delete_personal_organization, lock_personal_organization
+    from openbinding_gateway.routes.users import cancel_pending_proposals
+
+    async with pg.session() as session:
+        user = await a_user(session)
+        personal = await ensure_personal_organization(session, user)
+        composition = Composition(organization_id=personal.id, slug="tomato", name="Tomato", created_by_id=user.id)
+        session.add(composition)
+        await session.flush()
+        version_id, evaluation_id = await _version(session, composition.id, user.id, 1, "1.0.0")
+        w = World(user.id, personal.id, composition.id, (version_id,), (evaluation_id,), composition.id, version_id,
+                  evaluation_id)
+        done = await proposal(session, w, status="completed", upstream_event_id=await event(session, w, await watch(session)))
+        await step(session, done, status="done", result={"ordinal": 1}, finished_at=utcnow())
+        pending = await proposal(session, w, scope_key="conversation:x")
+        await step(session, pending)
+        environment_id = await environment(session, w, adopted_version_id=version_id, adoption_ordinal=1)
+        await adoption(session, w, environment_id, 1, source="proposal", proposal_id=done)
+        await session.commit()
+        personal_id, user_id = personal.id, user.id
+
+        await lock_personal_organization(session, await session.get(Organization, personal_id))
+        await session.execute(update(User).where(User.id == user_id).values(deleted_at=utcnow()))
+        # Its own organization's pending proposal is not cancelled first: it goes with the organization.
+        assert await cancel_pending_proposals(session, await session.get(User, user_id),
+                                              await session.get(Organization, personal_id)) == 0
+        await delete_personal_organization(session, await session.get(Organization, personal_id))
+        await session.commit()
+
+        assert await session.get(Organization, personal_id) is None
+        assert await session.scalar(
+            select(func.count()).select_from(Proposal).where(Proposal.organization_id == personal_id)) == 0
+        assert await session.scalar(
+            select(func.count()).select_from(ProposalStep).where(ProposalStep.proposal_id.in_([done, pending]))) == 0
+
+
+async def test_deleting_an_account_cancels_its_pending_proposals_in_a_team_organization(pg) -> None:
+    """F6-B on PostgreSQL: the account's pending proposal in a team organization becomes ``cancelled`` under the
+    state machine (the user row stays, so ``proposed_by_id`` still holds); its finished one is untouched."""
+    from _proposal_rows import proposal, world
+    from openbinding_gateway.db.models import AuditEvent, Proposal
+    from openbinding_gateway.routes.users import cancel_pending_proposals
+
+    async with pg.session() as session:
+        w = await world(session)
+        user = await session.get(User, w.user_id)
+        personal = await ensure_personal_organization(session, user)
+        pending = await proposal(session, w)
+        finished = await proposal(session, w, status="cancelled")
+        await session.commit()
+        personal_id = personal.id
+
+        assert await cancel_pending_proposals(session, user, await session.get(Organization, personal_id)) == 1
+        await session.commit()
+
+        assert (await session.get(Proposal, pending, populate_existing=True)).status == "cancelled"
+        assert (await session.get(Proposal, finished, populate_existing=True)).status == "cancelled"
+        from sqlalchemy import select
+
+        audit = await session.scalar(select(AuditEvent).where(AuditEvent.target_id == pending))
+        assert audit.action == "composition.proposal_cancelled" and audit.organization_id == w.organization_id

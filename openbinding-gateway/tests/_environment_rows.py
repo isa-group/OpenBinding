@@ -90,7 +90,7 @@ async def adoption(session, w: World, environment_id, ordinal: int, version_inde
     row = CompositionAdoption(
         environment_id=environment_id, ordinal=ordinal, composition_id=w.composition_id,
         version_id=w.versions[version_index], evaluation_id=w.evaluations[version_index],
-        content_digest="sha256-" + "0" * 64, actor_id=w.user_id, **values,
+        content_digest="sha256-" + "0" * 64, actor_id=w.user_id, **{"source": "direct", **values},
     )
     session.add(row)
     await session.flush()

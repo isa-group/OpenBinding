@@ -504,6 +504,26 @@
         "title": "AdoptionOffering",
         "type": "object"
       },
+      "AdoptionProposal": {
+        "description": "The proposal an adoption was made through.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "summary"
+        ],
+        "title": "AdoptionProposal",
+        "type": "object"
+      },
       "AnalysisResult": {
         "additionalProperties": false,
         "properties": {
@@ -3584,6 +3604,26 @@
             ],
             "description": "The version in effect before; null for the first."
           },
+          "proposal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdoptionProposal"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The proposal that made it; null for a direct adoption."
+          },
+          "source": {
+            "description": "How a person made it: `direct` (the adopt route) or `proposal` (a confirmed proposal's step).",
+            "enum": [
+              "direct",
+              "proposal"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
           "version": {
             "$ref": "#/components/schemas/VersionName"
           }
@@ -3597,7 +3637,9 @@
           "note",
           "evaluation",
           "offering",
-          "feedEtag"
+          "feedEtag",
+          "source",
+          "proposal"
         ],
         "title": "CompositionAdoptionView",
         "type": "object"

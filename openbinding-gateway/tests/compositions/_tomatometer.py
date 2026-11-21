@@ -94,6 +94,7 @@ async def seeded(api_client, registration, db_session, gate, *, production: bool
         await adoption.adopt(
             db_session, organization=organization, composition=composition, environment=environment,
             role=OrganizationRole.OWNER, version_ref="1.0.0", actor=user, if_match=etags.etag_for(environment),
+            source="direct", proposal_id=None,
         )
         await db_session.commit()
         found.production = await db_session.get(CompositionEnvironment, environment.id)

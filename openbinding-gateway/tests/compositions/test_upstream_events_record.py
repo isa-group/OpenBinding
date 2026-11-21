@@ -347,7 +347,7 @@ async def test_a_url_offering_is_watched_through_its_snapshots(api_client, regis
     organization, user = found.organization, found.user
     await adoption.adopt(db_session, organization=organization, composition=shop, environment=environment,
                          role=OrganizationRole.OWNER, version_ref="1.0.0", actor=user,
-                         if_match=etags.etag_for(environment))
+                         if_match=etags.etag_for(environment), source="direct", proposal_id=None)
     await db_session.commit()
     shop_id = shop.id
     feed = await api_client.get(f"{base}/shop/environments/production/composition", headers=found.headers)

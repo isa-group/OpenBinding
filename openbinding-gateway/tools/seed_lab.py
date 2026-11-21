@@ -616,7 +616,7 @@ async def ensure_environments(
                 adopted = await adoption.adopt(
                     session, organization=organization, composition=composition, environment=row,
                     role=OrganizationRole.OWNER, version_ref=adopt, actor=owner, if_match=etags.etag_for(row),
-                    note="Seeded by the lab",
+                    note="Seeded by the lab", source="direct", proposal_id=None,
                 )
                 row = adopted.environment
                 created.append(f"adoption:{organization.slug}/{composition.slug}/{slug}@{adopt}")
