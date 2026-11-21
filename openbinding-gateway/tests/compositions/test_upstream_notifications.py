@@ -141,6 +141,34 @@ async def test_a_born_resolved_event_on_an_adopted_version_is_told_with_its_reso
     assert "already resolved in 1.2.0, not adopted in production" in row.body
 
 
+async def test_two_affected_versions_give_one_notification_naming_both(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
+    import yaml
+
+    from openbinding_gateway.db.models import CompositionUpstreamEvent
+
+    found = await seeded(api_client, registration, db_session, gate)
+    base = f"/v1/organizations/{found.org}/compositions/tomatometer"
+    document = yaml.safe_load((await api_client.get(f"{base}/versions/1.0.0/content", headers=found.headers)).text)
+    document["version"] = "1.2.0"  # the latest, still on Brevo 2026-10, while production keeps 1.0.0
+    document.pop("problem")
+    document.pop("evidence", None)
+    sealed = await api_client.post(f"{base}/versions", content=yaml.safe_dump(document, sort_keys=False).encode(),
+                                   headers={**found.headers, "content-type": "application/yaml"})
+    assert sealed.status_code == 201, sealed.text
+    await cycle(db_session, source)
+    sphere.publish("brevo-professional-up")
+    clocks.advance(30)
+    report = await cycle(db_session, source)
+    events = (await db_session.scalars(select(CompositionUpstreamEvent).where(CompositionUpstreamEvent.notify.is_(True))
+                                       .execution_options(populate_existing=True))).all()
+    assert len(events) == 2
+    (row,) = (await _told(db_session))[str(found.ids["user"])]
+    assert report.notified == 1
+    assert sorted(row.payload["versions"]) == ["1.0.0", "1.2.0"]
+    assert sorted(row.payload["events"]) == sorted(str(event.id) for event in events)
+    assert row.payload["event"] in row.payload["events"] and row.payload["environments"] == ["production"]
+
+
 async def test_the_stream_delivers_the_row_once_committed(api_client, registration, db_session, gate, sphere, source, clocks):  # noqa: F811
     found = await seeded(api_client, registration, db_session, gate)
     await cycle(db_session, source)

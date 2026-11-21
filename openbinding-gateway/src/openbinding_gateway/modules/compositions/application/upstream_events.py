@@ -328,6 +328,11 @@ async def record(session: AsyncSession, watch: PricingWatch, *, budget: list[int
                 event_id, told = inserted
                 done.inserted.append(event_id)
                 done.notified += told
+    if done.inserted:
+        # One notification per recipient per (composition, watch, new version), naming every version this call
+        # found affected, written once the call's events are committed.
+        done.notified += await notify_inserted(session, done.inserted)
+        await session.commit()
     return done
 
 
@@ -470,13 +475,11 @@ async def _write(session: AsyncSession, watch: PricingWatch, version: Compositio
         "detected_at": clock.now(session), **stamps,
     }
     inserted = (await session.execute(_insert(session, values, subject))).scalar_one_or_none()
-    told = 0
     if inserted is not None:
         logger.info("upstream_event_created id=%s category=%s composition=%s", inserted, found.category.value,
                     composition.id)
-        told = await notify_inserted(session, [inserted])
     await session.commit()
-    return (inserted, told) if inserted is not None else False
+    return (inserted, 0) if inserted is not None else False
 
 
 async def recipients(session: AsyncSession, event: CompositionUpstreamEvent) -> list[uuid.UUID]:
@@ -503,57 +506,70 @@ async def recipients(session: AsyncSession, event: CompositionUpstreamEvent) -> 
 
 
 async def notify_inserted(session: AsyncSession, event_ids: list[uuid.UUID]) -> int:
-    """Tell the members who can act about newly inserted events, in the events' transaction: one notification per
-    recipient per (composition, watch, new version), for told events only; returns how many were written."""
+    """Tell the members who can act about newly inserted events: one notification per recipient per (composition,
+    watch, new version), for told events only, naming every affected version of the group, its most severe event
+    and its worst category. A group already told by an earlier event is not told again. Returns how many were
+    written; the caller commits."""
     from ....db.models import Organization
     from ...shared.application import UPSTREAM_EVENT, notify
-    from ..domain.upstream import WORDS, Category
+    from ..domain.upstream import SEVERITY, WORDS, Category
 
-    told = 0
+    groups: dict[tuple[uuid.UUID, uuid.UUID, str], list[CompositionUpstreamEvent]] = {}
     for event_id in event_ids:
         event = await session.get(CompositionUpstreamEvent, event_id)
-        if event is None or not event.notify:
-            continue
-        sibling = await session.scalar(select(exists().where(
-            CompositionUpstreamEvent.composition_id == event.composition_id,
-            CompositionUpstreamEvent.watch_id == event.watch_id,
-            CompositionUpstreamEvent.new_ref == event.new_ref,
+        if event is not None and event.notify:
+            groups.setdefault((event.composition_id, event.watch_id, event.new_ref), []).append(event)
+    told = 0
+    for (composition_id, watch_id, new_ref), events in groups.items():
+        earlier = await session.scalar(select(exists().where(
+            CompositionUpstreamEvent.composition_id == composition_id,
+            CompositionUpstreamEvent.watch_id == watch_id,
+            CompositionUpstreamEvent.new_ref == new_ref,
             CompositionUpstreamEvent.notify.is_(True),
-            CompositionUpstreamEvent.id != event.id,
+            CompositionUpstreamEvent.id.not_in([event.id for event in events]),
         )))
-        if sibling:
+        if earlier:
             continue  # this upstream version was already told for this composition
-        composition = await session.get(Composition, event.composition_id)
-        organization = await session.get(Organization, event.organization_id)
-        version = await session.get(CompositionVersion, event.version_id)
-        pricing = dict(event.diff.get("pricing") or {})
+        main = max(events, key=lambda event: SEVERITY[Category(event.category)])
+        composition = await session.get(Composition, composition_id)
+        organization = await session.get(Organization, main.organization_id)
+        labels = []
+        for event in events:
+            version = await session.get(CompositionVersion, event.version_id)
+            if version is not None and version.label not in labels:
+                labels.append(version.label)
+        pricing = dict(main.diff.get("pricing") or {})
         title = pricing.get("title") or pricing.get("sphere") or pricing.get("url") or "A pricing"
-        new_label = event.new_label or ("gone" if event.new_ref.startswith(f"{GONE}:") else event.new_ref)
+        new_label = main.new_label or ("gone" if new_ref.startswith(f"{GONE}:") else new_ref)
         environments = list((await session.scalars(
             select(CompositionEnvironment.slug).where(
-                CompositionEnvironment.composition_id == event.composition_id,
-                CompositionEnvironment.adopted_version_id == event.version_id,
+                CompositionEnvironment.composition_id == composition_id,
+                CompositionEnvironment.adopted_version_id.in_([event.version_id for event in events]),
             ).order_by(CompositionEnvironment.slug)
         )).all())
         resolved_by = None
-        if event.state == "resolved" and event.resolved_by_version_id is not None:
-            resolver = await session.get(CompositionVersion, event.resolved_by_version_id)
+        if main.state == "resolved" and main.resolved_by_version_id is not None:
+            resolver = await session.get(CompositionVersion, main.resolved_by_version_id)
             resolved_by = {"version": resolver.label} if resolver is not None else None
-        words = WORDS[Category(event.category)]
+        words = WORDS[Category(main.category)]
         subject = f"{title} {new_label}: {composition.name} {words}"
         where = f" (in effect in {', '.join(environments)})" if environments else ""
-        body = f"{title} {event.old_label or event.old_ref} -> {new_label} changes {composition.name} {version.label}{where}."
+        body = (f"{title} {main.old_label or main.old_ref} -> {new_label} changes {composition.name} "
+                f"{', '.join(labels)}{where}.")
         if resolved_by is not None:
-            body = (f"{title} {new_label} changed {composition.name} {version.label}: already resolved in "
+            body = (f"{title} {new_label} changed {composition.name} {', '.join(labels)}: already resolved in "
                     f"{resolved_by['version']}, not adopted in {', '.join(environments) or 'any environment'}.")
         payload = {
-            "organization": organization.slug, "composition": composition.slug, "events": [str(event.id)],
-            "event": str(event.id), "versions": [version.label], "environments": environments,
-            "category": event.category, "pricing": {"sphere": pricing.get("sphere"), "url": pricing.get("url"),
-                                                     "title": pricing.get("title")},
+            "organization": organization.slug, "composition": composition.slug,
+            "events": [str(event.id) for event in events], "event": str(main.id), "versions": labels,
+            "environments": environments, "category": main.category,
+            "pricing": {"sphere": pricing.get("sphere"), "url": pricing.get("url"), "title": pricing.get("title")},
             "newVersion": new_label, "resolvedBy": resolved_by,
         }
-        for user_id in await recipients(session, event):
+        people: list[uuid.UUID] = []
+        for event in events:
+            people += [person for person in await recipients(session, event) if person not in people]
+        for user_id in people:
             if await notify(session, user_id, UPSTREAM_EVENT, subject, body, **payload) is not None:
                 told += 1
     return told
