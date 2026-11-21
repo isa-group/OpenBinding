@@ -2,7 +2,8 @@
 // 73779a8a), https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández. MIT licence: the full
 // text is in THIRD_PARTY_NOTICES.md. Adapted: OpenBinding's kinds and payload (an invitation opens its join page, a new
 // version its composition at that version, an adoption the composition's Operation tab on that environment, a finished or
-// failed run the run); the icon of each kind; an adoption's line said from its payload; the time as date-fns says it
+// failed run the run, an upstream change the composition's Operation tab); the icon of each kind; an adoption's line said
+// from its payload; the time as date-fns says it
 // (SPHERE's two copies of `timeAgo` are gone).
 
 import { formatDistanceStrict } from 'date-fns';
@@ -17,6 +18,7 @@ export const KIND_ICONS: Record<string, string> = {
   RunFinished: 'mdi:check-circle-outline',
   RunFailed: 'mdi:close',
   CompositionAdopted: 'mdi:check',
+  UpstreamEvent: 'mdi:update',
 };
 
 export const KIND_LABELS: Record<string, string> = {
@@ -26,6 +28,7 @@ export const KIND_LABELS: Record<string, string> = {
   RunFinished: 'Runs finished',
   RunFailed: 'Runs failed',
   CompositionAdopted: 'Adoptions',
+  UpstreamEvent: 'Upstream changes',
 };
 
 const text = (value: unknown) => (typeof value === 'string' && value ? value : null);
@@ -56,6 +59,12 @@ export function notificationLink(
       return adoptedOrg && composition
         ? compositionPath(adoptedOrg, composition, 'operation', { environment })
         : null;
+    }
+    case 'UpstreamEvent': {
+      // The composition's Operation tab, where its upstream changes are listed.
+      const eventOrg = text(payload.organization);
+      const composition = text(payload.composition);
+      return eventOrg && composition ? compositionPath(eventOrg, composition, 'operation') : null;
     }
     case 'RunFinished':
     case 'RunFailed': {

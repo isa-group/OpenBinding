@@ -44,6 +44,11 @@ const KINDS: Record<Kind, { label: string; description: string }> = {
     description:
       'When a version is adopted in an environment you operate or a composition you follow',
   },
+  UpstreamEvent: {
+    label: 'Upstream changes',
+    description:
+      'When a pricing a composition of yours reads changes upstream (you are a member who can act, or operate its environment)',
+  },
 };
 
 const CHANNELS = [
@@ -54,12 +59,13 @@ const CHANNELS = [
 type Channel = (typeof CHANNELS)[number]['key'];
 type Grid = Record<Kind, KindChannels>;
 
-/** A kind with no saved preference takes the gateway's default (both channels, but no email for adoptions). */
+/** A kind with no saved preference takes the gateway's default (both channels, but no email for adoptions and
+ * upstream changes). */
 function gridOf(preferences: NotificationPreferences): Grid {
   return Object.fromEntries(
     NOTIFICATION_KINDS.map(kind => {
       const saved = preferences.kinds?.[kind];
-      const email = saved?.email ?? kind !== 'CompositionAdopted';
+      const email = saved?.email ?? (kind !== 'CompositionAdopted' && kind !== 'UpstreamEvent');
       return [kind, { inbox: saved?.inbox !== false, email }];
     })
   ) as Grid;

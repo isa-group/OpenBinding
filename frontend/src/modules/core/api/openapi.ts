@@ -14593,7 +14593,7 @@ export interface operations {
             query?: {
                 unread_only?: boolean;
                 /** @description Only notifications of this kind. */
-                kind?: ("OrganizationInvitation" | "System" | "CompositionUpdated" | "RunFinished" | "RunFailed" | "CompositionAdopted") | null;
+                kind?: ("OrganizationInvitation" | "System" | "CompositionUpdated" | "RunFinished" | "RunFailed" | "CompositionAdopted" | "UpstreamEvent") | null;
                 offset?: number;
                 limit?: number;
             };

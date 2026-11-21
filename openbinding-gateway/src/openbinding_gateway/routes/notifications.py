@@ -46,6 +46,7 @@ router = APIRouter(prefix="/v1/notifications", tags=["Notifications"])
 NOTIFICATION_RETENTION_DAYS = NOTIFICATION_RETENTION_DAYS
 NotificationKind = Literal[
     "OrganizationInvitation", "System", "CompositionUpdated", "RunFinished", "RunFailed", "CompositionAdopted",
+    "UpstreamEvent",
 ]
 
 #: How long a stream ticket may wait to be used.

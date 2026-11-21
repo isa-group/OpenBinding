@@ -21,6 +21,7 @@ export const NOTIFICATION_KINDS = [
   'RunFinished',
   'RunFailed',
   'CompositionAdopted',
+  'UpstreamEvent',
 ] as const;
 
 export interface NotificationQuery {

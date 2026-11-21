@@ -210,3 +210,14 @@ async def test_expired_notification_cannot_be_marked_read(api_client, registrati
 
     resp = await api_client.post(f"/v1/notifications/{expired_notif.id}/read", headers=headers)
     assert resp.status_code == 404
+
+
+def test_the_kind_literal_is_the_kinds_list():
+    """The API's enum and the inbox's kinds are one list (F6 added ``UpstreamEvent`` to both)."""
+    from typing import get_args
+
+    from openbinding_gateway.modules.shared.application import NOTIFICATION_KINDS, default_channels
+    from openbinding_gateway.routes.notifications import NotificationKind
+
+    assert get_args(NotificationKind) == NOTIFICATION_KINDS
+    assert default_channels("UpstreamEvent") == {"inbox": True, "email": False}

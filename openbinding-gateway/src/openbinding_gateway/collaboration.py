@@ -87,6 +87,28 @@ async def effective_role(
     return max(roles, key=ROLE_STRENGTH.get) if roles else None
 
 
+async def members_with_role(
+    session: AsyncSession, organization_id: uuid.UUID, minimum: OrganizationRole
+) -> list[uuid.UUID]:
+    """The active users whose effective role on the organization is at least ``minimum``: memberships of the
+    organization and of each ancestor, the strongest one winning (a personal organization's owner included)."""
+    ancestors = await ancestor_ids(session, organization_id)
+    if not ancestors:
+        return []
+    rows = (await session.execute(
+        select(OrganizationMembership.user_id, OrganizationMembership.role)
+        .join(User, User.id == OrganizationMembership.user_id)
+        .where(OrganizationMembership.organization_id.in_(ancestors), User.is_active.is_(True),
+               User.deleted_at.is_(None))
+    )).all()
+    best: dict[uuid.UUID, OrganizationRole] = {}
+    for user_id, role in rows:
+        role = OrganizationRole(role)
+        if user_id not in best or ROLE_STRENGTH[role] > ROLE_STRENGTH[best[user_id]]:
+            best[user_id] = role
+    return sorted((user_id for user_id, role in best.items() if ROLE_STRENGTH[role] >= ROLE_STRENGTH[minimum]), key=str)
+
+
 async def require_role(
     session: AsyncSession,
     organization: Organization,

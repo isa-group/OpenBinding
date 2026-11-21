@@ -1262,6 +1262,7 @@ function route(request: Request): Reply | null {
             RunFinished: { inbox: true, email: false },
             RunFailed: { inbox: true, email: true },
             CompositionAdopted: { inbox: true, email: false },
+            UpstreamEvent: { inbox: true, email: false },
           },
         });
       return null;

@@ -29,6 +29,13 @@ describe('notificationLink', () => {
       })
     ).toBe('/compositions/lab-main/tomatometer/operation?environment=production');
     expect(notificationLink({ kind: 'CompositionAdopted', payload: {} })).toBeNull();
+    expect(
+      notificationLink({
+        kind: 'UpstreamEvent',
+        payload: { organization: 'lab-main', composition: 'tomatometer', event: 'e1' },
+      })
+    ).toBe('/compositions/lab-main/tomatometer/operation');
+    expect(notificationLink({ kind: 'UpstreamEvent', payload: {} })).toBeNull();
     expect(notificationLink({ kind: 'System', payload: { organization_slug: 'isa-demo' } })).toBe(
       '/orgs/isa-demo'
     );

@@ -479,9 +479,84 @@ async def _write(session: AsyncSession, watch: PricingWatch, version: Compositio
     return (inserted, told) if inserted is not None else False
 
 
+async def recipients(session: AsyncSession, event: CompositionUpstreamEvent) -> list[uuid.UUID]:
+    """MEMBER or stronger on the composition's organization (inherited roles included), plus the operators of the
+    environments where the affected version is adopted while they still hold a role; nobody twice."""
+    from ....collaboration import effective_role, members_with_role
+    from ....db.models import OrganizationRole, User
+
+    found = list(await members_with_role(session, event.organization_id, OrganizationRole.MEMBER))
+    query = select(CompositionEnvironment.operator_id).where(
+        CompositionEnvironment.composition_id == event.composition_id, CompositionEnvironment.operator_id.is_not(None))
+    if event.subject == "binding":
+        query = query.where(CompositionEnvironment.adopted_version_id == event.version_id)
+    else:
+        query = query.where(CompositionEnvironment.adopted_version_id.is_not(None))
+    for operator_id in (await session.scalars(query)).all():
+        if operator_id in found:
+            continue
+        user = await session.get(User, operator_id)
+        if user is not None and user.is_active and user.deleted_at is None and \
+                await effective_role(session, event.organization_id, user) is not None:
+            found.append(operator_id)
+    return found
+
+
 async def notify_inserted(session: AsyncSession, event_ids: list[uuid.UUID]) -> int:
-    """Tell the members who can act about newly inserted events (A13); in the events' transaction."""
-    return 0
+    """Tell the members who can act about newly inserted events, in the events' transaction: one notification per
+    recipient per (composition, watch, new version), for told events only; returns how many were written."""
+    from ....db.models import Organization
+    from ...shared.application import UPSTREAM_EVENT, notify
+    from ..domain.upstream import WORDS, Category
+
+    told = 0
+    for event_id in event_ids:
+        event = await session.get(CompositionUpstreamEvent, event_id)
+        if event is None or not event.notify:
+            continue
+        sibling = await session.scalar(select(exists().where(
+            CompositionUpstreamEvent.composition_id == event.composition_id,
+            CompositionUpstreamEvent.watch_id == event.watch_id,
+            CompositionUpstreamEvent.new_ref == event.new_ref,
+            CompositionUpstreamEvent.notify.is_(True),
+            CompositionUpstreamEvent.id != event.id,
+        )))
+        if sibling:
+            continue  # this upstream version was already told for this composition
+        composition = await session.get(Composition, event.composition_id)
+        organization = await session.get(Organization, event.organization_id)
+        version = await session.get(CompositionVersion, event.version_id)
+        pricing = dict(event.diff.get("pricing") or {})
+        title = pricing.get("title") or pricing.get("sphere") or pricing.get("url") or "A pricing"
+        new_label = event.new_label or ("gone" if event.new_ref.startswith(f"{GONE}:") else event.new_ref)
+        environments = list((await session.scalars(
+            select(CompositionEnvironment.slug).where(
+                CompositionEnvironment.composition_id == event.composition_id,
+                CompositionEnvironment.adopted_version_id == event.version_id,
+            ).order_by(CompositionEnvironment.slug)
+        )).all())
+        resolved_by = None
+        if event.state == "resolved" and event.resolved_by_version_id is not None:
+            resolver = await session.get(CompositionVersion, event.resolved_by_version_id)
+            resolved_by = {"version": resolver.label} if resolver is not None else None
+        words = WORDS[Category(event.category)]
+        subject = f"{title} {new_label}: {composition.name} {words}"
+        where = f" (in effect in {', '.join(environments)})" if environments else ""
+        body = f"{title} {event.old_label or event.old_ref} -> {new_label} changes {composition.name} {version.label}{where}."
+        if resolved_by is not None:
+            body = (f"{title} {new_label} changed {composition.name} {version.label}: already resolved in "
+                    f"{resolved_by['version']}, not adopted in {', '.join(environments) or 'any environment'}.")
+        payload = {
+            "organization": organization.slug, "composition": composition.slug, "events": [str(event.id)],
+            "event": str(event.id), "versions": [version.label], "environments": environments,
+            "category": event.category, "pricing": {"sphere": pricing.get("sphere"), "url": pricing.get("url"),
+                                                     "title": pricing.get("title")},
+            "newVersion": new_label, "resolvedBy": resolved_by,
+        }
+        for user_id in await recipients(session, event):
+            if await notify(session, user_id, UPSTREAM_EVENT, subject, body, **payload) is not None:
+                told += 1
+    return told
 
 
 # -- Resolution on seal (A11) ----------------------------------------------------------------------------------------
