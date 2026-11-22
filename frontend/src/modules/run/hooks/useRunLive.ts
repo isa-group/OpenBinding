@@ -8,13 +8,20 @@ import { isActive, normalizeStatus } from '../utils/runsModel';
 // run's status, its cancellation and when it finished, while the page shows a whole `JobDetail`: each `job` event is a
 // trigger to read the run again (one reading at a time; a trigger that arrives meanwhile asks once more after it), never
 // data. The gateway writes a line only when the run changes and a keep-alive comment every 15 s while it is quiet, so the
-// reader's 45 s silence limit holds for a quiet run. The stream ends by itself with the run, after `session-ended`, or after
-// about 15 minutes: an end without a finished run reopens it once, then falls back to asking every 2 s, as a stream that
-// fails, falls silent or cannot be opened does at once.
+// reader's 45 s silence limit holds for a quiet run. The stream ends by itself with the run, after `session-ended` (the
+// feed is then paused: the session is gone), or after about 15 minutes, when it is opened again for as long as the run
+// goes on. A stream that fails, falls silent or does not answer within the silence limit hands over to asking every 2 s,
+// and is tried again a minute later; streams that keep ending within seconds leave it to the asking for good.
 
 /** How often a run is asked about again when its stream cannot be followed: the fallback only. */
 export const POLL_MS = 2000;
 const GIVE_UP_AFTER = 3;
+/** How long the 2 s asking stands in for a stream that failed before the stream is tried again. */
+export const STREAM_RETRY_MS = 60_000;
+/** A stream that ends sooner than this without the run finishing ended too soon; two in a row leave it to the asking. */
+const SHORT_STREAM_MS = 10_000;
+/** How long a stream may take to answer: the reader's own silence limit. */
+const OPEN_LIMIT_MS = 45_000;
 
 interface LiveState {
   jobId: string;
@@ -78,10 +85,23 @@ function poll(
   };
 }
 
+/** Wait `ms`, or less if `signal` aborts first. */
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise(resolve => {
+    const timer = window.setTimeout(done, ms);
+    function done() {
+      window.clearTimeout(timer);
+      signal.removeEventListener('abort', done);
+      resolve();
+    }
+    signal.addEventListener('abort', done);
+  });
+}
+
 /**
  * Follow one job over its event stream: read it once, then read it again at each `job` event until it ends; the 2 s
- * reading is the fallback (no stream, a failed or silent stream, or a second end before the run finished). Returns the
- * function that stops following.
+ * reading stands in while there is no stream (none offered, a failed or silent one until it is tried again, or streams
+ * that keep ending too soon). Returns the function that stops following.
  */
 function follow(
   api: Pick<RunsApi, 'get' | 'events'>,
@@ -97,6 +117,10 @@ function follow(
   const controller = new AbortController();
   const fallBack = () => {
     if (active && !stopPolling) stopPolling = poll(api.get, org, jobId, false, publish);
+  };
+  const standDown = () => {
+    stopPolling?.();
+    stopPolling = null;
   };
   const show = (detail: JobDetail) => {
     if (active) publish(() => ({ jobId, phase: 'ready', detail, lost: false }));
@@ -123,6 +147,22 @@ function follow(
     }
   };
 
+  /** Open the stream within the silence limit (a proxy holding its headers counts as a failure). */
+  const open = async () => {
+    const attempt = new AbortController();
+    const stop = () => attempt.abort();
+    controller.signal.addEventListener('abort', stop);
+    const timer = window.setTimeout(stop, OPEN_LIMIT_MS);
+    try {
+      const response = await events(org, jobId, attempt.signal);
+      if (!response.ok) throw new HttpError(response.status, response.statusText);
+      return { response, signal: attempt.signal };
+    } finally {
+      window.clearTimeout(timer);
+      controller.signal.removeEventListener('abort', stop);
+    }
+  };
+
   void (async () => {
     let detail: JobDetail;
     try {
@@ -133,25 +173,43 @@ function follow(
       return;
     }
     show(detail);
-    let reopened = false;
+    let short = 0;
     while (active && isActive(normalizeStatus(detail.status))) {
       let sessionEnded = false;
+      let failed = false;
+      const opened = Date.now();
       try {
-        const response = await events(org, jobId, controller.signal);
-        if (!response.ok) throw new HttpError(response.status, response.statusText);
+        const { response, signal } = await open();
         await readEventStream(
           response,
           event => {
             if (event.event === 'job') void reread();
             else if (event.event === 'session-ended') sessionEnded = true;
           },
-          { signal: controller.signal }
+          { signal }
         );
       } catch {
-        fallBack();
-        return;
+        failed = true;
       }
       if (!active) return;
+      if (sessionEnded) {
+        // Signed out elsewhere: what is shown stays, and the feed says it stopped.
+        publish(current => (current ? { ...current, lost: true } : current));
+        return;
+      }
+      if (failed) {
+        // The 2 s asking stands in, then the stream is tried again (the asking stops when the run ends).
+        fallBack();
+        await pause(STREAM_RETRY_MS, controller.signal);
+        if (!active) return;
+        standDown();
+      } else if (Date.now() - opened < SHORT_STREAM_MS) {
+        short += 1;
+        if (short >= 2) {
+          fallBack();
+          return;
+        }
+      } else short = 0;
       try {
         detail = await api.get(org, jobId, controller.signal);
         show(detail);
@@ -159,13 +217,6 @@ function follow(
         fallBack();
         return;
       }
-      // Signed out: nothing more to follow. Finished: done.
-      if (sessionEnded || !isActive(normalizeStatus(detail.status))) return;
-      if (reopened) {
-        fallBack();
-        return;
-      }
-      reopened = true;
     }
   })();
 
