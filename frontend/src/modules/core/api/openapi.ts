@@ -22644,7 +22644,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description `Proposal not found.`: no such proposal in this organization, or the caller is not a member. */
+            /** @description `Proposal not found.`: no such proposal in this organization, or the caller is not a member. `Run not found.`: a personal API key that may not see a seal step's run (the proposal stays pending; a key that sees the run, or a browser session, confirms it). */
             404: {
                 headers: {
                     [name: string]: unknown;

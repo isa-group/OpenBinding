@@ -277,6 +277,10 @@ async def cancel_proposal(
     dependencies=[Depends(limit_work)],
     responses={
         **PROPOSAL_UNREADABLE,
+        404: {**NOT_FOUND_RESPONSE, "description": "`Proposal not found.`: no such proposal in this organization, or the "
+                                                   "caller is not a member. `Run not found.`: a personal API key that "
+                                                   "may not see a seal step's run (the proposal stays pending; a key "
+                                                   "that sees the run, or a browser session, confirms it)."},
         403: {**FORBIDDEN_RESPONSE, "description": "`proposal_not_yours`, `organization_forbidden` (a step's role) or "
                                                    "`insufficient_api_key_permission` (a step's key permission)."},
         409: {**CONFLICT_RESPONSE, "description": "`proposal_not_pending`, or `proposal_stale` (`stale` lists "

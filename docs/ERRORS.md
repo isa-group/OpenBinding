@@ -456,7 +456,7 @@ own routes (the body a member gets for a missing proposal or another organizatio
 
 | `code` | Status | Meaning |
 |---|---|---|
-| `not_found` | 404 | no such composition or proposal, or the caller cannot read them (the parity above) |
+| `not_found` | 404 | no such composition or proposal, or the caller cannot read them (the parity above); `confirmProposal` with a personal key that may not see a seal step's run answers `Run not found.` and leaves the proposal pending (a key that sees it, or a browser session, confirms it) |
 | `organization_forbidden` | 403 | `createProposal` by a role weaker than MEMBER; `confirmProposal` when a step's role is no longer the caller's (an environment's `adoptRole` included) |
 | `proposal_not_yours` | 403 | `confirmProposal` or `cancelProposal` by a member who did not make it |
 | `insufficient_api_key_permission` | 403 | `confirmProposal` with a personal key that lacks a step's own permission (`compositions:adopt` for an `adopt` step); `missing_permissions` names it. The proposal stays pending |
