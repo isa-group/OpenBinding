@@ -882,6 +882,7 @@ function CardBody({
             role={role}
             refresh={adoptions}
             onAdopt={environment => setAdopting({ environment: environment.slug })}
+            onUpstreamChanged={reload}
           />
         )}
         {tab === 'settings' && (

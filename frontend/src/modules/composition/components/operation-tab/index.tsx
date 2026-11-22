@@ -43,6 +43,8 @@ interface Props {
   onAdopt?: (environment: CompositionEnvironmentView) => void;
   /** Bumped by the page when something it did (an adoption) changed the environments. */
   refresh?: number;
+  /** Something done here changed the upstream events (a review): the page reads its counts again. */
+  onUpstreamChanged?: () => void;
 }
 
 export default function OperationTab({
@@ -52,6 +54,7 @@ export default function OperationTab({
   role,
   onAdopt,
   refresh = 0,
+  onUpstreamChanged,
 }: Props) {
   const api = useEnvironmentsApi();
   const { addToast } = useToast();
@@ -106,6 +109,10 @@ export default function OperationTab({
         role={role}
         backTo={detailTo()}
         refresh={`${refresh}:${nonce}`}
+        onChanged={() => {
+          setNonce(value => value + 1);
+          onUpstreamChanged?.();
+        }}
       />
     );
 

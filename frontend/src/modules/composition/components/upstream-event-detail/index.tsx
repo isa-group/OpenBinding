@@ -7,7 +7,7 @@
 // adopting the version that resolved it. SPHERE has no upstream events; the frame is the Operation tab's own.
 
 import { format, parseISO } from 'date-fns';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { classifyAuthError, marker } from '../../../core/api/errors';
 import type {
@@ -40,6 +40,7 @@ import { problemPath } from '../../../../routes/paths/problems';
 import { launchPath } from '../../../../routes/paths/runs';
 import { useUpstreamEventsApi } from '../../api/upstreamEventsApi';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
+import ReviewEventDialog from '../review-event-dialog';
 
 const actionClass =
   'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-tp-input-border bg-tp-input-bg px-3 text-xs text-tp-ink transition-colors hover:bg-tp-surface focus:border-tp-primary focus:outline-none';
@@ -197,8 +198,10 @@ interface Props {
   backTo: string;
   /** Bumped when something changed the event (a review, a notification). */
   refresh?: string | number;
-  /** The person's actions on the event (Mark reviewed, a proposal), given the event and its `ETag`. */
+  /** More of a person's actions on the event (a proposal), given the event and its `ETag`. */
   actions?: (event: UpstreamEventDetail, etag: string | null) => ReactNode;
+  /** The event changed here (a review): the tab's counts and badges are read again. */
+  onChanged?: () => void;
 }
 
 export default function UpstreamEventDetailView({
@@ -210,10 +213,14 @@ export default function UpstreamEventDetailView({
   backTo,
   refresh = 0,
   actions,
+  onChanged,
 }: Props) {
   const api = useUpstreamEventsApi();
-  const read = useResource(`upstream-event:${org}/${composition.slug}/${eventId}:${refresh}`, () =>
-    api.get(org, composition.slug, eventId)
+  const [nonce, setNonce] = useState(0);
+  const [reviewing, setReviewing] = useState(false);
+  const read = useResource(
+    `upstream-event:${org}/${composition.slug}/${eventId}:${refresh}:${nonce}`,
+    () => api.get(org, composition.slug, eventId)
   );
 
   const back = (
@@ -408,6 +415,15 @@ export default function UpstreamEventDetailView({
         )}
         {member && (
           <div className="flex flex-wrap items-center gap-2 border-t border-tp-hairline px-5 py-3">
+            {event.state === 'open' && (
+              <button
+                type="button"
+                onClick={() => setReviewing(true)}
+                className="inline-flex h-8 cursor-pointer items-center rounded-lg bg-tp-primary px-3 text-xs font-medium text-white transition-colors hover:bg-tp-primary/90"
+              >
+                Mark reviewed
+              </button>
+            )}
             {actions?.(event, etag)}
             {!offering && link && (
               <>
@@ -486,6 +502,20 @@ export default function UpstreamEventDetailView({
           {`${versionsText(event)} · classified by OpenBinding (classifier ${event.classifier}); nothing was re-evaluated.`}
         </p>
       </section>
+      {reviewing && (
+        <ReviewEventDialog
+          org={org}
+          composition={composition.slug}
+          event={event}
+          etag={etag}
+          onClose={() => setReviewing(false)}
+          onChanged={() => {
+            setReviewing(false);
+            setNonce(value => value + 1);
+            onChanged?.();
+          }}
+        />
+      )}
     </div>
   );
 }
