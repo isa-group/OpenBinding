@@ -651,3 +651,24 @@ async def test_a_busy_or_unreachable_toolchain_at_confirm_leaves_the_proposal_pe
     monkeypatch.undo()
     confirmed = await confirm(api_client, t, t.member, made["id"])
     assert confirmed.status_code == 200 and confirmed.json()["status"] == "completed", confirmed.text
+
+
+async def test_a_busy_diff_serves_the_view_without_it_after_the_writes(api_client, registration, db_session, gate, monkeypatch):  # noqa: F811
+    """The view a create or a confirm answers with diffs each seal step's document on read; with every
+    Composition2Yaml slot taken it is served with ``diff: null`` rather than a 429 that hides what was written."""
+    from openbinding_gateway.models.errors import api_error
+    from openbinding_gateway.modules.compositions.application import language
+
+    async def busy(*args, **kwargs):
+        raise api_error(429, "composition_busy", "Every Composition2Yaml slot of this gateway is busy; retry in a moment.")
+
+    t = await tomato_team(api_client, registration, db_session, gate)
+    monkeypatch.setattr(language, "diff", busy)
+    made = await propose(api_client, t, t.member, derive_and_adopt(t.found))
+    assert made["steps"][0]["preview"]["document"] and made["steps"][0]["preview"]["diff"] is None
+
+    confirmed = await confirm(api_client, t, t.member, made["id"])
+    assert confirmed.status_code == 200, confirmed.text
+    assert confirmed.json()["status"] == "completed" and confirmed.json()["steps"][0]["preview"]["diff"] is None
+    read = await api_client.get(t.proposal(made["id"]), headers=t.member)
+    assert read.status_code == 200 and read.json()["steps"][0]["preview"]["diff"] is None

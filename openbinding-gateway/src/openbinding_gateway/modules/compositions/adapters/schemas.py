@@ -1618,7 +1618,8 @@ class ProposalPreview(BaseModel):
     document: str = Field(description="The canonical bytes the step seals; their digest is `base.contentDigest`.")
     against: Optional[ProposalPreviewAgainst]
     diff: Optional[dict[str, Any]] = Field(
-        description="`POST /v1/compositions/diff` of `against` and `document` (computed on read); null without one.",
+        description="`POST /v1/compositions/diff` of `against` and `document` (computed on read); null without one, "
+                    "or when every Composition2Yaml slot is busy (read the proposal again for it).",
     )
 
 

@@ -837,6 +837,12 @@ async def preview_of(session: AsyncSession, proposal: Proposal, step: ProposalSt
             diff = await language.diff(against.content.encode("utf-8"), step.preview.encode("utf-8"))
         except language.LanguageRefusal:
             diff = None
+        except HTTPException as error:
+            # Every Composition2Yaml slot is taken: the view is served without its diff rather than refused, since it
+            # may be the answer to a write already committed (a create, a confirm).
+            if error.status_code != status.HTTP_429_TOO_MANY_REQUESTS:
+                raise
+            diff = None
     return Preview(step.preview, against, environment_used, diff)
 
 

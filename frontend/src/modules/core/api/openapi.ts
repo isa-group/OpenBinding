@@ -8625,7 +8625,7 @@ export interface components {
             against: components["schemas"]["ProposalPreviewAgainst"] | null;
             /**
              * Diff
-             * @description `POST /v1/compositions/diff` of `against` and `document` (computed on read); null without one.
+             * @description `POST /v1/compositions/diff` of `against` and `document` (computed on read); null without one, or when every Composition2Yaml slot is busy (read the proposal again for it).
              */
             diff: {
                 [key: string]: unknown;
