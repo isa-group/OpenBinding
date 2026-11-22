@@ -88,12 +88,20 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
   }, [search, q, change]);
 
   // An upstream event about one of these compositions arrived: their badges are read again.
+  // That re-read is quiet: the cards stay, with no loading state, and a failed one keeps them.
   const arrived = useUpstreamRefresh(org.slug);
+  const asked = useRef<{ inputs: string; read: unknown }>({ inputs: '', read: null });
   useEffect(() => {
     const controller = new AbortController();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- SPHERE's loading flag, raised before each request
-    setIsLoading(true);
-    setError(null);
+    const inputs = JSON.stringify([org.slug, page, q, kindsParam, archived, isPublicView, attempt]);
+    const quiet =
+      asked.current.inputs === inputs && asked.current.read === getOrganizationCompositions;
+    asked.current = { inputs, read: getOrganizationCompositions };
+    if (!quiet) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- SPHERE's loading flag, raised before each request
+      setIsLoading(true);
+      setError(null);
+    }
     getOrganizationCompositions(
       org.slug,
       {
@@ -111,7 +119,7 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
         setTotal(answer.total);
       })
       .catch(caught => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || quiet) return;
         setCompositions([]);
         setTotal(0);
         setError(readApiError(caught).message);

@@ -6,7 +6,7 @@ import type { Notification } from '../api/notificationsApi';
 import { NotificationsProvider } from '../contexts/notificationsProvider';
 import upstream from '../../../test/fixtures/core/upstream.notifications.json';
 import { useNotificationsContext } from './useNotificationsContext';
-import { useUpstreamRefresh } from './useUpstreamRefresh';
+import { UPSTREAM_REFRESH_WINDOW_MS, useUpstreamRefresh } from './useUpstreamRefresh';
 
 const [told] = upstream as unknown as Notification[];
 type Context = ReturnType<typeof useNotificationsContext>;
@@ -79,13 +79,24 @@ describe('reacting to live notifications', () => {
     expect(count()).toBe('1');
   });
 
-  it('counts every upstream event when it names no composition', () => {
-    draw();
-    act(() => publish(told));
-    act(() =>
-      publish({ ...told, payload: { ...told.payload, composition: 'order-desk' } } as Notification)
-    );
-    expect(count()).toBe('2');
+  it('counts every upstream event when it names no composition, a burst once more after the window', () => {
+    vi.useFakeTimers();
+    try {
+      draw();
+      act(() => publish(told));
+      expect(count()).toBe('1');
+      for (const composition of ['order-desk', 'shop', 'blog'])
+        act(() => publish({ ...told, payload: { ...told.payload, composition } } as Notification));
+      expect(count()).toBe('1');
+      act(() => vi.advanceTimersByTime(UPSTREAM_REFRESH_WINDOW_MS));
+      expect(count()).toBe('2');
+      act(() => vi.advanceTimersByTime(UPSTREAM_REFRESH_WINDOW_MS));
+      expect(count()).toBe('2');
+      act(() => publish(told));
+      expect(count()).toBe('3');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('stays at zero outside the notifications provider', () => {

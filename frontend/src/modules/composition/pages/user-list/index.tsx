@@ -45,7 +45,8 @@ export default function UserCompositionListPage() {
       </Helmet>
       <ResourceListView<CompositionView>
         fetchItems={fetchItems}
-        refreshKey={refreshKey + arrived}
+        refreshKey={refreshKey}
+        quietKey={arrived}
         itemKey={item => item.id}
         renderItem={item => (
           <CompositionCard
