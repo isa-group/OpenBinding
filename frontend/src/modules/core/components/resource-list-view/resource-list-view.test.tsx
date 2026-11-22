@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import ResourceListView from '.';
@@ -71,5 +72,27 @@ describe('reading a list again', () => {
     fetchItems.mockImplementation(() => new Promise(() => {}));
     again({ refreshKey: 1 });
     expect(await screen.findByText('Loading...')).toBeInTheDocument();
+  });
+
+  it('says a first reading failed, also when development runs it twice', async () => {
+    const fetchItems = vi.fn((): Promise<{ items: Item[]; total: number }> =>
+      Promise.reject(new Error('down'))
+    );
+    render(
+      <StrictMode>
+        <MemoryRouter>
+          <ResourceListView<Item>
+            fetchItems={fetchItems}
+            renderItem={item => <span>{item.name}</span>}
+            itemKey={item => item.id}
+            title="Engines"
+            subtitle="All"
+            noun={['engine', 'engines']}
+            ownerFilter={false}
+          />
+        </MemoryRouter>
+      </StrictMode>
+    );
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
 });

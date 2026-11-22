@@ -90,13 +90,20 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
   // An upstream event about one of these compositions arrived: their badges are read again.
   // That re-read is quiet: the cards stay, with no loading state, and a failed one keeps them.
   const arrived = useUpstreamRefresh(org.slug);
-  const asked = useRef<{ inputs: string; read: unknown }>({ inputs: '', read: null });
+  const asked = useRef<{ inputs: string; read: unknown; arrived: number }>({
+    inputs: '',
+    read: null,
+    arrived,
+  });
   useEffect(() => {
     const controller = new AbortController();
     const inputs = JSON.stringify([org.slug, page, q, kindsParam, archived, isPublicView, attempt]);
+    // Quiet only when an arrival is what changed (a development double run asks the same again, loudly).
     const quiet =
-      asked.current.inputs === inputs && asked.current.read === getOrganizationCompositions;
-    asked.current = { inputs, read: getOrganizationCompositions };
+      asked.current.inputs === inputs &&
+      asked.current.read === getOrganizationCompositions &&
+      asked.current.arrived !== arrived;
+    asked.current = { inputs, read: getOrganizationCompositions, arrived };
     if (!quiet) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- SPHERE's loading flag, raised before each request
       setIsLoading(true);

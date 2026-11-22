@@ -115,10 +115,11 @@ export default function ResourceListView<T>({
   const [attempt, setAttempt] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   // What the last loud read asked; a read asking the same again is a quiet one.
-  const asked = useRef<{ inputs: string; fetchItems: Props<T>['fetchItems'] | null }>({
-    inputs: '',
-    fetchItems: null,
-  });
+  const asked = useRef<{
+    inputs: string;
+    fetchItems: Props<T>['fetchItems'] | null;
+    quietKey: number;
+  }>({ inputs: '', fetchItems: null, quietKey });
 
   const q = params.get('q') ?? '';
   const page = Math.max(1, Number(params.get('page')) || 1);
@@ -158,8 +159,12 @@ export default function ResourceListView<T>({
     request.limit = String(perPage);
     request.offset = String((page - 1) * perPage);
     const inputs = JSON.stringify([query, page, perPage, attempt, refreshKey]);
-    const quiet = asked.current.inputs === inputs && asked.current.fetchItems === fetchItems;
-    asked.current = { inputs, fetchItems };
+    // Quiet only when the quiet key is what changed (a development double run asks the same again, loudly).
+    const quiet =
+      asked.current.inputs === inputs &&
+      asked.current.fetchItems === fetchItems &&
+      asked.current.quietKey !== quietKey;
+    asked.current = { inputs, fetchItems, quietKey };
     if (!quiet) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- SPHERE's loading flag, raised before each request
       setIsLoading(true);
