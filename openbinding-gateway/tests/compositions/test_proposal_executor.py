@@ -800,3 +800,37 @@ async def test_the_housekeeping_cancels_the_pending_proposals_of_a_deleted_accou
     assert (str(audited.actor_id), audited.action, audited.detail) == (
         t.ids["member"], "composition.proposal_cancelled", {"reason": "account_deleted"})
     assert (await _housekeeping(db_session)).cancelled_proposals == 0
+
+
+async def test_a_composition_deleted_while_a_store_retries_answers_its_404(api_client, registration, db_session, gate, monkeypatch):  # noqa: F811
+    """The store loses the one-pending race and rolls back, and its composition is gone when it reads its rows again
+    (a delete committed in between; simulated by the read finding nothing): the answer is the composition's 404, not a
+    retry over a row that is gone, and nothing is stored."""
+    from fastapi import HTTPException
+    from sqlalchemy.exc import IntegrityError
+
+    from openbinding_gateway.db.models import Composition
+
+    t = await tomato_team(api_client, registration, db_session, gate)
+    organization, composition, user = await fresh(db_session, t.found)
+    real_flush, real_reread = db_session.flush, proposals.reread
+
+    async def lost_race(*args, **kwargs):
+        if any(isinstance(item, Proposal) for item in db_session.new):
+            raise IntegrityError("INSERT INTO proposals", {}, Exception(
+                "UNIQUE constraint failed: proposals.proposed_by_id, proposals.scope_key"))
+        return await real_flush(*args, **kwargs)
+
+    async def composition_gone(session, row):
+        return False if isinstance(row, Composition) else await real_reread(session, row)
+
+    monkeypatch.setattr(db_session, "flush", lost_race)
+    monkeypatch.setattr(proposals, "reread", composition_gone)
+    with pytest.raises(HTTPException) as refused:
+        await proposals.create(db_session, organization, user, [
+            proposals.StepRequest("adopt", {"environment": "production", "version": "1.1.0"}),
+        ], role=_role("OWNER"), composition=composition)
+
+    assert refused.value.status_code == 404 and refused.value.detail["error"] == "Composition not found."
+    monkeypatch.undo()
+    assert await _count(db_session, Proposal) == 0

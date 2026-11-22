@@ -734,10 +734,13 @@ async def _store(
         except IntegrityError as error:
             await session.rollback()
             # A rollback expires every row the session holds: read them again before the retry (or the caller's reply).
-            for held in (organization, composition, caller):
-                if held is not None:
-                    # One deleted meanwhile stays expired: the retry's lock finds the composition gone (its 404).
-                    await reread(session, held)
+            # One deleted meanwhile (its composition or organization) cannot be read again, and nothing was stored.
+            gone = [held for held in (organization, composition, caller)
+                    if held is not None and not await reread(session, held)]
+            if gone:
+                if composition is not None:
+                    raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Composition not found.") from error
+                raise unreadable() from error
             if _lost_pending_race(error) and attempt == 1:
                 continue
             if _lost_pending_race(error):
