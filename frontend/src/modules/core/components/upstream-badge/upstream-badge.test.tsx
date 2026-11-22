@@ -62,10 +62,10 @@ describe('the upstream badge', () => {
 
   it('draws the gateway fixtures as they come, and leads where it is told', () => {
     draw(composition.upstream as UpstreamSummary, '/compositions/fixtures/tomatometer/operation');
-    expect(screen.getByRole('link', { name: '1 upstream change' })).toHaveAttribute(
-      'href',
-      '/compositions/fixtures/tomatometer/operation'
-    );
+    const link = screen.getByRole('link', { name: '1 upstream change' });
+    expect(link).toHaveAttribute('href', '/compositions/fixtures/tomatometer/operation');
+    // At least 24 px to tap, over the card's own link.
+    expect(link.className).toContain('min-h-6');
     draw(production.upstream as EnvironmentUpstreamSummary);
     expect(screen.getAllByText('1 upstream change')).toHaveLength(2);
   });

@@ -36,14 +36,15 @@ function Pill({
   children: ReactNode;
 }) {
   const className = `${BADGE_SHAPE} ${BADGE_TONES[tone]} max-w-full truncate`;
+  // A link is at least 24 px tall (WCAG 2.5.8; it sits on a card's own link), the pill drawn inside it as is.
   if (to)
     return (
       <Link
         to={to}
         title={title}
-        className={`${className} relative z-10 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tp-primary`}
+        className="group relative z-10 inline-flex min-h-6 max-w-full items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tp-primary"
       >
-        {children}
+        <span className={`${className} group-hover:underline`}>{children}</span>
       </Link>
     );
   return (
