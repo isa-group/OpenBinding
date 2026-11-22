@@ -1010,6 +1010,8 @@ function organizationRoutes(request: Request): Reply {
         : ok(presetPage(found.slug === 'isa-demo' ? undefined : []));
     case 'compositions':
       return request.compositions.route(request, found.slug, ORGANIZATIONS);
+    case 'proposals':
+      return request.compositions.proposalRoute(request);
     case 'sphere':
       return sphereRoutes(parts, query) ?? notFound('Not mocked.');
     case 'connections':

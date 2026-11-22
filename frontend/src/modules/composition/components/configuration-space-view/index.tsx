@@ -66,7 +66,7 @@ interface Props {
   candidates?: { status: 'loading' | 'error'; marker: string; retry: () => void } | null;
   /** The gateway says the shown version links no problem after all: the page hides the tab. */
   onNotLinked: () => void;
-  /** The reader's role: after a seal, the derive dialog offers adopting where this role may (F4). */
+  /** The reader's role: the derive dialog offers adopting in the same step where this role may (F6). */
   role?: OrgRole | null;
 }
 

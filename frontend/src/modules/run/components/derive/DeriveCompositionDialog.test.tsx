@@ -5,6 +5,12 @@ import { HttpError } from '../../../core/api/http';
 import type { CompositionView, DeriveDraft, DeriveResult } from '../../../core/api/types';
 import { readCompositionFragment } from '../../../core/utils/sphere/composition-fragment';
 import { RESULT, S1 } from '../../../../test/fixtures/jobs';
+import { AuthContext, type AuthContextValue } from '../../../auth/hooks/useAuth';
+import { ToastProvider } from '../../../core/contexts/toastContext';
+import type { OrgRole } from '../../../organization/api/organizationsApi';
+import pendingProposal from '../../../../test/fixtures/core/zproposals.pending.json';
+import environmentsFixture from '../../../../test/fixtures/core/tomatometer.environments.json';
+import { fakeGateway } from '../../../../test/moduleKit';
 import { DeriveCompositionDialog } from './DeriveCompositionDialog';
 import type { DeriveSource } from './deriveModel';
 
@@ -14,6 +20,7 @@ const api = vi.hoisted(() => ({
   derive: vi.fn(),
   get: vi.fn(),
   version: vi.fn(),
+  environments: vi.fn(),
 }));
 vi.mock('../../../core/utils/composition/api', () => ({ compositionsApi: api }));
 
@@ -102,31 +109,50 @@ const where = () => screen.getByTestId('where').textContent ?? '';
 
 function renderDialog(
   solutions: readonly unknown[] = RESULT.solutions,
-  source: DeriveSource = { run: RUN, solutions }
+  source: DeriveSource = { run: RUN, solutions },
+  role?: OrgRole,
+  gateway = fakeGateway({})
 ) {
   const onClose = vi.fn();
+  const auth = { user: null, fetchWithInterceptor: gateway } as unknown as AuthContextValue;
   render(
     <MemoryRouter initialEntries={[`/app/isa-demo/runs/${RUN}`]}>
-      <Routes>
-        <Route
-          path="*"
-          element={
-            <>
-              <DeriveCompositionDialog org="isa-demo" source={source} onClose={onClose} />
-              <Where />
-            </>
-          }
-        />
-      </Routes>
+      <AuthContext.Provider value={auth}>
+        <ToastProvider>
+          <Routes>
+            <Route
+              path="*"
+              element={
+                <>
+                  <DeriveCompositionDialog
+                    org="isa-demo"
+                    source={source}
+                    onClose={onClose}
+                    role={role}
+                  />
+                  <Where />
+                </>
+              }
+            />
+          </Routes>
+        </ToastProvider>
+      </AuthContext.Provider>
     </MemoryRouter>
   );
-  return { onClose, dialog: screen.getByRole('dialog', { name: 'Derive a composition' }) };
+  return {
+    onClose,
+    gateway,
+    dialog: screen.getByRole('dialog', { name: 'Derive a composition' }),
+  };
 }
 
 /** A binding of checkout-flow@2, as the calculator or the configurator hands it over, into `composition` when given. */
 const BOUND = { revision: 'checkout-flow@2', binding: { t1: 'c2', t2: 'catalog/c7' } };
-const renderBinding = (composition?: CompositionView) =>
-  renderDialog([], { ...BOUND, ...(composition ? { composition } : {}) });
+const renderBinding = (
+  composition?: CompositionView,
+  role?: OrgRole,
+  gateway?: ReturnType<typeof fakeGateway>
+) => renderDialog([], { ...BOUND, ...(composition ? { composition } : {}) }, role, gateway);
 
 const click = (scope: HTMLElement, name: string) =>
   fireEvent.click(within(scope).getByRole('button', { name }));
@@ -627,5 +653,103 @@ describe('Deriving the points of a study front, one composition each', () => {
     );
     expect(onDerived).not.toHaveBeenCalled();
     expect(within(dialog).getByRole('button', { name: 'Retry 2 points' })).toBeEnabled();
+  });
+});
+
+describe('Deriving and adopting in the same step', () => {
+  const [production, staging] = environmentsFixture.environments;
+  const PROPOSALS = '/v1/organizations/isa-demo/compositions/fleet-routing/proposals';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.list.mockResolvedValue({ compositions: [FLEET], total: 1, limit: 200, offset: 0 });
+    api.derive.mockImplementation(
+      async (_org: string, _slug: string, body: { seal: boolean; version: string }) =>
+        body.seal
+          ? { created: true, result: sealedAs(body.version) }
+          : { created: false, result: DRAFT }
+    );
+  });
+
+  async function toPreview(role: OrgRole, gateway?: ReturnType<typeof fakeGateway>) {
+    const rendered = renderBinding(FLEET, role, gateway);
+    click(rendered.dialog, 'Preview');
+    await within(rendered.dialog).findByRole('region', { name: 'Derived composition.yaml' });
+    return rendered;
+  }
+
+  it('offers only sealing into a composition without an environment', async () => {
+    api.environments.mockResolvedValue([]);
+    const { dialog } = await toPreview('MEMBER');
+    await waitFor(() => expect(api.environments).toHaveBeenCalledWith('isa-demo', 'fleet-routing'));
+    expect(within(dialog).queryByRole('radio', { name: /in the same step/ })).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Seal 1.3.0' })).toBeInTheDocument();
+  });
+
+  it('hides an environment only admins adopt in from a MEMBER, and offers one members adopt in', async () => {
+    api.environments.mockResolvedValue([production, staging]);
+    const { dialog } = await toPreview('MEMBER');
+    expect(
+      await within(dialog).findByRole('radio', { name: 'Adopt in Staging in the same step' })
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('radio', { name: 'Adopt in Production in the same step' })
+    ).toBeNull();
+    expect(within(dialog).getByRole('radio', { name: 'Seal only; adopt it later' })).toBeChecked();
+  });
+
+  it('makes one proposal of the seal and the adoption, shown on its card in the same modal', async () => {
+    api.environments.mockResolvedValue([production, staging]);
+    const gateway = fakeGateway({
+      [`POST ${PROPOSALS}`]: ({ body }: { body: unknown }) => {
+        expect(body).toEqual({
+          kind: 'derive_and_adopt',
+          source: BOUND,
+          label: '1.3.0',
+          environment: 'production',
+          note: '',
+        });
+        return { status: 201, body: pendingProposal };
+      },
+    });
+    const { dialog } = await toPreview('ADMIN', gateway);
+    fireEvent.click(
+      await within(dialog).findByRole('radio', { name: 'Adopt in Production in the same step' })
+    );
+    expect(within(dialog).queryByRole('button', { name: 'Seal 1.3.0' })).toBeNull();
+    click(dialog, 'Propose sealing and adopting 1.3.0');
+    const proposing = await screen.findByRole('dialog', { name: 'Derive and adopt' });
+    const card = within(proposing).getByRole('group', { name: /^Proposal:/ });
+    expect(card).toHaveTextContent('Waiting for your confirmation');
+    expect(card).toHaveTextContent('Seal 1.2.0 from tomatometer-email@5');
+    expect(proposing).toHaveTextContent('Nothing is sealed or adopted until you confirm.');
+    // Nothing was sealed: the proposal stores the document, and the seal waits for the confirmation.
+    expect(api.derive.mock.calls.every(([, , body]) => body.seal === false)).toBe(true);
+  });
+
+  it('keeps the offering the composition’s latest version states, in the preview and in the proposal', async () => {
+    api.environments.mockResolvedValue([production]);
+    api.version.mockResolvedValue({ document: { offering: { sphere: 'sphere/tomatometer' } } });
+    const gateway = fakeGateway({
+      [`POST ${PROPOSALS}`]: ({ body }: { body: unknown }) => {
+        expect(body).toMatchObject({ offering: { sphere: 'sphere/tomatometer' } });
+        return { status: 201, body: pendingProposal };
+      },
+    });
+    const { dialog } = await toPreview('ADMIN', gateway);
+    expect(api.version).toHaveBeenCalledWith('isa-demo', 'fleet-routing', 'fleet-routing-v3', {
+      document: true,
+    });
+    expect(api.derive).toHaveBeenCalledWith('isa-demo', 'fleet-routing', {
+      ...BOUND,
+      version: '1.3.0',
+      seal: false,
+      offering: { sphere: 'sphere/tomatometer' },
+    });
+    fireEvent.click(
+      await within(dialog).findByRole('radio', { name: 'Adopt in Production in the same step' })
+    );
+    click(dialog, 'Propose sealing and adopting 1.3.0');
+    expect(await screen.findByRole('dialog', { name: 'Derive and adopt' })).toBeInTheDocument();
   });
 });

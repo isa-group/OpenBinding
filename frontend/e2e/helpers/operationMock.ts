@@ -8,6 +8,8 @@ import type {
   EnvironmentKeyView,
   EvaluateResult,
   FeedKeyCreated,
+  ProposalStepView,
+  ProposalView,
 } from '../../src/modules/core/api/types';
 import type { CompositionReply, CompositionRequest } from './mockCompositions';
 
@@ -60,6 +62,34 @@ export interface OperationStore {
   evaluated: Array<Record<string, unknown>>;
   /** Every adoption a page made, in order (environment slug, version label, `If-Match` sent). */
   adopted: Array<{ environment: string; version: string; ifMatch: string | undefined }>;
+  /** The proposals of TomatoMeter: the ones a spec seeded and the ones a page made, newest first. */
+  proposals: ProposalView[];
+  /** Every proposal a page confirmed, in order (its id and the phrase sent). */
+  confirmed: Array<{ id: string; confirmation: string | undefined }>;
+  /**
+   * Answers `…/compositions/tomatometer/proposals` (create, list). `seal` derives and seals a version from a proposal's
+   * source as the shared mock's derive does, and `preview` the same without sealing (its document's text).
+   */
+  proposalsRoute: (
+    request: CompositionRequest,
+    versions: readonly CompositionVersionView[],
+    derive: Derive
+  ) => CompositionReply;
+  /** Answers `/v1/organizations/{org}/proposals/{proposal}[/confirm]` (read, confirm, cancel). */
+  proposalRoute: (
+    request: CompositionRequest,
+    versions: readonly CompositionVersionView[],
+    derive: Derive
+  ) => CompositionReply;
+}
+
+/** What a proposal's seal step asks the shared mock: a preview (the document's text) or the sealed version. */
+export interface Derive {
+  preview: (label: string, source: Record<string, unknown>) => string;
+  seal: (
+    label: string,
+    source: Record<string, unknown>
+  ) => CompositionVersionView | CompositionReply;
 }
 
 interface Held {
@@ -97,7 +127,12 @@ export function operationStore(org: string, composition: string): OperationStore
     check: 'current',
     adopted: [],
     evaluated: [],
+    proposals: [],
+    confirmed: [],
+    proposalsRoute,
+    proposalRoute,
   };
+  let made = 0;
   const etagOf = (item: Held) => `"env-${item.view.slug}-${item.revision}"`;
 
   function state(versions: readonly CompositionVersionView[]): Held[] {
@@ -377,6 +412,313 @@ export function operationStore(org: string, composition: string): OperationStore
         rows: base.rows.map(row => ({ ...row, cost: null, margin: null })),
       });
     return ok({ ...base, users: Number(users) });
+  }
+
+  /** A step as the gateway shows it before it runs. */
+  const pendingStep = (
+    step: Partial<ProposalStepView> & Pick<ProposalStepView, 'ordinal' | 'kind' | 'description'>
+  ): ProposalStepView => ({
+    base: {},
+    deferred: [],
+    dependsOn: [],
+    destructive: false,
+    error: null,
+    finishedAt: null,
+    params: {},
+    preview: null,
+    result: null,
+    status: 'pending',
+    ...step,
+  });
+
+  function proposalsRoute(
+    request: CompositionRequest,
+    versions: readonly CompositionVersionView[],
+    derive: Derive
+  ): CompositionReply {
+    if (request.method === 'GET') {
+      const status = request.query.get('status');
+      return ok({
+        proposals: store.proposals
+          .filter(item => !status || item.status === status)
+          .map(item => ({ ...item, steps: item.steps.map(step => ({ ...step, preview: null })) })),
+      });
+    }
+    if (request.method !== 'POST') return refuse(405, 'method_not_allowed', 'Not allowed.');
+    const all = state(versions);
+    const body = request.body();
+    const environment = all.find(
+      item => item.view.slug === body.environment || item.view.id === body.environment
+    );
+    if (!environment)
+      return ok(
+        {
+          detail: {
+            code: 'proposal_invalid',
+            error: 'The proposal is not valid.',
+            errors: [{ step: 1, code: 'environment_not_found', message: 'Environment not found.' }],
+          },
+        },
+        422
+      );
+    const inEffect = environment.view.inEffect;
+    const adoptBase = {
+      environmentEtag: etagOf(environment),
+      inEffect: inEffect?.version.id ?? null,
+    };
+    made += 1;
+    const id = `00000000-0000-4000-8000-0000000007${String(made).padStart(2, '0')}`;
+    let steps: ProposalStepView[];
+    let summary: string;
+    if (body.kind === 'derive_and_adopt') {
+      const source = (body.source ?? {}) as Record<string, unknown>;
+      const label = String(body.label ?? '');
+      const from =
+        typeof source.revision === 'string'
+          ? source.revision
+          : `run ${String(source.run).slice(0, 8)}`;
+      const pending = adapt(core<ProposalView>('zproposals.pending.json'), org, versions);
+      const preview = pending.steps[0].preview;
+      steps = [
+        pendingStep({
+          ordinal: 1,
+          kind: 'seal_derived',
+          description: `Seal ${label} from ${from}`,
+          params: { label, source },
+          base: {
+            headVersionId: versions.at(-1)?.id ?? null,
+            contentDigest: 'sha256-mock',
+            revisionId: 'rev',
+          },
+          preview: preview && {
+            ...preview,
+            document: derive.preview(label, source),
+            against: inEffect
+              ? {
+                  environment: {
+                    id: environment.view.id,
+                    name: environment.view.name,
+                    slug: environment.view.slug,
+                  },
+                  version: { id: inEffect.version.id, label: inEffect.version.label },
+                }
+              : null,
+          },
+        }),
+        pendingStep({
+          ordinal: 2,
+          kind: 'adopt',
+          description: `Adopt the version step 1 seals in ${environment.view.name}`,
+          params: {
+            environment: environment.view.id,
+            version: '@s1.version',
+            note: String(body.note ?? ''),
+          },
+          base: { ...adoptBase, deferred: ['version'], dependsOn: [1] },
+          deferred: ['version'],
+          dependsOn: [1],
+        }),
+      ];
+      summary = `${steps[0].description}; then ${steps[1].description}`;
+    } else {
+      const asked = String(body.version ?? '');
+      const version = versions.find(item => item.id === asked || item.label === asked);
+      if (!version) return refuse(404, 'version_not_found', 'Composition version not found.');
+      steps = [
+        pendingStep({
+          ordinal: 1,
+          kind: 'adopt',
+          description: `Adopt ${version.label} in ${environment.view.name}`,
+          params: {
+            environment: environment.view.id,
+            version: version.id,
+            note: String(body.note ?? ''),
+          },
+          base: adoptBase,
+        }),
+      ];
+      summary = steps[0].description;
+    }
+    // A new proposal replaces its author's pending one.
+    for (const item of store.proposals)
+      if (item.status === 'pending' && item.mine) {
+        item.status = 'superseded';
+        item.supersededBy = id;
+      }
+    const proposal: ProposalView = {
+      id,
+      status: 'pending',
+      summary,
+      steps,
+      warnings: [],
+      origin: 'web',
+      mine: true,
+      composition: { id: `composition-${composition}`, slug: composition, name: 'TomatoMeter' },
+      organization: { id: `org-${org}`, slug: org, name: org },
+      proposedBy: { username: 'alex.rivera' },
+      confirmationPhrase: null,
+      upstreamEvent: typeof body.upstreamEvent === 'string' ? body.upstreamEvent : null,
+      supersededBy: null,
+      createdAt: STAMP,
+      confirmedAt: null,
+      completedAt: null,
+    };
+    store.proposals = [proposal, ...store.proposals];
+    return ok(proposal, 201);
+  }
+
+  function proposalRoute(
+    request: CompositionRequest,
+    versions: readonly CompositionVersionView[],
+    derive: Derive
+  ): CompositionReply {
+    const [, , , , id, action] = request.parts;
+    const proposal = store.proposals.find(item => item.id === id);
+    if (!proposal) return refuse(404, 'not_found', 'Proposal not found.');
+    if (!action && request.method === 'GET') return ok(proposal);
+    if (proposal.status !== 'pending')
+      return refuse(409, 'proposal_not_pending', 'This proposal is no longer pending.');
+    if (!action && request.method === 'DELETE') {
+      proposal.status = 'cancelled';
+      return ok(proposal);
+    }
+    if (action !== 'confirm' || request.method !== 'POST')
+      return refuse(405, 'method_not_allowed', 'Not allowed.');
+    store.confirmed.push({
+      id: proposal.id,
+      confirmation: request.body().confirmation as string | undefined,
+    });
+    const all = state(versions);
+    // The pre-flight: every adopt step's environment as it was when proposed.
+    const stale = proposal.steps.flatMap(step => {
+      if (step.kind !== 'adopt') return [];
+      const environment = all.find(item => item.view.id === step.params.environment);
+      const base = step.base as { environmentEtag?: string };
+      if (!environment)
+        return [{ step: step.ordinal, kind: 'adopt', reason: 'environment_missing' }];
+      return etagOf(environment) === base.environmentEtag
+        ? []
+        : [
+            {
+              step: step.ordinal,
+              kind: 'adopt',
+              reason: 'environment_changed',
+              base: base.environmentEtag,
+              current: etagOf(environment),
+            },
+          ];
+    });
+    if (stale.length > 0) {
+      proposal.status = 'stale';
+      return ok(
+        {
+          detail: {
+            code: 'proposal_stale',
+            error:
+              'This proposal is out of date: what it was built on changed since it was made. Nothing was changed.',
+            stale,
+          },
+        },
+        409
+      );
+    }
+    proposal.confirmedAt = STAMP;
+    for (const step of proposal.steps) {
+      const failedDependency = step.dependsOn.some(
+        ordinal => proposal.steps.find(other => other.ordinal === ordinal)?.status !== 'done'
+      );
+      if (failedDependency) {
+        step.status = 'skipped';
+        step.error = {
+          status: 0,
+          code: 'skipped_dependency',
+          message: 'Skipped: a step it depends on did not complete.',
+          detail: null,
+        };
+        continue;
+      }
+      step.finishedAt = STAMP;
+      if (step.kind === 'seal_derived') {
+        const sealed = derive.seal(
+          String(step.params.label),
+          step.params.source as Record<string, unknown>
+        );
+        if ('status' in sealed && 'json' in sealed) {
+          step.status = 'failed';
+          step.error = {
+            status: sealed.status,
+            code: 'derivation_invalid',
+            message: 'The version could not be sealed.',
+            detail: null,
+          };
+          continue;
+        }
+        const version = sealed as CompositionVersionView;
+        versions = [...versions.filter(item => item.id !== version.id), version];
+        step.status = 'done';
+        step.result = { version: { id: version.id, label: version.label }, created: true };
+      } else {
+        const sealedBy = (proposal.steps.find(other => other.ordinal === step.dependsOn[0])
+          ?.result ?? {}) as {
+          version?: { id: string };
+        };
+        const versionId =
+          step.params.version === '@s1.version'
+            ? sealedBy.version?.id
+            : String(step.params.version);
+        const environment = all.find(item => item.view.id === step.params.environment)!;
+        const answer = route(
+          {
+            method: 'POST',
+            parts: [
+              'v1',
+              'organizations',
+              org,
+              'compositions',
+              composition,
+              'environments',
+              environment.view.slug,
+              'adopt',
+            ],
+            query: new URLSearchParams(),
+            body: () => ({ version: versionId, note: step.params.note ?? '' }),
+            text: () => '',
+            header: name =>
+              name === 'if-match'
+                ? String((step.base as { environmentEtag?: string }).environmentEtag)
+                : undefined,
+          },
+          versions
+        );
+        if (answer.status !== 200) {
+          const refusal =
+            (answer.json as { detail?: { code?: string; error?: string } })?.detail ?? {};
+          step.status = 'failed';
+          step.error = {
+            status: answer.status,
+            code: refusal.code ?? 'failed',
+            message: refusal.error ?? 'Not adopted.',
+            detail: null,
+          };
+          continue;
+        }
+        const adoption = (answer.json as { adoption: CompositionAdoptionView }).adoption;
+        adoption.source = 'proposal';
+        adoption.proposal = { id: proposal.id, summary: proposal.summary };
+        step.status = 'done';
+        step.result = {
+          environment: environment.view.slug,
+          ordinal: adoption.ordinal,
+          feedEtag: adoption.feedEtag,
+          versionLabel: adoption.version.label,
+        };
+      }
+    }
+    const done = proposal.steps.filter(step => step.status === 'done').length;
+    proposal.status =
+      done === proposal.steps.length ? 'completed' : done === 0 ? 'failed' : 'partial';
+    proposal.completedAt = STAMP;
+    return ok(proposal);
   }
 
   return store;

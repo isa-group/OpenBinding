@@ -30,6 +30,7 @@ import EnvironmentCard from '../environment-card';
 import EnvironmentFormDialog, { DeleteEnvironmentDialog } from '../environment-form-dialog';
 import ProposalsSection from '../proposals-section';
 import UpstreamEventDetailView from '../upstream-event-detail';
+import ProposeAdoption from '../upstream-event-detail/ProposeAdoption';
 import UpstreamEventsSection from '../upstream-events-section';
 import EnvironmentDetail from './EnvironmentDetail';
 
@@ -114,6 +115,19 @@ export default function OperationTab({
           setNonce(value => value + 1);
           onUpstreamChanged?.();
         }}
+        actions={detail => (
+          <ProposeAdoption
+            org={org}
+            composition={composition.slug}
+            event={detail}
+            environments={list}
+            role={role}
+            onChanged={() => {
+              setNonce(value => value + 1);
+              onUpstreamChanged?.();
+            }}
+          />
+        )}
       />
     );
 

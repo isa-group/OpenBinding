@@ -2,10 +2,11 @@ import { expect as baseExpect, test, type Page, type Route } from '@playwright/t
 import { detailOf, digestOf, jobOf } from '../src/test/fixtures/jobs';
 import { API, installMockApi } from './helpers/mockApi';
 
-// J4 · adopt from a run: a run's solution is kept as the next version of TomatoMeter, and the derive dialog's last step offers
-// "Adopt in environment" as a second, separate human step (staging, where members adopt); back on the run page, "Adopt in
-// environment" lists the versions derived from that run and adopts one in production. Nothing chains the derivation and the
-// adoption. There is no backend: e2e/helpers/mockApi.ts answers with the gateway's F4 fixtures, and this spec's run is
+// J4 · adopt from a run: a run's solution is kept as the next version of TomatoMeter and adopted in staging (where members
+// adopt) in the same step: the derive dialog's preview offers "Adopt in Staging in the same step", a `derive_and_adopt`
+// proposal (F6) the reader confirms on its card, in the same modal; nothing is sealed or adopted until then. Back on the run
+// page, "Adopt in environment" lists the versions derived from that run and adopts one in production directly. There is no
+// backend: e2e/helpers/mockApi.ts answers with the gateway's F4 and F6 fixtures, and this spec's run is
 // e2e/f2a-derive-seal-compare.spec.ts's run of checkout-flow@1.
 
 const expect = baseExpect.configure({ timeout: 15_000 });
@@ -90,7 +91,7 @@ async function installRun(page: Page) {
 }
 
 test.describe('J4 · adopt from a run', () => {
-  test('a run’s solution is sealed into TomatoMeter, adopted in staging from the derive dialog, then in production from the run page', async ({
+  test('a run’s solution is sealed into TomatoMeter and adopted in staging in one proposal, then in production from the run page', async ({
     page,
   }) => {
     const mock = await installMockApi(page, 'admin', { tomatometer: true });
@@ -110,23 +111,29 @@ test.describe('J4 · adopt from a run', () => {
     await dialog.getByRole('button', { name: 'Next' }).click();
     await expect(dialog.getByLabel('Version label')).toHaveValue('1.2.0');
     await dialog.getByRole('button', { name: 'Preview' }).click();
-    await dialog.getByRole('button', { name: 'Seal 1.2.0' }).click();
-    await expect(dialog).toContainText('Version 1.2.0 sealed in tomatometer.');
-    await expect(dialog).toContainText('Nothing is adopted yet.');
-    await dialog.getByRole('button', { name: 'Adopt in environment…' }).click();
+    // Sealing alone is the default; adopting in staging in the same step makes one proposal of both.
+    await expect(dialog.getByRole('radio', { name: 'Seal only; adopt it later' })).toBeChecked();
+    await dialog.getByRole('radio', { name: 'Adopt in Staging in the same step' }).check();
+    await dialog.getByRole('button', { name: 'Propose sealing and adopting 1.2.0' }).click();
 
-    const adopt = page.getByRole('dialog', { name: 'Adopt a version' });
-    await adopt.getByRole('combobox', { name: 'Environment' }).selectOption('staging');
-    await expect(adopt).toContainText('Nothing is in effect here yet.');
-    await expect(adopt.getByRole('radio', { name: /1\.2\.0/ })).toBeChecked();
-    await adopt.getByRole('button', { name: 'Adopt 1.2.0' }).click();
+    const proposing = page.getByRole('dialog', { name: 'Derive and adopt' });
+    const card = proposing.getByRole('group', { name: /^Proposal:/ });
+    await expect(card).toContainText('Waiting for your confirmation');
+    await expect(card).toContainText('Seal 1.2.0 from run');
+    await expect(card).toContainText('Adopt the version step 1 seals in Staging');
+    await expect(card).toContainText('The version is decided when step 1 has run.');
+    expect(mock.operation?.adopted).toEqual([]);
+    await card.getByRole('button', { name: 'Confirm and apply' }).click();
+    await expect(card).toContainText('Applied');
+    await expect(card).toContainText('2 of 2 steps done');
+    await proposing.getByRole('button', { name: 'Open Staging' }).click();
     await expect(page).toHaveURL(
       '/compositions/isa-demo/tomatometer/operation?environment=staging'
     );
-    await expect(page.getByText('Version 1.2.0 adopted in Staging (adoption #1).')).toBeVisible();
     await expect(page.getByRole('region', { name: 'In effect', exact: true })).toContainText(
       'In effect: 1.2.0'
     );
+    const adopt = page.getByRole('dialog', { name: 'Adopt a version' });
 
     // Back on the run page: the version derived from it can be adopted in production too.
     await page.goto(`/runs/isa-demo/${RUN}`);

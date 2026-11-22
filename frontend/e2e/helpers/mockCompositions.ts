@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { CompositionVersionView, CompositionView } from '../../src/modules/core/api/types';
-import { operationStore, type OperationStore } from './operationMock';
+import { operationStore, type Derive, type OperationStore } from './operationMock';
 import { upstreamOf } from './sphereMock';
 
 // The compositions of the shared mock (e2e/helpers/mockApi.ts registers them): in `isa-demo`, a declared composition and one linked
@@ -652,6 +652,8 @@ export interface CompositionStore {
   language: (request: CompositionRequest) => CompositionReply | null;
   /** TomatoMeter's environments, adoptions, keys, check and margins, when the page seeded it (e2e/helpers/operationMock.ts). */
   operation: OperationStore | null;
+  /** `/v1/organizations/{org}/proposals/{proposal}[/confirm]`: TomatoMeter's proposals (e2e/helpers/operationMock.ts). */
+  proposalRoute: (request: CompositionRequest) => CompositionReply;
 }
 
 const KINDS = ['application', 'workflow', 'pipeline', 'system'];
@@ -1798,6 +1800,33 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     );
   };
 
+  /** A proposal's seal step, as `POST …/derive` previews and seals (e2e/helpers/operationMock.ts). */
+  const deriving = (entry: Entry): Derive => {
+    const asked = (
+      label: string,
+      source: Record<string, unknown>,
+      seal: boolean
+    ): CompositionRequest => ({
+      method: 'POST',
+      parts: [],
+      query: new URLSearchParams(),
+      body: () => ({ ...source, version: label, seal }),
+      text: () => '',
+    });
+    return {
+      preview: (label, source) =>
+        String(
+          (derive(entry, asked(label, source, false)).json as { content?: string }).content ?? ''
+        ),
+      seal: (label, source) => {
+        const answer = derive(entry, asked(label, source, true));
+        return answer.status < 300
+          ? (answer.json as { version: CompositionVersionView }).version
+          : answer;
+      },
+    };
+  };
+
   /** The answer to a member of `org`. */
   const answer = (
     request: CompositionRequest,
@@ -1843,6 +1872,10 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       return operation && slug === 'tomatometer'
         ? operation.route(request, entry.versions)
         : ok({ environments: [] });
+    if (section === 'proposals')
+      return operation && slug === 'tomatometer'
+        ? operation.proposalsRoute(request, entry.versions, deriving(entry))
+        : ok({ proposals: [] });
     const find = (value: string | null) =>
       entry.versions.find(
         item => item.id === value || item.label === value || String(item.ordinal) === value
@@ -1952,6 +1985,13 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
 
   return {
     route: answer,
+
+    proposalRoute(request) {
+      const entry = poolOf(COMPOSITIONS_ORG).find(item => item.view.slug === 'tomatometer');
+      return operation && entry
+        ? operation.proposalRoute(request, entry.versions, deriving(entry))
+        : missing();
+    },
 
     publicRoute(request, org, signedIn, organizations = []) {
       const [, , , , slug, section, ref, tail] = request.parts;

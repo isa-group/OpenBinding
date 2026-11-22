@@ -242,6 +242,19 @@ describe('the configurator mode', () => {
     expect(within(result()).queryByRole('button', { name: 'Derive as a new version' })).toBeNull();
   });
 
+  it('derives on the problem version the demand chose, as it was evaluated', async () => {
+    const onDerive = vi.fn();
+    renderConfigurator({ onDerive, demand: { revision: 4 } });
+    choose('cand_t1_google_cloud', 'T1');
+    fireEvent.click(
+      await within(result()).findByRole('button', { name: 'Derive as a new version' }, WAIT)
+    );
+    expect(onDerive).toHaveBeenCalledWith({
+      revision: 'fms@4',
+      binding: { ...BINDING, T1: 'cand_t1_google_cloud' },
+    });
+  });
+
   it('starts from a binding the calculator handed over, and evaluates it', async () => {
     renderConfigurator({ start: { ...BINDING, T6: 'cand_t6_stripe' } });
 
