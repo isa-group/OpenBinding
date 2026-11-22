@@ -18,6 +18,8 @@ met it is reported ``ok: false, blockedByRemote: true`` with the reason, and the
 Environment (the ``seed`` compose service passes the gateway's, so nothing is specific to this tool):
     DEMO_SEED_PASSWORD   required; the password the seed gave every synthetic user.
     SMOKE_BASE_URL       optional; default http://web:8080 (the proxy inside the lab network).
+    SPHERE_URL           the lab's SPHERE; steps 19-21 run only when it is the stand-in (http://sphere-lab:8080).
+    UPSTREAM_POLL_INTERVAL_S  the watcher's interval (default 300); step 19 waits up to three of them.
 
 Steps (a failure never aborts the next one; 8-11 can be dropped with ``--skip``; they run in the order of ``RUN_ORDER``):
     1 proxy_and_spa     /healthz, SPA index, SPA fallback on a made-up deep route, /api/health/ready
@@ -51,9 +53,28 @@ Steps (a failure never aborts the next one; 8-11 can be dropped with ``--skip``;
                         If-Match is 428 and lab-member's adopt is 403
    18 restore_operation lab-owner adopts 1.0.0 again (the walks start from the seed's state); the next mail is Brevo's
 
+   19 upstream_offering_event  the lab's SPHERE stand-in publishes TomatoMeter 1.2.0 (``tomatometer-1.2.0``: Basic gains
+                        Daily summary and a price of 0.99); within three watcher cycles lab-main/tomatometer has one open
+                        ``offering_changed`` event whose production margins move Basic (with and without extraTimers)
+                        by +0.99 per user and every other row by 0.000000; production's feed ETag, its adoption number
+                        and the counts of runs, revisions, versions and proposals are unchanged; the stand-in had
+                        answered TomatoMeter's manifest with a 304 at least once before
+   20 upstream_review   lab-viewer's review is 403, a body that asks for ``state: resolved`` is refused, lab-owner's
+                        review with a note makes the event ``reviewed``, a second review is 409 ``event_not_reviewable``,
+                        and no route resolves an event
+   21 proposal_adopt    on production: lab-owner proposes adopting 1.1.0 and confirms it (``completed``; the adoption
+                        history says ``source: proposal``; the feed's ETag becomes 1.1.0's); a second proposal (1.0.0)
+                        made stale by a direct adoption of 1.0.0 is refused with 409 ``proposal_stale`` and changes
+                        nothing; production ends on 1.0.0, as step 18 leaves it
+
 Steps 14 and 15 are reported ``skipped`` when the seed skipped SPHERE (it was disabled or unreachable): the problem
 then has no revision 2, as ``plan_usage`` is skipped without ``--with-space``. Steps 16 to 18 are skipped likewise
-when the seed made no TomatoMeter environments. ``--steps 16,17,18`` runs only the steps named.
+when the seed made no TomatoMeter environments. Steps 19 to 21 run only against the lab's SPHERE stand-in: the
+smoke's ``SPHERE_URL`` (the seed service gets the gateway's) must name the host ``sphere-lab`` and its control port
+(``http://sphere-lab:8081/_lab/state``) must answer; otherwise they are skipped, and ``skipReasons`` says why (in the
+public mode the stand-in still runs, so the control port alone would not tell). Each scenario publishes once per lab:
+on a lab where step 19 already ran, it finds the event it made, and step 20 the review. ``--steps 16,17,18`` runs only
+the steps named.
 
 Steps 3 to 5 are the F0b walk (upload, run, study) on the organization's paths. Every smoke uploads one problem
 (``smoke-<run id>``) and creates one study of it in lab-main; nothing is deleted, since runs keep their problem.
@@ -81,7 +102,9 @@ import uuid
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -166,7 +189,7 @@ BLOCKED_HINT = (
 #: Step number -> optional via --skip.
 SKIPPABLE = (8, 9, 10, 11)
 #: 11 last: it burns the per-address login budget.
-RUN_ORDER = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14, 15, 16, 17, 18, 12, 11)
+RUN_ORDER = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 21, 12, 11)
 
 #: Key words that make a name look like a credential or an address (as security/redaction.py).
 SENSITIVE_WORDS = frozenset(
@@ -231,6 +254,10 @@ class Config:
     with_space: bool = False
     #: Only these steps (``--steps``); ``None`` runs them all.
     only: frozenset[int] | None = None
+    #: The lab's SPHERE (``SPHERE_URL``): steps 19-21 need the stand-in.
+    sphere_url: str = ""
+    #: The watcher's interval (``UPSTREAM_POLL_INTERVAL_S``); step 19 waits for up to three cycles.
+    poll_interval_s: float = 300.0
 
 
 class StepError(Exception):
@@ -1245,6 +1272,249 @@ def step_restore_operation(lab: Lab) -> Checks:
     return checks
 
 
+# --------------------------------------------------------------------------
+# Upstream events and proposals (F6): a new upstream version from the lab's SPHERE stand-in
+# --------------------------------------------------------------------------
+
+#: The stand-in's control port, inside the compose network only (no published port; nginx never proxies it).
+SPHERE_LAB_CONTROL = "http://sphere-lab:8081"
+STAND_IN_HOST = "sphere-lab"
+#: The scenario step 19 publishes (TomatoMeter 1.2.0: Basic gains Daily summary and a price of 0.99).
+OFFERING_SCENARIO = "tomatometer-1.2.0"
+OFFERING_LABEL = "1.2.0"
+TOMATOMETER_MANIFEST = "/api/v1/public/pricings/6ab0a323697330667ccce8cd"
+UPSTREAM_EVENTS = f"{TOMATOMETER}/upstream-events"
+PROPOSALS = f"{TOMATOMETER}/proposals"
+ORG_PROPOSALS = f"/v1/organizations/{ORG}/proposals"
+#: Watcher cycles step 19 waits for the event (plus a margin of EVENT_MARGIN_S).
+EVENT_CYCLES = 3
+EVENT_MARGIN_S = 15.0
+#: Basic's revenue per user rises by 0.99 (0.00 -> 0.99, and 1.00 -> 1.99 with extraTimers); the costs do not move.
+BASIC_DELTA = Decimal("0.99")
+REVIEW_NOTE = "smoke_lab: seen; Basic now earns 0.99 per user in production"
+
+
+def stand_in(lab: Lab, method: str, path: str) -> httpx.Response:
+    return lab.client.request(method, f"{SPHERE_LAB_CONTROL}{path}", timeout=10.0)
+
+
+def upstream_skip_reason(lab: Lab) -> str | None:
+    """Why steps 19-21 cannot run here (asked once), or ``None`` when the lab's SPHERE is the stand-in."""
+    if not hasattr(lab, "_upstream_reason"):
+        host = urlsplit(lab.config.sphere_url).hostname or ""
+        reason: str | None = None
+        if host != STAND_IN_HOST:
+            reason = f"the lab's SPHERE is {host or 'not configured'}, not the stand-in {STAND_IN_HOST}"
+        else:
+            try:
+                answer = stand_in(lab, "GET", "/_lab/state")
+                if answer.status_code != 200:
+                    reason = f"the stand-in's control port answers {answer.status_code}"
+            except httpx.HTTPError as error:
+                reason = f"the stand-in's control port does not answer ({type(error).__name__})"
+        if reason is None and not _operation_seeded(lab):
+            reason = "the seed made no TomatoMeter environments"
+        lab._upstream_reason = reason  # type: ignore[attr-defined]
+    return lab._upstream_reason  # type: ignore[attr-defined]
+
+
+def operation_counts(lab: Lab) -> dict[str, Any]:
+    """Production's feed ETag and adoption number, and what only a person's action may add (runs, revisions,
+    versions, proposals)."""
+    production = mapping(body_of(lab.call("GET", PRODUCTION, "owner")))
+    revisions = body_of(lab.call("GET", f"{SPHERE_PROBLEM}/revisions", "owner"))
+    proposals = mapping(body_of(lab.call("GET", PROPOSALS, "owner", params={"limit": 100}))).get("proposals")
+    return {
+        "feedEtag": read_feed(lab).headers.get("ETag"),
+        "adoption": mapping(production.get("inEffect")).get("adoption"),
+        "runs": mapping(body_of(lab.call("GET", RUNS, "owner", params={"limit": 1}))).get("total"),
+        "revisions": len(revisions) if isinstance(revisions, list) else None,
+        "versions": mapping(body_of(lab.call("GET", f"{TOMATOMETER}/versions", "owner", params={"limit": 1}))).get("total"),
+        "proposals": len(proposals) if isinstance(proposals, list) else None,
+    }
+
+
+def manifest_304s(lab: Lab) -> int:
+    requests = mapping(mapping(body_of(stand_in(lab, "GET", "/_lab/state"))).get("requests"))
+    return int(mapping(requests.get(TOMATOMETER_MANIFEST)).get("304") or 0)
+
+
+def offering_event(lab: Lab) -> Mapping[str, Any] | None:
+    """lab-main/tomatometer's offering event for TomatoMeter 1.2.0, in any state, or ``None``."""
+    listing = mapping(body_of(lab.call("GET", UPSTREAM_EVENTS, "owner", params={"subject": "offering", "limit": 100})))
+    for event in listing.get("events") or []:
+        event = mapping(event)
+        if mapping(event.get("new")).get("label") == OFFERING_LABEL:
+            return event
+    return None
+
+
+def margin_deltas(environment: Mapping[str, Any]) -> list[tuple[str, tuple[str, ...], Decimal | None]]:
+    """Each margin row of an environment as (plan, add-ons, after - before); ``None`` when a side has no margin."""
+    def rows(side: str) -> dict[tuple[str, tuple[str, ...]], Any]:
+        found = mapping(environment.get(side)).get("rows") or []
+        return {(str(mapping(row).get("plan")), tuple(mapping(row).get("addOns") or [])): mapping(row).get("margin")
+                for row in found}
+
+    before, after = rows("before"), rows("after")
+    deltas = []
+    for key in sorted(set(before) | set(after)):
+        try:
+            delta: Decimal | None = Decimal(str(after[key])) - Decimal(str(before[key]))
+        except (KeyError, InvalidOperation):
+            delta = None
+        deltas.append((key[0], key[1], delta))
+    return deltas
+
+
+def step_upstream_offering_event(lab: Lab) -> Checks:
+    checks = lab.begin()
+    before = operation_counts(lab)
+    lab.feed_etags = [before["feedEtag"]]  # type: ignore[attr-defined]
+    deadline = lab.clock() + 2 * lab.config.poll_interval_s + EVENT_MARGIN_S
+    revalidated = manifest_304s(lab)
+    while revalidated < 1 and lab.clock() < deadline:
+        lab.sleep(2.0)
+        revalidated = manifest_304s(lab)
+    checks.expect(revalidated >= 1, f"the watcher had revalidated TomatoMeter's manifest with a 304 ({revalidated})")
+    published = stand_in(lab, "POST", f"/_lab/publish/{OFFERING_SCENARIO}")
+    status = mapping(body_of(published)).get("status")
+    if not checks.expect(published.status_code == 200 and status in {"published", "already_published"},
+                         f"the stand-in publishes {OFFERING_SCENARIO} ({published.status_code} {status})"):
+        return checks
+    again = status == "already_published"
+    if again:
+        checks.note(f"{OFFERING_SCENARIO} was published on this lab before: the event it made is checked")
+    deadline = lab.clock() + EVENT_CYCLES * lab.config.poll_interval_s + EVENT_MARGIN_S
+    event = offering_event(lab)
+    while event is None and lab.clock() < deadline:
+        lab.sleep(2.0)
+        event = offering_event(lab)
+    if not checks.expect(event is not None,
+                         f"an offering event for TomatoMeter {OFFERING_LABEL} within {EVENT_CYCLES} watcher cycles"):
+        return checks
+    assert event is not None
+    lab.offering_event_id = event.get("id")  # type: ignore[attr-defined]
+    checks.expect(event.get("category") == "offering_changed" and event.get("subject") == "offering"
+                  and event.get("notify") is True,
+                  f"it is a told offering_changed event ({event.get('category')}, notify {event.get('notify')})")
+    checks.expect(again or event.get("state") == "open", f"it is open ({event.get('state')})")
+    checks.expect("production" in list(event.get("environments") or []), "it names production")
+    detail = mapping(body_of(lab.call("GET", f"{UPSTREAM_EVENTS}/{event.get('id')}", "owner")))
+    margins = mapping(mapping(detail.get("diff")).get("margins"))
+    production = next((mapping(item) for item in margins.get("environments") or []
+                       if mapping(item).get("environment") == "production"), {})
+    deltas = margin_deltas(production)
+    basic = [delta for plan, _, delta in deltas if plan == "basic"]
+    others = [delta for plan, _, delta in deltas if plan != "basic"]
+    checks.expect(len(basic) == 2 and all(delta == BASIC_DELTA for delta in basic),
+                  f"production's Basic rows move by +0.99 per user ({[str(d) for d in basic]})")
+    checks.expect(others and all(delta is not None and f"{delta:.6f}" == "0.000000" for delta in others),
+                  f"every other row of production moves by 0.000000 ({[str(d) for d in others]})")
+    checks.expect(production.get("users") == 1000, f"at production's 1000 expected users ({production.get('users')})")
+    after = operation_counts(lab)
+    lab.feed_etags.append(after["feedEtag"])  # type: ignore[attr-defined]
+    checks.expect(after == before, f"the feed's ETag, the adoption and the counts are unchanged ({before} -> {after})")
+    checks.note(f"event {event.get('id')} {event.get('category')} {mapping(event.get('old')).get('label')} -> "
+                f"{OFFERING_LABEL}; E0 {before['feedEtag']}; 304s before the publish {revalidated}")
+    return checks
+
+
+def step_upstream_review(lab: Lab) -> Checks:
+    checks = lab.begin()
+    event_id = getattr(lab, "offering_event_id", None) or mapping(offering_event(lab)).get("id")
+    if not checks.expect(bool(event_id), f"the offering event of TomatoMeter {OFFERING_LABEL} exists (step 19)"):
+        return checks
+    event_path = f"{UPSTREAM_EVENTS}/{event_id}"
+    start = mapping(body_of(lab.call("GET", event_path, "owner"))).get("state")
+    viewer = lab.call("POST", f"{event_path}/review", "viewer", json={"note": "viewer"})
+    checks.expect(viewer.status_code == 403, f"lab-viewer may not review it ({describe(viewer)})")
+    resolving = lab.call("POST", f"{event_path}/review", "owner", json={"state": "resolved"})
+    checks.expect(resolving.status_code == 422, f"a review that asks for state: resolved is refused ({describe(resolving)})")
+    if start == "open":
+        reviewed = lab.call("POST", f"{event_path}/review", "owner", json={"note": REVIEW_NOTE})
+        body = mapping(body_of(reviewed))
+        checks.expect(reviewed.status_code == 200 and body.get("state") == "reviewed" and body.get("note") == REVIEW_NOTE
+                      and mapping(body.get("reviewedBy")).get("username") == USERS["owner"],
+                      f"lab-owner's review with a note makes it reviewed ({describe(reviewed)} {body.get('state')})")
+    else:
+        checks.note(f"the event was already {start} on this lab")
+    twice = lab.call("POST", f"{event_path}/review", "owner", json={"note": "again"})
+    checks.expect(twice.status_code == 409 and code_of(twice) == "event_not_reviewable",
+                  f"a second review is refused ({describe(twice)})")
+    for method, path in (("POST", f"{event_path}/resolve"), ("PATCH", event_path), ("PUT", event_path)):
+        answer = lab.call(method, path, "owner", json={"state": "resolved"})
+        checks.expect(answer.status_code in (404, 405), f"no route resolves an event: {method} {path[-40:]} "
+                                                        f"({describe(answer)})")
+    final = mapping(body_of(lab.call("GET", event_path, "owner")))
+    checks.expect(final.get("state") == "reviewed" and final.get("resolvedBy") is None,
+                  f"the offering event ends reviewed, never resolved ({final.get('state')})")
+    etags = getattr(lab, "feed_etags", None)
+    current = read_feed(lab).headers.get("ETag")
+    if etags:
+        checks.expect(current == etags[-1], f"the review leaves the feed's ETag ({current})")
+        etags.append(current)
+    return checks
+
+
+def step_proposal_adopt(lab: Lab) -> Checks:
+    checks = lab.begin()
+    etags = getattr(lab, "feed_etags", None) or []
+    first_tag, _ = content_tag(lab, "1.0.0")
+    switched_tag, _ = content_tag(lab, "1.1.0")
+    start = read_feed(lab).headers.get("ETag")
+    etags.append(start)
+    if not checks.expect(start == first_tag, f"production starts on 1.0.0 ({start})"):
+        return checks
+    created = lab.call("POST", PROPOSALS, "owner",
+                       json={"kind": "adopt", "environment": "production", "version": "1.1.0", "note": "smoke_lab proposal"})
+    proposal = mapping(body_of(created))
+    steps = [mapping(step) for step in proposal.get("steps") or []]
+    if not checks.expect(created.status_code == 201 and proposal.get("status") == "pending"
+                         and [step.get("kind") for step in steps] == ["adopt"],
+                         f"lab-owner proposes adopting 1.1.0 in production ({describe(created)})"):
+        return checks
+    confirmed = lab.call("POST", f"{ORG_PROPOSALS}/{proposal.get('id')}/confirm", "owner", json={})
+    done = mapping(body_of(confirmed))
+    checks.expect(confirmed.status_code == 200 and done.get("status") == "completed"
+                  and [mapping(step).get("status") for step in done.get("steps") or []] == ["done"],
+                  f"confirming it completes it ({describe(confirmed)} {done.get('status')})")
+    adopted = read_feed(lab).headers.get("ETag")
+    etags.append(adopted)
+    checks.expect(adopted == switched_tag, f"the feed's ETag is now 1.1.0's ({adopted})")
+    history = [mapping(row) for row in mapping(body_of(lab.call("GET", f"{PRODUCTION}/adoptions", "owner"))).get(
+        "adoptions") or []]
+    newest = history[0] if history else {}
+    checks.expect(newest.get("source") == "proposal" and mapping(newest.get("proposal")).get("id") == proposal.get("id")
+                  and mapping(newest.get("version")).get("label") == "1.1.0",
+                  f"the adoption history says source: proposal ({newest.get('source')})")
+    stale = lab.call("POST", PROPOSALS, "owner",
+                     json={"kind": "adopt", "environment": "production", "version": "1.0.0", "note": "smoke_lab stale"})
+    second = mapping(body_of(stale))
+    if not checks.expect(stale.status_code == 201 and second.get("status") == "pending",
+                         f"a second proposal adopts 1.0.0 ({describe(stale)})"):
+        return checks
+    direct = adopt(lab, "owner", "1.0.0")
+    checks.expect(direct.status_code == 200, f"a direct adoption of 1.0.0 moves production first ({describe(direct)})")
+    moved = read_feed(lab).headers.get("ETag")
+    etags.append(moved)
+    adoption = mapping(mapping(body_of(lab.call("GET", PRODUCTION, "owner"))).get("inEffect")).get("adoption")
+    refused = lab.call("POST", f"{ORG_PROPOSALS}/{second.get('id')}/confirm", "owner", json={})
+    checks.expect(refused.status_code == 409 and code_of(refused) == "proposal_stale",
+                  f"confirming the second proposal is refused as stale ({describe(refused)})")
+    status = mapping(body_of(lab.call("GET", f"{ORG_PROPOSALS}/{second.get('id')}", "owner"))).get("status")
+    checks.expect(status == "stale", f"the second proposal is stale ({status})")
+    end = read_feed(lab).headers.get("ETag")
+    etags.append(end)
+    after = mapping(mapping(body_of(lab.call("GET", PRODUCTION, "owner"))).get("inEffect")).get("adoption")
+    checks.expect(end == moved == first_tag and after == adoption,
+                  f"nothing changed: production stays on 1.0.0 with adoption #{adoption} ({end}, #{after})")
+    state = wait_for_provider(lab, "brevo", CONSUMER_SWITCH_S)
+    checks.expect(state.get("provider") == "brevo", f"the consumer follows Brevo again ({state.get('provider')})")
+    checks.note("feed ETags " + " -> ".join(str(tag) for tag in etags))
+    return checks
+
+
 def _operation_seeded(lab: Lab) -> bool:
     """Whether the seed made TomatoMeter's production environment (an environment view answers its slug); asked once."""
     if not hasattr(lab, "_operation_seeded"):
@@ -1276,11 +1546,16 @@ STEPS: dict[int, tuple[str, Callable[[Lab], Checks]]] = {
     16: ("environment_feed", step_environment_feed),
     17: ("adopt_switches_provider", step_adopt_switches_provider),
     18: ("restore_operation", step_restore_operation),
+    19: ("upstream_offering_event", step_upstream_offering_event),
+    20: ("upstream_review", step_upstream_review),
+    21: ("proposal_adopt", step_proposal_adopt),
 }
 #: The steps that need the seed's SPHERE problem.
 SPHERE_STEPS = (14, 15)
 #: The steps that need the seed's TomatoMeter environments (F4), in this order: 17 adopts, 18 restores.
 OPERATION_STEPS = (16, 17, 18)
+#: The steps that need the lab's SPHERE stand-in (F6), in this order: 19 publishes, 20 reviews, 21 proposes.
+UPSTREAM_STEPS = (19, 20, 21)
 
 
 # --------------------------------------------------------------------------
@@ -1317,6 +1592,7 @@ def run_smoke(
     started = clock()
     steps: list[dict[str, Any]] = []
     skipped: list[str] = []
+    reasons: dict[str, str] = {}
     for number in RUN_ORDER:
         name = STEPS[number][0]
         if number in config.skip or (number == 12 and not config.with_space):
@@ -1331,6 +1607,10 @@ def run_smoke(
         if number in OPERATION_STEPS and not _operation_seeded(lab):
             skipped.append(name)
             continue
+        if number in UPSTREAM_STEPS and upstream_skip_reason(lab) is not None:
+            skipped.append(name)
+            reasons[name] = upstream_skip_reason(lab) or ""
+            continue
         steps.append(run_step(lab, number))
     blocked_steps = [step["name"] for step in steps if step["blockedByRemote"]]
     return {
@@ -1342,6 +1622,7 @@ def run_smoke(
         "blocked": len(blocked_steps),
         "blockedSteps": blocked_steps,
         "skipped": skipped,
+        "skipReasons": reasons,
         "elapsedS": round(clock() - started, 1),
         "steps": steps,
     }
@@ -1403,10 +1684,14 @@ def main(
     if not password:
         print(json.dumps({"tool": "smoke_lab", "ok": False, "error": "DEMO_SEED_PASSWORD is required", "steps": []}))
         return EXIT_CONFIG
+    try:
+        poll_interval_s = float(source.get("UPSTREAM_POLL_INTERVAL_S") or 300)
+    except ValueError:
+        poll_interval_s = 300.0
     config = Config(
         base_url=base_url, password=password, origin=args.origin, evil_origin=args.evil_origin,
         job_timeout_s=args.job_timeout, max_concurrent=args.max_concurrent, skip=args.skip, with_space=args.with_space,
-        only=args.steps,
+        only=args.steps, sphere_url=source.get("SPHERE_URL", ""), poll_interval_s=poll_interval_s,
     )
     with httpx.Client(base_url=base_url, transport=transport, follow_redirects=False) as client:
         report = run_smoke(config, client, sleep=sleep)

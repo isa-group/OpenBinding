@@ -434,7 +434,10 @@ DEMO_SEED_TOOL=smoke_lab.py DEMO_SEED_ARGS='--with-space' docker compose run --r
 ```
 
 Use `DEMO_SEED_ARGS='--skip 8,9,10,11'` to leave out the optional steps, or `--steps 16,17,18` to run only
-those (the operation of TomatoMeter: the feed, the provider switch, the restore). Drop
+those (the operation of TomatoMeter: the feed, the provider switch, the restore), or `--steps 19,20,21` for the
+upstream chain of F6 (an offering event, its review and a proposal adoption). Steps 19 to 21 need the lab's SPHERE
+stand-in: they run only when the seed service's `SPHERE_URL` names `sphere-lab` and its control port answers, and are
+otherwise skipped with the reason in `skipReasons` (the public-SPHERE override skips them). Drop
 `--with-space` when the users have no SPACE contract or `DEMO_SPACE_ENABLED=false`:
 step `plan_usage` runs only with that flag, and the other steps complete against
 the open gate. It reads `DEMO_SEED_PASSWORD`
@@ -473,6 +476,9 @@ check `remote_probe.py` before reading it as a seeding gap.
 | `environment_feed` | the feed of `lab-main/tomatometer` `production`, through this nginx: the key the seed derives from `DEMO_SEED_PASSWORD` reads 1.0.0's bytes with 1.0.0's content `ETag`; `If-None-Match` gives a 304 that keeps `ETag` and `Vary`; the outsider's key is a 404, no credential a 401, the feed key on `/v1/users/me` a 401 `environment_key_elsewhere`; re-evaluating 1.0.0 leaves the `ETag`; the margins of the pinned evaluation at 1000 users are `ok` with 7 rows, basic's negative |
 | `adopt_switches_provider` | the feed consumer follows Brevo and mails through it (Mailpit, tag `provider-brevo`); `lab-owner` adopts 1.1.0 with `If-Match`; the feed's `ETag` becomes 1.1.0's; within 15 s the consumer follows Resend and mails with tag `provider-resend`; an adopt without `If-Match` is 428 and `lab-member`'s is 403 |
 | `restore_operation` | `lab-owner` adopts 1.0.0 again, so the walks start from the seed's state; the next mail is Brevo's |
+| `upstream_offering_event` | (F6) the stand-in had answered TomatoMeter's manifest with a 304 at least once; `POST http://sphere-lab:8081/_lab/publish/tomatometer-1.2.0`; within three watcher cycles (`UPSTREAM_POLL_INTERVAL_S`, 20 s in the lab) `GET …/compositions/tomatometer/upstream-events?subject=offering` holds one open, told `offering_changed` event for 1.2.0 naming `production`, whose production margins (1000 users) move Basic and Basic + extraTimers by +0.99 per user and every other row by 0.000000; production's feed `ETag`, its adoption number and the counts of runs, revisions, versions and proposals are unchanged |
+| `upstream_review` | (F6) `lab-viewer`'s review is 403; a body with `state: resolved` is refused (422); `lab-owner`'s review with a note makes the event `reviewed`; a second review is 409 `event_not_reviewable`; no route resolves an event (`…/resolve`, `PATCH`, `PUT`: 404 or 405); the feed's `ETag` does not move |
+| `proposal_adopt` | (F6) on `production`: `lab-owner` proposes adopting 1.1.0 (`POST …/proposals {kind: adopt}`) and confirms it (`POST /v1/organizations/lab-main/proposals/{p}/confirm`): `completed`, the adoption history's newest row says `source: proposal`, the feed's `ETag` becomes 1.1.0's; a second proposal (1.0.0), then a direct adoption of 1.0.0, then its confirmation: 409 `proposal_stale`, the proposal `stale`, nothing changed; production ends on 1.0.0 and the consumer follows Brevo again |
 | `plan_usage` | (`--with-space`) plan and capabilities of the owner, no usage counters |
 | `login_throttle` | 12 failed logins of a made-up user end in a 429 with `Retry-After`; the counter is per address and identifier |
 
@@ -480,7 +486,10 @@ Steps `upload`, `owner_job` and `study` are the F0b walk (upload, run, study) on
 It writes to the lab database only through the API: one problem and one study of `lab-owner` per run (nothing is
 deleted, since runs keep their problem), and runs of `lab-owner` and `lab-member` (the viewer reads the owner's run
 directly); it never registers users and never touches
-SPACE or SPHERE. Running it again within five minutes finds the login throttle
+SPACE or the public SPHERE. Steps 19 to 21 publish `tomatometer-1.2.0` in the lab's stand-in (once per lab: a second
+smoke on the same lab finds the event and the review the first made) and leave two proposals of `lab-owner` (one
+`completed`, one `stale`) and two adoptions in `production`; the Brevo scenarios stay unpublished, for walk 15 and the
+demo. Running it again within five minutes finds the login throttle
 already tripped for its probe user, which still counts as a pass. What it does
 not cover (browser, Playwright, the visual mobile/desktop check) is
 left to the live Playwright run.
@@ -706,6 +715,10 @@ the reproducible artefact.
   image (`python:3.11-slim`) is a tag and the Debian packages are not pinned, so the image
   is not byte-for-byte reproducible.
 - No TLS, no backups of the volumes, one host.
+- **The `order-desk` URL watch.** lab-other's `order-desk` offering is a URL on `pricings.example.org`, which never
+  resolves: its watch stays `unavailable` and backs off to the one-hour cap (`UPSTREAM_FAILURE_BACKOFF_MAX_S`);
+  `/v1/admin/queues` lists it beside the four `active` SPHERE watches (Brevo, shared by TomatoMeter 1.0.0 and
+  `order-desk`; Dropbox; Resend; `sphere/tomatometer`).
 - **The SPHERE stand-in.** Scenario versions (synthetic ids starting `6fff`) exist only in the stand-in: "Open in
   SPHERE" for one of them leads to a 404 on the public SPHERE. The published scenarios stay in the `lab-sphere` volume
   until `down --volumes`; there is no unpublish, so **each scenario publishes once per lab** (a repeat answers
