@@ -414,7 +414,7 @@ test('J3 · the owner updates the problem from SPHERE and derives and adopts Res
     .getByRole('button', { name: /^Compare with the version in effect in Production/ })
     .click();
   await expect(proposal.getByRole('region', { name: 'Binding' })).toContainText('email.resend.pro');
-  await capture(page, testInfo, 'f6-proposal');
+  await capture(page, testInfo, 'f6-proposal', { fullPage: false });
   expect(await feedEtag(page.request)).toBe(before!.etag);
   await proposal.getByRole('button', { name: 'Confirm and apply' }).click();
   await expect(proposal).toContainText('Applied', { timeout: 180_000 });

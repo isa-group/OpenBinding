@@ -141,16 +141,22 @@ export const VIEWPORTS = [
 /**
  * Takes the screen at 1440x900 and at 390x844 and saves both in the output directory of the run (`<results>/test-output/<spec>/`),
  * attached to the report as well. The page goes back to the size it had. (The visual QA spec keeps its own pictures in
- * `<results>/screenshots`.)
+ * `<results>/screenshots`.) `fullPage: false` takes the viewport only: a dialog over a very long page (the configurator's
+ * matrix) is what is seen, and a full-page picture of that page can exhaust the browser's memory in the lab container.
  */
-export async function capture(page: Page, testInfo: TestInfo, name: string): Promise<void> {
+export async function capture(
+  page: Page,
+  testInfo: TestInfo,
+  name: string,
+  { fullPage = true }: { fullPage?: boolean } = {}
+): Promise<void> {
   const before = page.viewportSize();
   for (const view of VIEWPORTS) {
     await page.setViewportSize({ width: view.width, height: view.height });
     await waitUntilSettled(page);
     await prepareCapture(page);
     const path = testInfo.outputPath(`${name}-${view.name}.png`);
-    await page.screenshot({ path, fullPage: true, animations: 'disabled' });
+    await page.screenshot({ path, fullPage, animations: 'disabled' });
     await testInfo.attach(`${name}-${view.name}`, { path, contentType: 'image/png' });
   }
   if (before) await page.setViewportSize(before);
