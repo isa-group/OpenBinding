@@ -33,6 +33,135 @@ describe('the upstream change summary', () => {
     expect(notes).toHaveTextContent('may fall outside the range');
   });
 
+  it('words the plan comparison’s features and limits, which the gateway writes as compared values', () => {
+    const [entry] = (
+      valuesChanged as unknown as { diff: { entries: Array<Record<string, unknown>> } }
+    ).diff.entries;
+    const compared = (kind: string, value?: unknown) =>
+      value === undefined ? { kind } : { kind, value };
+    draw({
+      ...valuesChanged,
+      diff: {
+        ...valuesChanged.diff,
+        entries: [
+          {
+            ...entry,
+            comparison: {
+              features: {
+                gained: [
+                  {
+                    id: 'webhooks',
+                    name: 'Webhooks',
+                    before: compared('boolean', false),
+                    after: compared('boolean', true),
+                    presence: 'both',
+                  },
+                ],
+                lost: [
+                  {
+                    id: 'sms',
+                    name: null,
+                    before: compared('boolean', true),
+                    after: compared('none'),
+                    presence: 'before',
+                  },
+                ],
+                changed: [
+                  {
+                    id: 'support',
+                    name: 'Support',
+                    before: compared('text', 'email'),
+                    after: compared('text', 'phone'),
+                    presence: 'both',
+                  },
+                ],
+                unchanged: [],
+              },
+              usageLimits: [
+                {
+                  id: 'emailsPerMonth',
+                  name: 'Monthly emails',
+                  before: compared('number', '150000'),
+                  after: compared('unlimited'),
+                  presence: 'both',
+                },
+                {
+                  id: 'emailsPerDay',
+                  name: 'Daily emails',
+                  before: compared('unlimited'),
+                  after: compared('unlimited'),
+                  presence: 'both',
+                },
+              ],
+              plan: { renamedTo: null },
+            },
+          },
+        ],
+      },
+    });
+    const region = screen.getByRole('region', { name: 'dailySummary: email.brevo.professional' });
+    expect(region).toHaveTextContent('Webhooks is now included');
+    expect(region).toHaveTextContent('sms is no longer included');
+    expect(region).toHaveTextContent('Support: email → phone');
+    expect(region).toHaveTextContent('Monthly emails: 150,000 → Unlimited');
+    expect(region).not.toHaveTextContent('Daily emails');
+    expect(region).not.toHaveTextContent('[object Object]');
+  });
+
+  it('words an offering plan’s Unlimited values, and calls an unchanged one unchanged', () => {
+    const rows = (offering as unknown as { diff: { plans: Array<Record<string, unknown>> } }).diff
+      .plans;
+    draw({
+      ...offering,
+      diff: {
+        ...offering.diff,
+        plans: [
+          {
+            plan: 'premium',
+            addOns: [],
+            changed: false,
+            before: {
+              price: '9.990000',
+              unit: 'user/month',
+              features: { export: true },
+              usageLimits: { maxPomodoroTimers: { unlimited: true } },
+            },
+            after: {
+              price: '9.990000',
+              unit: 'user/month',
+              features: { export: true },
+              usageLimits: { maxPomodoroTimers: { unlimited: true } },
+            },
+          },
+          {
+            plan: 'basic',
+            addOns: [],
+            changed: true,
+            before: {
+              price: '0.000000',
+              unit: 'user/month',
+              features: {},
+              usageLimits: { maxPomodoroTimers: '3.000000' },
+            },
+            after: {
+              price: '0.990000',
+              unit: 'user/month',
+              features: {},
+              usageLimits: { maxPomodoroTimers: { unlimited: true } },
+            },
+          },
+        ],
+      },
+    });
+    expect(rows.length).toBeGreaterThan(0);
+    const table = screen.getByLabelText('Offering plans before and after');
+    expect(within(table).getByRole('row', { name: /premium/ })).toHaveTextContent('Unchanged');
+    expect(within(table).getByRole('row', { name: /basic/ })).toHaveTextContent(
+      'maxPomodoroTimers 3 → Unlimited'
+    );
+    expect(table).not.toHaveTextContent('[object Object]');
+  });
+
   it('says why rebinding is recommended for a removed plan', () => {
     draw(bindingInvalid);
     expect(screen.getByRole('region', { name: 'Why' })).toHaveTextContent(

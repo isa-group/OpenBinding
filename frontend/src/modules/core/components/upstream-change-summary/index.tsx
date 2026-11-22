@@ -1,7 +1,11 @@
+// Pattern only, after SPHERE frontend/src/modules/pricing/utils/change-summary.ts and
+// frontend/src/modules/pricing/components/pricing-version-graph/change-summary-card.tsx (revision 7c7074ff),
+// https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
+// MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // What an upstream event says changed (F6), the plan's `ChangeSummary` for an event: why rebinding is recommended, what
 // the composition's global values become, each bound entry's attributes before and after with the target they map to and
-// the delta, and the notes; for an offering event, SPHERE's catalog line (frontend/src/modules/pricing/utils/
-// change-summary.ts, revision 7c7074ff: "n plans changed") and each plan's row before and after. Everything is the
+// the delta, and the notes; for an offering event, a catalog line after SPHERE's version summary (each section's plans,
+// add-ons, features and usage limits added, removed or changed, counted) and each plan's row before and after. Everything is the
 // gateway's stored diff (`openbinding/upstream-event-diff@1`) in words: amounts are formatted from their text, and
 // nothing is compared, summed or decided here. SPHERE has no upstream events; the sections follow the renderer's.
 
@@ -32,13 +36,27 @@ interface Requirement {
   valueAfter?: string | null;
 }
 
+/** A value as the plan comparison writes it (`toComparedValue`): its kind and, for most kinds, the value. */
+interface ComparedValue {
+  kind: 'none' | 'boolean' | 'number' | 'unlimited' | 'text' | 'json' | string;
+  value?: unknown;
+}
+
+/** A feature or usage limit of the bound plan, compared. */
+interface ComparedItem {
+  id: string;
+  name?: string | null;
+  before: ComparedValue;
+  after: ComparedValue;
+}
+
 interface Entry {
   task: string;
   candidate: string;
   selection?: { plan?: string; addOns?: string[]; billing?: string | null; seats?: number | null };
   comparison?: {
-    features?: { gained?: string[]; lost?: string[]; changed?: string[] };
-    usageLimits?: Array<{ name: string; before?: string | null; after?: string | null }>;
+    features?: { gained?: ComparedItem[]; lost?: ComparedItem[]; changed?: ComparedItem[] };
+    usageLimits?: ComparedItem[];
     plan?: { renamedTo?: string | null };
   } | null;
   attributes?: Attribute[];
@@ -55,11 +73,14 @@ interface GlobalLine {
   delta: string | null;
 }
 
+/** A plan's feature or limit value in an offering diff: a boolean, a number's text, text, or `{unlimited: true}`. */
+type PlanValue = boolean | string | number | null | { unlimited: true } | Record<string, unknown>;
+
 interface PlanSide {
   price?: string | null;
   unit?: string | null;
-  features?: Record<string, boolean>;
-  usageLimits?: Record<string, string | null>;
+  features?: Record<string, PlanValue>;
+  usageLimits?: Record<string, PlanValue>;
 }
 
 interface PlanRow {
@@ -88,7 +109,7 @@ const SOURCE_WORDS: Record<string, string> = {
 };
 
 function Heading({ children }: { children: ReactNode }) {
-  return <h4 className="m-0 text-[13px] font-semibold text-tp-ink">{children}</h4>;
+  return <h3 className="m-0 text-[13px] font-semibold text-tp-ink">{children}</h3>;
 }
 
 /** "subscription 508.99 → 558.99 USD/month, +50.00". */
@@ -106,6 +127,28 @@ function valueText(value: string | null | undefined, money: boolean): string {
   return money ? moneyText(value) : decimalText(value);
 }
 
+/** A compared value in words: "Unlimited", "150,000", "yes", the text; "—" when the plan does not declare it. */
+function comparedText(value: ComparedValue | null | undefined): string {
+  if (!value || value.kind === 'none') return '—';
+  if (value.kind === 'unlimited') return 'Unlimited';
+  if (value.kind === 'boolean') return value.value ? 'yes' : 'no';
+  if (value.kind === 'number' && typeof value.value === 'string') return decimalText(value.value);
+  if (typeof value.value === 'string') return value.value;
+  return JSON.stringify(value.value ?? null);
+}
+
+/** An offering plan's value in words, the same way. */
+function planValueText(value: PlanValue | undefined): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'boolean') return value ? 'yes' : 'no';
+  if (typeof value === 'number') return decimalText(String(value));
+  if (typeof value === 'string') return decimalText(value);
+  if ('unlimited' in value && value.unlimited === true) return 'Unlimited';
+  return JSON.stringify(value);
+}
+
+const itemName = (item: ComparedItem) => item.name || item.id;
+
 function selectionText(entry: Entry): string {
   const selection = entry.selection;
   if (!selection?.plan) return entry.candidate;
@@ -118,15 +161,17 @@ function EntryView({ entry }: { entry: Entry }) {
   const attributes = entry.attributes ?? [];
   const features = entry.comparison?.features;
   const limits = (entry.comparison?.usageLimits ?? []).filter(
-    limit => limit.before !== limit.after
+    limit => comparedText(limit.before) !== comparedText(limit.after)
   );
   const requirements = (entry.requirements ?? []).filter(
     requirement => !requirement.after || requirement.valueBefore !== requirement.valueAfter
   );
   const featureLines = [
-    ...(features?.gained ?? []).map(name => `${name} is now included`),
-    ...(features?.lost ?? []).map(name => `${name} is no longer included`),
-    ...(features?.changed ?? []).map(name => `${name} changed`),
+    ...(features?.gained ?? []).map(item => `${itemName(item)} is now included`),
+    ...(features?.lost ?? []).map(item => `${itemName(item)} is no longer included`),
+    ...(features?.changed ?? []).map(
+      item => `${itemName(item)}: ${comparedText(item.before)} → ${comparedText(item.after)}`
+    ),
   ];
   return (
     <section
@@ -201,8 +246,8 @@ function EntryView({ entry }: { entry: Entry }) {
             <li key={line}>{line}</li>
           ))}
           {limits.map(limit => (
-            <li key={limit.name}>
-              {`${limit.name}: ${valueText(limit.before, false)} → ${valueText(limit.after, false)}`}
+            <li key={`limit-${limit.id}`}>
+              {`${itemName(limit)}: ${comparedText(limit.before)} → ${comparedText(limit.after)}`}
             </li>
           ))}
         </ul>
@@ -262,11 +307,17 @@ function planChanges(row: PlanRow): string {
   if (!before) return 'New';
   if (!after) return 'No longer offered';
   const parts: string[] = [];
-  for (const [name, on] of Object.entries(after.features ?? {}))
-    if ((before.features ?? {})[name] !== on) parts.push(on ? `gains ${name}` : `loses ${name}`);
+  for (const [name, value] of Object.entries(after.features ?? {})) {
+    const was = (before.features ?? {})[name];
+    if (planValueText(was) === planValueText(value)) continue;
+    if (typeof value === 'boolean' && (typeof was === 'boolean' || was === undefined))
+      parts.push(value ? `gains ${name}` : `loses ${name}`);
+    else parts.push(`${name} ${planValueText(was)} → ${planValueText(value)}`);
+  }
   for (const [name, value] of Object.entries(after.usageLimits ?? {})) {
-    const was = (before.usageLimits ?? {})[name] ?? null;
-    if (was !== value) parts.push(`${name} ${valueText(was, false)} → ${valueText(value, false)}`);
+    const was = (before.usageLimits ?? {})[name];
+    if (planValueText(was) !== planValueText(value))
+      parts.push(`${name} ${planValueText(was)} → ${planValueText(value)}`);
   }
   return parts.length > 0 ? parts.join('; ') : row.changed ? 'Price only' : 'Unchanged';
 }
