@@ -561,7 +561,9 @@ function DeriveOne({
     const settled = proposal.status !== 'pending' && proposal.status !== 'executing';
     const adopted = proposal.status === 'completed' || proposal.status === 'partial';
     return (
+      // A modal of its own (keyed): it takes focus as it opens, since the button that made the proposal is gone.
       <Modal
+        key="proposal"
         title="Derive and adopt"
         size="lg"
         onClose={() => {
@@ -570,10 +572,10 @@ function DeriveOne({
         }}
       >
         <div className={FORM}>
-          <p className={MUTED}>
+          <p className={MUTED} role="status">
             {settled
               ? 'The proposal was decided. The Operation tab keeps it with the composition’s other proposals.'
-              : `Nothing is sealed or adopted until you confirm. The proposal waits on the Operation tab of ${preview.slug} until you confirm or cancel it.`}
+              : `Nothing is sealed or adopted until you confirm. The proposal waits on the Operation tab of ${preview.slug} until you confirm or cancel it, or until you make another one on this composition, which replaces it.`}
           </p>
           <ProposalPanel
             proposal={proposal}

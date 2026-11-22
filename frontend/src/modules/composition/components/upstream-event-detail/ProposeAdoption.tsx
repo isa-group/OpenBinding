@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { readApiError } from '../../../core/api/errors';
+import { proposalErrors } from '../../../core/api/problem';
 import type {
   CompositionEnvironmentView,
   ProposalView,
@@ -58,7 +59,8 @@ export default function ProposeAdoption({
   const [proposal, setProposal] = useState<ProposalView | null>(null);
   const resolving = event.resolvedBy?.version;
   const offered = targets(event, environments, role);
-  if (!resolving || offered.length === 0) return null;
+  // An open proposal keeps its card (and its outcome) on screen after the adoption it applied leaves nothing to offer.
+  if (!resolving || (offered.length === 0 && !proposal)) return null;
 
   const propose = async (environment: CompositionEnvironmentView) => {
     setBusy(true);
@@ -74,7 +76,15 @@ export default function ProposeAdoption({
         })
       );
     } catch (caught) {
-      setFailure(readApiError(caught).message || 'The proposal couldn’t be made.');
+      // A 422 says why in its `errors` (the version is already in effect there, the environment is gone…).
+      const reasons = proposalErrors(caught)
+        .map(item => item.message)
+        .filter(Boolean);
+      setFailure(
+        reasons.length > 0
+          ? `The proposal couldn’t be made: ${reasons.join(' ')}`
+          : readApiError(caught).message || 'The proposal couldn’t be made.'
+      );
     } finally {
       setBusy(false);
     }
@@ -105,6 +115,11 @@ export default function ProposeAdoption({
           onClose={() => setProposal(null)}
         >
           <div className="flex flex-col gap-3">
+            <p className="m-0 text-xs text-tp-steel" role="status">
+              Nothing is adopted until you confirm. The proposal waits on the Operation tab until
+              you confirm or cancel it, or until you make another one on this composition, which
+              replaces it.
+            </p>
             <ProposalPanel
               proposal={proposal}
               context={{ org, composition, environments }}

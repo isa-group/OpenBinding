@@ -195,3 +195,21 @@ export function problemField(error: unknown, name: string): unknown {
   if (isRecord(detail) && name in detail) return detail[name];
   return problem[name];
 }
+
+/** One reason a request could not become a proposal (`422 proposal_invalid`, F6): the step it is about, or none. */
+export interface ProposalError {
+  step: number | null;
+  code: string;
+  message: string;
+}
+
+/** The reasons of a `422 proposal_invalid`, from its `errors` (at the top of the problem or inside `detail`). */
+export function proposalErrors(error: unknown): ProposalError[] {
+  const errors = problemField(error, 'errors');
+  if (!Array.isArray(errors)) return [];
+  return errors.filter(isRecord).map(item => ({
+    step: typeof item.step === 'number' ? item.step : null,
+    code: text(item.code) ?? 'invalid',
+    message: text(item.message) ?? '',
+  }));
+}
