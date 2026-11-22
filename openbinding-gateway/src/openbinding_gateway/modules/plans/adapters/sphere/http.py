@@ -2,7 +2,11 @@
 
 Every request goes through ``core.outbound.fetch`` (no client of its own): https only, no redirects, identity
 encoding, a decoded-size cap of ``SPHERE_MAX_BYTES``, the connection pinned to a checked address. The default
-SPHERE must be on a global address; a registry alias, configured by the operator, may be on a private one.
+SPHERE must be on a global address; a registry alias, configured by the operator, may be on a private one. With
+``SPHERE_REQUIRE_HTTPS=false`` (refused in production) the default SPHERE may also be plain http, then only towards a
+local or private address (``outbound.validate_endpoint(allow_internal_http=True)``): the lab's SPHERE stand-in.
+Registries and Pricing2Yaml URLs (``UrlSource``) stay https. "Open in SPHERE" links (``permanent_url``) to the default
+SPHERE are built on ``SPHERE_PUBLIC_URL`` when it is set.
 
 - **Ids first.** Pricing, version and organization ids must be SPHERE ids before a URL is built, and every
   path segment is percent-quoted; anything else is ``PricingNotFound`` with no request.
@@ -93,6 +97,8 @@ class _Target:
     key: str | None
     allow_internal: bool
     registry: str | None
+    #: False only for the default SPHERE with ``SPHERE_REQUIRE_HTTPS=false``: http towards a local address.
+    https_only: bool = True
 
 
 @dataclass(frozen=True)
@@ -129,7 +135,8 @@ class SphereHttpSource:
         if where.registry is None:
             if not self.settings.sphere_enabled:
                 raise PricingSourceUnavailable("disabled", "the default SPHERE is switched off (SPHERE_ENABLED)")
-            return _Target(self.settings.sphere_url.rstrip("/"), None, False, None)
+            relaxed = not self.settings.sphere_require_https
+            return _Target(self.settings.sphere_url.rstrip("/"), None, relaxed, None, https_only=not relaxed)
         registry = self.settings.sphere_registries.get(where.registry)
         if registry is None:
             raise PricingSourceUnavailable("registry_unknown", f"no SPHERE registry is configured as {where.registry}")
@@ -139,7 +146,7 @@ class SphereHttpSource:
     def _policy(self, target: _Target) -> OutboundPolicy:
         timeout = float(self.settings.sphere_timeout_s)
         return OutboundPolicy(
-            https_only=True,
+            https_only=target.https_only,
             allow_internal=target.allow_internal,
             max_bytes=int(self.settings.sphere_max_bytes),
             connect_timeout_s=min(3.0, timeout),
@@ -150,7 +157,7 @@ class SphereHttpSource:
 
     def permanent_url(self, where: SphereEndpoint, pricing_id: str, version_id: str | None = None) -> str:
         if where.registry is None:
-            base = self.settings.sphere_url.rstrip("/")
+            base = self.settings.sphere_link_base.rstrip("/")
         else:
             registry = self.settings.sphere_registries.get(where.registry)
             base = str(registry.url).rstrip("/") if registry else ""

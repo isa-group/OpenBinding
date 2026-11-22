@@ -78,18 +78,20 @@ A static check also exists (`lab/tests/test_lab_compose.py`).
 | `seed` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 384 MiB | `profiles: ["seed"]`; not started by `up` |
 | `mailpit` | `axllent/mailpit:v1.33.0`, pinned by digest | 64 MiB | the lab's outbox: SMTP 1025 and HTTP 8025 on the compose network only, `MP_WEBROOT=/mailpit/`, `MP_MAX_MESSAGES=500`; people read it **read-only** at `<lab origin>/mailpit/` through `web` (only `GET`: marking a message read fails quietly) |
 | `feed-consumer` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 96 MiB | `python tools/feed_consumer.py`, the lab's stand-in for TomatoMeter: reads the feed of `lab-main/tomatometer` `production` with the key in `/handoff/openbinding.json` (volume `lab-handoff`, written by the seed), every 3 s; `GET /state` and `POST /send` (the daily summary into Mailpit, tagged with the provider) on 8090 inside the network; waits, healthy, until the seed has run |
+| `sphere-lab` | `lab/sphere/Dockerfile` (context `.`, `python:3.11-slim` pinned by digest; only `openbinding-gateway/tools/sphere_lab.py` and the recorded set `openbinding-gateway/tests/fixtures/sphere`) | 64 MiB | the lab's **SPHERE stand-in** (F6), standard library only, `USER 10001`, volume `lab-sphere` on `/state`: the recorded SPHERE answers and the synthetic scenarios a demo publishes on port 8080, the gateway's default SPHERE (`SPHERE_URL=http://sphere-lab:8080`); a control port 8081 (`POST /_lab/publish/<scenario>`, `GET /_lab/state`, `POST /_lab/throttle?seconds=N`) reachable only inside the compose network: no published port, never proxied by `web`. Unrecorded GETs go to the public SPHERE anonymously (`DEMO_SPHERE_LAB_PASSTHROUGH`), except the scenario families (Brevo set B and `sphere/tomatometer`), which always answer here. `gateway`, `worker` and `seed` wait for it to be healthy |
 | `e2e` | `frontend/Dockerfile.e2e` (`mcr.microsoft.com/playwright:v1.62.1-jammy`, the version `pnpm-lock.yaml` resolves for `@playwright/test`) | 576 MiB | `user: pwuser`, volume `lab-e2e` on `/results`; runs the live specs when `DEMO_E2E=1`, then stays alive; healthy when `/results/done` exists |
 
-**Memory sum of all `mem_limit`: 3936 MiB** (3.84375 GiB; lab ceiling 4096 MiB,
-160 MiB to spare; Mailpit and the feed consumer add 160 MiB to the 3776 MiB before them).
+**Memory sum of all `mem_limit`: 4000 MiB** (3.90625 GiB; lab ceiling 4096 MiB,
+96 MiB to spare; the SPHERE stand-in adds 64 MiB to the 3936 MiB before it, and Mailpit and the feed consumer had
+added 160 MiB to the 3776 MiB before them), over 14 services.
 It includes `seed`, which only runs on demand,
-so the steady state is 3552 MiB. `test_lab_compose.py` and
-`test_container_hardening.py` recompute the sum and fail if it is not 3936 or
+so the steady state is 3616 MiB. `test_lab_compose.py` and
+`test_container_hardening.py` recompute the sum and fail if it is not 4000 or
 if this document does not state it. `mem_limit` bounds the container, not the
 page cache of the named volumes, and image builds are not limited by it.
 
 Optional: the pricing profile `compose.lab-pricing.json` is a 96 MiB one-shot against the remote SPACE, a separate
-project outside this 3936 MiB sum; see `docs/qa/PRICING_PROFILE.md` (removed with the factory artifacts in `e47da50d5`; in git history).
+project outside this 4000 MiB sum; see `docs/qa/PRICING_PROFILE.md` (removed with the factory artifacts in `e47da50d5`; in git history).
 
 **Unprivileged containers.** The gateway image (`gateway`, `worker`, `seed`) runs as
 UID/GID 10001 with no login shell. Root inside a rootless
@@ -160,6 +162,9 @@ Contents access to `javiercavlop/bim-toolchain`.
 | `DEMO_E2E` | e2e | `1` runs the live specs when the service starts; anything else (`0`, unset) only creates `/results/done` and sleeps. See "Browser specs and visual QA inside the lab" |
 | `DEMO_PUBLIC_ORIGIN` | gateway, worker (`PUBLIC_BASE_URL` only), seed | optional; default `http://localhost:18100`. The origin the browser reaches the lab by, with no trailing slash (for example `https://demo.example.org`). It becomes `PUBLIC_BASE_URL` and `FRONTEND_URL` (the worker gets only `PUBLIC_BASE_URL`) and is appended to `CORS_ALLOW_ORIGINS` after `http://localhost:${DEMO_LAB_PORT:-18100},http://127.0.0.1:${DEMO_LAB_PORT:-18100}`. Unset or empty, the URLs stay `http://localhost:18100` and the list gains an empty item that `Settings.cors_origin_list` discards, so CORS allows only the two local origins. The published port is `127.0.0.1:${DEMO_LAB_PORT:-18100}` |
 | `DEMO_LAB_PORT` | `web` (published port), gateway, worker, seed (image tag and local CORS origins) | optional; default `18100` (the develop lab); PR previews use 18101-18199. The loopback port `web` publishes (`127.0.0.1:<port>`). It also sets the gateway image tag `openbinding-lab-gateway:<port>` and the local CORS origins `http://localhost:<port>,http://127.0.0.1:<port>`. The `DEMO_PUBLIC_ORIGIN` defaults keep `http://localhost:18100` |
+| `DEMO_SPHERE_REQUIRE_HTTPS` | gateway, worker, seed (as `SPHERE_REQUIRE_HTTPS`) | `false` with the stand-in (the env example's value: plain http to `sphere-lab`, a private address); `true` against the public SPHERE. `APP_ENV=prod` refuses `false`, and registries and Pricing2Yaml URLs stay https either way |
+| `DEMO_UPSTREAM_POLL_S` | gateway, worker, seed (as `UPSTREAM_POLL_INTERVAL_S`) | `20` with the stand-in (an upstream change shows within one cycle, the watcher ticking every 5 s); `300` against the public SPHERE. `lab/tests/test_lab_compose.py` allows the example a poll under 60 s only while its `SPHERE_URL` names the stand-in |
+| `DEMO_SPHERE_LAB_PASSTHROUGH` | sphere-lab (as `SPHERE_LAB_PASSTHROUGH`) | `https://sphere.score.us.es`: the origin unrecorded GETs (walk 12's live searches) are forwarded to, anonymously and logged `sphere_lab_passthrough`; empty, they answer 404. The scenario families are never forwarded |
 | `SMOKE_BASE_URL` | seed (`smoke_lab.py`) | fixed in the file to `http://web:8080` on `seed` only |
 
 The file writes no SPACE service or plan name: those come from `DEMO_*`
@@ -176,8 +181,11 @@ it starts. If the variable is unset, compose gives an empty value, which the
 gateway refuses to start with.
 
 Private, supplied by the supervisor and only referenced as `${NAME}` (the file
-holds no value and no default): `SPACE_URL`, `SPACE_API_KEY`, `SPHERE_URL`,
-`SPACE_ORGANIZATION_ID` (OpenBinding holds no SPHERE key: it reads SPHERE anonymously). The last
+holds no value and no default): `SPACE_URL`, `SPACE_API_KEY`, `SPHERE_URL`, `SPHERE_PUBLIC_URL`,
+`SPACE_ORGANIZATION_ID` (OpenBinding holds no SPHERE key: it reads SPHERE anonymously). The env example sets
+`SPHERE_URL=http://sphere-lab:8080` (the stand-in) and `SPHERE_PUBLIC_URL=https://sphere.score.us.es` (where "Open in
+SPHERE" links point); to run the lab against the public SPHERE instead, override `SPHERE_URL=https://sphere.score.us.es
+DEMO_SPHERE_REQUIRE_HTTPS=true DEMO_UPSTREAM_POLL_S=300` (the stand-in still starts, unused). The last
 one goes to `gateway`, `worker` and `seed`: the gateway verifies every pricing
 token against SPACE's published keys for that organization (with SPACE enabled
 it warns at startup without it, and `APP_ENV=prod` refuses to start), and
@@ -426,7 +434,10 @@ DEMO_SEED_TOOL=smoke_lab.py DEMO_SEED_ARGS='--with-space' docker compose run --r
 ```
 
 Use `DEMO_SEED_ARGS='--skip 8,9,10,11'` to leave out the optional steps, or `--steps 16,17,18` to run only
-those (the operation of TomatoMeter: the feed, the provider switch, the restore). Drop
+those (the operation of TomatoMeter: the feed, the provider switch, the restore), or `--steps 19,20,21` for the
+upstream chain of F6 (an offering event, its review and a proposal adoption). Steps 19 to 21 need the lab's SPHERE
+stand-in: they run only when the seed service's `SPHERE_URL` names `sphere-lab` and its control port answers, and are
+otherwise skipped with the reason in `skipReasons` (the public-SPHERE override skips them). Drop
 `--with-space` when the users have no SPACE contract or `DEMO_SPACE_ENABLED=false`:
 step `plan_usage` runs only with that flag, and the other steps complete against
 the open gate. It reads `DEMO_SEED_PASSWORD`
@@ -465,6 +476,9 @@ check `remote_probe.py` before reading it as a seeding gap.
 | `environment_feed` | the feed of `lab-main/tomatometer` `production`, through this nginx: the key the seed derives from `DEMO_SEED_PASSWORD` reads 1.0.0's bytes with 1.0.0's content `ETag`; `If-None-Match` gives a 304 that keeps `ETag` and `Vary`; the outsider's key is a 404, no credential a 401, the feed key on `/v1/users/me` a 401 `environment_key_elsewhere`; re-evaluating 1.0.0 leaves the `ETag`; the margins of the pinned evaluation at 1000 users are `ok` with 7 rows, basic's negative |
 | `adopt_switches_provider` | the feed consumer follows Brevo and mails through it (Mailpit, tag `provider-brevo`); `lab-owner` adopts 1.1.0 with `If-Match`; the feed's `ETag` becomes 1.1.0's; within 15 s the consumer follows Resend and mails with tag `provider-resend`; an adopt without `If-Match` is 428 and `lab-member`'s is 403 |
 | `restore_operation` | `lab-owner` adopts 1.0.0 again, so the walks start from the seed's state; the next mail is Brevo's |
+| `upstream_offering_event` | (F6) the stand-in had answered TomatoMeter's manifest with a 304 at least once; `POST http://sphere-lab:8081/_lab/publish/tomatometer-1.2.0`; within three watcher cycles (`UPSTREAM_POLL_INTERVAL_S`, 20 s in the lab) `GET …/compositions/tomatometer/upstream-events?subject=offering` holds one open, told `offering_changed` event for 1.2.0 naming `production`, whose production margins (1000 users) move Basic and Basic + extraTimers by +0.99 per user and every other row by 0.000000; production's feed `ETag`, its adoption number and the counts of runs, revisions, versions and proposals are unchanged |
+| `upstream_review` | (F6) `lab-viewer`'s review is 403; a body with `state: resolved` is refused (422); `lab-owner`'s review with a note makes the event `reviewed`; a second review is 409 `event_not_reviewable`; no route resolves an event (`…/resolve`, `PATCH`, `PUT`: 404 or 405); the feed's `ETag` does not move |
+| `proposal_adopt` | (F6) on `production`: `lab-owner` proposes adopting 1.1.0 (`POST …/proposals {kind: adopt}`) and confirms it (`POST /v1/organizations/lab-main/proposals/{p}/confirm`): `completed`, the adoption history's newest row says `source: proposal`, the feed's `ETag` becomes 1.1.0's; a second proposal (1.0.0), then a direct adoption of 1.0.0, then its confirmation: 409 `proposal_stale`, the proposal `stale`, nothing changed; production ends on 1.0.0 and the consumer follows Brevo again |
 | `plan_usage` | (`--with-space`) plan and capabilities of the owner, no usage counters |
 | `login_throttle` | 12 failed logins of a made-up user end in a 429 with `Retry-After`; the counter is per address and identifier |
 
@@ -472,7 +486,10 @@ Steps `upload`, `owner_job` and `study` are the F0b walk (upload, run, study) on
 It writes to the lab database only through the API: one problem and one study of `lab-owner` per run (nothing is
 deleted, since runs keep their problem), and runs of `lab-owner` and `lab-member` (the viewer reads the owner's run
 directly); it never registers users and never touches
-SPACE or SPHERE. Running it again within five minutes finds the login throttle
+SPACE or the public SPHERE. Steps 19 to 21 publish `tomatometer-1.2.0` in the lab's stand-in (once per lab: a second
+smoke on the same lab finds the event and the review the first made) and leave two proposals of `lab-owner` (one
+`completed`, one `stale`) and two adoptions in `production`; the Brevo scenarios stay unpublished, for walk 15 and the
+demo. Running it again within five minutes finds the login throttle
 already tripped for its probe user, which still counts as a pass. What it does
 not cover (browser, Playwright, the visual mobile/desktop check) is
 left to the live Playwright run.
@@ -609,7 +626,8 @@ What the lab seeds for it (`openbinding-gateway/tools/seed_lab.py`, through the 
   which the `feed-consumer` service reads.
 
 The commands below run on the lab's host. `API=http://localhost:18100/api` (the lab's published port), `OWNER`
-holds `Authorization: Bearer <token>` of `lab-owner` (sign in with `POST $API/v1/auth/login`), and
+holds `X-API-Key: <lab-owner's key>` (derived from the demo password, as demo script v2's setup shows; a token from
+`POST $API/v1/auth/login` also works, but expires after `ACCESS_TOKEN_TTL_S`, 300 s), and
 `C="docker compose -f compose.lab.json"` (or the `lab_compose` tools). Nothing below prints a key:
 
 ```sh
@@ -654,11 +672,100 @@ the reproducible artefact.
 
 ### What comes next
 
-- **F6**: SPHERE watches and upstream events. "Brevo raises its price" arrives as an event on the environment with
-  the margins before (the adoption's pinned evaluation) and after (the new offering or upstream version), a badge on
-  the Operation tab, and a proposal to derive and adopt, which a person accepts.
+- **F6-D**: the screens of demo script v2 (badges, the event in place on the Operation tab, "Mark reviewed", the
+  proposal card, derive and adopt in one step) and its click path and timing.
 - **F8**: SPACE links per environment, the upstream ledger with a contract per environment and novation on adopt,
   and the users and demand of the margins read from SPACE contracts instead of `expectedUsers`.
+
+## TomatoMeter composite (demo script v2: an upstream change)
+
+The F6 demo, in at most 20 minutes: **Brevo raises PROFESSIONAL** (or retires it) upstream, OpenBinding notices it,
+classifies it against what `production` runs and tells the people who can act, **without changing anything**; a person
+reviews it, re-decides from the new data and adopts the result through a proposal, and TomatoMeter's stand-in follows
+the feed to the new provider. Nothing is published to the public SPHERE: the lab's SPHERE is its stand-in
+(`sphere-lab`), and "Brevo publishes 2026-11" is a scenario it publishes on demand (`tools/sphere_lab.py`,
+`openbinding-gateway/tests/fixtures/sphere/scenarios.json`).
+
+**Before the audience** (about 5 minutes): `down --volumes`, `up --build --wait`, `seed`, and **nothing else**: no
+smoke and no walk. Smoke steps 19 and 20 publish and review `tomatometer-1.2.0`, live walk 15 publishes both Brevo
+scenarios, and each scenario publishes once per lab. The env example already points at the stand-in, with a 20 s poll
+(`DEMO_UPSTREAM_POLL_S`), so a published version is noticed within one cycle (the watcher ticks every 5 s).
+
+Every step below has its **API track**: a command that shows the same thing, so a slow engine or a screen problem never
+stalls the demo (F6-D adds the click path of each step and its timing). The commands run on the lab's host, beside the
+variables of demo script v1 (`API`, `T`, `FEED_KEY`, `C`) and `DEMO_SEED_PASSWORD`. They act as `lab-owner` through its
+personal API key, which the seed derives from the demo password like the feed key and grants every permission but the
+administrator's, so nothing expires during the 20 minutes (a signed-in token would: it lives
+`ACCESS_TOKEN_TTL_S`, 300 s); nothing below prints the key:
+
+```sh
+P=$API/v1/organizations/lab-main/problems/tomatometer-email
+PROPOSALS=$API/v1/organizations/lab-main/proposals
+BREVO=6ade2d4440e55445692b07f1
+NEXT=1.2.0   # the new version's label: 1.2.0 on a fresh lab, 1.3.0 once walk 14 has sealed 1.2.0
+# lab-owner's personal API key, derived from the demo password as the seed derives it (seed_lab.api_key_for): it does
+# not expire, while a sign-in's access token lives 5 minutes (ACCESS_TOKEN_TTL_S) and would answer 401 from minute ~5.
+OWNER_KEY=$(python3 -c 'import hashlib,hmac,os; d=hmac.new(os.environ["DEMO_SEED_PASSWORD"].encode(), b"openbinding-lab-seed:apikey:lab-owner", hashlib.sha256).hexdigest(); print(f"obk_{d[:8]}_{d[8:]}")')
+OWNER="X-API-Key: $OWNER_KEY"
+JSON='Content-Type: application/json'
+j() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }   # j 'an expression of d'
+```
+
+| Min | What the audience sees | Command (API track) |
+|---|---|---|
+| 0–2 | `production` runs 1.0.0 (Brevo PROFESSIONAL), its margin per user, no badge; the feed's `ETag` (E0) | `curl -s -D - -o /dev/null -H "X-API-Key: $FEED_KEY" $T/environments/production/composition` (a GET: the feed answers no `HEAD`); `curl -s -H "$OWNER" $T/environments/production \| j 'd["inEffect"]["version"]["label"], d["upstream"]'` |
+| 2–3 | "Brevo publishes 2026-11": PROFESSIONAL goes from 499 to 549 USD a month | `$C exec -T gateway curl -s -X POST http://sphere-lab:8081/_lab/publish/brevo-professional-up` |
+| 3–5 | detection within one cycle: a notification for `lab-owner` and `lab-member` (not `lab-viewer`), the badge on the composition and on `production` | `$C exec -T gateway python tools/poll_upstream.py --once --force` (optional: it reads every watch now; without it the watcher polls every 20 s by itself, and a cycle without `--force` claims only watches already due); `curl -s -H "$OWNER" "$T/upstream-events?state=open"`; `curl -s -H "$OWNER" "$API/v1/notifications?limit=3"`; `curl -s -H "$OWNER" $T \| j 'd["upstream"]'` |
+| 5–8 | the event: **values changed**, subscription +50 USD a month (508.99 → 558.99), PROFESSIONAL before and after, links to both versions, "Nothing was re-evaluated"; **the feed's `ETag` is unchanged** and the consumer is still on Brevo | `curl -s -H "$OWNER" $T/upstream-events/$E1 \| j 'd["diff"]["global"], d["old"], d["new"]'`; the same feed `curl`; `$C exec -T feed-consumer curl -s localhost:8090/state` |
+| 8–9 | variant: "Brevo retires PROFESSIONAL" (`2027-01`): a second event, **binding invalid**, "Rebinding recommended", `plan_removed`; the 2026-11 event reads superseded | `$C exec -T gateway curl -s -X POST http://sphere-lab:8081/_lab/publish/brevo-professional-retired`; `curl -s -H "$OWNER" "$T/upstream-events?category=binding_invalid"` |
+| 9–10 | "Mark reviewed" with a note: the event is Reviewed, with the note and the reviewer | `curl -s -X POST -H "$OWNER" -H "$JSON" -d '{"note":"Seen; re-solving"}' $T/upstream-events/$E1/review` |
+| 10–14 | "Update from SPHERE": revision 4 of `tomatometer-email` reads Brevo `2027-01` (PROFESSIONAL drawn before and after, gone); on revision 4 the configurator picks Resend PRO (or a random-search run of 256 iterations on revision 4 does) | `GET $P/sphere/recipe`, the Brevo version set to `2027-01`, `POST $P/sphere/expand`, then `POST $P/sphere/apply` with its `packageDigest`; `POST $T/derive` with `seal: false` shows the document (block below) |
+| 14–16 | "Derive and adopt in production": the proposal with its two steps (seal `$NEXT` from revision 4, adopt it in production) and their bases, and the document's diff against 1.0.0; Confirm: `$NEXT` sealed, **both Brevo events Resolved by `$NEXT`**, `$NEXT` adopted (source: proposal) | `POST $T/proposals {kind: derive_and_adopt, …}`, then `POST $PROPOSALS/{p}/confirm`; `curl -s -H "$OWNER" "$T/upstream-events?state=resolved"` |
+| 16–17 | the feed carries `$NEXT` with a new `ETag`; the consumer follows Resend; the daily summary is sent; Mailpit shows it tagged `provider-resend` | the same feed `curl`; `$C exec -T feed-consumer curl -s localhost:8090/state`; `$C exec -T feed-consumer curl -s -X POST localhost:8090/send`; `http://localhost:18100/mailpit/` (`tag:provider-resend`) |
+| 17–19 | "John publishes TomatoMeter 1.2.0": **offering changed**, the margins per plan before and after for `production` (Basic and Basic + extraTimers +0.99 per user, the rest unchanged); "Mark reviewed" (it ends Reviewed: an offering event never resolves) | on a lab where smoke steps 19–20 ran it is already published and reviewed: show it (`curl -s -H "$OWNER" "$T/upstream-events?subject=offering"`); on the demo's own lab publish `tomatometer-1.2.0` the same way and review it |
+| 19–20 | the history: every event with its state, the adoption history ("through a proposal"), "Compare previous" | `curl -s -H "$OWNER" $T/upstream-events \| j '[(e["category"], e["state"], e["new"] and e["new"]["label"]) for e in d["events"]]'`; `curl -s -H "$OWNER" $T/environments/production/adoptions \| j '[(a["ordinal"], a["version"]["label"], a["source"]) for a in d["adoptions"]]'` |
+
+The steps that take more than one command, in order:
+
+```sh
+# 3-5: the open event (E1) and the badge's counts
+E1=$(curl -s -H "$OWNER" "$T/upstream-events?state=open&category=values_changed" | j 'd["events"][0]["id"]')
+curl -s -H "$OWNER" $T | j 'd["upstream"]'
+# 8-9: the second event (E2): binding invalid, PROFESSIONAL removed, rebinding recommended
+E2=$(curl -s -H "$OWNER" "$T/upstream-events?category=binding_invalid" | j 'd["events"][0]["id"]')
+curl -s -H "$OWNER" $T/upstream-events/$E2 | j 'd["reasons"], d["rebindingRecommended"], d["new"]["label"]'
+curl -s -H "$OWNER" $T/upstream-events/$E1 | j 'd["supersededBy"]'
+# 10-14: Update from SPHERE: the pinned recipe with Brevo at the event's new version, previewed, then applied
+NEW=$(curl -s -H "$OWNER" $T/upstream-events/$E2 | j 'd["new"]["versionId"]')
+curl -s -H "$OWNER" $P/sphere/recipe | python3 -c '
+import json, sys
+view = json.load(sys.stdin)
+for task in view["recipe"]["tasks"]:
+    for source in task.get("from", []):
+        if source.get("sphere", {}).get("pricing") == sys.argv[1]:
+            source["sphere"]["version"] = sys.argv[2]
+print(json.dumps({"recipe": view["recipe"], "base": {"revision": view["revision"]}}))' $BREVO "$NEW" > expand.json
+curl -s -X POST -H "$OWNER" -H "$JSON" --data @expand.json $P/sphere/expand > preview.json
+python3 -c 'import json; p = json.load(open("preview.json")); print(p["valid"], p["packageDigest"], p["changes"])'
+python3 -c 'import json; e = json.load(open("expand.json")); e["expect"] = {"packageDigest": json.load(open("preview.json"))["packageDigest"]}; print(json.dumps(e))' > apply.json
+curl -s -X POST -H "$OWNER" -H "$JSON" --data @apply.json $P/sphere/apply | j 'd["revision"]["revision"]'   # 4
+BINDING='{"dailySummary":"email.resend.pro","export":"storage.dropbox.plus","login":"auth.builtin.local","quotes":"quotes.zenquotes.free"}'
+curl -s -X POST -H "$OWNER" -H "$JSON" $T/derive \
+  -d "{\"revision\":\"tomatometer-email@4\",\"binding\":$BINDING,\"version\":\"$NEXT\",\"offering\":{\"sphere\":\"sphere/tomatometer\"},\"seal\":false}" | j 'd["content"]'
+# 14-16: derive and adopt in one confirmation
+PID=$(curl -s -X POST -H "$OWNER" -H "$JSON" $T/proposals \
+  -d "{\"kind\":\"derive_and_adopt\",\"source\":{\"revision\":\"tomatometer-email@4\",\"binding\":$BINDING},\"offering\":{\"sphere\":\"sphere/tomatometer\"},\"environment\":\"production\",\"note\":\"Re-solved after Brevo 2027-01\",\"upstreamEvent\":\"$E2\"}" | j 'd["id"]')
+curl -s -H "$OWNER" $PROPOSALS/$PID | j '[(s["ordinal"], s["kind"], s["description"], s["base"]) for s in d["steps"]]'
+curl -s -X POST -H "$OWNER" -H "$JSON" -d '{}' $PROPOSALS/$PID/confirm | j 'd["status"], [(s["ordinal"], s["status"], s["result"]) for s in d["steps"]]'
+curl -s -H "$OWNER" "$T/upstream-events?state=resolved" | j '[(e["id"], e["category"], e["resolvedBy"]) for e in d["events"]]'
+```
+
+A confirmation can answer `429 composition_busy` (every Composition2Yaml slot of the gateway is taken while the seal
+step derives again): the proposal stays pending, and confirming again later applies it.
+
+**Known limits.** "Open in SPHERE" for a scenario version (ids starting `6fff`) leads to a 404 on the public SPHERE,
+which never had it. Each scenario publishes once per lab (`down --volumes` resets the stand-in). Running the lab
+against the public SPHERE (`SPHERE_URL` overridden) shows no event at all.
 
 ## Known limits
 
@@ -683,7 +790,7 @@ the reproducible artefact.
   possible peers.
 - `engine-minizinc` at 192 MiB runs Node plus MiniZinc and its solver as child
   processes; a large model may not fit. Raising it means lowering something
-  else to stay under 4096 MiB (the current total, 3936 MiB, leaves 160 MiB).
+  else to stay under 4096 MiB (the current total, 4000 MiB, leaves 96 MiB).
 - A single worker serves the `default` queue with two threads; concurrent jobs
   can delay each other.
 - `gateway`, `worker` and `seed` share one image, `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`
@@ -698,3 +805,13 @@ the reproducible artefact.
   image (`python:3.11-slim`) is a tag and the Debian packages are not pinned, so the image
   is not byte-for-byte reproducible.
 - No TLS, no backups of the volumes, one host.
+- **The `order-desk` URL watch.** lab-other's `order-desk` offering is a URL on `pricings.example.org`, which never
+  resolves: its watch stays `unavailable` and backs off to the one-hour cap (`UPSTREAM_FAILURE_BACKOFF_MAX_S`);
+  `/v1/admin/queues` lists it beside the four `active` SPHERE watches (Brevo, shared by TomatoMeter 1.0.0 and
+  `order-desk`; Dropbox; Resend; `sphere/tomatometer`).
+- **The SPHERE stand-in.** Scenario versions (synthetic ids starting `6fff`) exist only in the stand-in: "Open in
+  SPHERE" for one of them leads to a 404 on the public SPHERE. The published scenarios stay in the `lab-sphere` volume
+  until `down --volumes`; there is no unpublish, so **each scenario publishes once per lab** (a repeat answers
+  `already_published` and changes nothing). The recorded answers are the public SPHERE as recorded (2026-11-18 to
+  2026-11-21); a family that changed on the public SPHERE since is served as recorded. Against the public SPHERE
+  (`SPHERE_URL` overridden) no upstream change ever appears.

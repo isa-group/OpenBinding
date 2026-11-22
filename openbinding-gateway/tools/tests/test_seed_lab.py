@@ -51,6 +51,8 @@ async def test_first_run_creates_the_lab_with_the_real_roles(db_session):
     assert result["counts"] == {
         "users": 6, "apiKeys": 6, "organizations": 2, "memberships": 5, "personalOrganizations": 6, "cases": 2,
         "caseRevisions": 2, "compilations": 2, "compositions": 4, "compositionVersions": 5,
+        # Without SPHERE: order-desk's Brevo `from` has no snapshot (an unresolved ref) and its URL offering one watch.
+        "pricingWatches": 1, "pricingWatchRefs": 2, "upstreamEvents": 0, "proposals": 0,
     }
 
     users = {user.username: user for user in (await db_session.scalars(select(User))).all()}
@@ -488,3 +490,59 @@ def test_main_reports_a_missing_handoff_directory_without_a_traceback(tmp_path, 
     code = seed_lab.main([], environ)
     err = capsys.readouterr().err
     assert code == 1 and "is not a directory" in err and "Traceback" not in err
+
+
+# -- what the seeded versions watch (F6) -------------------------------------------------------------------------------
+
+
+async def _refs(session) -> dict[str, list[tuple[str, str, bool]]]:
+    """``<composition>@<label>`` -> sorted (subject, source, resolved) of its watch refs."""
+    from openbinding_gateway.db.models import PricingWatchRef
+
+    rows = (await session.execute(
+        select(Composition.slug, CompositionVersion.label, PricingWatchRef.subject, PricingWatchRef.sphere_ref,
+               PricingWatchRef.watch_id)
+        .join(CompositionVersion, CompositionVersion.id == PricingWatchRef.version_id)
+        .join(Composition, Composition.id == PricingWatchRef.composition_id)
+    )).all()
+    found: dict[str, list[tuple[str, str, bool]]] = {}
+    for slug, label, subject, source, watch in rows:
+        found.setdefault(f"{slug}@{label}", []).append((subject, source, watch is not None))
+    return {key: sorted(value) for key, value in found.items()}
+
+
+async def test_with_sphere_the_seeded_versions_watch_five_sources(db_session, recorded_sphere):
+    from openbinding_gateway.db.models import PricingRefAttempt, PricingWatch
+
+    result = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
+    counts = result["counts"]
+    assert (counts["pricingWatches"], counts["pricingWatchRefs"], counts["upstreamEvents"], counts["proposals"]) == (5, 8, 0, 0)
+    assert await _refs(db_session) == {
+        "tomatometer@1.0.0": [("binding", "atenea/dropbox", True), ("binding", "danruilop1/brevo", True),
+                              ("offering", "sphere/tomatometer", True)],
+        "tomatometer@1.1.0": [("binding", "atenea/dropbox", True), ("binding", "danruilop1/resend", True),
+                              ("offering", "sphere/tomatometer", True)],
+        "order-desk@1.0.0": [("binding", "danruilop1/brevo", True),
+                             ("offering", "https://pricings.example.org/order-desk/pricing.yml", True)],
+    }
+    watches = (await db_session.scalars(select(PricingWatch))).all()
+    # Brevo is one public watch for TomatoMeter 1.0.0 and order-desk; the URL offering is order-desk's organization's.
+    assert sorted((w.source_kind, w.scope_key == "public") for w in watches) == [
+        ("sphere", True), ("sphere", True), ("sphere", True), ("sphere", True), ("url", False)]
+    assert sorted(w.pricing_id for w in watches if w.pricing_id) == sorted([
+        "6ade2d4440e55445692b07f1", "6ab0a323697330667ccce9c1", "6ab0a323697330667ccce8cd", "6ade2d2540e55445692b07c6"])
+    assert (await db_session.scalars(select(PricingRefAttempt))).all() == []
+    again = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
+    assert again["counts"] == counts
+
+
+async def test_without_sphere_a_from_that_needs_a_snapshot_is_unresolved_with_its_attempt(db_session):
+    from openbinding_gateway.db.models import PricingRefAttempt
+
+    await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
+    assert await _refs(db_session) == {
+        "order-desk@1.0.0": [("binding", "danruilop1/brevo", False),
+                             ("offering", "https://pricings.example.org/order-desk/pricing.yml", True)],
+    }
+    (attempt,) = (await db_session.scalars(select(PricingRefAttempt))).all()
+    assert (attempt.sphere_ref, attempt.pinned_version_id) == ("danruilop1/brevo", "6ade2d444b2b5b01c587d80d")

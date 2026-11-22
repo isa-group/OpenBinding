@@ -110,10 +110,13 @@ from openbinding_gateway.db.platform_models import (
     CompositionEnvironment,
     CompositionEnvironmentKey,
     CompositionKind,
+    CompositionUpstreamEvent,
     CompositionVersion,
     Organization,
     OrganizationMembership,
     OrganizationRole,
+    PricingWatchRef,
+    Proposal,
 )
 from openbinding_gateway.integrations import packages
 from openbinding_gateway.modules.compositions.application import (
@@ -693,6 +696,15 @@ async def count_rows(session: AsyncSession, users: dict[str, User], organization
             CompositionVersion,
             CompositionVersion.composition_id.in_(select(Composition.id).where(Composition.organization_id.in_(org_ids))),
         ),
+        # F6: the watches the lab's versions read (a shared public watch counts once), their refs (an unresolved one
+        # has no watch yet), the upstream events and the proposals; the seed itself writes no event and no proposal.
+        "pricingWatches": int(await session.scalar(
+            select(func.count(func.distinct(PricingWatchRef.watch_id))).where(
+                PricingWatchRef.organization_id.in_(org_ids), PricingWatchRef.watch_id.is_not(None))
+        ) or 0),
+        "pricingWatchRefs": await count(PricingWatchRef, PricingWatchRef.organization_id.in_(org_ids)),
+        "upstreamEvents": await count(CompositionUpstreamEvent, CompositionUpstreamEvent.organization_id.in_(org_ids)),
+        "proposals": await count(Proposal, Proposal.organization_id.in_(org_ids)),
     }
 
 

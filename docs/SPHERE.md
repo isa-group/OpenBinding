@@ -24,7 +24,7 @@ serves no `Last-Modified`); an answer obtained with a key is never cached. Back-
 entry for that path; transport failures back the host off.
 
 **Settings** (the deployment documents them in `ACCOUNTS_AND_PLANS.md`): `SPHERE_ENABLED` (the default SPHERE),
-`SPHERE_URL` (https), `SPHERE_TIMEOUT_S`, `SPHERE_MAX_BYTES`, `SPHERE_CACHE_TTL_S`, `SPHERE_BACKOFF_MAX_S`,
+`SPHERE_URL` (https; plain http to a local address only with `SPHERE_REQUIRE_HTTPS=false`, which production refuses: the lab's SPHERE stand-in), `SPHERE_PUBLIC_URL` (the https origin "Open in SPHERE" links use; unset, `SPHERE_URL`), `SPHERE_TIMEOUT_S`, `SPHERE_MAX_BYTES`, `SPHERE_CACHE_TTL_S`, `SPHERE_BACKOFF_MAX_S`,
 `SPHERE_REGISTRIES` (`{"<alias>": {"url": "https://…", "api_key": "…"}}`), `SPHERE_OPENBINDING_PRICING_ID` (the family
 `GET /v1/plans/pricing` serves), `OFFERING_URL_MAX_REDIRECTS`, `OFFERING_URL_MIN_INTERVAL_S`, and `SECRETS_FERNET_KEYS`
 (organization connections are encrypted with them).

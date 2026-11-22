@@ -17,8 +17,9 @@ import {
  *
  * - J1: the Operation tab's cards and `production`'s detail (in effect, the margin per plan with a loss on the basic plan, the
  *   adoption history), read only: what the seed and the smoke adopted is not asserted by number;
- * - J3: "Check now" against live SPHERE: each row is the latest or newer, with the copy its status says (never a fixed upstream
- *   release), and nothing moves;
+ * - J3: "Check now" against the lab's SPHERE (its stand-in, F6-C, which serves Brevo, Dropbox, Resend and `sphere/tomatometer`
+ *   as recorded plus any scenario published since, such as smoke step 19's TomatoMeter 1.2.0): each row is the latest or
+ *   newer, with the copy its status says (never a fixed upstream release), and nothing moves;
  * - J2: the owner adopts 1.1.0 in production: the lab's feed consumer (TomatoMeter's stand-in) follows Resend, mails through
  *   it, and Mailpit finds the message tagged `provider-resend`; re-evaluating 1.0.0 moves neither the adoption nor the feed's
  *   ETag (read with the environment's own key, derived from the seed password as the seed derives it);

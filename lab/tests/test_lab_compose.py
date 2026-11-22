@@ -38,8 +38,9 @@ ALLOWED_BUILD_KEYS = {"context", "dockerfile", "args", "target", "secrets"}
 ALLOWED_MOUNT_KEYS = {"type", "source", "target", "tmpfs"}
 MAX_SERVICES = 15
 MAX_MIB = 4096  # the lab ceiling; the sum includes `seed`, which only runs on demand
-EXPECTED_MIB = 3936  # 3776 before Mailpit (64) and the feed consumer (96); 4032 with the HTTP bim-service (256),
-#                      3456 before e2e (576); docs/DEMO.md states it
+EXPECTED_MIB = 4000  # 3936 before the SPHERE stand-in (64); 3776 before Mailpit (64) and the feed consumer (96);
+#                      4032 with the HTTP bim-service (256), 3456 before e2e (576); docs/DEMO.md states it
+EXPECTED_SERVICES = 14
 ARTIFACT_DIR = "/var/lib/openbinding/artifacts"
 LOCK = ROOT / "frontend" / "pnpm-lock.yaml"
 DOCKERFILE_E2E = ROOT / "frontend" / "Dockerfile.e2e"
@@ -54,7 +55,7 @@ GATEWAY_IMAGE_PREFIX = "openbinding-lab-gateway:"
 # Supplied privately by the supervisor; referenced as ${NAME}, never given a value or a default.
 PRIVATE_VARIABLES = {
     "SPACE_API_KEY", "SPACE_ORGANIZATION_ID", "SPACE_URL",
-    "SPHERE_URL",
+    "SPHERE_URL", "SPHERE_PUBLIC_URL",
 }
 # Assembled from parts so a repository-wide search for the retired key finds no literal here.
 DESTRUCTIVE_KEY = "SPACE_" + "DESTRUCTIVE_API_KEY"
@@ -213,6 +214,7 @@ def test_postgres_runs_as_a_non_root_user_with_pgdata_in_a_subdirectory(path):
 
 def test_service_count(services):
     assert 1 <= len(services) <= MAX_SERVICES
+    assert len(services) == EXPECTED_SERVICES
 
 
 @pytest.mark.parametrize("key", sorted(FORBIDDEN_SERVICE_KEYS))
@@ -233,7 +235,7 @@ def test_no_socket_anywhere(compose):
 
 
 def test_no_space_services(services):
-    # SPACE and SPHERE are remote; no local SPACE deployment may come back.
+    # SPACE is remote; SPHERE is the lab stand-in unless SPHERE_URL is overridden. No local SPACE deployment may come back.
     assert not [name for name in services if name.startswith("space")]
     assert not [name for name in services if "space" in name.split("-")]
 
@@ -729,7 +731,7 @@ def test_gateway_waits_for_what_it_uses(services):
     depends = services["gateway"]["depends_on"]
     assert {"postgres", "redis"} <= set(depends)
     assert {n for n in services if n.startswith("engine-")} <= set(depends)
-    assert set(services["worker"]["depends_on"]) == {"gateway", "redis"}
+    assert set(services["worker"]["depends_on"]) == {"gateway", "redis", "sphere-lab"}
     assert set(services["web"]["depends_on"]) == {"gateway"}
 
 
@@ -1021,3 +1023,79 @@ def test_nginx_serves_mailpit_read_only_through_a_resolved_variable():
     assert "resolver" in body and "127.0.0.11" in body
     assert re.search(r"proxy_pass\s+\$mailpit;", body)
     assert "$http_upgrade" in body
+
+
+# -- the SPHERE stand-in (F6-C) ------------------------------------------------------------------
+
+
+ENV_EXAMPLE = ROOT / "lab" / "compose.lab.env.example"
+STAND_IN_URL = "http://sphere-lab:8080"
+#: What gateway, worker and seed read about SPHERE, all by reference (architecture L of F6).
+SPHERE_VARIABLES = {
+    "SPHERE_URL": "${SPHERE_URL}",
+    "SPHERE_REQUIRE_HTTPS": "${DEMO_SPHERE_REQUIRE_HTTPS}",
+    "SPHERE_PUBLIC_URL": "${SPHERE_PUBLIC_URL}",
+    "UPSTREAM_POLL_INTERVAL_S": "${DEMO_UPSTREAM_POLL_S}",
+}
+
+
+def _example() -> dict[str, str]:
+    values = {}
+    for line in ENV_EXAMPLE.read_text(encoding="utf-8").splitlines():
+        found = re.match(r"^([A-Z][A-Z0-9_]*)=(\S*)", line)
+        if found:
+            values[found.group(1)] = found.group(2)
+    return values
+
+
+def test_the_stand_in_is_an_ordinary_service_with_no_port_profile_or_network(services):
+    stand_in = services["sphere-lab"]
+    assert "profiles" not in stand_in and not stand_in.get("ports") and "networks" not in stand_in
+    assert "expose" not in stand_in and "user" not in stand_in  # the image's own USER 10001
+    assert stand_in["build"] == {"context": ".", "dockerfile": "lab/sphere/Dockerfile"}
+    assert "image" not in stand_in
+    assert stand_in["mem_limit"] == "64m"
+    assert _env(stand_in) == {"SPHERE_LAB_PASSTHROUGH": "${DEMO_SPHERE_LAB_PASSTHROUGH}"}
+    assert stand_in["volumes"] == [{"type": "volume", "source": "lab-sphere", "target": "/state"}]
+    check = " ".join(stand_in["healthcheck"]["test"])
+    assert "python" in check and "127.0.0.1:8081/_lab/state" in check
+
+
+def test_gateway_worker_and_seed_wait_for_the_stand_in_and_read_sphere_by_reference(services):
+    for name in ("gateway", "worker", "seed"):
+        assert services[name]["depends_on"]["sphere-lab"] == {"condition": "service_healthy"}, name
+        env = _env(services[name])
+        assert {key: env[key] for key in SPHERE_VARIABLES} == SPHERE_VARIABLES, name
+    holders = sorted(name for name, s in services.items() if "SPHERE_REQUIRE_HTTPS" in _env(s))
+    assert holders == ["gateway", "seed", "worker"]
+
+
+def test_the_poll_and_the_https_switch_are_bare_references_never_literals(compose):
+    text = COMPOSE.read_text(encoding="utf-8")
+    for variable in ("DEMO_SPHERE_REQUIRE_HTTPS", "DEMO_UPSTREAM_POLL_S"):
+        bodies = [body for value in _strings(compose) for body in REFERENCE.findall(value) if variable in body]
+        assert bodies and set(bodies) == {variable}, variable
+    assert not re.search(r'"SPHERE_REQUIRE_HTTPS": "(true|false)"', text)
+    assert not re.search(r'"UPSTREAM_POLL_INTERVAL_S": "\d+"', text)
+
+
+def test_the_env_example_points_at_the_stand_in_and_polls_below_60_s_only_with_it():
+    example = _example()
+    assert example["SPHERE_URL"] == STAND_IN_URL and example["DEMO_SPHERE_REQUIRE_HTTPS"] == "false"
+    assert example["SPHERE_PUBLIC_URL"] == "https://sphere.score.us.es"
+    assert example["DEMO_SPHERE_LAB_PASSTHROUGH"] == "https://sphere.score.us.es"
+    poll = int(example["DEMO_UPSTREAM_POLL_S"])
+    assert poll == 20
+    # A poll under a minute is for the stand-in only: against a real SPHERE every 304 still hashes every version.
+    assert poll >= 60 or example["SPHERE_URL"] == STAND_IN_URL
+    assert example["DEMO_SPHERE_REQUIRE_HTTPS"] == "false" or example["SPHERE_URL"].startswith("https://")
+
+
+def test_the_control_port_is_never_published_or_proxied(services):
+    assert "8081" not in _nginx_conf() and "sphere-lab" not in _nginx_conf()
+    for name, service in services.items():
+        assert not [port for port in service.get("ports", []) if "8081" in json.dumps(port)], name
+
+
+def test_the_stand_in_volume_is_declared(compose):
+    assert compose["volumes"]["lab-sphere"] == {}

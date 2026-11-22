@@ -126,6 +126,30 @@
         "start_period": "60s"
       }
     },
+    "sphere-lab": {
+      "build": {
+        "context": ".",
+        "dockerfile": "lab/sphere/Dockerfile"
+      },
+      "environment": {
+        "SPHERE_LAB_PASSTHROUGH": "${DEMO_SPHERE_LAB_PASSTHROUGH}"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "lab-sphere",
+          "target": "/state"
+        }
+      ],
+      "mem_limit": "64m",
+      "healthcheck": {
+        "test": ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/_lab/state', timeout=3)"],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 12,
+        "start_period": "5s"
+      }
+    },
     "gateway": {
       "build": {
         "context": ".",
@@ -163,6 +187,9 @@
         "SPACE_DEFAULT_PLAN": "${DEMO_SPACE_DEFAULT_PLAN}",
         "SPHERE_ENABLED": "true",
         "SPHERE_URL": "${SPHERE_URL}",
+        "SPHERE_REQUIRE_HTTPS": "${DEMO_SPHERE_REQUIRE_HTTPS}",
+        "SPHERE_PUBLIC_URL": "${SPHERE_PUBLIC_URL}",
+        "UPSTREAM_POLL_INTERVAL_S": "${DEMO_UPSTREAM_POLL_S}",
         "SPHERE_REGISTRIES": "{}",
         "SPHERE_OPENBINDING_PRICING_ID": "6ab0a323697330667ccce891",
         "MAX_CONCURRENT_JOBS_PER_USER": "3",
@@ -184,7 +211,8 @@
         "engine-minizinc": {"condition": "service_healthy"},
         "engine-random-search": {"condition": "service_healthy"},
         "engine-many-heuristic": {"condition": "service_healthy"},
-        "engine-evolutionary-heuristics": {"condition": "service_healthy"}
+        "engine-evolutionary-heuristics": {"condition": "service_healthy"},
+        "sphere-lab": {"condition": "service_healthy"}
       },
       "mem_limit": "640m",
       "healthcheck": {
@@ -223,6 +251,9 @@
         "SPACE_DEFAULT_PLAN": "${DEMO_SPACE_DEFAULT_PLAN}",
         "SPHERE_ENABLED": "true",
         "SPHERE_URL": "${SPHERE_URL}",
+        "SPHERE_REQUIRE_HTTPS": "${DEMO_SPHERE_REQUIRE_HTTPS}",
+        "SPHERE_PUBLIC_URL": "${SPHERE_PUBLIC_URL}",
+        "UPSTREAM_POLL_INTERVAL_S": "${DEMO_UPSTREAM_POLL_S}",
         "SPHERE_REGISTRIES": "{}",
         "SPHERE_OPENBINDING_PRICING_ID": "6ab0a323697330667ccce891",
         "ENGINE_MINIZINC_URL": "http://engine-minizinc:3000",
@@ -239,7 +270,8 @@
       ],
       "depends_on": {
         "gateway": {"condition": "service_healthy"},
-        "redis": {"condition": "service_healthy"}
+        "redis": {"condition": "service_healthy"},
+        "sphere-lab": {"condition": "service_healthy"}
       },
       "mem_limit": "448m",
       "healthcheck": {
@@ -333,6 +365,9 @@
         "SPACE_DEFAULT_PLAN": "${DEMO_SPACE_DEFAULT_PLAN}",
         "SPHERE_ENABLED": "true",
         "SPHERE_URL": "${SPHERE_URL}",
+        "SPHERE_REQUIRE_HTTPS": "${DEMO_SPHERE_REQUIRE_HTTPS}",
+        "SPHERE_PUBLIC_URL": "${SPHERE_PUBLIC_URL}",
+        "UPSTREAM_POLL_INTERVAL_S": "${DEMO_UPSTREAM_POLL_S}",
         "SPHERE_REGISTRIES": "{}",
         "SPHERE_OPENBINDING_PRICING_ID": "6ab0a323697330667ccce891",
         "MAX_CONCURRENT_JOBS_PER_USER": "3",
@@ -353,6 +388,9 @@
           "target": "/handoff"
         }
       ],
+      "depends_on": {
+        "sphere-lab": {"condition": "service_healthy"}
+      },
       "mem_limit": "384m"
     },
     "mailpit": {
@@ -439,6 +477,7 @@
     "lab-redis": {},
     "lab-artifacts-2": {},
     "lab-handoff": {},
-    "lab-e2e": {}
+    "lab-e2e": {},
+    "lab-sphere": {}
   }
 }

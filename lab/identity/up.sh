@@ -14,7 +14,7 @@ SOURCE=${IDENTITY_LAB_SOURCE:-https://github.com/SCORELabUS/SCORETech-identity.g
 OB_PORT=${OB_IDENTITY_LAB_PORT:-18198}
 # The OB lab's memory limits (lab/tests/test_lab_compose.py EXPECTED_MIB), Identity's (~3 GiB) and a margin.
 OB_MIB=$(sed -n 's/^EXPECTED_MIB = \([0-9]*\).*/\1/p' "$ROOT/lab/tests/test_lab_compose.py")
-NEED_MIB=$(( ${OB_MIB:-3936} + 3072 + 256 ))
+NEED_MIB=$(( ${OB_MIB:-4000} + 3072 + 256 ))
 
 for port in 18000 18025 "$OB_PORT" 18197; do
   if docker ps --format '{{.Ports}}' | grep -q "127.0.0.1:${port}->"; then

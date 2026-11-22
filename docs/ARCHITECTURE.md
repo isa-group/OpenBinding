@@ -620,7 +620,7 @@ the watcher does moves an environment's ETag or a feed ([ADR 0057](adr/0057-upst
 | Setting | Default | What it does |
 |---|---|---|
 | `UPSTREAM_WATCH_ENABLED` | `true` | polls watched pricings (with `SPHERE_ENABLED` off nothing of the default SPHERE is read) |
-| `UPSTREAM_POLL_INTERVAL_S` | `300` | how often a watch is asked, staggered per watch; at least 60 in production, 10 elsewhere (the lab keeps 300 until F6-C sets 20 with its SPHERE stand-in) |
+| `UPSTREAM_POLL_INTERVAL_S` | `300` | how often a watch is asked, staggered per watch; at least 60 in production, 10 elsewhere (the lab sets 20 with its SPHERE stand-in, `DEMO_UPSTREAM_POLL_S`) |
 | `UPSTREAM_POLL_BATCH` | `50` | watches claimed per cycle |
 | `UPSTREAM_READS_PER_CYCLE` | `20` | SPHERE requests a cycle may send (manifests, YAML, family reads) |
 | `UPSTREAM_CLASSIFY_PER_CYCLE` | `100` | classifier calls per cycle |
@@ -632,7 +632,11 @@ the watcher does moves an environment's ETag or a feed ([ADR 0057](adr/0057-upst
 
 `/v1/admin/queues` carries an `upstreamWatch` block (watches by status, what is due, the last observation, the
 events of the last day by category, unresolved refs and executing proposals); `/health/ready` ignores the watcher, so
-a slow SPHERE never takes a gateway out of rotation.
+a slow SPHERE never takes a gateway out of rotation. `tools/poll_upstream.py [--once] [--force] [--json]` runs one
+cycle on demand, as the lifespan task does (the same `run_cycle`, under the same advisory lock, honouring every back-off
+window and the `gone` debounce), and prints its report; with `--force` it claims every live watch at once, which is
+how operators and the demo skip the wait (without it, a cycle claims only watches already due, which the lifespan
+task does every tick anyway), and no endpoint is added for it.
 
 #### Proposals (F6-B)
 
