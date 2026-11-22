@@ -314,9 +314,12 @@ test('J2b · Brevo retires PROFESSIONAL: rebinding recommended, the older change
   await capture(page, testInfo, 'f6-event-retired');
 
   await page.goto('/');
+  const dashboard = page.locator('main').getByRole('region', { name: 'Upstream changes' });
+  await expect(dashboard).toContainText('2027-01');
+  // The 2026-11 change J2 reviewed is not resolved yet: still listed, and said so.
   await expect(
-    page.locator('main').getByRole('region', { name: 'Upstream changes' })
-  ).toContainText('2027-01');
+    dashboard.getByRole('listitem').filter({ hasText: '2026-10 → 2026-11' })
+  ).toContainText('Reviewed');
   await capture(page, testInfo, 'f6-dashboard');
   expect(await feedEtag(page.request)).toBe(before!.etag);
   expect(errors).toEqual([]);
@@ -414,6 +417,10 @@ test('J3 · the owner updates the problem from SPHERE and derives and adopts Res
   await expect(page.getByRole('region', { name: 'In effect', exact: true })).toContainText(
     `In effect: ${next}`
   );
+  // The adoption history says so on screen too.
+  const newest = page.getByRole('listitem', { name: /^Adoption \d+$/ }).first();
+  await expect(newest).toContainText(next);
+  await expect(newest).toContainText('through a proposal');
   expect(errors).toEqual([]);
 });
 

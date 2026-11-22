@@ -45,6 +45,20 @@ const ok = (json: unknown, status = 200, headers?: Record<string, string>): Comp
 const refuse = (status: number, code: string, error: string, headers?: Record<string, string>) =>
   ok({ detail: { code, error } }, status, headers);
 
+/** The gateway's `422 proposal_invalid`: a flat problem document with its reasons in `errors`, step by step. */
+const invalidProposal = (step: number, code: string, message: string) =>
+  ok(
+    {
+      type: 'about:blank',
+      title: 'Unprocessable Content',
+      status: 422,
+      code: 'proposal_invalid',
+      detail: 'The proposal cannot be made; `errors` says why, step by step.',
+      errors: [{ step, code, message }],
+    },
+    422
+  );
+
 export interface OperationStore {
   /** Answers `…/compositions/tomatometer/environments…`. */
   route: (
@@ -260,7 +274,14 @@ function upstreamStore(
     }),
     mine: () =>
       events
-        .filter(event => event.notify && event.state === 'open')
+        // As the gateway's `mine`: a binding event open or reviewed (not resolved yet), an offering event while open.
+        .filter(
+          event =>
+            event.notify &&
+            (event.subject === 'binding'
+              ? event.state === 'open' || event.state === 'reviewed'
+              : event.state === 'open')
+        )
         .map(event => ({
           ...listed(event),
           organization: { id: `org-${org}`, slug: org, name: 'ISA Demo Group' },
@@ -272,18 +293,29 @@ function upstreamStore(
       if (!id && request.method === 'GET') {
         const state = request.query.get('state');
         const version = request.query.get('version');
+        const subject = request.query.get('subject');
+        const category = request.query.get('category');
         const shown = [...events]
           .sort((a, b) => b.detectedAt.localeCompare(a.detectedAt))
           .filter(
-            event => (!state || event.state === state) && (!version || event.version.id === version)
+            event =>
+              (!state || event.state === state) &&
+              (!version || event.version.id === version) &&
+              (!subject || event.subject === subject) &&
+              (!category || event.category === category)
           );
         const list: UpstreamEventList = {
           events: shown.map(listed) as UpstreamEventList['events'],
           counts: {
             open: events.filter(event => event.state === 'open' && event.category !== 'no_impact')
               .length,
-            reviewed: events.filter(event => event.state === 'reviewed').length,
-            resolved: events.filter(event => event.state === 'resolved').length,
+            // As the gateway's `state_counts`: a no-impact event counts only under `noImpact`.
+            reviewed: events.filter(
+              event => event.state === 'reviewed' && event.category !== 'no_impact'
+            ).length,
+            resolved: events.filter(
+              event => event.state === 'resolved' && event.category !== 'no_impact'
+            ).length,
             noImpact: events.filter(event => event.category === 'no_impact').length,
           },
           watches: core<UpstreamEventList>('upstream.tomatometer.events.json').watches,
@@ -686,15 +718,10 @@ export function operationStore(
       item => item.view.slug === body.environment || item.view.id === body.environment
     );
     if (!environment)
-      return ok(
-        {
-          detail: {
-            code: 'proposal_invalid',
-            error: 'The proposal is not valid.',
-            errors: [{ step: 1, code: 'environment_not_found', message: 'Environment not found.' }],
-          },
-        },
-        422
+      return invalidProposal(
+        1,
+        'environment_not_found',
+        'This composition has no such environment.'
       );
     const inEffect = environment.view.inEffect;
     const adoptBase = {
@@ -758,7 +785,8 @@ export function operationStore(
     } else {
       const asked = String(body.version ?? '');
       const version = versions.find(item => item.id === asked || item.label === asked);
-      if (!version) return refuse(404, 'version_not_found', 'Composition version not found.');
+      if (!version)
+        return invalidProposal(1, 'version_not_found', 'This composition has no such version.');
       steps = [
         pendingStep({
           ordinal: 1,
