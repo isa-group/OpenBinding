@@ -24,6 +24,7 @@ import { useArchiveComposition } from '../../hooks/useArchiveComposition';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
 import type { OrgRole } from '../../../organization/api/organizationsApi';
 import CompositionCard from '../composition-card';
+import { useUpstreamRefresh } from '../../../notification/hooks/useUpstreamRefresh';
 import { archiveMenu } from '../composition-card/menu';
 
 /** Compositions per page of the tab, as SPHERE's organization tabs. */
@@ -86,6 +87,8 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
     return () => window.clearTimeout(timer);
   }, [search, q, change]);
 
+  // An upstream event about one of these compositions arrived: their badges are read again.
+  const arrived = useUpstreamRefresh(org.slug);
   useEffect(() => {
     const controller = new AbortController();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- SPHERE's loading flag, raised before each request
@@ -117,7 +120,17 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
         if (!controller.signal.aborted) setIsLoading(false);
       });
     return () => controller.abort();
-  }, [getOrganizationCompositions, org.slug, page, q, kindsParam, archived, isPublicView, attempt]);
+  }, [
+    getOrganizationCompositions,
+    org.slug,
+    page,
+    q,
+    kindsParam,
+    archived,
+    isPublicView,
+    attempt,
+    arrived,
+  ]);
 
   const archive = useArchiveComposition(useCallback(() => setAttempt(value => value + 1), []));
 

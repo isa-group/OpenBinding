@@ -73,6 +73,7 @@ import { saveBlob, saveText } from '../../utils/download';
 import { useCardComposition, type LoadedComposition } from './hooks';
 import FocusTrapLayer from '../../../core/components/focus-trap-layer';
 import { UpstreamBadge } from '../../../core/components/upstream-badge';
+import { useUpstreamRefresh } from '../../../notification/hooks/useUpstreamRefresh';
 
 type TabId = 'overview' | CompositionTabSegment;
 
@@ -435,6 +436,11 @@ function CardBody({
   const roleIn = useCompositionRole();
   const { composition, etag, versions } = loaded;
   const role = roleIn(org);
+  // An upstream event about this composition arrived: its badge is read again with the composition.
+  const arrived = useUpstreamRefresh(org, slug);
+  useEffect(() => {
+    if (arrived > 0) reload();
+  }, [arrived, reload]);
   const member = role !== null;
   const canWrite = roleAtLeast(role, 'MEMBER');
   const canAdminister = roleAtLeast(role, 'ADMIN');

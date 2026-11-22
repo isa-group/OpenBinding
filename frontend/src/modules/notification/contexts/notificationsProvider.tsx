@@ -2,7 +2,8 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's session and API (`read_at`, `created_at`); the last-seen time is kept under an `openbinding:` key;
-// a failed load keeps its message instead of going to the console; deleting an unread notification counts it down once.
+// a failed load keeps its message instead of going to the console; deleting an unread notification counts it down once;
+// the live notifications are fanned out to their kind's listeners (`subscribe`, F6).
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { readApiError } from '../../core/api/errors';
@@ -107,6 +108,28 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     if (!notification.read_at) setHasUnseen(true);
   }, []);
 
+  // The live notifications' listeners, by kind.
+  const listeners = useRef(new Map<string, Set<(notification: Notification) => void>>());
+  const subscribe = useCallback((kind: string, listener: (notification: Notification) => void) => {
+    const all = listeners.current;
+    const forKind = all.get(kind) ?? new Set();
+    forKind.add(listener);
+    all.set(kind, forKind);
+    return () => {
+      forKind.delete(listener);
+      if (forKind.size === 0) all.delete(kind);
+    };
+  }, []);
+  const publish = useCallback((notification: Notification) => {
+    for (const listener of [...(listeners.current.get(notification.kind) ?? [])]) {
+      try {
+        listener(notification);
+      } catch {
+        // One listener failing does not keep the others from hearing it.
+      }
+    }
+  }, []);
+
   const markSeen = useCallback(() => {
     setHasUnseen(false);
     if (userId) writeLastSeen(userId, Date.now());
@@ -153,6 +176,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       addNotification,
       hasUnseen,
       markSeen,
+      subscribe,
+      publish,
     }),
     [
       notifications,
@@ -167,6 +192,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       addNotification,
       hasUnseen,
       markSeen,
+      subscribe,
+      publish,
     ]
   );
 

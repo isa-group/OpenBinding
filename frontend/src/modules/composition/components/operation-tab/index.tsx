@@ -25,6 +25,7 @@ import type { OrgRole } from '../../../organization/api/organizationsApi';
 import { compositionPath } from '../../../../routes/paths/compositions';
 import { useEnvironmentsApi } from '../../api/environmentsApi';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
+import { useUpstreamRefresh } from '../../../notification/hooks/useUpstreamRefresh';
 import { mayAdopt } from '../../utils/environments';
 import EnvironmentCard from '../environment-card';
 import EnvironmentFormDialog, { DeleteEnvironmentDialog } from '../environment-form-dialog';
@@ -74,8 +75,10 @@ export default function OperationTab({
     etag: string | null;
   } | null>(null);
   const [nonce, setNonce] = useState(0);
+  // An upstream event about this composition arrived: the badges, the events and the event shown are read again.
+  const arrived = useUpstreamRefresh(org, composition.slug);
   const environments = useResource(
-    `composition-environments:${org}/${composition.slug}:${refresh}:${nonce}`,
+    `composition-environments:${org}/${composition.slug}:${refresh}:${nonce}:${arrived}`,
     () => api.listEnvironments(org, composition.slug)
   );
   const changed = (message?: string) => {
@@ -110,7 +113,7 @@ export default function OperationTab({
         eventId={event}
         role={role}
         backTo={detailTo()}
-        refresh={`${refresh}:${nonce}`}
+        refresh={`${refresh}:${nonce}:${arrived}`}
         onChanged={() => {
           setNonce(value => value + 1);
           onUpstreamChanged?.();
@@ -274,7 +277,7 @@ export default function OperationTab({
         <UpstreamEventsSection
           org={org}
           composition={composition}
-          refresh={`${refresh}:${nonce}`}
+          refresh={`${refresh}:${nonce}:${arrived}`}
         />
       </div>
 

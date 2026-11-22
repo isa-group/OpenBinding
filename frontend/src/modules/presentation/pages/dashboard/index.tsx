@@ -28,6 +28,7 @@ import DashboardSkeleton from '../../../core/components/skeletons/dashboard-skel
 import { UpstreamBadge } from '../../../core/components/upstream-badge';
 import { useRecentItems } from '../../../core/hooks/useRecentItems';
 import { fadeInUp, staggerContainer, transitionDefault } from '../../../core/utils/motion-variants';
+import { useUpstreamRefresh } from '../../../notification/hooks/useUpstreamRefresh';
 import OrganizationCard from '../../../organization/components/organization-card';
 import { useOrganization } from '../../../organization/hooks/useOrganization';
 
@@ -84,6 +85,8 @@ export default function DashboardPage() {
   const [runs, setRuns] = useState<Array<Job & { orgSlug: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // An upstream event arrived: the compositions' badges are read again.
+  const arrived = useUpstreamRefresh();
   const orgKey = organizations.map(org => org.slug).join(',');
   useEffect(() => {
     if (organizationsLoading) return;
@@ -118,7 +121,7 @@ export default function DashboardPage() {
     return () => {
       current = false;
     };
-  }, [orgKey, organizationsLoading, fetchWithInterceptor]);
+  }, [orgKey, organizationsLoading, fetchWithInterceptor, arrived]);
 
   const bySlug = useMemo(() => new Map(organizations.map(org => [org.slug, org])), [organizations]);
   const byId = useMemo(() => new Map(organizations.map(org => [org.id, org])), [organizations]);

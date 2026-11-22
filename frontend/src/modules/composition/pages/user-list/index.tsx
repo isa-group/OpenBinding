@@ -12,6 +12,7 @@ import Iconify from '../../../core/components/iconify';
 import { compositionPath, newCompositionPath } from '../../../../routes/paths/compositions';
 import { useCompositionsApi, type CompositionView } from '../../api/compositionsApi';
 import CompositionCard from '../../components/composition-card';
+import { useUpstreamRefresh } from '../../../notification/hooks/useUpstreamRefresh';
 import { KIND_FILTER, RANGE_FILTERS } from '../../components/composition-card/filters';
 import { archiveMenu } from '../../components/composition-card/menu';
 import { useArchiveComposition } from '../../hooks/useArchiveComposition';
@@ -25,6 +26,8 @@ export default function UserCompositionListPage() {
   const { getMyCompositions } = useCompositionsApi();
   const roleIn = useCompositionRole();
   const [refreshKey, setRefreshKey] = useState(0);
+  // An upstream event about one of these compositions arrived: their badges are read again.
+  const arrived = useUpstreamRefresh();
   const archive = useArchiveComposition(useCallback(() => setRefreshKey(key => key + 1), []));
 
   const fetchItems = useCallback(
@@ -42,7 +45,7 @@ export default function UserCompositionListPage() {
       </Helmet>
       <ResourceListView<CompositionView>
         fetchItems={fetchItems}
-        refreshKey={refreshKey}
+        refreshKey={refreshKey + arrived}
         itemKey={item => item.id}
         renderItem={item => (
           <CompositionCard

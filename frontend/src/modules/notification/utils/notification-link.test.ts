@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { notificationBody, notificationLink, timeAgo } from './notification-link';
+import upstream from '../../../test/fixtures/core/upstream.notifications.json';
 
 describe('notificationLink', () => {
   it('leads each kind to its page', () => {
@@ -34,6 +35,12 @@ describe('notificationLink', () => {
         kind: 'UpstreamEvent',
         payload: { organization: 'lab-main', composition: 'tomatometer', event: 'e1' },
       })
+    ).toBe('/compositions/lab-main/tomatometer/operation?event=e1');
+    expect(
+      notificationLink({
+        kind: 'UpstreamEvent',
+        payload: { organization: 'lab-main', composition: 'tomatometer' },
+      })
     ).toBe('/compositions/lab-main/tomatometer/operation');
     expect(notificationLink({ kind: 'UpstreamEvent', payload: {} })).toBeNull();
     expect(notificationLink({ kind: 'System', payload: { organization_slug: 'isa-demo' } })).toBe(
@@ -55,6 +62,24 @@ describe('notificationLink', () => {
     );
     expect(notificationBody({ kind: 'RunFinished', body: 'Run done.', payload: {} })).toBe(
       'Run done.'
+    );
+  });
+
+  it('says an upstream change from its payload: the pricing, the composition, where it is in effect', () => {
+    const [told] = upstream;
+    expect(notificationBody(told)).toBe(
+      'brevo 2026-11 changes tomatometer 1.0.0 (in effect in production)'
+    );
+    expect(
+      notificationBody({
+        ...told,
+        payload: { ...told.payload, resolvedBy: { version: '1.2.0' } },
+      })
+    ).toBe(
+      'brevo 2026-11 changes tomatometer 1.0.0: already resolved in 1.2.0, not adopted in production'
+    );
+    expect(notificationBody({ kind: 'UpstreamEvent', body: 'as sent', payload: {} })).toBe(
+      'as sent'
     );
   });
 
