@@ -63,7 +63,9 @@ test.describe('J3 · derive and adopt as one proposal', () => {
       .click();
     await expect(card.getByRole('region', { name: 'Binding' })).toContainText('dailySummary');
     await card.getByRole('button', { name: 'Show the document' }).click();
-    await expect(card.getByLabel('The document step 1 seals')).toContainText('version: 1.2.0');
+    await expect(card.getByRole('region', { name: 'The document step 1 seals' })).toContainText(
+      'version: 1.2.0'
+    );
 
     await card.getByRole('button', { name: 'Confirm and apply' }).click();
     await expect(card).toContainText('Applied');
