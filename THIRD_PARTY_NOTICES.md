@@ -244,6 +244,7 @@ SPHERE at `73779a8a` (the ORBIT files, byte-identical at `7c7074ff`) and at `7c7
 | `frontend/src/modules/composition/components/operation-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/CollectionsTab.tsx` (at `fc776b4d`) | adapted |
 | `frontend/src/modules/composition/components/pricing-link-modal/index.tsx` | `frontend/src/modules/pricing/components/pricing-link-modal/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/proposals-section/ProposalPanel.tsx` | `frontend/src/modules/orbit/hooks/useOrbitChat.ts` (the confirmation marking the plan `EXECUTING` at once, then the server's final plan) | pattern-only |
+| `frontend/src/modules/composition/components/review-event-dialog/index.tsx` | `frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx` | pattern-only |
 | `frontend/src/modules/composition/components/stats/index.tsx` | `frontend/src/modules/pricing/components/stats/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/template-card/index.tsx` | `frontend/src/modules/pricing/components/collection-card/index.tsx` (at `fc776b4d`) | adapted |
 | `frontend/src/modules/composition/components/upstream-events-section/index.tsx` | `frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx` (the version rows) | pattern-only |
@@ -295,7 +296,8 @@ SPHERE at `73779a8a` (the ORBIT files, byte-identical at `7c7074ff`) and at `7c7
 | `frontend/src/modules/core/components/pricing-renderer/source.ts` | `frontend/src/modules/core/components/pricing-renderer/source.ts` | adapted |
 | `frontend/src/modules/core/components/pricing-renderer/tokens.ts` | `frontend/src/modules/core/components/pricing-renderer/tokens.ts` | adapted |
 | `frontend/src/modules/core/components/problems-panel/index.tsx` | `frontend/src/modules/pricing-editor/components/problems-panel/index.tsx` | adapted |
-| `frontend/src/modules/core/components/proposal-card/index.tsx`, `steps.tsx` and `phrase.ts` | `frontend/src/modules/orbit/components/plan-card.tsx` (blob `fa103561`; `plan-tree.ts` not ported) | adapted |
+| `frontend/src/modules/core/components/proposal-card/index.tsx` and `steps.tsx` | `frontend/src/modules/orbit/components/plan-card.tsx` (blob `fa103561`; `plan-tree.ts` not ported) | adapted |
+| `frontend/src/modules/core/components/proposal-card/phrase.ts` | `frontend/src/modules/orbit/components/plan-card.tsx` (`normalizePhrase`, renamed) | verbatim |
 | `frontend/src/modules/core/components/resource-card-shell/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
 | `frontend/src/modules/core/components/resource-list-view/index.tsx` | `frontend/src/modules/core/components/pricing-list-view/index.tsx` | adapted |
 | `frontend/src/modules/core/components/router-link/index.tsx` | `frontend/src/modules/core/components/router-link/index.tsx` | adapted |
@@ -320,7 +322,7 @@ SPHERE at `73779a8a` (the ORBIT files, byte-identical at `7c7074ff`) and at `7c7
 | `frontend/src/modules/core/components/toast/index.tsx` | `frontend/src/modules/core/components/toast/index.tsx` | adapted |
 | `frontend/src/modules/core/components/upstream-badge/badgeTones.ts` | `frontend/src/modules/organization/pages/organization-detail/components/services/badgeTones.ts` (at `7c7074ff`) | adapted |
 | `frontend/src/modules/core/components/upstream-badge/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/services/ServiceKindBadge.tsx` (at `7c7074ff`) | adapted |
-| `frontend/src/modules/core/components/upstream-change-summary/index.tsx` | `frontend/src/modules/pricing/utils/change-summary.ts` (at `7c7074ff`; the catalog line) | pattern-only |
+| `frontend/src/modules/core/components/upstream-change-summary/index.tsx` | `frontend/src/modules/pricing/utils/change-summary.ts` and `components/pricing-version-graph/change-summary-card.tsx` (at `7c7074ff`; the catalog line) | pattern-only |
 | `frontend/src/modules/core/components/user-avatar/index.tsx` | `frontend/src/modules/core/components/user-avatar/index.tsx` | adapted (draws SCORETech Identity's descriptor) |
 | `frontend/src/modules/core/contexts/toastContext.tsx` | `frontend/src/modules/core/contexts/toastContext.tsx` | adapted |
 | `frontend/src/modules/core/contexts/useToast.ts` | `frontend/src/modules/core/contexts/useToast.ts` | verbatim |

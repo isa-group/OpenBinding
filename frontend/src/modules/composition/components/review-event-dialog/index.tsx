@@ -1,6 +1,9 @@
+// Pattern only, after SPHERE frontend/src/modules/pricing/components/fork-pricing-modal/index.tsx (revision 73779a8a),
+// https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
+// MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Mark an upstream event reviewed (F6): the one write a person makes on an event, once, with an optional note of at most
 // 1000 characters that is never edited afterwards. Drawn as the adopt dialog is (OpenBinding's modal on SPHERE's fork-modal
-// recipe, pattern only): the note, then Cancel and the primary action. The review names the event's revision as
+// recipe): the note, then Cancel and the primary action. The review names the event's revision as
 // `If-Match` (read with the detail): a 412 says the event changed and offers to read it again, a 409 says it was already
 // reviewed (or resolved meanwhile) and reads it again. There is no "resolve": an event is resolved only by sealing a
 // version that pins the new pricing.

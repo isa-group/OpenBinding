@@ -764,10 +764,15 @@ A confirmation can answer `429 composition_busy` (every Composition2Yaml slot of
 step derives again): the proposal stays pending, and confirming again later applies it.
 
 **Screen track.** The presenter signs in as `lab-owner` in the browser (`http://localhost:18100`, the seed password;
-the session cookie renews the token, so nothing expires during the demo) and keeps a second window signed in as
-`lab-member` for minute 3–5's notification. The publishing and the optional forced cycle stay on the API track (they are
-the "upstream" side the audience does not operate). Live walk 15 (`frontend/e2e/live/15-upstream-events.spec.ts`)
-clicks the same path, and its screenshots are the demo's slides when a screen cannot be shown.
+the session cookie renews the token, so nothing expires during the demo) and keeps `lab-member` signed in in a second
+browser profile or a private window for minute 3–5's notification: a second window of the same profile shares the session
+cookie, and signing in there ends the owner's session. The publishing and the optional forced cycle stay on the API track
+(they are the "upstream" side the audience does not operate). Live walk 15 (`frontend/e2e/live/15-upstream-events.spec.ts`)
+walks the chain on these screens, not click for click: it signs in through the API, opens the event from the inbox's
+"Upstream changes" filter, has `lab-member` mark the 2026-11 event reviewed before the retirement, reaches Update from
+SPHERE from the problem's New version menu and checks the feed, the consumer and Mailpit through the API. Its captures
+(`f6-badge`, `f6-events`, `f6-event-values`, `f6-review`, `f6-event-retired`, `f6-dashboard`, `f6-proposal`,
+`f6-event-offering`) are the slides when a screen cannot be shown; minutes 0–2, 16–17 and 19–20 have none.
 
 | Min | Click path |
 |---|---|
@@ -777,8 +782,8 @@ clicks the same path, and its screenshots are the demo's slides when a screen ca
 | 5–8 | open the notification: the Operation tab opens the event in place (`?event=`): brevo 2026-10 → 2026-11 with both SPHERE links, Values changed, Open; "What the composition's values would become": subscription 508.99 → 558.99 USD/month, +50.00; the Price row 499.00 → 549.00 (+50.00); "Nothing was re-evaluated"; below, PROFESSIONAL drawn before and after. The `production` card still says In effect 1.0.0 |
 | 8–9 | (API track: publish `brevo-professional-retired`) the bell again: the `production` card turns rose, "Rebinding recommended"; in Upstream changes the 2026-11 row reads "superseded by a newer upstream version"; open the 2027-01 one: "Why rebinding is recommended: Plan PROFESSIONAL is no longer offered." |
 | 9–10 | back to the 2026-11 event: **Mark reviewed**, note "Seen; re-solving", Mark reviewed: the event says Reviewed, by lab-owner, with the note |
-| 10–14 | the event's **Update from SPHERE** (or Problems › tomatometer-email › New version ▾ › Update from SPHERE): Pricings in the recipe › brevo › Change version › 2027-01 › Use this version › Add to the recipe › Preview (PROFESSIONAL drawn before and after, gone) › Continue › Generate revision: version 4. Then TomatoMeter at version 1.0.0 (the one in effect) › Configuration: Demand "Problem version 4", choose `email.resend.pro` for dailySummary |
-| 14–16 | This binding › **Derive as a new version** › Preview › "Adopt in Production in the same step" › Propose sealing and adopting `$NEXT`: the proposal card (Waiting for your confirmation; step 1 Seal `$NEXT` from tomatometer-email@4, step 2 Adopt the version step 1 seals in Production, "decided when step 1 has run"); "Compare with the version in effect in Production (1.0.0)": the binding's dailySummary Brevo PROFESSIONAL → Resend PRO; **Confirm and apply**: Applied, 2 of 2 steps done. Open Production: In effect `$NEXT`, adoption "through a proposal"; Upstream changes: both Brevo events Resolved by `$NEXT` |
+| 10–14 | the event's **Update from SPHERE** (or Problems › tomatometer-email › New version ▾ › Update from SPHERE): Pricings in the recipe › brevo › Change version › 2027-01 › Use this version › Add to the recipe › Preview (PROFESSIONAL drawn before and after, gone) › Continue › Generate revision: version 4. Then back on the event, **Open the configurator** (TomatoMeter's Configuration at 1.0.0, the version the event is about): Demand "Problem version 4", choose `email.resend.pro` for dailySummary |
+| 14–16 | This binding › **Derive as a new version** › Preview › "Adopt in Production in the same step" › Propose sealing and adopting `$NEXT`: the proposal card (Waiting for your confirmation; step 1 Seal `$NEXT` from tomatometer-email@4, step 2 Adopt the version step 1 seals in Production, "decided when step 1 has run"); "Compare with the version in effect in Production (1.0.0)": the binding's dailySummary Brevo PROFESSIONAL → Resend PRO; **Confirm and apply**: Applied, 2 of 2 steps done. Open Production: In effect `$NEXT`; its Adoption history's newest row ends "through a proposal"; Upstream changes: both Brevo events Resolved by `$NEXT` |
 | 16–17 | (API track: the feed, the consumer, `/send`) Mailpit at `/mailpit/`: the daily summary tagged `provider-resend` |
 | 17–19 | (API track: publish `tomatometer-1.2.0`) the bell: "TomatoMeter 1.2.0: TomatoMeter offering changed"; open it: "1 plan changed · 1 plan with an add-on changed", Basic 0.00 → 0.99 gains dailySummary; production's margins Before and After (Basic −0.51 → 0.48); "The offering is not pinned in the document; this event ends when reviewed"; Mark reviewed |
 | 19–20 | Operation tab: Upstream changes with every event and its state (chip Resolved), Proposals with the applied one under Recent proposals; `production` › Adoption history: `$NEXT` through a proposal; Versions › Compare 1.0.0 → `$NEXT`; the dashboard shows nothing pending |

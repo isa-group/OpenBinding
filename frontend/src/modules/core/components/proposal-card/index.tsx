@@ -4,7 +4,7 @@
 // Changes: an OpenBinding proposal (F6, plan §8) instead of an ORBIT plan, and a core component (the proposal, a diff
 // renderer and callbacks; no domain import), so the composition module mounts it now and F7's ORBIT chat mounts the same
 // file. Kept from SPHERE: the status pill with its labels and styles for every status (plus "Out of date" for `stale`),
-// the source chip (the web; an assistant through MCP; the chat), the summary, the progress bar and "Step i of n" /
+// the source chip (SPHERE's "From an assistant (MCP)"; "From the web" and "From the chat" added here), the summary, the progress bar and "Step i of n" /
 // "n of m steps done · failed · skipped", "Review before confirming", the collapsible step list with `StepIcon` and each
 // step's error line, the typed phrase with SPHERE's normalisation, and Cancel / "Confirm and apply". Not ported: SPHERE's
 // organization tree (`plan-tree.ts`), the file rows and invitation links; the steps render as a list. Added: each step's
