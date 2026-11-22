@@ -78,7 +78,7 @@ describe('an upstream event opened in place', () => {
     await screen.findByRole('heading', { level: 2, name: 'brevo' });
     expect(screen.getByRole('link', { name: 'Open the configurator' })).toHaveAttribute(
       'href',
-      '/compositions/fixtures/tomatometer/configuration'
+      '/compositions/fixtures/tomatometer/configuration?version=1.0.0'
     );
     expect(screen.getByRole('link', { name: 'Update from SPHERE' })).toHaveAttribute(
       'href',

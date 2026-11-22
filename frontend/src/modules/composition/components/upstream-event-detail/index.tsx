@@ -226,7 +226,7 @@ export default function UpstreamEventDetailView({
   const back = (
     <Link
       to={backTo}
-      className="inline-flex items-center gap-1 self-start text-xs text-tp-steel hover:text-tp-ink hover:underline"
+      className="inline-flex min-h-6 items-center gap-1 self-start text-xs text-tp-steel hover:text-tp-ink hover:underline"
     >
       <span aria-hidden="true">←</span> All upstream changes
     </Link>
@@ -261,7 +261,9 @@ export default function UpstreamEventDetailView({
     );
 
   const event = loaded.value;
-  const etag = read.data?.etag ?? null;
+  // The revision the reader is looking at: while a notification has it read again, the one shown (a review then answers
+  // 412 if the event changed meanwhile, never goes without `If-Match`).
+  const etag = loaded?.etag ?? null;
   const diff = (event.diff ?? {}) as Record<string, unknown>;
   const old = (diff.old ?? event.old) as DiffSide;
   const latest = (diff.new ?? event.new) as DiffSide | null;
@@ -433,8 +435,11 @@ export default function UpstreamEventDetailView({
                 >
                   Update from SPHERE
                 </Link>
+                {/* The configurator of the version the event is about (the one in effect), not the newest. */}
                 <Link
-                  to={compositionPath(org, composition.slug, 'configuration')}
+                  to={compositionPath(org, composition.slug, 'configuration', {
+                    version: event.version.label,
+                  })}
                   className={actionClass}
                 >
                   Open the configurator
