@@ -632,7 +632,10 @@ the watcher does moves an environment's ETag or a feed ([ADR 0057](adr/0057-upst
 
 `/v1/admin/queues` carries an `upstreamWatch` block (watches by status, what is due, the last observation, the
 events of the last day by category, unresolved refs and executing proposals); `/health/ready` ignores the watcher, so
-a slow SPHERE never takes a gateway out of rotation.
+a slow SPHERE never takes a gateway out of rotation. `tools/poll_upstream.py [--once] [--force] [--json]` runs one
+cycle on demand, as the lifespan task does (the same `run_cycle`, under the same advisory lock, honouring every back-off
+window and the `gone` debounce), and prints its report; operators and the demo use it instead of waiting for the next
+tick, and no endpoint is added for it.
 
 #### Proposals (F6-B)
 
