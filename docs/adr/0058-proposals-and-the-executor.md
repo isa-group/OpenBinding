@@ -78,8 +78,9 @@ share-locks its composition first; the executor writes a step's outcome after it
 composition, an organization or an account's personal organization locks proposals before steps. Deleting an
 environment share-locks its composition before the environment's row and makes the pending proposals that adopt in it
 `stale`, skipping one another transaction holds (`SKIP LOCKED`; the pre-flight finds the environment missing anyway);
-deleting an account cancels its pending proposals in other organizations before its memberships go (skipping held
-ones too) and deletes its personal organization's with it.
+deleting an account cancels its pending proposals in other organizations before its memberships go, waiting for
+one another transaction holds (a refused organization delete leaves it pending, and a skipped one would stay pending
+under an author nobody can sign in as), and deletes its personal organization's with it.
 
 **Keys.** A proposal's own routes and the caller's list name no composition, so the key's boundary is checked against
 the proposal's composition there; at confirm each step's own key permission is checked, and a run the key may not see

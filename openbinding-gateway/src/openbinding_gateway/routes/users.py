@@ -676,8 +676,11 @@ async def delete_own_account(
 async def cancel_pending_proposals(session: AsyncSession, user: User, personal: Organization | None) -> int:
     """F6-B: the account's pending proposals in every other organization become ``cancelled`` (audited there), in the
     caller's transaction; its personal organization's go with it. How many. A proposal another transaction holds is
-    skipped (``SKIP LOCKED``): an organization delete that holds it deletes it, and the executor's claim holds it only
-    while it moves it out of ``pending``."""
+    waited for, never skipped: an organization delete may be refused (``historical_references``) and an environment
+    delete may leave it pending, and a skipped one would stay pending under an author nobody can sign in as. Waiting
+    closes no cycle: this runs before the memberships go, holding only the personal organization (which no other
+    holder of a team organization's proposal takes), and every path locks proposals in ``id`` order. Once the holder
+    ends, a deleted proposal is not returned and one no longer ``pending`` is passed over (the status is read again)."""
     query = select(Proposal.id, Proposal.organization_id).where(
         Proposal.proposed_by_id == user.id, Proposal.status == "pending",
     )
@@ -685,7 +688,7 @@ async def cancel_pending_proposals(session: AsyncSession, user: User, personal: 
         query = query.where(Proposal.organization_id != personal.id)
     cancelled = 0
     for proposal_id, organization_id in (await session.execute(
-        query.order_by(Proposal.id).with_for_update(skip_locked=True)
+        query.order_by(Proposal.id).with_for_update()
     )).all():
         changed = await session.execute(
             update(Proposal).where(Proposal.id == proposal_id, Proposal.status == "pending")

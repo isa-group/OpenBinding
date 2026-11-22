@@ -288,13 +288,14 @@ async def stale_proposals_adopting_in(
 
     The environment is already locked here, and deleting its organization locks proposals before environments, so a
     proposal another transaction holds is skipped rather than waited for (``SKIP LOCKED``): one an organization delete
-    holds goes with it, and any other still finds its environment missing at confirm (stale then)."""
-    candidates = (await session.execute(
-        select(Proposal.id, ProposalStep.params).join(ProposalStep, ProposalStep.proposal_id == Proposal.id).where(
+    holds goes with it, and any other still finds its environment missing at confirm (stale then). Only the proposals
+    that adopt in this environment are locked."""
+    ids = sorted(set((await session.scalars(
+        select(Proposal.id).join(ProposalStep, ProposalStep.proposal_id == Proposal.id).where(
             Proposal.composition_id == composition.id, Proposal.status == "pending", ProposalStep.kind == "adopt",
+            ProposalStep.params["environment"].as_string() == str(environment.id),
         ).with_for_update(skip_locked=True, of=Proposal)
-    )).all()
-    ids = sorted({row.id for row in candidates if str((row.params or {}).get("environment")) == str(environment.id)})
+    )).all()))
     staled = 0
     for proposal_id in ids:
         changed = await session.execute(
