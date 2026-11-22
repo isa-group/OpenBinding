@@ -1,0 +1,367 @@
+{
+  "proposals": [
+    {
+      "completedAt": null,
+      "composition": {
+        "id": "00000000-0000-4000-8000-000000000046",
+        "name": "TomatoMeter",
+        "slug": "tomatometer"
+      },
+      "confirmationPhrase": null,
+      "confirmedAt": null,
+      "createdAt": "2026-01-01T00:00:50Z",
+      "id": "00000000-0000-4000-8000-000000000061",
+      "mine": true,
+      "organization": {
+        "id": "00000000-0000-4000-8000-000000000045",
+        "name": "Fixtures",
+        "slug": "fixtures"
+      },
+      "origin": "web",
+      "proposedBy": {
+        "username": "fixture-author"
+      },
+      "status": "pending",
+      "steps": [
+        {
+          "base": {
+            "environmentEtag": "\"00000000000000000000000000000002\"",
+            "inEffect": null
+          },
+          "deferred": [],
+          "dependsOn": [],
+          "description": "Adopt 1.2.0 in Staging",
+          "destructive": false,
+          "error": null,
+          "finishedAt": null,
+          "kind": "adopt",
+          "ordinal": 1,
+          "params": {
+            "environment": "00000000-0000-4000-8000-000000000042",
+            "note": "Try 1.2.0 first",
+            "version": "00000000-0000-4000-8000-000000000059"
+          },
+          "preview": null,
+          "result": null,
+          "status": "pending"
+        }
+      ],
+      "summary": "Adopt 1.2.0 in Staging",
+      "supersededBy": null,
+      "upstreamEvent": null,
+      "warnings": []
+    },
+    {
+      "completedAt": "2026-01-01T00:00:51Z",
+      "composition": {
+        "id": "00000000-0000-4000-8000-000000000046",
+        "name": "TomatoMeter",
+        "slug": "tomatometer"
+      },
+      "confirmationPhrase": null,
+      "confirmedAt": "2026-01-01T00:00:52Z",
+      "createdAt": "2026-01-01T00:00:53Z",
+      "id": "00000000-0000-4000-8000-000000000062",
+      "mine": true,
+      "organization": {
+        "id": "00000000-0000-4000-8000-000000000045",
+        "name": "Fixtures",
+        "slug": "fixtures"
+      },
+      "origin": "web",
+      "proposedBy": {
+        "username": "fixture-author"
+      },
+      "status": "partial",
+      "steps": [
+        {
+          "base": {
+            "contentDigest": "sha256-1b0586fd09d98fe5f483661e121358e16cd84defaab526628be1e3394d6fead0",
+            "headVersionId": "00000000-0000-4000-8000-000000000059",
+            "revisionId": "00000000-0000-4000-8000-000000000060"
+          },
+          "deferred": [],
+          "dependsOn": [],
+          "description": "Seal 1.3.0 from tomatometer-email@5",
+          "destructive": false,
+          "error": null,
+          "finishedAt": "2026-01-01T00:00:54Z",
+          "kind": "seal_derived",
+          "ordinal": 1,
+          "params": {
+            "label": "1.3.0",
+            "offering": {
+              "sphere": "sphere/tomatometer"
+            },
+            "source": {
+              "binding": {
+                "dailySummary": "email.mailgun.foundation",
+                "export": "storage.dropbox.plus",
+                "login": "auth.builtin.local",
+                "quotes": "quotes.zenquotes.free"
+              },
+              "revision": "tomatometer-email@5"
+            }
+          },
+          "preview": null,
+          "result": {
+            "created": true,
+            "version": {
+              "id": "00000000-0000-4000-8000-000000000063",
+              "label": "1.3.0"
+            }
+          },
+          "status": "done"
+        },
+        {
+          "base": {
+            "deferred": [
+              "version"
+            ],
+            "dependsOn": [
+              1
+            ],
+            "environmentEtag": "\"00000000000000000000000000000003\"",
+            "inEffect": "00000000-0000-4000-8000-000000000036"
+          },
+          "deferred": [
+            "version"
+          ],
+          "dependsOn": [
+            1
+          ],
+          "description": "Adopt the version step 1 seals in Production",
+          "destructive": false,
+          "error": {
+            "code": "precondition_failed",
+            "detail": null,
+            "message": "The resource changed since it was read; fetch it again and retry.",
+            "status": 412
+          },
+          "finishedAt": "2026-01-01T00:00:55Z",
+          "kind": "adopt",
+          "ordinal": 2,
+          "params": {
+            "environment": "00000000-0000-4000-8000-000000000040",
+            "note": "Re-solved after Brevo 2026-11",
+            "version": "@s1.version"
+          },
+          "preview": null,
+          "result": null,
+          "status": "failed"
+        }
+      ],
+      "summary": "Seal 1.3.0 from tomatometer-email@5; then Adopt the version step 1 seals in Production",
+      "supersededBy": null,
+      "upstreamEvent": null,
+      "warnings": []
+    },
+    {
+      "completedAt": null,
+      "composition": {
+        "id": "00000000-0000-4000-8000-000000000046",
+        "name": "TomatoMeter",
+        "slug": "tomatometer"
+      },
+      "confirmationPhrase": null,
+      "confirmedAt": null,
+      "createdAt": "2026-01-01T00:00:56Z",
+      "id": "00000000-0000-4000-8000-000000000064",
+      "mine": true,
+      "organization": {
+        "id": "00000000-0000-4000-8000-000000000045",
+        "name": "Fixtures",
+        "slug": "fixtures"
+      },
+      "origin": "web",
+      "proposedBy": {
+        "username": "fixture-author"
+      },
+      "status": "stale",
+      "steps": [
+        {
+          "base": {
+            "environmentEtag": "\"00000000000000000000000000000004\"",
+            "inEffect": "00000000-0000-4000-8000-000000000059"
+          },
+          "deferred": [],
+          "dependsOn": [],
+          "description": "Adopt 1.1.0 in Production",
+          "destructive": false,
+          "error": null,
+          "finishedAt": null,
+          "kind": "adopt",
+          "ordinal": 1,
+          "params": {
+            "environment": "00000000-0000-4000-8000-000000000040",
+            "note": "",
+            "version": "00000000-0000-4000-8000-000000000038"
+          },
+          "preview": null,
+          "result": null,
+          "status": "pending"
+        }
+      ],
+      "summary": "Adopt 1.1.0 in Production",
+      "supersededBy": null,
+      "upstreamEvent": null,
+      "warnings": []
+    },
+    {
+      "completedAt": "2026-01-01T00:00:45Z",
+      "composition": {
+        "id": "00000000-0000-4000-8000-000000000046",
+        "name": "TomatoMeter",
+        "slug": "tomatometer"
+      },
+      "confirmationPhrase": null,
+      "confirmedAt": "2026-01-01T00:00:46Z",
+      "createdAt": "2026-01-01T00:00:47Z",
+      "id": "00000000-0000-4000-8000-000000000058",
+      "mine": true,
+      "organization": {
+        "id": "00000000-0000-4000-8000-000000000045",
+        "name": "Fixtures",
+        "slug": "fixtures"
+      },
+      "origin": "web",
+      "proposedBy": {
+        "username": "fixture-author"
+      },
+      "status": "completed",
+      "steps": [
+        {
+          "base": {
+            "contentDigest": "sha256-79777cc59cfb9cd2d1adcfc8a22f500b4cbbd0220bdbc17499b45eaf97345af9",
+            "headVersionId": "00000000-0000-4000-8000-000000000038",
+            "revisionId": "00000000-0000-4000-8000-000000000060"
+          },
+          "deferred": [],
+          "dependsOn": [],
+          "description": "Seal 1.2.0 from tomatometer-email@5",
+          "destructive": false,
+          "error": null,
+          "finishedAt": "2026-01-01T00:00:48Z",
+          "kind": "seal_derived",
+          "ordinal": 1,
+          "params": {
+            "label": "1.2.0",
+            "offering": {
+              "sphere": "sphere/tomatometer"
+            },
+            "source": {
+              "binding": {
+                "dailySummary": "email.resend.pro",
+                "export": "storage.dropbox.plus",
+                "login": "auth.builtin.local",
+                "quotes": "quotes.zenquotes.free"
+              },
+              "revision": "tomatometer-email@5"
+            }
+          },
+          "preview": null,
+          "result": {
+            "created": true,
+            "version": {
+              "id": "00000000-0000-4000-8000-000000000059",
+              "label": "1.2.0"
+            }
+          },
+          "status": "done"
+        },
+        {
+          "base": {
+            "deferred": [
+              "version"
+            ],
+            "dependsOn": [
+              1
+            ],
+            "environmentEtag": "\"00000000000000000000000000000001\"",
+            "inEffect": "00000000-0000-4000-8000-000000000036"
+          },
+          "deferred": [
+            "version"
+          ],
+          "dependsOn": [
+            1
+          ],
+          "description": "Adopt the version step 1 seals in Production",
+          "destructive": false,
+          "error": null,
+          "finishedAt": "2026-01-01T00:00:49Z",
+          "kind": "adopt",
+          "ordinal": 2,
+          "params": {
+            "environment": "00000000-0000-4000-8000-000000000040",
+            "note": "Re-solved after Brevo 2026-11",
+            "version": "@s1.version"
+          },
+          "preview": null,
+          "result": {
+            "environment": "production",
+            "feedEtag": "\"sha256-79777cc59cfb9cd2d1adcfc8a22f500b4cbbd0220bdbc17499b45eaf97345af9\"",
+            "ordinal": 4,
+            "versionLabel": "1.2.0"
+          },
+          "status": "done"
+        }
+      ],
+      "summary": "Seal 1.2.0 from tomatometer-email@5; then Adopt the version step 1 seals in Production",
+      "supersededBy": null,
+      "upstreamEvent": null,
+      "warnings": []
+    },
+    {
+      "completedAt": null,
+      "composition": {
+        "id": "00000000-0000-4000-8000-000000000046",
+        "name": "TomatoMeter",
+        "slug": "tomatometer"
+      },
+      "confirmationPhrase": null,
+      "confirmedAt": null,
+      "createdAt": "2026-01-01T00:00:57Z",
+      "id": "00000000-0000-4000-8000-000000000065",
+      "mine": true,
+      "organization": {
+        "id": "00000000-0000-4000-8000-000000000045",
+        "name": "Fixtures",
+        "slug": "fixtures"
+      },
+      "origin": "web",
+      "proposedBy": {
+        "username": "fixture-author"
+      },
+      "status": "superseded",
+      "steps": [
+        {
+          "base": {
+            "environmentEtag": "\"00000000000000000000000000000002\"",
+            "inEffect": null
+          },
+          "deferred": [],
+          "dependsOn": [],
+          "description": "Adopt 1.1.0 in Staging",
+          "destructive": false,
+          "error": null,
+          "finishedAt": null,
+          "kind": "adopt",
+          "ordinal": 1,
+          "params": {
+            "environment": "00000000-0000-4000-8000-000000000042",
+            "note": "",
+            "version": "00000000-0000-4000-8000-000000000038"
+          },
+          "preview": null,
+          "result": null,
+          "status": "pending"
+        }
+      ],
+      "summary": "Adopt 1.1.0 in Staging",
+      "supersededBy": "00000000-0000-4000-8000-000000000058",
+      "upstreamEvent": null,
+      "warnings": []
+    }
+  ]
+}

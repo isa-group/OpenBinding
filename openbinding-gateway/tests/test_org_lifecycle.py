@@ -310,3 +310,118 @@ async def test_deleting_an_organization_takes_its_watches_refs_and_upstream_even
     assert await _count(db_session, PricingRefAttempt, PricingRefAttempt.organization_id == organization_id) == 0
     assert await _count(db_session, PricingWatch, PricingWatch.id == own) == 0
     assert await _count(db_session, PricingWatch, PricingWatch.id == shared) == 1
+
+
+async def _proposal_world(db_session, organization_id: uuid.UUID, user_id: uuid.UUID):
+    """A composition of ``organization_id`` with 1.0.0 in effect in ``production`` through a proposal that answers an
+    upstream event, a superseded proposal before it, and both proposals' steps (F6-B rows)."""
+    from _environment_rows import World, _version, adoption, environment
+    from _proposal_rows import proposal, step
+    from _upstream_rows import event, watch
+    from openbinding_gateway.db.models import Proposal, utcnow
+
+    composition = Composition(organization_id=organization_id, slug=f"c-{uuid.uuid4().hex[:6]}", name="C",
+                              created_by_id=user_id)
+    db_session.add(composition)
+    await db_session.flush()
+    version_id, evaluation_id = await _version(db_session, composition.id, user_id, 1, "1.0.0")
+    w = World(user_id, organization_id, composition.id, (version_id,), (evaluation_id,), composition.id, version_id,
+              evaluation_id)
+    shared = await watch(db_session)
+    answered = await event(db_session, w, shared)
+    done = await proposal(db_session, w, status="completed", upstream_event_id=answered)
+    await step(db_session, done, status="done", result={"ordinal": 1}, finished_at=utcnow())
+    old = await proposal(db_session, w, status="superseded", superseded_by_id=done)
+    await step(db_session, old)
+    environment_id = await environment(db_session, w, adopted_version_id=version_id, adoption_ordinal=1)
+    await adoption(db_session, w, environment_id, 1, source="proposal", proposal_id=done)
+    await db_session.commit()
+    return w, Proposal
+
+
+async def test_deleting_an_organization_takes_its_proposals_and_the_adoptions_made_through_them(
+    api_client, db_session, registration, study_gate  # noqa: F811
+) -> None:
+    """F6-B: adoptions (they name proposals), then proposal steps and proposals (they name events), then events."""
+    from openbinding_gateway.db.models import CompositionAdoption, CompositionUpstreamEvent, ProposalStep
+
+    headers = await _signed_in(api_client, registration, study_gate)
+    created = await api_client.post("/v1/organizations", headers=headers,
+                                    json={"slug": f"o-{uuid.uuid4().hex[:8]}", "name": "O"})
+    assert created.status_code == 201, created.text
+    org, organization_id = created.json()["slug"], uuid.UUID(created.json()["id"])
+    w, Proposal = await _proposal_world(db_session, organization_id, await _user_id(api_client, headers))
+
+    deleted = await api_client.delete(f"/v1/organizations/{org}", headers=headers)
+
+    assert deleted.status_code == 204, deleted.text
+    db_session.expire_all()
+    assert await _count(db_session, Proposal, Proposal.organization_id == organization_id) == 0
+    assert await _count(db_session, ProposalStep) == 0
+    assert await _count(db_session, CompositionAdoption, CompositionAdoption.composition_id == w.composition_id) == 0
+    assert await _count(db_session, CompositionUpstreamEvent,
+                        CompositionUpstreamEvent.organization_id == organization_id) == 0
+
+
+async def test_deleting_an_account_takes_its_personal_organizations_proposals(api_client, db_session, registration) -> None:
+    """F6-B: a personal organization goes with its account, its proposals and their adoption included."""
+    from test_account_pseudonymisation import delete as delete_account
+    from test_account_pseudonymisation import signed_in
+
+    profile, headers, _ = await signed_in(api_client, registration)
+    personal = next(row for row in (await api_client.get("/v1/organizations", headers=headers)).json()
+                    if row["is_personal"])
+    personal_id = uuid.UUID(personal["id"])
+    w, Proposal = await _proposal_world(db_session, personal_id, uuid.UUID(profile["id"]))
+
+    deleted = await delete_account(api_client, profile, headers)
+
+    assert deleted.status_code == 204, deleted.text
+    db_session.expire_all()
+    assert await _count(db_session, Organization, Organization.id == personal_id) == 0
+    assert await _count(db_session, Proposal, Proposal.organization_id == personal_id) == 0
+
+
+async def test_deleting_an_account_cancels_its_pending_proposals_in_team_organizations(
+    api_client, db_session, registration
+) -> None:
+    """F6-B: the user row stays (pseudonymised), so a team organization keeps the account's proposals; the pending ones
+    become ``cancelled`` and say why in the team's audit, the others are history and stay as they were."""
+    from _environment_rows import World, _version
+    from _proposal_rows import proposal
+    from test_account_pseudonymisation import delete as delete_account
+    from test_account_pseudonymisation import signed_in
+
+    from openbinding_gateway.db.models import Proposal
+
+    owner, owner_headers, _ = await signed_in(api_client, registration)
+    profile, headers, _ = await signed_in(api_client, registration)
+    team = await api_client.post("/v1/organizations", headers=owner_headers,
+                                 json={"slug": f"t-{uuid.uuid4().hex[:8]}", "name": "Team"})
+    assert team.status_code == 201, team.text
+    team_id = uuid.UUID(team.json()["id"])
+    joined = await api_client.put(f"/v1/organizations/{team.json()['slug']}/members/{profile['id']}",
+                                  headers=owner_headers, json={"user_id": profile["id"], "role": "MEMBER"})
+    assert joined.status_code == 200, joined.text
+    user_id, owner_id = uuid.UUID(profile["id"]), uuid.UUID(owner["id"])
+    composition = Composition(organization_id=team_id, slug="shop", name="Shop", created_by_id=owner_id)
+    db_session.add(composition)
+    await db_session.flush()
+    version_id, evaluation_id = await _version(db_session, composition.id, owner_id, 1, "1.0.0")
+    w = World(user_id, team_id, composition.id, (version_id,), (evaluation_id,), composition.id, version_id,
+              evaluation_id)
+    pending = await proposal(db_session, w)
+    finished = await proposal(db_session, w, status="failed")
+    others = await proposal(db_session, w, user_id=owner_id)
+    await db_session.commit()
+
+    deleted = await delete_account(api_client, profile, headers)
+
+    assert deleted.status_code == 204, deleted.text
+    db_session.expire_all()
+    statuses = {row.id: row.status for row in (await db_session.scalars(
+        select(Proposal).where(Proposal.organization_id == team_id))).all()}
+    assert statuses == {pending: "cancelled", finished: "failed", others: "pending"}
+    audit = await db_session.scalar(select(AuditEvent).where(AuditEvent.action == "composition.proposal_cancelled",
+                                                             AuditEvent.target_id == pending))
+    assert audit is not None and audit.organization_id == team_id and audit.detail == {"reason": "account_deleted"}

@@ -515,10 +515,22 @@ async def reevaluate_run(
 # -- Events and analysis --------------------------------------------------------------------------------
 
 
+#: Seconds between two reads of a run by its event stream (a test patches it).
+EVENT_POLL_S = 1.0
+#: Polls without a ``job`` line before the stream sends a keep-alive comment (15 s at one poll a second).
+KEEP_ALIVE_POLLS = 15
+
+
 @router.get(
     "/{run}/events",
     operation_id="streamRunEvents",
     response_class=StreamingResponse,
+    description=(
+        "Server-sent events of a run: a `job` event with `{id, status, cancellationRequested, finishedAt}` whenever "
+        "that changes (the first at once), until the run ends or after 900 polls; `session-ended` when the caller's "
+        "session ends. While nothing changes, a `: keep-alive` comment is sent every 15 seconds, which every "
+        "event-stream reader ignores, so a quiet run does not look like a dropped connection."
+    ),
     responses={200: {"content": {"text/event-stream": {"schema": {"type": "string"}}}}, 404: NOT_FOUND_RESPONSE},
 )
 async def stream_run_events(
@@ -547,6 +559,7 @@ async def stream_run_events(
     async def events():
         last = None
         current = initial
+        quiet = 0
         for attempt in range(900):
             if attempt:
                 if await request.is_disconnected() or not db_base.is_configured():
@@ -568,9 +581,16 @@ async def stream_run_events(
             if encoded != last:
                 yield f"event: job\ndata: {encoded}\n\n"
                 last = encoded
+                quiet = 0
+            else:
+                quiet += 1
+                if quiet >= KEEP_ALIVE_POLLS:
+                    # A comment line: readers that abort after a silence (SPHERE's 45 s) keep the stream open.
+                    yield ": keep-alive\n\n"
+                    quiet = 0
             if current["status"] in {state.value for state in _TERMINAL}:
                 return
-            await asyncio.sleep(1)
+            await asyncio.sleep(EVENT_POLL_S)
 
     return StreamingResponse(
         events(), media_type="text/event-stream",

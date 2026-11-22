@@ -431,6 +431,13 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
             "/v1/organizations/{org}/compositions/{composition}/derive", "post",
             {"200", "201", "403", "404", "409", "422", "429", "503"},
         ),
+        # A proposal with a seal step derives the document it shows (F6-B).
+        (
+            "/v1/organizations/{org}/compositions/{composition}/proposals", "post",
+            {"201", "403", "404", "409", "422", "429", "503"},
+        ),
+        # Confirming one derives, seals and adopts (F6-B).
+        ("/v1/organizations/{org}/proposals/{proposal}/confirm", "post", {"200", "403", "404", "409", "422", "429", "503"}),
     ],
 )
 def test_the_failures_an_endpoint_can_produce_are_declared(document, path, method, statuses):

@@ -1905,6 +1905,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/compositions/{composition}/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Proposals
+         * @description The composition's proposals, newest first (members; previews are on a proposal's own read).
+         */
+        get: operations["listProposals"];
+        put?: never;
+        /**
+         * Propose a change to a composition
+         * @description Build a proposal of typed steps (MEMBER): `adopt` (one step) or `derive_and_adopt` (derive a version from a run's solution or a revision's binding, seal it and adopt it, in one confirmation). Nothing changes until the caller confirms it. Each step stores its base revisions; a seal step stores the exact document it would seal (`GET` serves it with its diff). The caller's pending proposal on this composition is superseded.
+         */
+        post: operations["createProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/compositions/{composition}/upstream": {
         parameters: {
             query?: never;
@@ -2673,6 +2697,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/proposals/{proposal}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Proposal
+         * @description One proposal with each seal step's document and its diff against the version in effect (members).
+         */
+        get: operations["getProposal"];
+        put?: never;
+        post?: never;
+        /**
+         * Cancel Proposal
+         * @description Cancel a pending proposal (its author only): it is kept, `cancelled`.
+         */
+        delete: operations["cancelProposal"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{org}/proposals/{proposal}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm a proposal and apply it step by step
+         * @description Its author only. Every step's stored base is checked first (a base that no longer holds makes the proposal `stale`: 409 `proposal_stale`, nothing changed), and the caller's permissions for each step: its role, and for a personal API key each step's own permission (`compositions:adopt` for an `adopt` step, beyond the `compositions:write` this route asks for). Then the steps run in order, each committed by itself, and the answer is the proposal as recorded: `completed`, `partial` (each step's outcome says what was applied) or `failed`. A step whose dependency did not complete is `skipped`; nothing is retried or rolled back.
+         */
+        post: operations["confirmProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/runs": {
         parameters: {
             query?: never;
@@ -2748,7 +2816,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Stream Run Events */
+        /**
+         * Stream Run Events
+         * @description Server-sent events of a run: a `job` event with `{id, status, cancellationRequested, finishedAt}` whenever that changes (the first at once), until the run ends or after 900 polls; `session-ended` when the caller's session ends. While nothing changes, a `: keep-alive` comment is sent every 15 seconds, which every event-stream reader ignores, so a quiet run does not look like a dropped connection.
+         */
         get: operations["streamRunEvents"];
         put?: never;
         post?: never;
@@ -3325,6 +3396,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/users/me/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Own Proposals
+         * @description The caller's own proposals in every organization they hold a role in, newest first (pending by default): the
+         *     dashboard's "Your pending proposals".
+         */
+        get: operations["listOwnProposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/users/me/settings/beta-features": {
         parameters: {
             query?: never;
@@ -3634,6 +3726,19 @@ export interface components {
             createdAt: string | null;
             /** Versionname */
             versionName: string | null;
+        };
+        /**
+         * AdoptionProposal
+         * @description The proposal an adoption was made through.
+         */
+        AdoptionProposal: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Summary */
+            summary: string;
         };
         AnalysisResult: {
             analysis: {
@@ -4577,6 +4682,14 @@ export interface components {
             ordinal: number;
             /** @description The version in effect before; null for the first. */
             previousVersion: components["schemas"]["VersionName"] | null;
+            /** @description The proposal that made it; null for a direct adoption. */
+            proposal: components["schemas"]["AdoptionProposal"] | null;
+            /**
+             * Source
+             * @description How a person made it: `direct` (the adopt route) or `proposal` (a confirmed proposal's step).
+             * @enum {string}
+             */
+            source: "direct" | "proposal";
             version: components["schemas"]["VersionName"];
         };
         /**
@@ -8376,6 +8489,328 @@ export interface components {
                 semver: string;
                 versionedId: string;
             };
+        };
+        /**
+         * ProposalAdoptRequest
+         * @description Propose adopting a sealed version in an environment: one `adopt` step.
+         */
+        ProposalAdoptRequest: {
+            /**
+             * Environment
+             * @description The environment, by slug or id.
+             */
+            environment: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "adopt";
+            /**
+             * Note
+             * @description Kept with the adoption.
+             * @default
+             */
+            note: string;
+            /**
+             * Upstreamevent
+             * @description The upstream event this answers (display).
+             */
+            upstreamEvent?: string | null;
+            /**
+             * Version
+             * @description The version, by id, label or ordinal.
+             */
+            version: string;
+        };
+        /** ProposalComposition */
+        ProposalComposition: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /**
+         * ProposalConfirm
+         * @description Confirm a proposal; a destructive step needs its typed phrase.
+         */
+        ProposalConfirm: {
+            /**
+             * Confirmation
+             * @description The proposal's `confirmationPhrase`, typed (case and spaces aside).
+             */
+            confirmation?: string | null;
+        };
+        /**
+         * ProposalCreate
+         * @description A proposal to build, by `kind`: `adopt` or `derive_and_adopt`.
+         */
+        ProposalCreate: components["schemas"]["ProposalAdoptRequest"] | components["schemas"]["ProposalDeriveAndAdoptRequest"];
+        /**
+         * ProposalDeriveAndAdoptRequest
+         * @description Propose deriving a version and adopting it in one confirmation: a `seal_derived` step and an `adopt` step of
+         *     the version it seals (`@s1.version`).
+         */
+        ProposalDeriveAndAdoptRequest: {
+            /**
+             * Environment
+             * @description The environment, by slug or id.
+             */
+            environment: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "derive_and_adopt";
+            /**
+             * Label
+             * @description The new version's label; the next minor release of the composition by default.
+             */
+            label?: string | null;
+            /**
+             * Note
+             * @description Kept with the adoption.
+             * @default
+             */
+            note: string;
+            /**
+             * Offering
+             * @description The offering the new version states, `{sphere, registry?}` or `{url}`; none by default.
+             */
+            offering?: {
+                [key: string]: unknown;
+            } | null;
+            /** Source */
+            source: components["schemas"]["ProposalRunSource"] | components["schemas"]["ProposalRevisionSource"];
+            /**
+             * Upstreamevent
+             * @description The upstream event this answers (display).
+             */
+            upstreamEvent?: string | null;
+        };
+        /** ProposalEnvironment */
+        ProposalEnvironment: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /** ProposalList */
+        ProposalList: {
+            /**
+             * Proposals
+             * @description Newest first.
+             */
+            proposals: components["schemas"]["ProposalView"][];
+        };
+        /** ProposalPerson */
+        ProposalPerson: {
+            /** Username */
+            username: string;
+        };
+        /**
+         * ProposalPreview
+         * @description The exact Composition2Yaml document a seal step stores, and what it changes.
+         */
+        ProposalPreview: {
+            against: components["schemas"]["ProposalPreviewAgainst"] | null;
+            /**
+             * Diff
+             * @description `POST /v1/compositions/diff` of `against` and `document` (computed on read); null without one, or when every Composition2Yaml slot is busy (read the proposal again for it).
+             */
+            diff: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Document
+             * @description The canonical bytes the step seals; their digest is `base.contentDigest`.
+             */
+            document: string;
+        };
+        /**
+         * ProposalPreviewAgainst
+         * @description What a seal step's document is compared with: the version in effect in the proposal's environment, or the
+         *     composition's latest version when none is.
+         */
+        ProposalPreviewAgainst: {
+            /** @description Null when compared with the latest version. */
+            environment: components["schemas"]["ProposalEnvironment"] | null;
+            version: components["schemas"]["VersionName"];
+        };
+        /**
+         * ProposalRevisionSource
+         * @description A binding of a problem revision to derive from.
+         */
+        ProposalRevisionSource: {
+            /**
+             * Binding
+             * @description Each service task's candidate.
+             */
+            binding: {
+                [key: string]: string;
+            };
+            /**
+             * Revision
+             * @description `<problem>@<revision>`, each by slug, id or number.
+             */
+            revision: string;
+        };
+        /**
+         * ProposalRunSource
+         * @description A run's solution to derive from.
+         */
+        ProposalRunSource: {
+            /**
+             * Point
+             * @description The solution: its index in the run's result.
+             * @default 0
+             */
+            point: number;
+            /**
+             * Run
+             * Format: uuid
+             * @description The run whose solution is derived.
+             */
+            run: string;
+        };
+        /**
+         * ProposalStepError
+         * @description A step's refusal, copied from the writer's answer.
+         */
+        ProposalStepError: {
+            /** Code */
+            code: string;
+            /** Detail */
+            detail?: {
+                [key: string]: unknown;
+            } | null;
+            /** Message */
+            message: string;
+            /** Status */
+            status: number;
+        };
+        /**
+         * ProposalStepView
+         * @description One typed step: what it does, the base it was built on and, once confirmed, how it ended.
+         */
+        ProposalStepView: {
+            /**
+             * Base
+             * @description The base revisions the step was built against.
+             */
+            base: {
+                [key: string]: unknown;
+            };
+            /**
+             * Deferred
+             * @description Base parts decided when the steps it depends on have run.
+             */
+            deferred: string[];
+            /**
+             * Dependson
+             * @description Earlier steps whose outputs this one takes.
+             */
+            dependsOn: number[];
+            /**
+             * Description
+             * @description Written by the gateway from the step's parameters.
+             */
+            description: string;
+            /** Destructive */
+            destructive: boolean;
+            error: components["schemas"]["ProposalStepError"] | null;
+            /** Finishedat */
+            finishedAt: string | null;
+            /**
+             * Kind
+             * @description `seal_derived` or `adopt` (F7 adds kinds).
+             */
+            kind: string;
+            /** Ordinal */
+            ordinal: number;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** @description A seal step's document and its diff (on a proposal's own read; null in lists). */
+            preview?: components["schemas"]["ProposalPreview"] | null;
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "done" | "failed" | "skipped";
+        };
+        /**
+         * ProposalView
+         * @description A proposal: an organization's typed steps that change nothing until its author confirms them.
+         */
+        ProposalView: {
+            /** Completedat */
+            completedAt: string | null;
+            composition: components["schemas"]["ProposalComposition"] | null;
+            /**
+             * Confirmationphrase
+             * @description Set when a step is destructive: type it to confirm.
+             */
+            confirmationPhrase: string | null;
+            /** Confirmedat */
+            confirmedAt: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Mine
+             * @description Whether the caller made it (only its author confirms or cancels it).
+             */
+            mine: boolean;
+            organization: components["schemas"]["CompositionOrganization"];
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "web" | "mcp" | "chat";
+            proposedBy: components["schemas"]["ProposalPerson"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "executing" | "completed" | "partial" | "failed" | "cancelled" | "superseded" | "stale";
+            /** Steps */
+            steps: components["schemas"]["ProposalStepView"][];
+            /** Summary */
+            summary: string;
+            /** Supersededby */
+            supersededBy: string | null;
+            /**
+             * Upstreamevent
+             * @description The upstream event this proposal answers.
+             */
+            upstreamEvent: string | null;
+            /**
+             * Warnings
+             * @description Review before confirming.
+             */
+            warnings: string[];
         };
         /**
          * PublicCompositionList
@@ -18045,6 +18480,169 @@ export interface operations {
             };
         };
     };
+    listProposals: {
+        parameters: {
+            query?: {
+                status?: ("pending" | "executing" | "completed" | "partial" | "failed" | "cancelled" | "superseded" | "stale") | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalList"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such organization, composition or proposal, or the caller is not a member: `Composition not found.` for a private or missing composition, `Proposal not found.` otherwise. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                composition: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalView"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller's role is weaker than MEMBER (`organization_forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such organization, composition or proposal, or the caller is not a member: `Composition not found.` for a private or missing composition, `Proposal not found.` otherwise. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `composition_archived`, or `proposal_conflict` (another proposal of the caller's was made at the same time). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `proposal_invalid`: `errors` lists `{step, code, message}`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The toolchain does not answer (`bim_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     getCompositionUpstream: {
         parameters: {
             query?: {
@@ -21857,6 +22455,244 @@ export interface operations {
             };
         };
     };
+    getProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                proposal: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalView"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `Proposal not found.`: no such proposal in this organization, or the caller is not a member. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    cancelProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                proposal: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalView"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Only its author cancels a proposal (`proposal_not_yours`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `Proposal not found.`: no such proposal in this organization, or the caller is not a member. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description It is no longer pending (`proposal_not_pending`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    confirmProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                proposal: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ProposalConfirm"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalView"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `proposal_not_yours`, `organization_forbidden` (a step's role) or `insufficient_api_key_permission` (a step's key permission). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `Proposal not found.`: no such proposal in this organization, or the caller is not a member. `Run not found.`: a personal API key that may not see a seal step's run (the proposal stays pending; a key that sees the run, or a browser session, confirms it). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `proposal_not_pending`, or `proposal_stale` (`stale` lists `{step, kind, reason, base, current}`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `confirmation_required` or `confirmation_mismatch`: a destructive step needs its typed phrase. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A seal step's derivation may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`; the proposal stays pending. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The toolchain does not answer (`bim_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     listRuns: {
         parameters: {
             query?: {
@@ -24539,6 +25375,65 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listOwnProposals: {
+        parameters: {
+            query?: {
+                status?: ("pending" | "executing" | "completed" | "partial" | "failed" | "cancelled" | "superseded" | "stale") | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalList"];
+                };
+            };
+            /** @description No credential, or one that is not valid (`unauthorized`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };

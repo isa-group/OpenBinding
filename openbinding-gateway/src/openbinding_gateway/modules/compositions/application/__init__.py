@@ -21,7 +21,7 @@ from .compositions import (
     organization_for,
     update_composition,
 )
-from .derive import DerivationBug, Derived, derive_version
+from .derive import DerivationBug, Derived, DerivedSeal, derive_and_seal, derive_version
 from .evaluate import Evaluated, Reevaluated, evaluate_binding, neighbourhood, reevaluate
 from .fork import Forked, NameTaken, fork_composition
 from .language import LanguageRefusal, diff, diff_stored, parse, serialise, validate
@@ -42,6 +42,7 @@ __all__ = [
     "Checked",
     "DerivationBug",
     "Derived",
+    "DerivedSeal",
     "Evaluated",
     "Forked",
     "LanguageRefusal",
@@ -55,6 +56,7 @@ __all__ = [
     "composition_by_ref",
     "create_composition",
     "delete_composition",
+    "derive_and_seal",
     "derive_version",
     "diff",
     "diff_pair",

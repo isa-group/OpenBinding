@@ -225,3 +225,34 @@ async def test_deleting_the_user_keeps_the_operator_named(api_client, registrati
     view = (await api_client.get(f"{t.environments}/production", headers=t.owner)).json()
 
     assert view["operator"]["member"] is False
+
+
+async def test_deleting_an_environment_makes_its_pending_proposals_stale(api_client, registration, db_session, gate):  # noqa: F811
+    """F6-B: a pending proposal whose ``adopt`` step names the environment can neither run nor dangle once it is gone;
+    one adopting elsewhere stays pending."""
+    from _environment_rows import World
+    from _proposal_rows import proposal, step
+    from openbinding_gateway.db.models import Proposal
+
+    t = await team(api_client, registration, db_session, gate)
+    production = (await env(api_client, t)).json()
+    staging = (await env(api_client, t, slug="staging")).json()
+    member = uuid.UUID(t.ids["member"])
+    v1 = uuid.UUID(t.versions["1.0.0"]["id"])
+    w = World(member, uuid.UUID(t.organization_id), uuid.UUID(t.composition_id), (v1,), (v1,), uuid.UUID(t.composition_id),
+              v1, v1)
+    doomed = await proposal(db_session, w)
+    await step(db_session, doomed, params={"environment": production["id"], "version": str(v1)})
+    elsewhere = await proposal(db_session, w, scope_key="conversation:x")
+    await step(db_session, elsewhere, params={"environment": staging["id"], "version": str(v1)})
+    await db_session.commit()
+
+    deleted = await api_client.delete(f"{t.environments}/production", headers=t.admin)
+
+    assert deleted.status_code == 204, deleted.text
+    db_session.expire_all()
+    assert (await db_session.get(Proposal, doomed)).status == "stale"
+    assert (await db_session.get(Proposal, elsewhere)).status == "pending"
+    audit = await db_session.scalar(select(AuditEvent).where(AuditEvent.action == "composition.environment_deleted")
+                                    .order_by(AuditEvent.created_at.desc()))
+    assert audit.detail["staleProposals"] == 1

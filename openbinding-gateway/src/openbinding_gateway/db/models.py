@@ -466,6 +466,8 @@ from .platform_models import (  # noqa: E402,F401
     PricingRefAttempt,
     PricingWatch,
     PricingWatchRef,
+    Proposal,
+    ProposalStep,
     SESSION_REVOKE_REASONS,
     ProblemCompilation,
     ProblemValueOrigin,

@@ -44,6 +44,7 @@ malformed, and a malformed boundary denies everything.
 | `/compositions`, `/compositions/{composition}`, `/compositions/{composition}/versions/...`, `/compositions/{composition}/diff`, `/compositions/{composition}/fork`, `/compositions/{composition}/evaluate`, `/compositions/{composition}/neighborhood`, `/compositions/{composition}/derive`, `/compositions/{composition}/upstream` (a version's upstream pricings from stored snapshots; a visitor sees public snapshots only) | VIEWER (a non-member gets `404`; anybody reads a public composition, redacted, below); VIEWER also checks a document (`POST …/versions/check`), compares versions, evaluates another binding of a version (`POST …/evaluate`) and explores its neighbourhood | MEMBER creates, edits, seals, re-evaluates (`POST …/versions/{version}/evaluations`) and derives versions (`POST …/derive`, from a run of the organization or a binding of one of its problems); ADMIN deletes and changes `visibility`. A fork needs read on the source (member, or the source is public) and MEMBER on the target organization, which must be another one | `compositions:read` / `compositions:write` |
 | `/compositions/{composition}/environments`, `…/environments/{environment}`, `…/adoptions`, `…/keys`, `…/keys/{key}`, `…/check`, `/compositions/{composition}/versions/{version}/margins` (signed in only: no credential is `401` before any lookup) | VIEWER (a non-member gets the composition's `404`; on a public composition every environment route and margins are `404` for a non-member: members only); MEMBER checks an environment now | ADMIN creates, edits, deletes environments and mints and revokes feed keys; adopting needs the environment's `adoptRole` (ADMIN by default, MEMBER where set) and `If-Match` | `compositions:read` / `compositions:write`; adopting `compositions:adopt` alone; feed keys also `keys:write`; checking `compositions:read` |
 | `/compositions/{composition}/upstream-events`, `…/upstream-events/{event}` (signed in only: `401` before any lookup) | VIEWER (a non-member gets the composition's `404`; on a public composition every event route is `404` "Upstream event not found." for a non-member: members only) | MEMBER marks an event reviewed (`…/review`, once, optional `If-Match`); no route resolves one | `compositions:read` / `compositions:write` |
+| `/compositions/{composition}/proposals`, `/proposals/{proposal}`, `/proposals/{proposal}/confirm` (signed in only: `401` before any lookup) | VIEWER reads every proposal of the organization (a non-member gets the composition's `404` on a composition's routes, `404` "Proposal not found." on a proposal's own) | MEMBER proposes (an adoption, or a derivation and its adoption); only its author confirms or cancels it, and confirming checks each step's role again (an `adopt` step: the environment's `adoptRole`) | `compositions:read` / `compositions:write`; confirming also each step's own permission (`compositions:adopt` for an `adopt` step), checked when it runs |
 | `/compositions/{composition}/environments/{environment}/composition` (the feed) | the environment's feed key, or a member with `compositions:read` | — | `compositions:read` (a feed key has no permission list: it reads this feed only) |
 
 ## Composition environments
@@ -73,6 +74,22 @@ the composition's 404 parity. `GET /v1/users/me/upstream-events` lists only orga
 role, and needs `compositions:read` from a personal key. Reviewing is an operation write (it reads and evaluates
 nothing) and counts against no work budget. The counts are computed when read, so reading or reviewing never moves an
 environment's ETag or its feed.
+
+## Proposals
+
+A proposal ([ADR 0058](adr/0058-proposals-and-the-executor.md)) is read by every member of its organization and
+confirmed or cancelled only by its author. The route table is keyed by path and method, so `confirmProposal` asks a
+personal key for `compositions:write`; the executor then checks each step's own permission against the key that
+authenticated the request (`request.state.api_key`), as the dependency would, and answers `403
+insufficient_api_key_permission` naming what is missing (`compositions:adopt` for an `adopt` step), with the proposal
+left pending. A browser session is not key-checked; its role is, step by step. Creating and confirming a proposal are
+`evaluate` work (a seal step derives the document it shows, and confirming derives it again before sealing it);
+cancelling is an operation write. `GET /v1/users/me/proposals` lists only the caller's own proposals in organizations
+where they hold a role, and needs `compositions:read`; the proposal routes resolve to the key kind `compositions`.
+A proposal's own routes and the caller's list name no composition, so a key's boundary (`organizations`, `slugs`) is
+checked against the proposal's organization and composition there: a proposal outside it answers `404` "Proposal not
+found." and is left out of the list (a key bounded by slugs reaches no proposal without a composition). A seal step
+from a run the confirming key may not see (another Engine) is `404 Run not found.`, with the proposal left pending.
 
 ## Public compositions
 

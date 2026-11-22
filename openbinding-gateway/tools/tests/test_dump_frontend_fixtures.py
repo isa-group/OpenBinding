@@ -48,6 +48,7 @@ def test_two_runs_write_byte_identical_trees(two_runs) -> None:
            "template.tomatometer.json"]
         + [f"tomatometer.{name}" for name in OPERATION]
         + [f"upstream.{name}" for name in UPSTREAM]
+        + [f"zproposals.{name}" for name in PROPOSALS]
     )
 
 
@@ -60,6 +61,12 @@ UPSTREAM = (
     "tomatometer.event.withdrawn.json", "tomatometer.events.json", "tomatometer.events.two.json",
     "tomatometer.versions.json",
 )
+#: F6-B's proposal fixtures: pending (with its preview), superseded, completed, stale, partial, the lists, the event the
+#: completed one resolved and the adoption history it extended.
+PROPOSALS = (
+    "adoptions.production.json", "completed.json", "list.json", "me.json", "partial.json", "pending.json",
+    "stale.json", "superseded.json", "upstream-event.resolved.json",
+)
 #: F4's operation fixtures (environments, adoptions, keys, the feed, margins, checks, what-if evaluations).
 OPERATION = (
     "adoptions.production.json", "check.production.json", "check.production.newer.json",
@@ -67,6 +74,29 @@ OPERATION = (
     "feed.production.headers.json", "feed.production.yaml", "key.created.json", "margins.1.0.0.json",
     "margins.1.1.0.json", "runs.derived.json", "versions.json",
 )
+
+
+def test_the_proposal_fixtures_hold_what_the_proposal_card_draws(two_runs) -> None:
+    core = two_runs[0] / "core"
+
+    def read(name: str):
+        return json.loads((core / f"zproposals.{name}").read_text())
+
+    pending = read("pending.json")
+    seal, take = pending["steps"]
+    assert pending["status"] == "pending" and (seal["kind"], take["kind"]) == ("seal_derived", "adopt")
+    assert seal["preview"]["against"]["version"]["label"] == "1.0.0" and not seal["preview"]["diff"]["isEmpty"]
+    assert take["params"]["version"] == "@s1.version" and take["deferred"] == ["version"]
+    assert read("superseded.json")["supersededBy"] == pending["id"]
+    completed = read("completed.json")
+    assert completed["status"] == "completed" and [s["status"] for s in completed["steps"]] == ["done", "done"]
+    assert read("upstream-event.resolved.json")["resolvedBy"]["version"]["label"] == "1.2.0"
+    assert read("adoptions.production.json")["adoptions"][0]["source"] == "proposal"
+    stale = read("stale.json")
+    assert stale["detail"]["code"] == "proposal_stale" and stale["detail"]["stale"][0]["reason"] == "environment_changed"
+    partial = read("partial.json")
+    assert partial["status"] == "partial" and partial["steps"][1]["error"]["code"] == "precondition_failed"
+    assert [row["status"] for row in read("me.json")["proposals"]] == ["pending"]
 
 
 def test_the_operation_fixtures_hold_what_the_screens_draw(two_runs) -> None:

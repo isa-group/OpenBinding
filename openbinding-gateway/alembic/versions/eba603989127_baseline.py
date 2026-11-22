@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '59165254db89'
+revision: str = 'eba603989127'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -40,6 +40,10 @@ SQLITE_TRIGGERS = (
     "CREATE TRIGGER immutable_pricing_watch_refs_update BEFORE UPDATE ON pricing_watch_refs BEGIN SELECT RAISE(ABORT, 'pricing watch references are immutable'); END",
     "CREATE TRIGGER protect_composition_upstream_events BEFORE UPDATE ON composition_upstream_events WHEN OLD.id IS NOT NEW.id OR OLD.organization_id IS NOT NEW.organization_id OR OLD.composition_id IS NOT NEW.composition_id OR OLD.version_id IS NOT NEW.version_id OR OLD.watch_id IS NOT NEW.watch_id OR OLD.subject IS NOT NEW.subject OR OLD.tasks IS NOT NEW.tasks OR OLD.category IS NOT NEW.category OR OLD.reasons IS NOT NEW.reasons OR OLD.notify IS NOT NEW.notify OR OLD.old_ref IS NOT NEW.old_ref OR OLD.new_ref IS NOT NEW.new_ref OR OLD.old_version_id IS NOT NEW.old_version_id OR OLD.new_version_id IS NOT NEW.new_version_id OR OLD.old_label IS NOT NEW.old_label OR OLD.new_label IS NOT NEW.new_label OR OLD.old_snapshot_id IS NOT NEW.old_snapshot_id OR OLD.new_snapshot_id IS NOT NEW.new_snapshot_id OR OLD.diff IS NOT NEW.diff OR OLD.classifier IS NOT NEW.classifier OR OLD.detected_at IS NOT NEW.detected_at BEGIN SELECT RAISE(ABORT, 'an upstream event is immutable but for its state, review and resolution'); END",
     "CREATE TRIGGER state_composition_upstream_events BEFORE UPDATE ON composition_upstream_events WHEN (OLD.state IS NOT NEW.state AND NOT ((OLD.state = 'open' AND NEW.state = 'reviewed') OR (OLD.state = 'open' AND NEW.state = 'resolved') OR (OLD.state = 'reviewed' AND NEW.state = 'resolved'))) OR ((OLD.note IS NOT NEW.note OR OLD.reviewed_by_id IS NOT NEW.reviewed_by_id OR OLD.reviewed_at IS NOT NEW.reviewed_at) AND NOT ((OLD.state = 'open' AND NEW.state = 'reviewed'))) OR ((OLD.resolved_by_version_id IS NOT NEW.resolved_by_version_id OR OLD.resolved_by_id IS NOT NEW.resolved_by_id OR OLD.resolved_at IS NOT NEW.resolved_at) AND NOT ((OLD.state = 'open' AND NEW.state = 'resolved') OR (OLD.state = 'reviewed' AND NEW.state = 'resolved'))) BEGIN SELECT RAISE(ABORT, 'an upstream event moves forward only, is reviewed once and resolved once'); END",
+    "CREATE TRIGGER protect_proposals BEFORE UPDATE ON proposals WHEN OLD.id IS NOT NEW.id OR OLD.organization_id IS NOT NEW.organization_id OR OLD.composition_id IS NOT NEW.composition_id OR OLD.origin IS NOT NEW.origin OR OLD.scope_key IS NOT NEW.scope_key OR OLD.proposed_by_id IS NOT NEW.proposed_by_id OR OLD.summary IS NOT NEW.summary OR OLD.warnings IS NOT NEW.warnings OR OLD.confirmation_phrase IS NOT NEW.confirmation_phrase OR OLD.upstream_event_id IS NOT NEW.upstream_event_id OR OLD.created_at IS NOT NEW.created_at BEGIN SELECT RAISE(ABORT, 'a proposal is immutable but for its status and stamps'); END",
+    "CREATE TRIGGER state_proposals BEFORE UPDATE ON proposals WHEN (OLD.status IS NOT NEW.status AND NOT ((OLD.status = 'pending' AND NEW.status = 'executing') OR (OLD.status = 'pending' AND NEW.status = 'cancelled') OR (OLD.status = 'pending' AND NEW.status = 'superseded') OR (OLD.status = 'pending' AND NEW.status = 'stale') OR (OLD.status = 'executing' AND NEW.status = 'completed') OR (OLD.status = 'executing' AND NEW.status = 'partial') OR (OLD.status = 'executing' AND NEW.status = 'failed'))) OR ((OLD.superseded_by_id IS NOT NEW.superseded_by_id) AND NOT ((OLD.status = 'pending' AND NEW.status = 'superseded'))) OR ((OLD.confirmed_at IS NOT NEW.confirmed_at) AND NOT ((OLD.status = 'pending' AND NEW.status = 'executing'))) OR ((OLD.completed_at IS NOT NEW.completed_at) AND NOT ((OLD.status = 'executing' AND NEW.status = 'completed') OR (OLD.status = 'executing' AND NEW.status = 'partial') OR (OLD.status = 'executing' AND NEW.status = 'failed'))) BEGIN SELECT RAISE(ABORT, 'a proposal moves forward only'); END",
+    "CREATE TRIGGER protect_proposal_steps BEFORE UPDATE ON proposal_steps WHEN OLD.id IS NOT NEW.id OR OLD.proposal_id IS NOT NEW.proposal_id OR OLD.ordinal IS NOT NEW.ordinal OR OLD.kind IS NOT NEW.kind OR OLD.description IS NOT NEW.description OR OLD.params IS NOT NEW.params OR OLD.base IS NOT NEW.base OR OLD.preview IS NOT NEW.preview OR OLD.depends_on IS NOT NEW.depends_on OR OLD.destructive IS NOT NEW.destructive BEGIN SELECT RAISE(ABORT, 'a proposal step is immutable but for its outcome'); END",
+    "CREATE TRIGGER state_proposal_steps BEFORE UPDATE ON proposal_steps WHEN (OLD.status IS NOT NEW.status AND NOT ((OLD.status = 'pending' AND NEW.status = 'done') OR (OLD.status = 'pending' AND NEW.status = 'failed') OR (OLD.status = 'pending' AND NEW.status = 'skipped'))) OR ((OLD.result IS NOT NEW.result OR OLD.error IS NOT NEW.error OR OLD.finished_at IS NOT NEW.finished_at) AND NOT ((OLD.status = 'pending' AND NEW.status = 'done') OR (OLD.status = 'pending' AND NEW.status = 'failed') OR (OLD.status = 'pending' AND NEW.status = 'skipped'))) BEGIN SELECT RAISE(ABORT, 'a proposal step ends once'); END",
 )
 POSTGRESQL_TRIGGERS = (
     "CREATE OR REPLACE FUNCTION immutable_binding_case_revisions_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'binding_case_revisions rows are sealed and immutable'; END $$",
@@ -84,6 +88,14 @@ POSTGRESQL_TRIGGERS = (
     'CREATE TRIGGER protect_composition_upstream_events BEFORE UPDATE ON composition_upstream_events FOR EACH ROW EXECUTE FUNCTION protect_composition_upstream_events()',
     "CREATE OR REPLACE FUNCTION state_composition_upstream_events() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF (OLD.state IS DISTINCT FROM NEW.state AND NOT ((OLD.state = 'open' AND NEW.state = 'reviewed') OR (OLD.state = 'open' AND NEW.state = 'resolved') OR (OLD.state = 'reviewed' AND NEW.state = 'resolved'))) OR ((OLD.note IS DISTINCT FROM NEW.note OR OLD.reviewed_by_id IS DISTINCT FROM NEW.reviewed_by_id OR OLD.reviewed_at IS DISTINCT FROM NEW.reviewed_at) AND NOT ((OLD.state = 'open' AND NEW.state = 'reviewed'))) OR ((OLD.resolved_by_version_id IS DISTINCT FROM NEW.resolved_by_version_id OR OLD.resolved_by_id IS DISTINCT FROM NEW.resolved_by_id OR OLD.resolved_at IS DISTINCT FROM NEW.resolved_at) AND NOT ((OLD.state = 'open' AND NEW.state = 'resolved') OR (OLD.state = 'reviewed' AND NEW.state = 'resolved'))) THEN RAISE EXCEPTION 'an upstream event moves forward only, is reviewed once and resolved once'; END IF; RETURN NEW; END $$",
     'CREATE TRIGGER state_composition_upstream_events BEFORE UPDATE ON composition_upstream_events FOR EACH ROW EXECUTE FUNCTION state_composition_upstream_events()',
+    "CREATE OR REPLACE FUNCTION protect_proposals() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.id IS DISTINCT FROM NEW.id OR OLD.organization_id IS DISTINCT FROM NEW.organization_id OR OLD.composition_id IS DISTINCT FROM NEW.composition_id OR OLD.origin IS DISTINCT FROM NEW.origin OR OLD.scope_key IS DISTINCT FROM NEW.scope_key OR OLD.proposed_by_id IS DISTINCT FROM NEW.proposed_by_id OR OLD.summary IS DISTINCT FROM NEW.summary OR OLD.warnings::jsonb IS DISTINCT FROM NEW.warnings::jsonb OR OLD.confirmation_phrase IS DISTINCT FROM NEW.confirmation_phrase OR OLD.upstream_event_id IS DISTINCT FROM NEW.upstream_event_id OR OLD.created_at IS DISTINCT FROM NEW.created_at THEN RAISE EXCEPTION 'a proposal is immutable but for its status and stamps'; END IF; RETURN NEW; END $$",
+    'CREATE TRIGGER protect_proposals BEFORE UPDATE ON proposals FOR EACH ROW EXECUTE FUNCTION protect_proposals()',
+    "CREATE OR REPLACE FUNCTION state_proposals() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF (OLD.status IS DISTINCT FROM NEW.status AND NOT ((OLD.status = 'pending' AND NEW.status = 'executing') OR (OLD.status = 'pending' AND NEW.status = 'cancelled') OR (OLD.status = 'pending' AND NEW.status = 'superseded') OR (OLD.status = 'pending' AND NEW.status = 'stale') OR (OLD.status = 'executing' AND NEW.status = 'completed') OR (OLD.status = 'executing' AND NEW.status = 'partial') OR (OLD.status = 'executing' AND NEW.status = 'failed'))) OR ((OLD.superseded_by_id IS DISTINCT FROM NEW.superseded_by_id) AND NOT ((OLD.status = 'pending' AND NEW.status = 'superseded'))) OR ((OLD.confirmed_at IS DISTINCT FROM NEW.confirmed_at) AND NOT ((OLD.status = 'pending' AND NEW.status = 'executing'))) OR ((OLD.completed_at IS DISTINCT FROM NEW.completed_at) AND NOT ((OLD.status = 'executing' AND NEW.status = 'completed') OR (OLD.status = 'executing' AND NEW.status = 'partial') OR (OLD.status = 'executing' AND NEW.status = 'failed'))) THEN RAISE EXCEPTION 'a proposal moves forward only'; END IF; RETURN NEW; END $$",
+    'CREATE TRIGGER state_proposals BEFORE UPDATE ON proposals FOR EACH ROW EXECUTE FUNCTION state_proposals()',
+    "CREATE OR REPLACE FUNCTION protect_proposal_steps() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.id IS DISTINCT FROM NEW.id OR OLD.proposal_id IS DISTINCT FROM NEW.proposal_id OR OLD.ordinal IS DISTINCT FROM NEW.ordinal OR OLD.kind IS DISTINCT FROM NEW.kind OR OLD.description IS DISTINCT FROM NEW.description OR OLD.params::jsonb IS DISTINCT FROM NEW.params::jsonb OR OLD.base::jsonb IS DISTINCT FROM NEW.base::jsonb OR OLD.preview IS DISTINCT FROM NEW.preview OR OLD.depends_on::jsonb IS DISTINCT FROM NEW.depends_on::jsonb OR OLD.destructive IS DISTINCT FROM NEW.destructive THEN RAISE EXCEPTION 'a proposal step is immutable but for its outcome'; END IF; RETURN NEW; END $$",
+    'CREATE TRIGGER protect_proposal_steps BEFORE UPDATE ON proposal_steps FOR EACH ROW EXECUTE FUNCTION protect_proposal_steps()',
+    "CREATE OR REPLACE FUNCTION state_proposal_steps() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF (OLD.status IS DISTINCT FROM NEW.status AND NOT ((OLD.status = 'pending' AND NEW.status = 'done') OR (OLD.status = 'pending' AND NEW.status = 'failed') OR (OLD.status = 'pending' AND NEW.status = 'skipped'))) OR ((OLD.result::jsonb IS DISTINCT FROM NEW.result::jsonb OR OLD.error::jsonb IS DISTINCT FROM NEW.error::jsonb OR OLD.finished_at IS DISTINCT FROM NEW.finished_at) AND NOT ((OLD.status = 'pending' AND NEW.status = 'done') OR (OLD.status = 'pending' AND NEW.status = 'failed') OR (OLD.status = 'pending' AND NEW.status = 'skipped'))) THEN RAISE EXCEPTION 'a proposal step ends once'; END IF; RETURN NEW; END $$",
+    'CREATE TRIGGER state_proposal_steps BEFORE UPDATE ON proposal_steps FOR EACH ROW EXECUTE FUNCTION state_proposal_steps()',
 )
 POSTGRESQL_TRIGGER_FUNCTIONS = (
     'immutable_binding_case_revisions_update',
@@ -107,6 +119,10 @@ POSTGRESQL_TRIGGER_FUNCTIONS = (
     'immutable_pricing_watch_refs_update',
     'protect_composition_upstream_events',
     'state_composition_upstream_events',
+    'protect_proposals',
+    'state_proposals',
+    'protect_proposal_steps',
+    'state_proposal_steps',
 )
 
 
@@ -1042,32 +1058,6 @@ def upgrade() -> None:
     op.create_index(op.f('ix_pricing_watch_refs_composition_id'), 'pricing_watch_refs', ['composition_id'], unique=False)
     op.create_index('ix_pricing_watch_refs_unresolved', 'pricing_watch_refs', ['version_id'], unique=False, sqlite_where=sa.text('watch_id IS NULL'), postgresql_where=sa.text('watch_id IS NULL'))
     op.create_index(op.f('ix_pricing_watch_refs_watch_id'), 'pricing_watch_refs', ['watch_id'], unique=False)
-    op.create_table('composition_adoptions',
-    sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('environment_id', sa.Uuid(), nullable=False),
-    sa.Column('ordinal', sa.Integer(), nullable=False),
-    sa.Column('composition_id', sa.Uuid(), nullable=False),
-    sa.Column('version_id', sa.Uuid(), nullable=False),
-    sa.Column('previous_version_id', sa.Uuid(), nullable=True),
-    sa.Column('evaluation_id', sa.Uuid(), nullable=False),
-    sa.Column('content_digest', sa.String(length=80), nullable=False),
-    sa.Column('actor_id', sa.Uuid(), nullable=False),
-    sa.Column('note', sa.String(length=500), server_default='', nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.CheckConstraint('ordinal > 0', name=op.f('ck_composition_adoptions_ordinal_positive')),
-    sa.ForeignKeyConstraint(['actor_id'], ['users.id'], name=op.f('fk_composition_adoptions_actor_id_users'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['environment_id'], ['composition_environments.id'], name=op.f('fk_composition_adoptions_environment_id_composition_environments'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['evaluation_id', 'version_id'], ['composition_evaluations.id', 'composition_evaluations.version_id'], name='fk_composition_adoptions_evaluation', ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['previous_version_id', 'composition_id'], ['composition_versions.id', 'composition_versions.composition_id'], name='fk_composition_adoptions_previous_version', ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['version_id', 'composition_id'], ['composition_versions.id', 'composition_versions.composition_id'], name='fk_composition_adoptions_version', ondelete='RESTRICT'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_adoptions')),
-    sa.UniqueConstraint('environment_id', 'ordinal', name='uq_composition_adoptions_environment_ordinal')
-    )
-    op.create_index(op.f('ix_composition_adoptions_actor_id'), 'composition_adoptions', ['actor_id'], unique=False)
-    op.create_index(op.f('ix_composition_adoptions_composition_id'), 'composition_adoptions', ['composition_id'], unique=False)
-    op.create_index(op.f('ix_composition_adoptions_evaluation_id'), 'composition_adoptions', ['evaluation_id'], unique=False)
-    op.create_index(op.f('ix_composition_adoptions_previous_version_id'), 'composition_adoptions', ['previous_version_id'], unique=False)
-    op.create_index(op.f('ix_composition_adoptions_version_id'), 'composition_adoptions', ['version_id'], unique=False)
     op.create_table('composition_environment_keys',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('environment_id', sa.Uuid(), nullable=False),
@@ -1087,6 +1077,94 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_composition_environment_keys_created_by_id'), 'composition_environment_keys', ['created_by_id'], unique=False)
     op.create_index(op.f('ix_composition_environment_keys_environment_id'), 'composition_environment_keys', ['environment_id'], unique=False)
+    op.create_table('proposals',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('organization_id', sa.Uuid(), nullable=False),
+    sa.Column('composition_id', sa.Uuid(), nullable=True),
+    sa.Column('origin', sa.String(length=8), nullable=False),
+    sa.Column('scope_key', sa.String(length=80), nullable=False),
+    sa.Column('proposed_by_id', sa.Uuid(), nullable=False),
+    sa.Column('summary', sa.String(length=500), nullable=False),
+    sa.Column('warnings', sa.JSON(), nullable=False),
+    sa.Column('confirmation_phrase', sa.String(length=120), nullable=True),
+    sa.Column('upstream_event_id', sa.Uuid(), nullable=True),
+    sa.Column('status', sa.String(length=12), server_default='pending', nullable=False),
+    sa.Column('superseded_by_id', sa.Uuid(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('confirmed_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('progressed_at', sa.DateTime(timezone=True), nullable=True),
+    sa.CheckConstraint("(status = 'superseded') = (superseded_by_id IS NOT NULL)", name=op.f('ck_proposals_superseded_by')),
+    sa.CheckConstraint("origin IN ('web', 'mcp', 'chat')", name=op.f('ck_proposals_origin')),
+    sa.CheckConstraint("status IN ('pending', 'executing', 'completed', 'partial', 'failed', 'cancelled', 'superseded', 'stale')", name=op.f('ck_proposals_status')),
+    sa.CheckConstraint('upstream_event_id IS NULL OR composition_id IS NOT NULL', name=op.f('ck_proposals_event_composition')),
+    sa.ForeignKeyConstraint(['composition_id', 'organization_id'], ['compositions.id', 'compositions.organization_id'], name='fk_proposals_composition', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_proposals_organization_id_organizations'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['proposed_by_id'], ['users.id'], name=op.f('fk_proposals_proposed_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['superseded_by_id'], ['proposals.id'], name=op.f('fk_proposals_superseded_by_id_proposals'), ondelete='RESTRICT', initially='DEFERRED', deferrable=True),
+    sa.ForeignKeyConstraint(['upstream_event_id', 'composition_id'], ['composition_upstream_events.id', 'composition_upstream_events.composition_id'], name='fk_proposals_upstream_event', ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_proposals'))
+    )
+    op.create_index('ix_proposals_organization_composition_created', 'proposals', ['organization_id', 'composition_id', 'created_at'], unique=False)
+    op.create_index(op.f('ix_proposals_organization_id'), 'proposals', ['organization_id'], unique=False)
+    op.create_index('ix_proposals_proposed_by_created', 'proposals', ['proposed_by_id', 'created_at'], unique=False)
+    op.create_index('ix_proposals_status_progressed', 'proposals', ['status', 'progressed_at'], unique=False)
+    op.create_index('uq_proposals_one_pending', 'proposals', ['proposed_by_id', 'scope_key'], unique=True, sqlite_where=sa.text("status = 'pending'"), postgresql_where=sa.text("status = 'pending'"))
+    op.create_table('composition_adoptions',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('environment_id', sa.Uuid(), nullable=False),
+    sa.Column('ordinal', sa.Integer(), nullable=False),
+    sa.Column('composition_id', sa.Uuid(), nullable=False),
+    sa.Column('version_id', sa.Uuid(), nullable=False),
+    sa.Column('previous_version_id', sa.Uuid(), nullable=True),
+    sa.Column('evaluation_id', sa.Uuid(), nullable=False),
+    sa.Column('content_digest', sa.String(length=80), nullable=False),
+    sa.Column('actor_id', sa.Uuid(), nullable=False),
+    sa.Column('note', sa.String(length=500), server_default='', nullable=False),
+    sa.Column('source', sa.String(length=8), nullable=False),
+    sa.Column('proposal_id', sa.Uuid(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint("(source = 'proposal') = (proposal_id IS NOT NULL)", name=op.f('ck_composition_adoptions_proposal_named')),
+    sa.CheckConstraint("source IN ('direct', 'proposal')", name=op.f('ck_composition_adoptions_source')),
+    sa.CheckConstraint('ordinal > 0', name=op.f('ck_composition_adoptions_ordinal_positive')),
+    sa.ForeignKeyConstraint(['actor_id'], ['users.id'], name=op.f('fk_composition_adoptions_actor_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['environment_id'], ['composition_environments.id'], name=op.f('fk_composition_adoptions_environment_id_composition_environments'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['evaluation_id', 'version_id'], ['composition_evaluations.id', 'composition_evaluations.version_id'], name='fk_composition_adoptions_evaluation', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['previous_version_id', 'composition_id'], ['composition_versions.id', 'composition_versions.composition_id'], name='fk_composition_adoptions_previous_version', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['proposal_id'], ['proposals.id'], name=op.f('fk_composition_adoptions_proposal_id_proposals'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['version_id', 'composition_id'], ['composition_versions.id', 'composition_versions.composition_id'], name='fk_composition_adoptions_version', ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_adoptions')),
+    sa.UniqueConstraint('environment_id', 'ordinal', name='uq_composition_adoptions_environment_ordinal')
+    )
+    op.create_index(op.f('ix_composition_adoptions_actor_id'), 'composition_adoptions', ['actor_id'], unique=False)
+    op.create_index(op.f('ix_composition_adoptions_composition_id'), 'composition_adoptions', ['composition_id'], unique=False)
+    op.create_index(op.f('ix_composition_adoptions_evaluation_id'), 'composition_adoptions', ['evaluation_id'], unique=False)
+    op.create_index(op.f('ix_composition_adoptions_previous_version_id'), 'composition_adoptions', ['previous_version_id'], unique=False)
+    op.create_index(op.f('ix_composition_adoptions_proposal_id'), 'composition_adoptions', ['proposal_id'], unique=False)
+    op.create_index(op.f('ix_composition_adoptions_version_id'), 'composition_adoptions', ['version_id'], unique=False)
+    op.create_table('proposal_steps',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('proposal_id', sa.Uuid(), nullable=False),
+    sa.Column('ordinal', sa.Integer(), nullable=False),
+    sa.Column('kind', sa.String(length=32), nullable=False),
+    sa.Column('description', sa.String(length=300), nullable=False),
+    sa.Column('params', sa.JSON(), nullable=False),
+    sa.Column('base', sa.JSON(), nullable=False),
+    sa.Column('preview', sa.Text(), nullable=True),
+    sa.Column('depends_on', sa.JSON(), nullable=False),
+    sa.Column('destructive', sa.Boolean(), nullable=False),
+    sa.Column('status', sa.String(length=8), server_default='pending', nullable=False),
+    sa.Column('result', sa.JSON(), nullable=True),
+    sa.Column('error', sa.JSON(), nullable=True),
+    sa.Column('finished_at', sa.DateTime(timezone=True), nullable=True),
+    sa.CheckConstraint("(status = 'pending') = (finished_at IS NULL)", name=op.f('ck_proposal_steps_finished_whole')),
+    sa.CheckConstraint("status IN ('pending', 'done', 'failed', 'skipped')", name=op.f('ck_proposal_steps_status')),
+    sa.CheckConstraint('ordinal >= 1 AND ordinal <= 8', name=op.f('ck_proposal_steps_ordinal_range')),
+    sa.ForeignKeyConstraint(['proposal_id'], ['proposals.id'], name=op.f('fk_proposal_steps_proposal_id_proposals'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_proposal_steps')),
+    sa.UniqueConstraint('proposal_id', 'ordinal', name='uq_proposal_steps_proposal_ordinal')
+    )
+    op.create_index(op.f('ix_proposal_steps_proposal_id'), 'proposal_steps', ['proposal_id'], unique=False)
     # Indexes on expressions, which autogenerate cannot compare on SQLite.
     op.create_index('uq_users_username_lower', 'users', [sa.text('lower(username)')], unique=True)
     # Foreign keys that close a cycle: inline on SQLite, added once both tables exist elsewhere.
@@ -1100,15 +1178,24 @@ def downgrade() -> None:
     dialect = op.get_bind().dialect.name
     if dialect != 'sqlite':
         op.drop_constraint('fk_jobs_study_cell_id', 'jobs', type_='foreignkey')
-    op.drop_index(op.f('ix_composition_environment_keys_environment_id'), table_name='composition_environment_keys')
-    op.drop_index(op.f('ix_composition_environment_keys_created_by_id'), table_name='composition_environment_keys')
-    op.drop_table('composition_environment_keys')
+    op.drop_index(op.f('ix_proposal_steps_proposal_id'), table_name='proposal_steps')
+    op.drop_table('proposal_steps')
     op.drop_index(op.f('ix_composition_adoptions_version_id'), table_name='composition_adoptions')
+    op.drop_index(op.f('ix_composition_adoptions_proposal_id'), table_name='composition_adoptions')
     op.drop_index(op.f('ix_composition_adoptions_previous_version_id'), table_name='composition_adoptions')
     op.drop_index(op.f('ix_composition_adoptions_evaluation_id'), table_name='composition_adoptions')
     op.drop_index(op.f('ix_composition_adoptions_composition_id'), table_name='composition_adoptions')
     op.drop_index(op.f('ix_composition_adoptions_actor_id'), table_name='composition_adoptions')
     op.drop_table('composition_adoptions')
+    op.drop_index('uq_proposals_one_pending', table_name='proposals', sqlite_where=sa.text("status = 'pending'"), postgresql_where=sa.text("status = 'pending'"))
+    op.drop_index('ix_proposals_status_progressed', table_name='proposals')
+    op.drop_index('ix_proposals_proposed_by_created', table_name='proposals')
+    op.drop_index(op.f('ix_proposals_organization_id'), table_name='proposals')
+    op.drop_index('ix_proposals_organization_composition_created', table_name='proposals')
+    op.drop_table('proposals')
+    op.drop_index(op.f('ix_composition_environment_keys_environment_id'), table_name='composition_environment_keys')
+    op.drop_index(op.f('ix_composition_environment_keys_created_by_id'), table_name='composition_environment_keys')
+    op.drop_table('composition_environment_keys')
     op.drop_index(op.f('ix_pricing_watch_refs_watch_id'), table_name='pricing_watch_refs')
     op.drop_index('ix_pricing_watch_refs_unresolved', table_name='pricing_watch_refs', sqlite_where=sa.text('watch_id IS NULL'), postgresql_where=sa.text('watch_id IS NULL'))
     op.drop_index(op.f('ix_pricing_watch_refs_composition_id'), table_name='pricing_watch_refs')

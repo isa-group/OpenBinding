@@ -52,6 +52,8 @@ from ..db.models import (
     ProblemCompilation,
     ProblemValueOrigin,
     OrgConnection,
+    Proposal,
+    ProposalStep,
     PricingSnapshot,
     RunPreset,
     Study,
@@ -722,6 +724,12 @@ async def _lock_subtree(session: AsyncSession, unique_descendants: list[uuid.UUI
         # transactions; an event's insert shares the composition before the watch, and resolving a ref shares its
         # composition before inserting an organization's watch, as this order does).
         (PricingWatch, PricingWatch.organization_id.in_(unique_descendants)),
+        # F6-B: the subtree's proposals and their steps (the executor writes an outcome on a step and its proposal
+        # alone; a proposal is created and an adoption made through one after their composition is locked, so a
+        # writer that holds a proposal never waits for a composition this order takes before it).
+        (Proposal, Proposal.organization_id.in_(unique_descendants)),
+        (ProposalStep, ProposalStep.proposal_id.in_(
+            select(Proposal.id).where(Proposal.organization_id.in_(unique_descendants)))),
         (Organization, Organization.id.in_(unique_descendants)),
     ):
         await session.execute(select(model.id).where(condition).order_by(model.id).with_for_update())
@@ -786,6 +794,10 @@ async def _delete_subtree(
             delete(CompositionAdoption).where(CompositionAdoption.environment_id.in_(environments))
         )
         await session.execute(delete(CompositionEnvironment).where(CompositionEnvironment.organization_id == oid))
+        # F6-B: proposal steps, then proposals (adoptions, gone above, name proposals; proposals name events).
+        proposals = select(Proposal.id).where(Proposal.organization_id == oid)
+        await session.execute(delete(ProposalStep).where(ProposalStep.proposal_id.in_(proposals)))
+        await session.execute(delete(Proposal).where(Proposal.organization_id == oid))
         # F6: upstream events, then the watch references, then the attempts to resolve them (they name versions,
         # watches and snapshots with RESTRICT). Shared watches stay; the organization's own go with its snapshots.
         await session.execute(delete(CompositionUpstreamEvent).where(CompositionUpstreamEvent.organization_id == oid))

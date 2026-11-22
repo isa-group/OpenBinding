@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Annotated, Any, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 
 from ....composition import ids
 from ....models.analysis import CounterfactualMove, NeighborhoodDocument
@@ -1251,6 +1251,13 @@ class AdoptionOffering(BaseModel):
     createdAt: Optional[str]
 
 
+class AdoptionProposal(BaseModel):
+    """The proposal an adoption was made through."""
+
+    id: uuid.UUID
+    summary: str
+
+
 class CompositionAdoptionView(BaseModel):
     """One adoption of an environment's history: insert only."""
 
@@ -1263,6 +1270,10 @@ class CompositionAdoptionView(BaseModel):
     evaluation: Optional[AdoptionEvaluation] = Field(description="The evaluation the adoption pinned.")
     offering: Optional[AdoptionOffering] = Field(description="The offering version that evaluation read.")
     feedEtag: str = Field(description="The feed's `ETag` after this adoption: the version's content digest, quoted.")
+    source: Literal["direct", "proposal"] = Field(
+        description="How a person made it: `direct` (the adopt route) or `proposal` (a confirmed proposal's step).",
+    )
+    proposal: Optional[AdoptionProposal] = Field(description="The proposal that made it; null for a direct adoption.")
 
 
 class CompositionAdoptionList(BaseModel):
@@ -1507,6 +1518,163 @@ class CompositionInstantiated(BaseModel):
     evaluation: EvaluationView
     operation: TemplateOperation
 
+
+
+# -- Proposals (F6-B) ------------------------------------------------------------------------------------------------
+
+
+class ProposalRunSource(BaseModel):
+    """A run's solution to derive from."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    run: uuid.UUID = Field(description="The run whose solution is derived.")
+    point: int = Field(default=0, ge=0, le=100000, description="The solution: its index in the run's result.")
+
+
+class ProposalRevisionSource(BaseModel):
+    """A binding of a problem revision to derive from."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    revision: str = Field(min_length=3, max_length=200,
+                          description="`<problem>@<revision>`, each by slug, id or number.")
+    binding: dict[str, str] = Field(max_length=1024, description="Each service task's candidate.")
+
+
+class ProposalAdoptRequest(BaseModel):
+    """Propose adopting a sealed version in an environment: one `adopt` step."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["adopt"]
+    environment: str = Field(min_length=1, max_length=64, description="The environment, by slug or id.")
+    version: str = Field(min_length=1, max_length=64, description="The version, by id, label or ordinal.")
+    note: str = Field(default="", max_length=500, description="Kept with the adoption.")
+    upstreamEvent: Optional[uuid.UUID] = Field(default=None, description="The upstream event this answers (display).")
+
+
+class ProposalDeriveAndAdoptRequest(BaseModel):
+    """Propose deriving a version and adopting it in one confirmation: a `seal_derived` step and an `adopt` step of
+    the version it seals (`@s1.version`)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["derive_and_adopt"]
+    source: Union[ProposalRunSource, ProposalRevisionSource]
+    label: Optional[str] = Field(
+        default=None, min_length=5, max_length=ids.MAX_SEMVER_CHARS, pattern=ids.SEMVER.pattern,
+        description="The new version's label; the next minor release of the composition by default.",
+    )
+    offering: Optional[dict[str, Any]] = Field(
+        default=None, description="The offering the new version states, `{sphere, registry?}` or `{url}`; none by default.",
+    )
+    environment: str = Field(min_length=1, max_length=64, description="The environment, by slug or id.")
+    note: str = Field(default="", max_length=500, description="Kept with the adoption.")
+    upstreamEvent: Optional[uuid.UUID] = Field(default=None, description="The upstream event this answers (display).")
+
+
+class ProposalCreate(RootModel[Annotated[Union[ProposalAdoptRequest, ProposalDeriveAndAdoptRequest],
+                                         Field(discriminator="kind")]]):
+    """A proposal to build, by `kind`: `adopt` or `derive_and_adopt`."""
+
+
+class ProposalConfirm(BaseModel):
+    """Confirm a proposal; a destructive step needs its typed phrase."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    confirmation: Optional[str] = Field(default=None, max_length=200,
+                                        description="The proposal's `confirmationPhrase`, typed (case and spaces aside).")
+
+
+class ProposalPerson(BaseModel):
+    username: str
+
+
+class ProposalComposition(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
+
+
+class ProposalEnvironment(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
+
+
+class ProposalPreviewAgainst(BaseModel):
+    """What a seal step's document is compared with: the version in effect in the proposal's environment, or the
+    composition's latest version when none is."""
+
+    version: VersionName
+    environment: Optional[ProposalEnvironment] = Field(description="Null when compared with the latest version.")
+
+
+class ProposalPreview(BaseModel):
+    """The exact Composition2Yaml document a seal step stores, and what it changes."""
+
+    document: str = Field(description="The canonical bytes the step seals; their digest is `base.contentDigest`.")
+    against: Optional[ProposalPreviewAgainst]
+    diff: Optional[dict[str, Any]] = Field(
+        description="`POST /v1/compositions/diff` of `against` and `document` (computed on read); null without one, "
+                    "or when every Composition2Yaml slot is busy (read the proposal again for it).",
+    )
+
+
+class ProposalStepError(BaseModel):
+    """A step's refusal, copied from the writer's answer."""
+
+    status: int
+    code: str
+    message: str
+    detail: Optional[dict[str, Any]] = None
+
+
+class ProposalStepView(BaseModel):
+    """One typed step: what it does, the base it was built on and, once confirmed, how it ended."""
+
+    ordinal: int
+    kind: str = Field(description="`seal_derived` or `adopt` (F7 adds kinds).")
+    description: str = Field(description="Written by the gateway from the step's parameters.")
+    params: dict[str, Any]
+    base: dict[str, Any] = Field(description="The base revisions the step was built against.")
+    dependsOn: list[int] = Field(description="Earlier steps whose outputs this one takes.")
+    deferred: list[str] = Field(description="Base parts decided when the steps it depends on have run.")
+    destructive: bool
+    status: Literal["pending", "done", "failed", "skipped"]
+    result: Optional[dict[str, Any]]
+    error: Optional[ProposalStepError]
+    finishedAt: Optional[datetime]
+    preview: Optional[ProposalPreview] = Field(
+        default=None, description="A seal step's document and its diff (on a proposal's own read; null in lists).",
+    )
+
+
+class ProposalView(BaseModel):
+    """A proposal: an organization's typed steps that change nothing until its author confirms them."""
+
+    id: uuid.UUID
+    organization: CompositionOrganization
+    composition: Optional[ProposalComposition]
+    origin: Literal["web", "mcp", "chat"]
+    status: Literal["pending", "executing", "completed", "partial", "failed", "cancelled", "superseded", "stale"]
+    summary: str
+    warnings: list[str] = Field(description="Review before confirming.")
+    confirmationPhrase: Optional[str] = Field(description="Set when a step is destructive: type it to confirm.")
+    upstreamEvent: Optional[uuid.UUID] = Field(description="The upstream event this proposal answers.")
+    proposedBy: Optional[ProposalPerson]
+    mine: bool = Field(description="Whether the caller made it (only its author confirms or cancels it).")
+    supersededBy: Optional[uuid.UUID]
+    createdAt: datetime
+    confirmedAt: Optional[datetime]
+    completedAt: Optional[datetime]
+    steps: list[ProposalStepView]
+
+
+class ProposalList(BaseModel):
+    proposals: list[ProposalView] = Field(description="Newest first.")
 
 CompositionVersionView.model_rebuild()
 CompositionEnvironmentView.model_rebuild()

@@ -110,7 +110,7 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 | `problems` | problems of an organization, their sealed revisions (the uploaded `.bim.zip` and its digests) and compilations (one per revision and toolchain, insert-only), the stateless BIM services (`/v1/bim/validate`, `/v1/bim/templates`) | `BimPort`, `BlobStore` | `modules/problems` (domain, application, adapters; F0b); `integrations/bim*.py`, the engine protocol document in `services/engines.py` |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
 | `execution` | runs of an organization: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood; run presets (F1) | `EngineTransport`, `BimPort`, `PlanPort` | `modules/execution` (the run request and the runs API `/v1/organizations/{org}/runs`; F0b); `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py` |
-| `compositions` | compositions of an organization, their sealed versions (canonical Composition2Yaml bytes), their evaluations (one per toolchain, or one declared) and derivations, forks into another organization, composition environments with their adoption history, feed keys and feed, margins per offering plan (F4), the watches of the pricings its live versions read with their upstream events and the upstream watcher (F6), and the stateless language services (`/v1/compositions/validate`, `parse`, `serialise`, `diff`, `schema`). The language itself is the pure library `openbinding_gateway/composition` (contract `composition-library-pure`) | `BimPort`; `problems` and `execution` application APIs | `modules/compositions` (F1) |
+| `compositions` | compositions of an organization, their sealed versions (canonical Composition2Yaml bytes), their evaluations (one per toolchain, or one declared) and derivations, forks into another organization, composition environments with their adoption history, feed keys and feed, margins per offering plan (F4), the watches of the pricings its live versions read with their upstream events and the upstream watcher (F6), proposals and their executor (F6-B), and the stateless language services (`/v1/compositions/validate`, `parse`, `serialise`, `diff`, `schema`). The language itself is the pure library `openbinding_gateway/composition` (contract `composition-library-pure`) | `BimPort`; `problems` and `execution` application APIs | `modules/compositions` (F1) |
 | `laboratory` | studies of an organization (the editable matrix inline), study runs that freeze their definition and pin each revision's compilation, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py` (`/v1/organizations/{org}/studies`; F0b); the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
 | `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `problems` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
 | `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH by verified institutional email, or an administrator) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `modules/plans` (entitlement map, per-account quotas, the package copy of the pricing; F0b); `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`. Local metering and billing sponsorship were removed in F0b |
@@ -472,6 +472,18 @@ exception to runs being history)
 | `pricing_ref_attempts` | the back-off of an organization's unresolved `from` entries (failures, last error, next attempt) | mutable; deleted once resolved, or with its organization |
 | `composition_upstream_events` | one classified change per (version, watch, old → new) for bindings and per (composition, watch, new) for the offering (`~<n>` when a URL's content returns to a hash already named): category, reasons, the bounded diff, both snapshots, `notify`, state, note and stamps | written once (`ON CONFLICT DO NOTHING` on partial unique keys); only state (`open` → `reviewed` → `resolved`, a `state_machine` trigger), the note and the stamps change; deleted with its composition or organization |
 
+**As built after F6-B.** Two tables keep proposals, and an adoption says how it was made
+([ADR 0058](adr/0058-proposals-and-the-executor.md)):
+
+| Table | What it holds | Mutability and deletion |
+|---|---|---|
+| `proposals` | an organization's proposal (a composition when every step targets one): origin, scope, author, summary, warnings, the typed phrase of a destructive step, the upstream event it answers (same composition: a composite key), status, the proposal that superseded it, and the claim, progress and completion stamps; one pending per author and scope (partial unique index) | only `status` (a `state_machine` trigger: `pending` → `executing` \| `cancelled` \| `superseded` \| `stale`, `executing` → `completed` \| `partial` \| `failed`), `superseded_by_id` and the stamps change; deleted with its composition or organization (an account's pending ones in other organizations are cancelled) |
+| `proposal_steps` | one typed step: ordinal, kind (a name of the step-kind registry), description, parameters (an earlier step's output as `@s<n>.<output>`), base revisions (`deferred` parts decided at apply), a seal step's derived document (`preview`), dependencies, and its outcome | only the outcome changes, once (`pending` → `done` \| `failed` \| `skipped`, with result, error and finishing time); deleted with its proposal |
+
+`composition_adoptions` gains `source` (`direct` or `proposal`, no default) and `proposal_id` (set exactly for
+`proposal`). Deleting an organization deletes adoptions, then proposal steps and proposals, then upstream events; the
+subtree lock takes proposals and their steps after the watches and before the organizations.
+
 Versions, evaluations and derivations name problem compilations (and runs) through `RESTRICT` foreign keys, so a
 problem a composition links answers `409 problem_has_compositions` on delete, and the admin purge keeps the terminal
 runs a version or derivation names. Deleting an organization locks its compositions before its problems and deletes
@@ -619,8 +631,26 @@ the watcher does moves an environment's ETag or a feed ([ADR 0057](adr/0057-upst
 | `PROPOSAL_EXECUTION_DEADLINE_S` | `600` | how long a proposal may run without progress before housekeeping closes it (F6-B) |
 
 `/v1/admin/queues` carries an `upstreamWatch` block (watches by status, what is due, the last observation, the
-events of the last day by category); `/health/ready` ignores the watcher, so a slow SPHERE never takes a gateway out of
-rotation.
+events of the last day by category, unresolved refs and executing proposals); `/health/ready` ignores the watcher, so
+a slow SPHERE never takes a gateway out of rotation.
+
+#### Proposals (F6-B)
+
+A **proposal** (`modules/compositions/application/proposals.py`) is an organization's typed steps, built in code from
+a request and stored with each step's base revisions; it changes nothing until its author confirms it
+([ADR 0058](adr/0058-proposals-and-the-executor.md)). The step kinds are a registry (`domain/proposals.py`):
+`seal_derived` derives a version (keeping the exact document as the step's preview, diffed on read against the version
+in effect) and `adopt` adopts one; a step may take an earlier step's output (`@s<n>.version`). The web proposes
+`adopt` or `derive_and_adopt`; a new proposal supersedes its author's pending one on the same composition. The
+**executor** (`proposal_executor.py`, ported from SPHERE's ORBIT) checks the phrase of a destructive step, each step's
+role and a personal key's per-step permission, then every stored base (a seal step derived again): anything that moved
+makes the proposal `stale` and nothing changes. It then claims the proposal and runs the steps in order through
+`derive.derive_and_seal` (the derive route's own sequence) and `adoption.adopt()` (the one adopt path), writing each
+outcome as it ends with a progress stamp, skipping a step whose dependency did not complete, and ending `completed`,
+`partial` or `failed`; nothing is retried or rolled back. The upstream watcher's housekeeping closes a run with no
+progress for `PROPOSAL_EXECUTION_DEADLINE_S`, and cancels any pending proposal whose author's account is deleted (one the
+account's deletion skipped because another transaction held it). Routes: `…/compositions/{composition}/proposals` (create, list),
+`/v1/organizations/{org}/proposals/{proposal}` (read, cancel, `…/confirm`) and `/v1/users/me/proposals`.
 
 ### 7.4 Study
 

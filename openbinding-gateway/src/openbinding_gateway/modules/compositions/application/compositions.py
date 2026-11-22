@@ -41,6 +41,8 @@ from ....db.models import (
     OrganizationMembership,
     OrganizationRole,
     PricingWatchRef,
+    Proposal,
+    ProposalStep,
     User,
 )
 from ....models.errors import api_error
@@ -397,6 +399,13 @@ async def delete_composition(session: AsyncSession, composition: Composition, ac
             environments=environments,
         )
     versions = select(CompositionVersion.id).where(CompositionVersion.composition_id == composition.id)
+    # F6-B: its proposals and their steps first (no adoption is left to name one: its environments are gone). The
+    # proposals are locked before their steps, as the executor writes an outcome (proposal, then step).
+    await session.execute(select(Proposal.id).where(Proposal.composition_id == composition.id)
+                          .order_by(Proposal.id).with_for_update())
+    proposals = select(Proposal.id).where(Proposal.composition_id == composition.id)
+    await session.execute(delete(ProposalStep).where(ProposalStep.proposal_id.in_(proposals)))
+    await session.execute(delete(Proposal).where(Proposal.composition_id == composition.id))
     # F6: its upstream events and watch references go first (they name its versions); the watches stay.
     await session.execute(delete(CompositionUpstreamEvent).where(CompositionUpstreamEvent.composition_id == composition.id))
     await session.execute(delete(PricingWatchRef).where(PricingWatchRef.composition_id == composition.id))

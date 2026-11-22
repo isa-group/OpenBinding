@@ -8,7 +8,9 @@ skips the cycle. It reads through the process's one pricing source, sharing its 
 
 **One cycle** (``run_cycle``; ``tools/poll_upstream.py --once`` calls the same function):
 
-0. housekeeping (F6-B closes interrupted proposals here);
+0. housekeeping: proposals ``executing`` with no progress past ``PROPOSAL_EXECUTION_DEADLINE_S`` are closed
+   (``proposal_executor.close_interrupted``) and a deleted account's ``pending`` ones cancelled
+   (``proposal_executor.cancel_orphaned``), whatever the polling switches say;
 1. claim due watches that a live version references, ``FOR UPDATE SKIP LOCKED``, pushing ``next_poll_at`` a lease
    ahead (a crashed leader's claim expires); ``force`` ignores ``next_poll_at``, never ``retry_after_until``;
 2. an organization-scoped watch reads with the organization's key; a missing key, or one rejected during the read
@@ -29,7 +31,9 @@ skips the cycle. It reads through the process's one pricing source, sharing its 
 Every SPHERE request runs only when both ``SPHERE_ENABLED`` and ``UPSTREAM_WATCH_ENABLED`` are on. The watcher creates
 no run, problem revision, composition version, evaluation, adoption, environment or proposal (invariant W): it
 writes snapshots (as a system read), watch state, refs it resolves late, the attempts schedule, events and
-notifications. It imports nothing that could seal, derive, adopt or run (``tests/compositions/test_upstream_watcher``).
+notifications, closes the proposal executions a person started that were interrupted, and cancels a deleted account's
+pending proposals. It imports nothing that could seal, derive, adopt or run but ``proposal_executor.close_interrupted``
+and ``proposal_executor.cancel_orphaned`` (``tests/compositions/test_upstream_watcher``).
 """
 
 from __future__ import annotations
@@ -51,7 +55,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....composition.document import Provenance
 from ....core.settings import Settings, get_settings
 from ....db import base as db_base
-from ....db.models import PricingRefAttempt, PricingSnapshot, PricingWatch, PricingWatchRef
+from ....db.models import PricingRefAttempt, PricingSnapshot, PricingWatch, PricingWatchRef, Proposal
 from ....jobs import clock
 from ....jobs.reconciler import acquire_cycle_lock
 from ...plans.application import (
@@ -122,18 +126,21 @@ class CycleReport:
     ref_attempts: int = 0
     refs_resolved: int = 0
     closed_proposals: int = 0
+    cancelled_proposals: int = 0
     ms: int = 0
     skipped: str | None = None
     watches: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def working(self) -> bool:
-        return bool(self.claimed or self.classified or self.ref_attempts or self.closed_proposals)
+        return bool(self.claimed or self.classified or self.ref_attempts or self.closed_proposals
+                    or self.cancelled_proposals)
 
     def line(self) -> str:
         parts = [f"{name}={getattr(self, name)}" for name in (
             "claimed", "not_modified", "new_versions", "busy", "unavailable", "gone", "credential_rejected", "reads",
-            "classified", "events", "notified", "ref_attempts", "refs_resolved", "closed_proposals", "ms",
+            "classified", "events", "notified", "ref_attempts", "refs_resolved", "closed_proposals",
+            "cancelled_proposals", "ms",
         )]
         return "upstream_watch_cycle " + " ".join(parts)
 
@@ -609,9 +616,22 @@ async def attach_resolved(session: AsyncSession, organization_id: uuid.UUID, sph
 # -- The cycle -------------------------------------------------------------------------------------------------------
 
 
-async def housekeeping(factory, report: CycleReport) -> None:
-    """Closing executions a person started that were interrupted (F6-B's proposals); nothing before them."""
-    return None
+async def housekeeping(factory, report: CycleReport, settings: Settings | None = None) -> None:
+    """Closing executions a person started that were interrupted: proposals ``executing`` with no progress for
+    ``PROPOSAL_EXECUTION_DEADLINE_S``; and cancelling the pending proposals of deleted accounts that the deletion could
+    not (the only writes here that are not the watcher's own state). It runs whatever the polling switches say, and a
+    failure never stops the cycle."""
+    from .proposal_executor import cancel_orphaned, close_interrupted
+
+    settings = settings or get_settings()
+    try:
+        report.closed_proposals += await close_interrupted(factory, deadline_s=settings.proposal_execution_deadline_s)
+    except Exception:  # noqa: BLE001 - housekeeping never stops polling
+        logger.exception("upstream_watch_housekeeping_failed")
+    try:
+        report.cancelled_proposals += await cancel_orphaned(factory)
+    except Exception:  # noqa: BLE001 - housekeeping never stops polling
+        logger.exception("upstream_watch_housekeeping_failed")
 
 
 def polling_enabled(settings: Settings) -> bool:
@@ -662,7 +682,7 @@ async def run_cycle(
     started = time.monotonic()
     settings = settings or get_settings()
     report = CycleReport()
-    await housekeeping(factory, report)
+    await housekeeping(factory, report, settings)
     if not polling_enabled(settings):
         report.skipped = "disabled"
         logger.debug("upstream_watch_skipped reason=disabled")
@@ -750,7 +770,8 @@ async def status(session: AsyncSession, settings: Settings | None = None) -> dic
         "lastObservedAt": aware(observed).isoformat() if observed else None,
         "eventsLastDay": {category: int(count) for category, count in day},
         "unresolvedRefs": unresolved,
-        "executingProposals": 0,
+        "executingProposals": int(await session.scalar(
+            select(func.count()).select_from(Proposal).where(Proposal.status == "executing")) or 0),
     }
 
 

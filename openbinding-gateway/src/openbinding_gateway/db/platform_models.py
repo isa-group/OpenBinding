@@ -808,14 +808,17 @@ class CompositionAdoption(Base):
 
     The history of an environment, numbered 1, 2, 3 per environment. ``evaluation_id`` pins the evaluation the
     version was judged on when adopted, so the environment's margins move only with an adoption, and
-    ``content_digest`` is the version's: the feed's ETag after this adoption. Rows go only with their
-    environment or organization.
+    ``content_digest`` is the version's: the feed's ETag after this adoption. ``source`` says how a person made it:
+    ``direct`` (the adopt route, the lab seed) or ``proposal`` (a confirmed proposal's step, named by
+    ``proposal_id``). Rows go only with their environment or organization.
     """
 
     __tablename__ = "composition_adoptions"
     __table_args__ = (
         UniqueConstraint("environment_id", "ordinal", name="uq_composition_adoptions_environment_ordinal"),
         CheckConstraint("ordinal > 0", name="ordinal_positive"),
+        CheckConstraint("source IN ('direct', 'proposal')", name="source"),
+        CheckConstraint("(source = 'proposal') = (proposal_id IS NOT NULL)", name="proposal_named"),
         ForeignKeyConstraint(
             ["version_id", "composition_id"],
             ["composition_versions.id", "composition_versions.composition_id"],
@@ -852,6 +855,11 @@ class CompositionAdoption(Base):
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     note: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
+    #: ``direct`` or ``proposal``; no default, every writer says which (F6).
+    source: Mapped[str] = mapped_column(String(8), nullable=False)
+    proposal_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("proposals.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
     )
@@ -1102,6 +1110,117 @@ class CompositionUpstreamEvent(Base):
     detected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
     )
+
+
+PROPOSAL_STATUSES = ("pending", "executing", "completed", "partial", "failed", "cancelled", "superseded", "stale")
+PROPOSAL_STEP_STATUSES = ("pending", "done", "failed", "skipped")
+
+
+def _in(column: str, values: tuple[str, ...]) -> str:
+    return f"{column} IN (" + ", ".join(f"'{value}'" for value in values) + ")"
+
+
+class Proposal(Base):
+    """A proposal (F6, plan §8, ORBIT's plan model): an organization's typed steps that change nothing until its
+    author confirms them.
+
+    Built in code from a validated request (the web form; F7's tools), stored with each step's base revisions, shown,
+    and applied step by step by the executor (``proposal_executor``) once its author confirms. ``composition_id`` is
+    set when every step targets one composition (always in F6). ``scope_key`` is what "the pending one" is relative to
+    (``composition:<id>`` on the web): a new proposal by the same author in the same scope supersedes the pending one,
+    and the partial unique index makes two pending ones impossible. ``upstream_event_id`` names the event the
+    proposal answers (display only), always one of its own composition (composite key). ``progressed_at`` is stamped
+    at the claim and after every step outcome: an execution with no progress past the deadline is closed by the
+    watcher's housekeeping. Only ``status``, ``superseded_by_id`` and the stamps ever change (``db/triggers``).
+    """
+
+    __tablename__ = "proposals"
+    __table_args__ = (
+        CheckConstraint("origin IN ('web', 'mcp', 'chat')", name="origin"),
+        CheckConstraint(_in("status", PROPOSAL_STATUSES), name="status"),
+        CheckConstraint("upstream_event_id IS NULL OR composition_id IS NOT NULL", name="event_composition"),
+        CheckConstraint("(status = 'superseded') = (superseded_by_id IS NOT NULL)", name="superseded_by"),
+        ForeignKeyConstraint(
+            ["composition_id", "organization_id"],
+            ["compositions.id", "compositions.organization_id"],
+            ondelete="RESTRICT",
+            name="fk_proposals_composition",
+        ),
+        ForeignKeyConstraint(
+            ["upstream_event_id", "composition_id"],
+            ["composition_upstream_events.id", "composition_upstream_events.composition_id"],
+            ondelete="RESTRICT",
+            name="fk_proposals_upstream_event",
+        ),
+        Index("uq_proposals_one_pending", "proposed_by_id", "scope_key", unique=True,
+              sqlite_where=text("status = 'pending'"), postgresql_where=text("status = 'pending'")),
+        Index("ix_proposals_organization_composition_created", "organization_id", "composition_id", "created_at"),
+        Index("ix_proposals_proposed_by_created", "proposed_by_id", "created_at"),
+        Index("ix_proposals_status_progressed", "status", "progressed_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    composition_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True)
+    origin: Mapped[str] = mapped_column(String(8), nullable=False)
+    scope_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    proposed_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    summary: Mapped[str] = mapped_column(String(500), nullable=False)
+    warnings: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    confirmation_phrase: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    upstream_event_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="pending", server_default="pending")
+    #: Deferred to the commit: a supersession marks the pending proposal before the new one is inserted, as the
+    #: one-pending unique index requires.
+    superseded_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("proposals.id", ondelete="RESTRICT", deferrable=True, initially="DEFERRED"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    progressed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ProposalStep(Base):
+    """One typed step of a proposal (F6): its kind, validated parameters and the base revisions it was built against.
+
+    ``params`` may hold ``@s<n>.<output>`` for a parameter its kind declares referenceable (an earlier step's output);
+    ``base`` then lists the parts decided at apply time under ``deferred``. ``preview`` holds the exact canonical
+    document a ``seal_derived`` step derived for the person to see (its digest is ``base.contentDigest``); NULL when
+    an earlier step decides the content. ``description`` is written by the builder, never by a client. Only the
+    outcome changes, once: ``pending`` -> ``done`` | ``failed`` | ``skipped``, with ``result``, ``error`` and
+    ``finished_at`` (``db/triggers``). ``kind`` is a name of the step-kind registry (``domain.proposals.REGISTRY``),
+    which is the one list of kinds: F7 registers its own without a schema change.
+    """
+
+    __tablename__ = "proposal_steps"
+    __table_args__ = (
+        UniqueConstraint("proposal_id", "ordinal", name="uq_proposal_steps_proposal_ordinal"),
+        CheckConstraint("ordinal >= 1 AND ordinal <= 8", name="ordinal_range"),
+        CheckConstraint(_in("status", PROPOSAL_STEP_STATUSES), name="status"),
+        CheckConstraint("(status = 'pending') = (finished_at IS NULL)", name="finished_whole"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    proposal_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("proposals.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    description: Mapped[str] = mapped_column(String(300), nullable=False)
+    params: Mapped[dict] = mapped_column(JSON, nullable=False)
+    base: Mapped[dict] = mapped_column(JSON, nullable=False)
+    preview: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    depends_on: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    destructive: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    status: Mapped[str] = mapped_column(String(8), nullable=False, default="pending", server_default="pending")
+    result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    error: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class CompositionEnvironmentKey(Base):

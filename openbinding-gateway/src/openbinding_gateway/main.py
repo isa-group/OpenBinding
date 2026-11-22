@@ -64,6 +64,9 @@ from .modules.compositions.adapters.routes import router as compositions_router
 from .modules.compositions.adapters.environment_routes import router as composition_environments_router
 from .modules.compositions.adapters.upstream_routes import me_router as own_upstream_events_router
 from .modules.compositions.adapters.upstream_routes import router as upstream_events_router
+from .modules.compositions.adapters.proposal_routes import me_router as own_proposals_router
+from .modules.compositions.adapters.proposal_routes import organization_router as organization_proposals_router
+from .modules.compositions.adapters.proposal_routes import router as proposals_router
 from .modules.compositions.adapters.template_routes import public_router as composition_templates_router
 from .modules.compositions.adapters.template_routes import router as composition_from_template_router
 from .modules.execution.adapters.preset_routes import router as run_presets_router
@@ -547,6 +550,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(composition_environments_router)
     app.include_router(upstream_events_router)
     app.include_router(own_upstream_events_router)
+    app.include_router(proposals_router)
+    app.include_router(organization_proposals_router)
+    app.include_router(own_proposals_router)
     app.include_router(composition_from_template_router)
     app.include_router(bim_router)
     app.include_router(composition_language_router)
@@ -1060,6 +1066,11 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
                 operation["x-conditional-api-key-permissions"] = {
                     "review=true": ["engines:moderate"]
                 }
+            if path == "/v1/organizations/{org}/proposals/{proposal}/confirm" and method == "post":
+                # The executor checks each step's own permission (the route table is keyed by path).
+                operation["x-conditional-api-key-permissions"] = {
+                    "a step of kind adopt": ["compositions:adopt"]
+                }
             responses.setdefault(
                 "403",
                 refusal(
@@ -1334,6 +1345,11 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             refused["description"] += (
                 " A request may also find every Composition2Yaml or evaluation slot of this gateway busy: "
                 "`composition_busy`, `Retry-After: 1`."
+            )
+        elif path.endswith("/proposals/{proposal}/confirm"):
+            refused["description"] += (
+                " A seal step's derivation may also find every Composition2Yaml or evaluation slot of this gateway "
+                "busy: `composition_busy`, `Retry-After: 1`; the proposal stays pending."
             )
         if not any(path.startswith(prefix) for prefix in _PROBLEM_JSON_PREFIXES):
             refused["content"] = {

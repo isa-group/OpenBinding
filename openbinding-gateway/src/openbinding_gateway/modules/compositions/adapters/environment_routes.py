@@ -26,6 +26,7 @@ from ..domain.environments import AdoptRole
 from .schemas import (
     AdoptionEvaluation,
     AdoptionOffering,
+    AdoptionProposal,
     CompositionAdoptionList,
     CompositionAdoptionView,
     EnvironmentAdopt,
@@ -298,6 +299,8 @@ async def delete_composition_environment(
     """Delete an environment with its feed keys and its adoption history (ADMIN); its feed stops answering."""
     _, found, row, role = await environments.readable_environment(session, org, composition, environment, user)
     environments.require(role, OrganizationRole.ADMIN)
+    # The composition before the environment's row (the guard updates it), the order an organization delete takes.
+    await environments.lock_composition(session, found)
     await etags.guard(session, row, if_match)
     await environments.delete_environment(session, found, row, user)
 
@@ -324,6 +327,8 @@ def adoption_view(row: adoption.HistoryRow) -> CompositionAdoptionView:
             versionName=snapshot.version_label, createdAt=snapshot.version_created_at,
         ),
         feedEtag=f'"{row.adoption.content_digest}"',
+        source=row.adoption.source,
+        proposal=None if row.proposal is None else AdoptionProposal(id=row.proposal.id, summary=row.proposal.summary),
     )
 
 
@@ -368,7 +373,8 @@ async def adopt_composition_version(
     )
     adopted = await adoption.adopt(
         session, organization=organization, composition=found, environment=row, role=role,
-        version_ref=payload.version, actor=user, if_match=if_match, note=payload.note,
+        version_ref=payload.version, actor=user, if_match=if_match, note=payload.note, source="direct",
+        proposal_id=None,
     )
     headers(response, adopted.environment)
     (history,) = await adoption.adoptions(session, adopted.environment, limit=1)

@@ -222,6 +222,8 @@ export function operationStore(org: string, composition: string): OperationStore
           ? { versionName: previous.offering.versionName, createdAt: previous.offering.createdAt }
           : null,
         feedEtag: `"${version.content_digest}"`,
+        source: 'direct',
+        proposal: null,
       };
       item.adoptions = [adoption, ...item.adoptions];
       item.view = {

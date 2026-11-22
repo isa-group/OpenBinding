@@ -21,7 +21,11 @@ response **bodies** (never headers) of the routes the frontend reads:
 * ``tomatometer-email.version.json``: version 1.0.0 of the composition ``tomatometer`` the template derives from that
   revision (Brevo PROFESSIONAL and Dropbox PLUS, pinned by ``from``; ZenQuotes), whose offering
   (``sphere/tomatometer``) was read when it was sealed, and ``tomatometer-email.upstream.json``, its upstream view
-  (``getCompositionUpstream``).
+  (``getCompositionUpstream``);
+* ``upstream.*``: F6's upstream events, notifications and badges for ``tomatometer`` (see :func:`_upstream`);
+* ``zproposals.*``: F6's proposals on ``tomatometer``: a pending derive-and-adopt with its preview and diff, the one it
+  superseded, its ``completed`` answer, the event it resolved and the adoption history with ``source: proposal``, a
+  ``stale`` refusal, a ``partial`` answer, the composition's list and the caller's (see :func:`_proposals`).
 
 The packages are ``simple-seq`` (``examples/demo/01_simple_seq``), ``fms`` (``13_fms``: an
 exclusive choice and a local task), ``json-complete`` (``16_json_complete``: a parallel block
@@ -49,7 +53,8 @@ Every run mints fresh ids and instants, so the bodies are normalised before they
 each distinct UUID becomes ``00000000-0000-4000-8000-<12-digit counter>`` in order of first
 appearance across the fixture set (files in a fixed order, keys sorted), and each ISO-8601
 instant ``2026-01-01T00:00:00Z`` plus one second per distinct value in order of appearance, so
-ordering by date survives. Content digests are deterministic and left as they are.
+ordering by date survives. Content digests are deterministic and left as they are; an environment's ETag in a
+proposal's base is a digest of an instant, so it gets a stable stand-in too.
 
 ``sphere/`` holds the recorded SPHERE set the frontend's parity test reads (the frontend never reads the
 gateway's ``tests/``): for every recorded Pricing2Yaml 3.x version and every synthetic one,
@@ -368,6 +373,7 @@ async def _sphere_imports(client, headers: dict[str, str], session) -> tuple[dic
         recipe=json.loads((examples / "tomatometer-recipe.json").read_text()),
     ))
     core.update(await _upstream(client, headers, session))
+    core.update(await _proposals(client, headers, session))
     return core, sphere
 
 
@@ -484,6 +490,127 @@ async def _upstream(client, headers: dict[str, str], session) -> dict[str, Any]:
         _RECORDED.published.clear()
         _fresh_pricing_source()
     return out
+
+
+async def _proposals(client, headers: dict[str, str], session) -> dict[str, Any]:
+    """F6-B: proposals on ``tomatometer`` after ``_upstream``, as the gateway answers them. Every file is named
+    ``zproposals.*``, so it sorts after the earlier fixtures and their normalised ids do not move.
+
+    Brevo publishes 2026-11 again and "Update from SPHERE" applies the e-mail recipe, Brevo pinned at 2026-11, as a
+    new revision of ``tomatometer-email``. A pending adoption of 1.1.0 in ``staging`` is superseded by a
+    derive-and-adopt of that revision (Resend PRO) in ``production``, whose seal step stores its document and is
+    diffed against 1.0.0, the version in effect; confirming it seals 1.2.0, adopts it and resolves the values-changed
+    event. Then an adoption proposal made stale by a direct adoption, a derive-and-adopt whose adoption is raced
+    between its steps (a hook of this tool only: ``partial``), and a pending one for the caller's list.
+    """
+    from sqlalchemy import select as _select
+
+    from openbinding_gateway.db.models import CompositionUpstreamEvent
+    from openbinding_gateway.modules.compositions.application import proposals
+
+    out: dict[str, Any] = {}
+    compositions = "/v1/organizations/fixtures/compositions/tomatometer"
+    environments = f"{compositions}/environments"
+    organization_proposals = "/v1/organizations/fixtures/proposals"
+    template = json.loads((REPO_ROOT / "examples" / "templates" / "tomatometer.json").read_text())["composition"]
+    email = json.loads((REPO_ROOT / "examples" / "tomatometer" / "email-recipe.json").read_text())
+
+    async def adopt_directly(version: str) -> None:
+        tag = _ok(await client.get(f"{environments}/production", headers=headers), 200).headers["ETag"]
+        _ok(await client.post(f"{environments}/production/adopt", headers={**headers, "If-Match": tag},
+                              json={"version": version, "note": "Adopted directly"}), 200)
+
+    def derive_and_adopt(revision: int, provider: str) -> dict[str, Any]:
+        return {"kind": "derive_and_adopt", "environment": "production",
+                "source": {"revision": f"tomatometer-email@{revision}",
+                           "binding": {**template["binding"], "dailySummary": provider}},
+                "offering": template["offering"], "note": "Re-solved after Brevo 2026-11"}
+
+    published = _RECORDED.publish("brevo-professional-up")
+    _fresh_pricing_source()
+    for source in email["tasks"][0]["from"]:
+        if source["sphere"]["pricing"] == published["pricingId"]:
+            source["sphere"]["version"] = published["versionId"]
+    try:
+        url = "/v1/organizations/fixtures/problems/tomatometer-email"
+        latest = _ok(await client.get(url, headers=headers), 200).json()["latest_revision"]["revision"]
+        base = {"revision": latest}
+        preview = _ok(await client.post(f"{url}/sphere/expand", json={"recipe": email, "base": base},
+                                        headers=headers), 200).json()
+        applied = _ok(await client.post(f"{url}/sphere/apply", headers=headers, json={
+            "recipe": email, "base": base, "expect": {"packageDigest": preview["packageDigest"]}}), 201).json()
+        revision = applied["revision"]["revision"]
+
+        superseded = _ok(await client.post(f"{compositions}/proposals", headers=headers, json={
+            "kind": "adopt", "environment": "staging", "version": "1.1.0"}), 201).json()
+        pending = _ok(await client.post(f"{compositions}/proposals", headers=headers,
+                                        json=derive_and_adopt(revision, "email.resend.pro")), 201).json()
+        out["zproposals.pending.json"] = _ok(
+            await client.get(f"{organization_proposals}/{pending['id']}", headers=headers), 200).json()
+        out["zproposals.superseded.json"] = _ok(
+            await client.get(f"{organization_proposals}/{superseded['id']}", headers=headers), 200).json()
+        out["zproposals.completed.json"] = _ok(
+            await client.post(f"{organization_proposals}/{pending['id']}/confirm", headers=headers), 200).json()
+        # The event the confirmed seal resolved (one event: a list's order ties on events detected in one cycle).
+        resolved = await session.scalar(_select(CompositionUpstreamEvent.id).where(
+            CompositionUpstreamEvent.state == "resolved").execution_options(populate_existing=True))
+        out["zproposals.upstream-event.resolved.json"] = _ok(
+            await client.get(f"{compositions}/upstream-events/{resolved}", headers=headers), 200).json()
+        out["zproposals.adoptions.production.json"] = _ok(
+            await client.get(f"{environments}/production/adoptions", headers=headers), 200).json()
+
+        stale = _ok(await client.post(f"{compositions}/proposals", headers=headers, json={
+            "kind": "adopt", "environment": "production", "version": "1.1.0"}), 201).json()
+        await adopt_directly("1.0.0")
+        out["zproposals.stale.json"] = _ok(
+            await client.post(f"{organization_proposals}/{stale['id']}/confirm", headers=headers), 409).json()
+
+        raced = _ok(await client.post(f"{compositions}/proposals", headers=headers,
+                                      json=derive_and_adopt(revision, "email.mailgun.foundation")), 201).json()
+        seal = proposals.SEAL_DERIVED.apply
+
+        async def then_adopted_directly(context, step, outputs):
+            result = await seal(context, step, outputs)
+            await adopt_directly("1.1.0")
+            return result
+
+        proposals.SEAL_DERIVED.apply = then_adopted_directly
+        try:
+            out["zproposals.partial.json"] = _ok(
+                await client.post(f"{organization_proposals}/{raced['id']}/confirm", headers=headers), 200).json()
+        finally:
+            del proposals.SEAL_DERIVED.apply
+
+        _ok(await client.post(f"{compositions}/proposals", headers=headers, json={
+            "kind": "adopt", "environment": "staging", "version": "1.2.0", "note": "Try 1.2.0 first"}), 201)
+        out["zproposals.list.json"] = _ok(await client.get(f"{compositions}/proposals", headers=headers), 200).json()
+        out["zproposals.me.json"] = _ok(await client.get("/v1/users/me/proposals", headers=headers), 200).json()
+    finally:
+        _RECORDED.extra.clear()
+        _RECORDED.published.clear()
+        _fresh_pricing_source()
+    return _stable_etags(out)
+
+
+_OPAQUE_ETAG = re.compile(r'^(W/)?"[0-9a-f]{32}"$')
+
+
+def _stable_etags(bodies: dict[str, Any]) -> dict[str, Any]:
+    """An environment's ETag is a digest of when it last changed, so a proposal's base (and a stale proposal's
+    ``current``) would differ on every run: each such tag is replaced by a stable stand-in, in file-name order."""
+    tags: dict[str, str] = {}
+
+    def replace(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {key: replace(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [replace(item) for item in value]
+        if isinstance(value, str) and _OPAQUE_ETAG.match(value):
+            tags.setdefault(value, f'"{len(tags) + 1:032x}"')
+            return tags[value]
+        return value
+
+    return {name: replace(bodies[name]) for name in sorted(bodies)}
 
 
 async def _operation(

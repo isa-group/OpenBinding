@@ -1,7 +1,9 @@
 """Adopting a sealed version in a composition environment: the one write that changes what an application runs.
 
 ``adopt`` is the only way the version in effect changes: every caller goes through it with the ``If-Match`` it read,
-and there is no second adopt path (the upstream watcher never calls it). Its rules, in order:
+and there is no second adopt path. Its callers are the adopt route (``source='direct'``, as the lab seed) and the
+proposal executor's ``adopt`` step (``source='proposal'`` with the proposal's id); the upstream watcher never calls it.
+Its rules, in order:
 
 1. ``If-Match`` with an entity-tag is required (428 ``precondition_required`` when absent or ``*``).
 2. The caller's read phase is committed; then the composition is locked ``FOR KEY SHARE`` (it conflicts with a
@@ -16,8 +18,8 @@ and there is no second adopt path (the upstream watcher never calls it). Its rul
    ``verified`` (``binding_invalid`` and ``semantics_changed`` are 409s of their own); a declared version adopts
    on its declared evaluation. An unreadable offering never blocks.
 9. The environment is claimed with a conditional, monotonic ``UPDATE`` on the revision read under the lock (no
-   row: 412), and the adoption row is inserted with the next ordinal, the previous version and the pinned
-   evaluation, whose margins the environment shows until the next adoption.
+   row: 412), and the adoption row is inserted with the next ordinal, the previous version, the pinned
+   evaluation, whose margins the environment shows until the next adoption, and how it was made (``source``).
 10. Audit ``composition.adopted``; ``CompositionAdopted`` to the operator and the composition's followers who
     still hold a role, never to the actor; commit.
 """
@@ -27,6 +29,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Literal
 
 from fastapi import status
 from sqlalchemy import select, update
@@ -45,6 +48,7 @@ from ....db.models import (
     Organization,
     OrganizationRole,
     PricingSnapshot,
+    Proposal,
     User,
     ValuesStatus,
 )
@@ -103,8 +107,13 @@ async def adopt(
     actor: User,
     if_match: str | None,
     note: str = "",
+    source: Literal["direct", "proposal"],
+    proposal_id: uuid.UUID | None,
 ) -> Adopted:
-    """Adopt the version ``version_ref`` in ``environment``, committed (see the module docstring)."""
+    """Adopt the version ``version_ref`` in ``environment``, committed (see the module docstring). ``source`` is
+    ``direct`` (no ``proposal_id``) or ``proposal`` (the confirmed proposal's id)."""
+    if (source == "proposal") != (proposal_id is not None):
+        raise ValueError("an adoption names its proposal exactly when a proposal made it")
     tags = etags.require_if_match(if_match)
     # The read phase (who the caller is, which environment) ends here; nothing it holds is trusted below.
     await session.commit()
@@ -158,7 +167,7 @@ async def adopt(
     adoption = CompositionAdoption(
         environment_id=locked.id, ordinal=read_ordinal + 1, composition_id=locked_composition.id,
         version_id=version.id, previous_version_id=previous_version_id, evaluation_id=evaluation.id,
-        content_digest=version.content_digest, actor_id=actor.id, note=note,
+        content_digest=version.content_digest, actor_id=actor.id, note=note, source=source, proposal_id=proposal_id,
     )
     session.add(adoption)
     await session.flush()
@@ -173,7 +182,8 @@ async def adopt(
     audit(
         session, actor, "composition.adopted", TARGET, locked.id, organization.id,
         composition=locked_composition.slug, environment=locked.slug, version=version.label,
-        previous=previous_label, ordinal=adoption.ordinal,
+        previous=previous_label, ordinal=adoption.ordinal, source=source,
+        proposal=None if proposal_id is None else str(proposal_id),
     )
     await _tell(session, organization, locked_composition, locked, version, previous_label, actor)
     await session.commit()
@@ -228,6 +238,7 @@ class HistoryRow:
     actor: User | None
     evaluation: CompositionEvaluation | None
     offering: PricingSnapshot | None
+    proposal: Proposal | None = None
 
 
 async def adoptions(
@@ -257,5 +268,6 @@ async def adoptions(
             adoption=row, version=found_versions[row.version_id],
             previous=found_versions.get(row.previous_version_id) if row.previous_version_id else None,
             actor=await session.get(User, row.actor_id), evaluation=evaluation, offering=snapshot,
+            proposal=None if row.proposal_id is None else await session.get(Proposal, row.proposal_id),
         ))
     return result

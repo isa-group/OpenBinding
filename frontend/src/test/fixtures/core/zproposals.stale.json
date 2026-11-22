@@ -1,0 +1,19 @@
+{
+  "code": "proposal_stale",
+  "detail": {
+    "code": "proposal_stale",
+    "error": "This proposal is out of date: what it was built on changed since it was made. Nothing was changed.",
+    "stale": [
+      {
+        "base": "\"00000000000000000000000000000004\"",
+        "current": "\"00000000000000000000000000000003\"",
+        "kind": "adopt",
+        "reason": "environment_changed",
+        "step": 1
+      }
+    ]
+  },
+  "status": 409,
+  "title": "proposal_stale",
+  "type": "https://openbinding.dev/problems/proposal_stale"
+}
