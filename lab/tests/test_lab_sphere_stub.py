@@ -15,6 +15,7 @@ import json
 import re
 import sys
 import threading
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -41,9 +42,10 @@ ROUTES = json.loads((SFX / "routes.json").read_text())
 class Running:
     """A stand-in on two free loopback ports; ``get``/``post`` answer ``(status, headers, body)``."""
 
-    def __init__(self, state: Path | None, *, passthrough: str | None = None) -> None:
+    def __init__(self, state: Path | None, *, passthrough: str | None = None, timeout_s: float = 4.0) -> None:
         self.lines: list[str] = []
-        self.stand_in = sphere_lab.StandIn(SFX, state, passthrough=passthrough, log=self.lines.append)
+        self.stand_in = sphere_lab.StandIn(SFX, state, passthrough=passthrough, passthrough_timeout_s=timeout_s,
+                                           log=self.lines.append)
         self.servers = sphere_lab.serve(self.stand_in, "127.0.0.1", 0, 0)
         self.api = f"http://127.0.0.1:{self.servers[0].server_port}"
         self.control = f"http://127.0.0.1:{self.servers[1].server_port}"
@@ -190,7 +192,7 @@ def test_a_throttle_gives_one_429_with_retry_after_then_normal_answers(lab):
 class Upstream:
     """A stand-in for the public SPHERE behind the passthrough: it records what it was asked."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, status: int = 200, delay_s: float = 0.0) -> None:
         self.requests: list[tuple[str, dict[str, str]]] = []
         owner = self
 
@@ -200,15 +202,21 @@ class Upstream:
 
             def do_GET(self) -> None:
                 owner.requests.append((self.path, {k.lower(): v for k, v in self.headers.items()}))
+                time.sleep(delay_s)
                 body = b'{"pricings": []}'
-                self.send_response(200)
+                self.send_response(status)
                 self.send_header("content-type", "application/json")
                 self.send_header("set-cookie", "a=b")
+                self.send_header("retry-after", "120")
+                self.send_header("ratelimit-limit", "300")
+                self.send_header("ratelimit-remaining", "0")
+                self.send_header("ratelimit-reset", "120")
                 self.send_header("content-length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
 
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server.handle_error = lambda *args: None  # a client that gave up (the slow case) is not news
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.origin = f"http://127.0.0.1:{self.server.server_port}"
 
@@ -224,6 +232,8 @@ def test_passthrough_forwards_an_unrecorded_get_anonymously_and_never_a_scenario
         status, sent, body = running.get("/api/v1/pricings?name=nothing-recorded&limit=24&offset=0",
                                          **{"x-api-key": "org-key", "Authorization": "Bearer t"})
         assert status == 200 and body == b'{"pricings": []}' and "set-cookie" not in sent
+        # The public SPHERE's limits are not the stand-in's: the gateway must not close its one anonymous bucket.
+        assert not [name for name in sent if name.startswith("ratelimit-") or name == "retry-after"]
         ((path, headers),) = upstream.requests
         assert path == "/api/v1/pricings?name=nothing-recorded&limit=24&offset=0"
         assert headers["user-agent"] == "openbinding-lab-sphere"
@@ -293,3 +303,21 @@ def test_the_image_copies_only_the_tool_and_the_recorded_set_and_runs_unprivileg
     assert re.findall(r"^USER (\S+)", text, re.MULTILINE) == ["10001"]
     assert text.index("USER 10001") < text.index("CMD [")
     assert "pip install" not in text and "apt-get" not in text
+
+
+@pytest.mark.parametrize(("status", "delay_s", "expected"), [(429, 0.0, 503), (500, 0.0, 503), (302, 0.0, 502),
+                                                             (200, 1.5, 503)],
+                         ids=["rate-limited", "server-error", "redirect", "slower-than-the-timeout"])
+def test_a_failing_passthrough_stays_with_its_path(status, delay_s, expected):
+    upstream = Upstream(status=status, delay_s=delay_s)
+    running = Running(None, passthrough=upstream.origin, timeout_s=0.5)
+    try:
+        started = time.monotonic()
+        answer, sent, _ = running.get("/api/v1/pricings?name=nothing-recorded&limit=24&offset=0")
+        assert answer == expected and time.monotonic() - started < 1.4
+        assert not [name for name in sent if name.startswith("ratelimit-") or name in ("retry-after", "location")]
+        # The families keep answering at once, whatever the passthrough did.
+        assert running.get(MANIFEST)[0] == 200
+    finally:
+        running.close()
+        upstream.close()

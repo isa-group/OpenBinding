@@ -16,7 +16,9 @@ publishing anything to the public SPHERE. It knows only SPHERE's public contract
   integrity check).
 - Anything else is a 404, or, with ``SPHERE_LAB_PASSTHROUGH`` set to an https origin (the public SPHERE), a GET under
   ``/api/v1/`` forwarded **anonymously** (``User-Agent: openbinding-lab-sphere``; no key, no redirect, no proxy) and
-  logged ``sphere_lab_passthrough``. The scenario families (every ``pricingId`` of ``scenarios.json``) are never
+  logged ``sphere_lab_passthrough``. A forwarded path that fails (no answer within 4 s, a transport error, a 429 or a
+  5xx) is a 503 and a redirect a 502, and the origin's ``retry-after`` and ``ratelimit-*`` are not passed on, so the
+  gateway backs off that path only, never the stand-in's host or its anonymous bucket. The scenario families (every ``pricingId`` of ``scenarios.json``) are never
   forwarded: they always answer here, so a demo never depends on the network.
 
 **Control port** (``SPHERE_LAB_CONTROL_PORT``, 8081), reachable only inside the compose network (no published port):
@@ -63,10 +65,13 @@ SPHERE_ID = re.compile(r"[0-9a-f]{24}")
 USER_AGENT = "openbinding-lab-sphere"
 #: The largest answer forwarded from the passthrough origin (the gateway's own cap, SPHERE_MAX_BYTES).
 PASSTHROUGH_MAX_BYTES = 5 * 1024 * 1024
-PASSTHROUGH_TIMEOUT_S = 10.0
-#: Headers of a forwarded answer the gateway reads; nothing else crosses (no cookie, no location).
-FORWARDED_HEADERS = ("content-type", "etag", "cache-control", "vary", "retry-after",
-                     "ratelimit-limit", "ratelimit-remaining", "ratelimit-reset")
+#: Below the gateway's 5 s read timeout: a slow origin is answered here with a 503 before the gateway times out, so
+#: the gateway never backs off this whole host (the scenario families with it) for one forwarded path.
+PASSTHROUGH_TIMEOUT_S = 4.0
+#: Headers of a forwarded answer the gateway reads; nothing else crosses (no cookie, no location). ``retry-after`` and
+#: ``ratelimit-*`` never cross either: the public SPHERE's limits are not the stand-in's, and the gateway would close
+#: the one anonymous bucket it shares with the locally served families.
+FORWARDED_HEADERS = ("content-type", "etag", "cache-control", "vary")
 DROPPED_HEADERS = {"content-length", "transfer-encoding", "content-encoding", "connection"}
 MAX_THROTTLE_S = 3600
 #: Distinct routes counted one by one; any further route is counted under ``(other)``.
@@ -111,12 +116,14 @@ class StandIn:
         state_dir: Path | None = None,
         *,
         passthrough: str | None = None,
+        passthrough_timeout_s: float = PASSTHROUGH_TIMEOUT_S,
         opener: urllib.request.OpenerDirector | None = None,
         log: Callable[[str], None] = lambda line: print(line, flush=True),
     ) -> None:
         self.fixtures = Path(fixtures)
         self.state_dir = Path(state_dir) if state_dir else None
         self.passthrough = passthrough.rstrip("/") if passthrough else None
+        self.passthrough_timeout_s = passthrough_timeout_s
         self.opener = opener or passthrough_opener()
         self.log = log
         self.routes: dict[str, dict[str, str]] = json.loads((self.fixtures / "routes.json").read_text())
@@ -287,7 +294,11 @@ class StandIn:
         return answer
 
     def _forward(self, target: str, headers: Mapping[str, str]) -> Answer:
-        """``target`` asked of the passthrough origin, anonymously; a failure is a 502."""
+        """``target`` asked of the passthrough origin, anonymously.
+
+        Whatever goes wrong upstream stays with this one path: a timeout, a transport failure or a 429 is a 503 (which
+        the gateway remembers for that path only), a redirect a 502, and the origin's rate-limit headers are dropped.
+        """
         with self.lock:
             self.passthrough_count += 1
         sent = {"User-Agent": USER_AGENT, "Accept": headers.get("accept") or "application/json"}
@@ -295,13 +306,15 @@ class StandIn:
             sent["If-None-Match"] = headers["if-none-match"]
         request = urllib.request.Request(f"{self.passthrough}{target}", headers=sent, method="GET")
         try:
-            with self.opener.open(request, timeout=PASSTHROUGH_TIMEOUT_S) as response:
+            with self.opener.open(request, timeout=self.passthrough_timeout_s) as response:
                 status, received, body = response.status, response.headers, response.read(PASSTHROUGH_MAX_BYTES + 1)
         except urllib.error.HTTPError as error:
             status, received, body = error.code, error.headers, error.read(PASSTHROUGH_MAX_BYTES + 1)
         except (urllib.error.URLError, OSError, ValueError):
-            return _json(502, {"error": "BAD GATEWAY"})
-        if len(body) > PASSTHROUGH_MAX_BYTES:
+            return _json(503, {"error": "SERVICE UNAVAILABLE"})
+        if status == 429 or status >= 500:
+            return _json(503, {"error": "SERVICE UNAVAILABLE"})
+        if 300 <= status < 400 or len(body) > PASSTHROUGH_MAX_BYTES:
             return _json(502, {"error": "BAD GATEWAY"})
         kept = {name: received[name] for name in FORWARDED_HEADERS if received.get(name) is not None}
         return status, kept, body
