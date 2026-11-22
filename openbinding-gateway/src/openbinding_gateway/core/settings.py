@@ -519,7 +519,14 @@ class Settings(BaseSettings):
     # organization connects its key (org_connections), a registry carries its operator key.
     #: Whether the default SPHERE (``SPHERE_URL``) is read; registries and Pricing2Yaml URLs are read either way.
     sphere_enabled: bool = False
+    #: Whether ``SPHERE_URL`` must be https (``SPHERE_REQUIRE_HTTPS``). Off, the default SPHERE may be a plain-http
+    #: service on a local or private address (the lab's SPHERE stand-in); registries and Pricing2Yaml URLs stay
+    #: https either way, and production refuses to start with it off.
+    sphere_require_https: bool = True
     sphere_url: str = DEFAULT_SPHERE_URL
+    #: The SPHERE a person's "Open in SPHERE" links point at (``SPHERE_PUBLIC_URL``, https); unset, ``SPHERE_URL``.
+    #: The lab reads its stand-in and links to the public SPHERE.
+    sphere_public_url: Optional[str] = None
     sphere_timeout_s: float = Field(default=10.0, gt=0)
     #: The largest pricing answer read from SPHERE, a registry or a URL (``SPHERE_MAX_BYTES``).
     sphere_max_bytes: int = Field(default=5 * 1024 * 1024, gt=0)
@@ -620,13 +627,36 @@ class Settings(BaseSettings):
 
     @field_validator("sphere_url", mode="before")
     @classmethod
-    def sphere_url_is_https(cls, url: object) -> object:
-        """An organization's key travels to ``SPHERE_URL``, so it is reached over https only (empty: the default)."""
+    def sphere_url_is_an_origin(cls, url: object) -> object:
+        """``SPHERE_URL`` is an https URL (empty: the default); plain http is judged with ``SPHERE_REQUIRE_HTTPS``."""
         if url is None or (isinstance(url, str) and not url.strip()):
             return DEFAULT_SPHERE_URL
-        if not isinstance(url, str) or not url.startswith("https://") or len(url) <= len("https://"):
+        if not isinstance(url, str):
             raise ValueError("SPHERE_URL must be an https URL")
+        for scheme in ("https://", "http://"):
+            if url.startswith(scheme) and len(url) > len(scheme):
+                return url.rstrip("/")
+        raise ValueError("SPHERE_URL must be an https URL")
+
+    @field_validator("sphere_public_url", mode="before")
+    @classmethod
+    def sphere_public_url_is_https(cls, url: object) -> object:
+        """Links leave the gateway for a person's browser: https only (empty: ``SPHERE_URL``)."""
+        if url is None or (isinstance(url, str) and not url.strip()):
+            return None
+        if not isinstance(url, str) or not url.startswith("https://") or len(url) <= len("https://"):
+            raise ValueError("SPHERE_PUBLIC_URL must be an https URL")
         return url.rstrip("/")
+
+    @model_validator(mode="after")
+    def sphere_url_transport(self) -> "Settings":
+        """An organization's key travels to ``SPHERE_URL``: plain http only with ``SPHERE_REQUIRE_HTTPS=false``."""
+        if self.sphere_require_https and not self.sphere_url.startswith("https://"):
+            raise ValueError(
+                "SPHERE_URL must be an https URL; a local SPHERE outside production (the lab's stand-in) may be "
+                "plain http with SPHERE_REQUIRE_HTTPS=false"
+            )
+        return self
 
     @field_validator("sphere_registries")
     @classmethod
@@ -759,8 +789,9 @@ class Settings(BaseSettings):
         """Refuse plain-http switches in production.
 
         ``FEDERATION_REQUIRE_HTTPS=false`` lets federated engines be registered
-        and called over http, which is for a trusted development or lab network
-        only.
+        and called over http, and ``SPHERE_REQUIRE_HTTPS=false`` lets the default
+        SPHERE be a plain-http service on a local address (the lab's stand-in);
+        both are for a trusted development or lab network only.
         """
         if self.app_env != "prod":
             return self
@@ -768,6 +799,11 @@ class Settings(BaseSettings):
             raise ValueError(
                 "FEDERATION_REQUIRE_HTTPS is false while APP_ENV=prod: production must call federated "
                 "engines over https. Unset it, or use APP_ENV=dev for a trusted private network."
+            )
+        if not self.sphere_require_https:
+            raise ValueError(
+                "SPHERE_REQUIRE_HTTPS is false while APP_ENV=prod: production must read SPHERE over https. "
+                "Unset it, or use APP_ENV=dev for a local SPHERE on a trusted private network."
             )
         return self
 
@@ -914,6 +950,10 @@ class Settings(BaseSettings):
         base = configured or re.sub(r"/auth/realms/[^/]+$", "/account/", self.identity_issuer)
         return base.split("#", 1)[0] + "#public-profile"
 
+    @property
+    def sphere_link_base(self) -> str:
+        """The origin of "Open in SPHERE" links to the default SPHERE: ``SPHERE_PUBLIC_URL``, else ``SPHERE_URL``."""
+        return self.sphere_public_url or self.sphere_url
 
     @property
     def sphere_registry_aliases(self) -> frozenset[str]:

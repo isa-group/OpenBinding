@@ -36,6 +36,9 @@ def a_pristine_environment(monkeypatch):
         "FEDERATION_SECRET_KEY",
         "FEDERATION_REQUIRE_HTTPS",
         "SPHERE_REGISTRIES",
+        "SPHERE_URL",
+        "SPHERE_REQUIRE_HTTPS",
+        "SPHERE_PUBLIC_URL",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -231,3 +234,52 @@ def test_the_upstream_poll_interval_has_a_production_floor():
     defaults = Settings()
     assert (defaults.upstream_watch_enabled, defaults.upstream_poll_interval_s, defaults.upstream_reads_per_cycle,
             defaults.upstream_not_found_confirmations) == (True, 300, 20, 2)
+
+
+# -- SPHERE_REQUIRE_HTTPS and SPHERE_PUBLIC_URL (F6-C: the lab's SPHERE stand-in) ---------------------------------------
+
+PROD = {"app_env": "prod", "space_enabled": True, "space_organization_id": "org-test",
+        "cors_allow_origins": "https://openbinding.example.org", "gateway_jwt_secret": "x" * 64}
+
+
+def test_a_plain_http_sphere_url_is_refused_by_default():
+    with pytest.raises(ValueError, match=r"SPHERE_URL must be an https URL.*SPHERE_REQUIRE_HTTPS=false"):
+        settings(sphere_url="http://sphere-lab:8080")
+    defaults = settings()
+    assert defaults.sphere_require_https is True and defaults.sphere_public_url is None
+    assert defaults.sphere_link_base == defaults.sphere_url == "https://sphere.score.us.es"
+
+
+def test_the_switch_accepts_plain_http_outside_production():
+    lab = settings(sphere_url="http://sphere-lab:8080/", sphere_require_https=False)
+    assert lab.sphere_url == "http://sphere-lab:8080"
+    assert lab.sphere_link_base == "http://sphere-lab:8080"
+    # https stays accepted with the switch off, and other schemes never are.
+    assert settings(sphere_url="https://sphere.score.us.es", sphere_require_https=False).sphere_url.startswith("https://")
+    for url in ("ftp://sphere-lab", "sphere-lab:8080", "http://"):
+        with pytest.raises(ValueError):
+            settings(sphere_url=url, sphere_require_https=False)
+
+
+def test_production_refuses_the_switch_even_with_an_https_sphere_url():
+    assert settings(**PROD).sphere_require_https is True
+    with pytest.raises(ValueError, match=r"SPHERE_REQUIRE_HTTPS is false while APP_ENV=prod"):
+        settings(**PROD, sphere_require_https=False)
+    with pytest.raises(ValueError, match=r"SPHERE_REQUIRE_HTTPS is false while APP_ENV=prod"):
+        settings(**PROD, sphere_require_https=False, sphere_url="https://sphere.score.us.es")
+
+
+def test_the_switch_is_read_from_the_environment(monkeypatch):
+    monkeypatch.setenv("SPHERE_URL", "http://sphere-lab:8080")
+    monkeypatch.setenv("SPHERE_REQUIRE_HTTPS", "false")
+    monkeypatch.setenv("SPHERE_PUBLIC_URL", "https://sphere.score.us.es/")
+    lab = settings()
+    assert (lab.sphere_url, lab.sphere_require_https) == ("http://sphere-lab:8080", False)
+    assert lab.sphere_public_url == lab.sphere_link_base == "https://sphere.score.us.es"
+
+
+def test_the_public_sphere_url_is_https_only():
+    assert settings(sphere_public_url="").sphere_public_url is None
+    for url in ("http://sphere.score.us.es", "sphere.score.us.es", "https://"):
+        with pytest.raises(ValueError, match="SPHERE_PUBLIC_URL must be an https URL"):
+            settings(sphere_public_url=url)
