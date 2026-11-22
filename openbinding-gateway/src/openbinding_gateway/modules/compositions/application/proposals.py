@@ -182,6 +182,12 @@ def _message(error: HTTPException) -> tuple[str, dict[str, Any]]:
                                                                           "code": detail.get("code"), **extra}
 
 
+def transient(error: HTTPException) -> bool:
+    """A refusal that says nothing about the request: a busy slot or spent budget (429), or a dependency that does not
+    answer (5xx). It is passed on as it is (the caller may retry), never read as a refusal of a step or a stale base."""
+    return error.status_code == status.HTTP_429_TOO_MANY_REQUESTS or error.status_code >= 500
+
+
 def _stale(reason: str, base: Any = None, current: Any = None) -> dict[str, Any]:
     return {"reason": reason, "base": base, "current": current}
 
@@ -278,6 +284,8 @@ class SealDerivedKind:
                 binding=source.binding if isinstance(source, RevisionSource) else None,
             )
         except HTTPException as error:
+            if transient(error):
+                raise
             message, detail = _message(error)
             raise ProposalInvalid.one(ordinal, "derivation_invalid", message, detail) from None
         digest = derived.assessment.content_digest
@@ -340,6 +348,9 @@ class SealDerivedKind:
             derived = await derive.derive_version(
                 context.session, context.organization, composition, caller=context.caller, **arguments)
         except HTTPException as error:
+            if transient(error):
+                # A busy slot or an unreachable toolchain: the proposal stays pending, the caller retries.
+                raise
             message, detail = _message(error)
             return [_stale("derivation_changed", step.base.get("contentDigest"), detail.get("code") or message)]
         digest = derived.assessment.content_digest

@@ -466,6 +466,8 @@ own routes (the body a member gets for a missing proposal or another organizatio
 | `proposal_conflict` | 409 | `createProposal` raced another proposal of the same author on the same composition twice |
 | `proposal_invalid` | 422 | `createProposal`: `errors` lists `{step, code, message, detail?}` with `code` one of `unknown_kind`, `too_many_steps`, `params_invalid`, `destructive_not_alone`, `environment_not_found`, `version_not_found`, `already_in_effect`, `not_permitted`, `derivation_invalid`, `dependency_invalid`, `event_not_found` (`step` is null for the whole proposal) |
 | `confirmation_required`, `confirmation_mismatch` | 422 | `confirmProposal` of a proposal with a destructive step, without its phrase or with another one (case and spaces aside) |
+| `composition_busy` | 429 | `createProposal` or `confirmProposal` while a seal step derives and every evaluation or Composition2Yaml slot is taken (`Retry-After`): nothing is stored, and a proposal being confirmed stays pending. A view that would only miss its diff is served with `diff: null` instead |
+| `bim_unavailable` | 503 | `createProposal` or `confirmProposal` while a seal step derives and the toolchain does not answer: nothing is stored, and a proposal being confirmed stays pending |
 
 A confirmed proposal answers 200 whatever its steps did: each step's `status` (`done`, `failed`, `skipped`) and
 `error` say what happened. A step's `error` is the writer's own answer (`status`, `code`, `message`, `detail`: for

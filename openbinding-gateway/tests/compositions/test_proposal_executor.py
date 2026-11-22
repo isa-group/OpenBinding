@@ -623,3 +623,31 @@ async def test_a_run_the_key_cannot_see_is_refused_and_leaves_the_proposal_pendi
     assert (await db_session.get(Proposal, uuid.UUID(made["id"]), populate_existing=True)).status == "pending"
     confirmed = await api_client.post(url, headers=headers)
     assert confirmed.status_code == 200 and confirmed.json()["status"] == "completed", confirmed.text
+
+
+# -- Transient refusals and a proposal deleted before its claim ------------------------------------------------------
+
+
+@pytest.mark.parametrize("refusal", [(429, "composition_busy"), (503, "bim_unavailable")])
+async def test_a_busy_or_unreachable_toolchain_at_confirm_leaves_the_proposal_pending(api_client, registration, db_session, gate, monkeypatch, refusal):  # noqa: F811
+    """P5: only a base that no longer holds makes a proposal stale. A busy slot or a toolchain that does not answer
+    during the pre-flight is passed on as it is; the proposal stays pending and confirms once it answers."""
+    from openbinding_gateway.models.errors import api_error
+
+    t = await tomato_team(api_client, registration, db_session, gate)
+    made = await propose(api_client, t, t.member, derive_and_adopt(t.found))
+    status_code, error = refusal
+
+    async def refused(*args, **kwargs):
+        raise api_error(status_code, error, "Retry in a moment.")
+
+    monkeypatch.setattr(derive_module, "derive_version", refused)
+    busy = await confirm(api_client, t, t.member, made["id"])
+
+    assert busy.status_code == status_code and code(busy) == error, busy.text
+    row = await db_session.get(Proposal, uuid.UUID(made["id"]), populate_existing=True)
+    assert row.status == "pending"
+    assert await _count(db_session, AuditEvent, AuditEvent.action == "composition.proposal_stale") == 0
+    monkeypatch.undo()
+    confirmed = await confirm(api_client, t, t.member, made["id"])
+    assert confirmed.status_code == 200 and confirmed.json()["status"] == "completed", confirmed.text

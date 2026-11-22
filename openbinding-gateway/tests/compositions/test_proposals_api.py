@@ -342,3 +342,26 @@ async def test_two_seal_steps_never_claim_one_label(api_client, registration, db
     with pytest.raises(proposals.ProposalInvalid) as raised:
         await proposals.create(db_session, organization, user, twice, role=_owner(), composition=composition)
     assert [(e["step"], e["code"]) for e in raised.value.errors] == [(2, "derivation_invalid")]
+
+
+@pytest.mark.parametrize("refusal", [(429, "composition_busy"), (503, "bim_unavailable")])
+async def test_a_busy_or_unreachable_toolchain_at_creation_is_passed_on_and_stores_nothing(api_client, registration, db_session, gate, monkeypatch, refusal):  # noqa: F811
+    """A busy slot or a toolchain that does not answer says nothing about the step: it reaches the caller as the derive
+    route answers it (retry), not as a refused step."""
+    from openbinding_gateway.models.errors import api_error
+    from openbinding_gateway.modules.compositions.application import derive as derive_module
+
+    t = await tomato_team(api_client, registration, db_session, gate)
+    status_code, error = refusal
+
+    async def refused(*args, **kwargs):
+        raise api_error(status_code, error, "Retry in a moment.",
+                        headers={"Retry-After": "1"} if status_code == 429 else None)
+
+    monkeypatch.setattr(derive_module, "derive_version", refused)
+    made = await api_client.post(t.proposals, headers=t.member, json=derive_and_adopt(t.found))
+
+    assert made.status_code == status_code and code(made) == error, made.text
+    if status_code == 429:
+        assert made.headers["Retry-After"] == "1"
+    assert await _count(db_session, Proposal) == 0
