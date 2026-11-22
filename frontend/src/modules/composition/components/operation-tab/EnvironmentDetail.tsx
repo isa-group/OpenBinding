@@ -12,6 +12,7 @@ import type {
 } from '../../../core/api/types';
 import { CompositionRenderer } from '../../../core/components/composition-renderer/CompositionRenderer';
 import { MarginTable } from '../../../core/components/margin-table';
+import { UpstreamBadge } from '../../../core/components/upstream-badge';
 import { useResource } from '../../../core/hooks/useResource';
 import { compositionViewModel } from '../../../core/utils/composition/viewModel';
 import type { OrgRole } from '../../../organization/api/organizationsApi';
@@ -243,6 +244,7 @@ export default function EnvironmentDetail({
             onOpenVersion: label =>
               compositionPath(org, composition.slug, undefined, { version: label }),
             onAdopt: canAdopt ? () => onAdopt?.(environment) : undefined,
+            badge: <UpstreamBadge upstream={environment.upstream} />,
             margins: (
               <MarginTable
                 margins={margins.data ?? margins.stale ?? null}

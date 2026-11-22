@@ -2,19 +2,23 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: a composition instead of a pricing: the chips are its kind, its tasks, its cost with the verified or declared
-// mark (on its own when there is no cost), and its version. The name is a real link stretched over the card (SPHERE navigated on click, which loses
-// middle-click and the keyboard); the kebab opens with the keyboard, closes on Escape and shows on focus as on hover.
+// mark (on its own when there is no cost), and its version; the header's pills add its upstream badge (F6). The name is a
+// real link stretched over the card (SPHERE navigated on click, which loses middle-click and the keyboard); the kebab opens
+// with the keyboard, closes on Escape and shows on focus as on hover.
 
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import OrgAvatar from '../../../core/components/org-avatar';
+import { UpstreamBadge } from '../../../core/components/upstream-badge';
 import { ValueBadge } from '../../../core/components/value-badge/ValueBadge';
+import type { UpstreamSummary } from '../../../core/api/types';
 import { valueStatus } from '../../../core/utils/composition/values';
 import type { Kind } from '../../../core/utils/composition/document';
 import { kindLabel } from '../../../core/utils/composition/kinds';
 import type { VersionFigures } from '../../api/compositionsApi';
 import { formatCost } from './format';
+import { compositionPath } from '../../../../routes/paths/compositions';
 
 /** What a card shows of a composition, from any of the lists (public, the account's, an organization's). */
 export interface CompositionCardData {
@@ -32,6 +36,8 @@ export interface CompositionCardData {
   version_count: number;
   archived?: boolean;
   visibility?: 'public' | 'private';
+  /** Its open and reviewed upstream events (the gateway's counts, for members); null on the public list. */
+  upstream?: UpstreamSummary | null;
 }
 
 export interface MenuItem {
@@ -108,6 +114,10 @@ export default function CompositionCard({
                 Archived
               </span>
             )}
+            <UpstreamBadge
+              upstream={data.upstream}
+              to={compositionPath(data.organization.slug, data.slug, 'operation')}
+            />
           </div>
           <h3 className="min-w-0 text-sm font-medium text-tp-ink group-hover:text-tp-accent">
             <Link

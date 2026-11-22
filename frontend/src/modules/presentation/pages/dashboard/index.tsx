@@ -25,6 +25,7 @@ import { readResponse } from '../../../core/api/http';
 import type { CompositionList } from '../../../core/api/types';
 import Iconify from '../../../core/components/iconify';
 import DashboardSkeleton from '../../../core/components/skeletons/dashboard-skeleton';
+import { UpstreamBadge } from '../../../core/components/upstream-badge';
 import { useRecentItems } from '../../../core/hooks/useRecentItems';
 import { fadeInUp, staggerContainer, transitionDefault } from '../../../core/utils/motion-variants';
 import OrganizationCard from '../../../organization/components/organization-card';
@@ -312,6 +313,11 @@ export default function DashboardPage() {
                         <span className="block truncate text-[11px] text-tp-steel">
                           {composition.organization.name} · {composition.kind}
                         </span>
+                        {composition.upstream && (
+                          <span className="mt-1.5 block">
+                            <UpstreamBadge upstream={composition.upstream} />
+                          </span>
+                        )}
                       </Link>
                     </li>
                   ))}

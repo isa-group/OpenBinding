@@ -2,7 +2,7 @@
 // adoption, its value status, the candidate bound to each task with the upstream plan it was read from (from the version's
 // upstream view, stored data only), and the offering version the pinned evaluation read. SPHERE has no environments; the
 // rows follow the renderer's binding section. It takes data and links only, and imports no domain module, so the
-// `operations` mode and any screen can draw it. The slot `badge` is where F6's upstream badge goes; it draws nothing in F4.
+// `operations` mode and any screen can draw it. The slot `badge` holds the environment's upstream badge, beside the heading.
 
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import type { ReactNode } from 'react';
@@ -17,7 +17,7 @@ interface Props {
   upstream?: UpstreamView | null;
   /** Where the version in effect opens. */
   versionHref?: string | null;
-  /** F6's upstream badge, beside the heading; nothing in F4. */
+  /** The environment's upstream badge, beside the heading. */
   badge?: ReactNode;
 }
 

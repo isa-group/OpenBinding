@@ -4,12 +4,14 @@
 // Changes: an environment of a composition instead of a collection, the way OpenBinding's study card already adapts the
 // recipe: the name is a real link stretched over the card (to the environment's detail, `?environment=<slug>`), the kebab
 // (Edit, Delete; ADMIN) opens with the keyboard and closes on Escape. The chips say the version in effect with its value
-// badge, the adoption number, when and by whom it was adopted, and the operator; "Adopt" is the card's own primary action.
+// badge, the adoption number, its upstream badge (open events of the version in effect, or a newer version that resolved
+// one and is not adopted here), when and by whom it was adopted, and the operator; "Adopt" is the card's own primary action.
 
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { CompositionEnvironmentView } from '../../../core/api/types';
+import { UpstreamBadge } from '../../../core/components/upstream-badge';
 import { ValueBadge } from '../../../core/components/value-badge/ValueBadge';
 import { adoptedText } from '../../utils/environments';
 
@@ -146,6 +148,7 @@ export default function EnvironmentCard({ environment, to, onAdopt, menuItems = 
             <span className="rounded bg-tp-surface px-1.5 py-0.5">
               Adoption #{inEffect.adoption}
             </span>
+            <UpstreamBadge upstream={environment.upstream} to={to} />
           </>
         ) : (
           <span className="rounded bg-tp-surface px-1.5 py-0.5">Nothing adopted yet</span>

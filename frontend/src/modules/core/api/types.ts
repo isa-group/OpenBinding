@@ -223,3 +223,24 @@ export type CompositionTemplateView = Schemas['CompositionTemplateView'];
 
 /** What starting a composition from a template takes (`POST …/compositions/from-template`). */
 export type CompositionFromTemplate = Schemas['CompositionFromTemplate'];
+
+/** Open and reviewed upstream events of a composition or one of its versions (`upstream` of their views); members only. */
+export type UpstreamSummary = Schemas['UpstreamSummary'];
+
+/** The upstream events of an environment's version in effect, with the newer version that resolved one and is not adopted. */
+export type EnvironmentUpstreamSummary = Schemas['EnvironmentUpstreamSummary'];
+
+/** An upstream event of a composition: a classified change of a pricing a live version reads (`…/upstream-events`). */
+export type UpstreamEventView = Schemas['UpstreamEventView'];
+
+/** One upstream event with its stored diff (`GET …/upstream-events/{event}`). */
+export type UpstreamEventDetail = Schemas['UpstreamEventDetail'];
+
+/** A page of a composition's upstream events, its counts and the pricings its live versions read. */
+export type UpstreamEventList = Schemas['UpstreamEventList'];
+
+/** A pricing a composition's live versions read, as the watcher last saw it. */
+export type UpstreamWatchSummary = Schemas['UpstreamWatchSummary'];
+
+/** An upstream event of any organization the account belongs to (`GET /v1/users/me/upstream-events`). */
+export type MyUpstreamEvent = Schemas['MyUpstreamEvent'];

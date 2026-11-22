@@ -72,6 +72,7 @@ import { roleAtLeast, useCompositionRole } from '../../hooks/useCompositionRole'
 import { saveBlob, saveText } from '../../utils/download';
 import { useCardComposition, type LoadedComposition } from './hooks';
 import FocusTrapLayer from '../../../core/components/focus-trap-layer';
+import { UpstreamBadge } from '../../../core/components/upstream-badge';
 
 type TabId = 'overview' | CompositionTabSegment;
 
@@ -689,6 +690,12 @@ function CardBody({
             </span>
           )}
           <span>· Updated {updated} ago</span>
+          {member && (
+            <UpstreamBadge
+              upstream={composition.upstream}
+              to={compositionPath(org, slug, 'operation')}
+            />
+          )}
         </div>
       )}
       {!picked && <p className="mt-1 text-sm text-tp-steel">No version yet</p>}
