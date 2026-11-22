@@ -368,7 +368,7 @@ export default function DashboardPage() {
                             event: event.id,
                           }
                         )}
-                        className="flex flex-col gap-1 px-4 py-3 text-sm hover:bg-tp-surface/50 sm:flex-row sm:items-center sm:gap-3"
+                        className="flex flex-col items-stretch gap-1 px-4 py-3 text-sm hover:bg-tp-surface/50 sm:flex-row sm:items-center sm:gap-3"
                       >
                         {/* Wrapped on a phone (a nowrap line would widen the page), cut short from sm up. */}
                         <span className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere] text-tp-ink sm:truncate">
@@ -403,7 +403,7 @@ export default function DashboardPage() {
                             proposal.composition.slug,
                             'operation'
                           )}
-                          className="flex flex-col gap-1 px-4 py-3 text-sm hover:bg-tp-surface/50 sm:flex-row sm:items-center sm:gap-3"
+                          className="flex flex-col items-stretch gap-1 px-4 py-3 text-sm hover:bg-tp-surface/50 sm:flex-row sm:items-center sm:gap-3"
                         >
                           <span className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere] text-tp-ink sm:truncate">
                             {proposal.summary}
