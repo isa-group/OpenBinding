@@ -654,6 +654,8 @@ export interface CompositionStore {
   operation: OperationStore | null;
   /** `/v1/organizations/{org}/proposals/{proposal}[/confirm]`: TomatoMeter's proposals (e2e/helpers/operationMock.ts). */
   proposalRoute: (request: CompositionRequest) => CompositionReply;
+  /** The account's role in `isa-demo` when the page seeded one (F6); null for the default (OWNER). */
+  role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' | null;
 }
 
 const KINDS = ['application', 'workflow', 'pipeline', 'system'];
@@ -993,14 +995,31 @@ export interface CompositionSeed {
   evolution?: boolean;
   /** Also seed TomatoMeter, with upstream plans and an offering drawn from snapshots (F3 J4). */
   tomatometer?: boolean;
+  /** Also seed TomatoMeter's upstream events (F6: its values-changed and offering events), with `tomatometer`. */
+  upstream?: boolean;
+  /** The account's role in `isa-demo`, OWNER by default (a VIEWER walk, F6). */
+  role?: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 }
 
 /** A store of compositions for one page: the seeded ones plus what the page creates. */
 export function compositionStore(options: CompositionSeed = {}): CompositionStore {
   const entries = seed();
   if (options.evolution) entries.push(evolutionEntry());
-  if (options.tomatometer) entries.push(tomatometerEntry());
-  const operation = options.tomatometer ? operationStore(COMPOSITIONS_ORG, 'tomatometer') : null;
+  const tomatometer = options.tomatometer ? tomatometerEntry() : null;
+  if (tomatometer) entries.push(tomatometer);
+  const operation = tomatometer
+    ? operationStore(COMPOSITIONS_ORG, 'tomatometer', {
+        upstream: options.upstream,
+        versions: tomatometer.versions,
+      })
+    : null;
+  /** A composition as a member reads it: TomatoMeter with its upstream counts when the page seeded its events (F6). */
+  const decorate = <T extends { slug: string; organization: { slug: string } }>(view: T): T =>
+    operation?.upstream &&
+    view.slug === 'tomatometer' &&
+    view.organization.slug === COMPOSITIONS_ORG
+      ? { ...view, upstream: operation.upstream.counts() }
+      : view;
   /** The compositions of the other organizations: lab-other's, and those forks made, by organization slug. */
   const others = new Map<string, Entry[]>([[PUBLIC_ORG, otherEntries()]]);
   const allEntries = () => [...entries, ...[...others.values()].flat()];
@@ -1494,7 +1513,7 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
                   inEffect: [],
                 })),
             }
-          : listed(entry)
+          : decorate(listed(entry))
       );
     const limit = Number(query.get('limit') ?? 50);
     const offset = Number(query.get('offset') ?? 0);
@@ -1848,7 +1867,7 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       pool.splice(pool.indexOf(entry), 1);
       return { status: 204 };
     }
-    if (!section) return ok(entry.view);
+    if (!section) return ok(decorate(entry.view));
     if (section === 'fork' && request.method === 'POST')
       return fork(entry, request, organizations, org);
     if (section === 'derive' && request.method === 'POST') return derive(entry, request);
@@ -1872,6 +1891,15 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       return operation && slug === 'tomatometer'
         ? operation.route(request, entry.versions)
         : ok({ environments: [] });
+    if (section === 'upstream-events')
+      return operation?.upstream && slug === 'tomatometer'
+        ? operation.upstream.route(request, entry.versions)
+        : ok({
+            events: [],
+            counts: { open: 0, reviewed: 0, resolved: 0, noImpact: 0 },
+            watches: [],
+            nextBefore: null,
+          });
     if (section === 'proposals')
       return operation && slug === 'tomatometer'
         ? operation.proposalsRoute(request, entry.versions, deriving(entry))
@@ -1925,8 +1953,12 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
         version => sealedWithin(version, request.query)
       );
       const include = (request.query.get('include') ?? '').split(',');
+      const counts = operation?.upstream && slug === 'tomatometer' ? operation.upstream : null;
       return ok({
-        versions: ordered.map(version => lightRow(version, include)),
+        versions: ordered.map(version => ({
+          ...lightRow(version, include),
+          ...(counts ? { upstream: counts.versionCounts(version.id) } : {}),
+        })),
         total: ordered.length,
         limit: 200,
         offset: 0,
@@ -1985,6 +2017,8 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
 
   return {
     route: answer,
+
+    role: options.role ?? null,
 
     proposalRoute(request) {
       const entry = poolOf(COMPOSITIONS_ORG).find(item => item.view.slug === 'tomatometer');

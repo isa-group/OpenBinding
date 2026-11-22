@@ -8,8 +8,13 @@ import type {
   EnvironmentKeyView,
   EvaluateResult,
   FeedKeyCreated,
+  EnvironmentUpstreamSummary,
+  MyUpstreamEvent,
   ProposalStepView,
   ProposalView,
+  UpstreamEventDetail,
+  UpstreamEventList,
+  UpstreamSummary,
 } from '../../src/modules/core/api/types';
 import type { CompositionReply, CompositionRequest } from './mockCompositions';
 
@@ -75,14 +80,50 @@ export interface OperationStore {
     versions: readonly CompositionVersionView[],
     derive: Derive
   ) => CompositionReply;
-  /** `GET /v1/users/me/upstream-events`: TomatoMeter's open events when a spec seeded them (e2e/f6-*.spec.ts), else none. */
-  mineEvents: () => unknown[];
   /** Answers `/v1/organizations/{org}/proposals/{proposal}[/confirm]` (read, confirm, cancel). */
   proposalRoute: (
     request: CompositionRequest,
     versions: readonly CompositionVersionView[],
     derive: Derive
   ) => CompositionReply;
+  /** `GET /v1/users/me/upstream-events`: TomatoMeter's open events when a spec seeded them (e2e/f6-*.spec.ts), else none. */
+  mineEvents: () => unknown[];
+  /** TomatoMeter's upstream events (F6), when the page seeded them (`{ upstream: true }`); null otherwise. */
+  upstream: UpstreamStore | null;
+  /**
+   * Seeds a proposal (a B5 fixture, `src/test/fixtures/core/zproposals.*.json`), its steps' environment bases set to the
+   * environments as they are now, so it is not stale until something moves them.
+   */
+  seedProposal: (proposal: ProposalView) => void;
+  /** Something else adopted or edited an environment: its ETag moves (a proposal built on it goes stale). */
+  touch: (environment: string) => void;
+}
+
+/** The fixture events a spec may publish into the store (`src/test/fixtures/core/upstream.tomatometer.event.<name>.json`). */
+export type UpstreamFixture =
+  'values-changed' | 'binding-invalid' | 'offering-changed' | 'unavailable' | 'withdrawn';
+
+/** TomatoMeter's upstream events in the shared mock: the gateway's F6 fixtures under the mock's ids, and what a page does. */
+export interface UpstreamStore {
+  /** Answers `…/compositions/tomatometer/upstream-events…` (list, read, review). */
+  route: (
+    request: CompositionRequest,
+    versions: readonly CompositionVersionView[]
+  ) => CompositionReply;
+  /** A newer upstream version arrives: the fixture event is added (a binding-invalid one supersedes the values-changed one). */
+  publish: (fixture: UpstreamFixture) => void;
+  /** The composition's counts, as `CompositionView.upstream` carries them. */
+  counts: () => UpstreamSummary;
+  /** A version's counts (`CompositionVersionView.upstream`). */
+  versionCounts: (version: string) => UpstreamSummary;
+  /** An environment's counts, by the version in effect there. */
+  environmentCounts: (inEffect: string | null) => EnvironmentUpstreamSummary;
+  /** The open events as `GET /v1/users/me/upstream-events` lists them. */
+  mine: () => MyUpstreamEvent[];
+  /** The bytes of a snapshot an event names, when the fixtures hold them. */
+  snapshot: (id: string) => string | null;
+  /** Every review a page sent (event id, note, `If-Match`). */
+  reviewed: Array<{ id: string; note: string; ifMatch: string | undefined }>;
 }
 
 /** What a proposal's seal step asks the shared mock: a preview (the document's text) or the sealed version. */
@@ -119,7 +160,167 @@ function adapt<T>(value: T, org: string, versions: readonly CompositionVersionVi
   return parsed;
 }
 
-export function operationStore(org: string, composition: string): OperationStore {
+const WORST = ['binding_invalid', 'values_changed', 'offering_changed'] as const;
+
+/** The id of the gallery's no-impact event (not a gateway fixture: the store derives it). */
+export const NO_IMPACT_EVENT = '00000000-0000-4000-8000-0000000004e0';
+
+/** Counts of events, each (version, pricing, subject) once: open and reviewed, binding invalid, the worst category. */
+function summarise(events: readonly UpstreamEventDetail[]): UpstreamSummary {
+  const counted = events.filter(
+    event =>
+      event.notify &&
+      !event.supersededBy &&
+      (event.state === 'open' || (event.state === 'reviewed' && event.subject === 'binding'))
+  );
+  const open = counted.filter(event => event.state === 'open').length;
+  const reviewed = counted.filter(event => event.state === 'reviewed').length;
+  const bindingInvalid = counted.filter(event => event.category === 'binding_invalid').length;
+  const worst = WORST.find(category => counted.some(event => event.category === category)) ?? null;
+  return { open, reviewed, bindingInvalid, worst };
+}
+
+function upstreamStore(
+  org: string,
+  composition: string,
+  versionsNow: () => readonly CompositionVersionView[]
+): UpstreamStore {
+  const read = (fixture: UpstreamFixture) =>
+    adapt(
+      core<UpstreamEventDetail>(`upstream.tomatometer.event.${fixture}.json`),
+      org,
+      versionsNow()
+    );
+  const events: UpstreamEventDetail[] = [read('values-changed'), read('offering-changed')];
+  /** A no-impact event (the gallery's, F6): the values-changed fixture as if Brevo had changed another plan only. */
+  const noImpact = (): UpstreamEventDetail => {
+    const base = read('values-changed');
+    const diff = base.diff as {
+      entries?: Array<{ attributes?: Array<{ after: unknown; before: unknown; delta: unknown }> }>;
+    };
+    return {
+      ...base,
+      id: NO_IMPACT_EVENT,
+      category: 'no_impact',
+      notify: false,
+      diff: {
+        ...base.diff,
+        global: [],
+        notes: ['values_not_reevaluated'],
+        entries: (diff.entries ?? []).map(entry => ({
+          ...entry,
+          attributes: (entry.attributes ?? []).map(attribute => ({
+            ...attribute,
+            after: attribute.before,
+            delta: null,
+          })),
+        })),
+      },
+    };
+  };
+  const known = (id: string) =>
+    events.find(event => event.id === id) ??
+    [...(['unavailable', 'withdrawn', 'binding-invalid'] as const).map(read), noImpact()].find(
+      event => event.id === id
+    ) ??
+    null;
+  const etagOf = (event: UpstreamEventDetail) => `"event-${event.id}-${event.state}"`;
+  const snapshots: Record<string, string> = {
+    '00000000-0000-4000-8000-000000000026': coreText('upstream.brevo.2026-10.yaml'),
+    '00000000-0000-4000-8000-000000000048': coreText('upstream.brevo.2026-11.yaml'),
+  };
+  const listed = (event: UpstreamEventDetail) => {
+    const { diff: _diff, ...row } = event;
+    void _diff;
+    return row;
+  };
+  const upstream: UpstreamStore = {
+    reviewed: [],
+    publish(fixture) {
+      const event = read(fixture);
+      if (events.some(item => item.id === event.id)) return;
+      if (fixture === 'binding-invalid')
+        for (const older of events)
+          if (older.category === 'values_changed' && older.subject === 'binding')
+            older.supersededBy = event.id;
+      events.unshift(event);
+    },
+    counts: () => summarise(events),
+    versionCounts: version => summarise(events.filter(event => event.version.id === version)),
+    environmentCounts: inEffect => ({
+      ...summarise(
+        events.filter(
+          event =>
+            inEffect !== null &&
+            (event.version.id === inEffect ||
+              (event.subject === 'offering' && event.state === 'open'))
+        )
+      ),
+      resolvedBy: null,
+    }),
+    mine: () =>
+      events
+        .filter(event => event.notify && event.state === 'open')
+        .map(event => ({
+          ...listed(event),
+          organization: { id: `org-${org}`, slug: org, name: 'ISA Demo Group' },
+          composition: { id: `composition-${composition}`, slug: composition, name: 'TomatoMeter' },
+        })) as unknown as MyUpstreamEvent[],
+    snapshot: id => snapshots[id] ?? null,
+    route(request) {
+      const [, , , , , , id, action] = request.parts;
+      if (!id && request.method === 'GET') {
+        const state = request.query.get('state');
+        const version = request.query.get('version');
+        const shown = [...events]
+          .sort((a, b) => b.detectedAt.localeCompare(a.detectedAt))
+          .filter(
+            event => (!state || event.state === state) && (!version || event.version.id === version)
+          );
+        const list: UpstreamEventList = {
+          events: shown.map(listed) as UpstreamEventList['events'],
+          counts: {
+            open: events.filter(event => event.state === 'open' && event.category !== 'no_impact')
+              .length,
+            reviewed: events.filter(event => event.state === 'reviewed').length,
+            resolved: events.filter(event => event.state === 'resolved').length,
+            noImpact: events.filter(event => event.category === 'no_impact').length,
+          },
+          watches: core<UpstreamEventList>('upstream.tomatometer.events.json').watches,
+          nextBefore: null,
+        };
+        return ok(list);
+      }
+      const event = id ? known(id) : null;
+      if (!event) return refuse(404, 'not_found', 'Upstream event not found.');
+      if (!action && request.method === 'GET') return ok(event, 200, { ETag: etagOf(event) });
+      if (action === 'review' && request.method === 'POST') {
+        const ifMatch = request.header?.('if-match');
+        const note = String(request.body().note ?? '');
+        upstream.reviewed.push({ id: event.id, note, ifMatch });
+        if (ifMatch && ifMatch !== etagOf(event))
+          return refuse(412, 'precondition_failed', 'The event changed since it was read.', {
+            ETag: etagOf(event),
+          });
+        if (event.state !== 'open')
+          return refuse(409, 'event_not_reviewable', 'The event was already reviewed or resolved.');
+        event.state = 'reviewed';
+        event.note = note;
+        event.reviewedBy = { username: 'alex.rivera' };
+        event.reviewedAt = STAMP;
+        return ok(event, 200, { ETag: etagOf(event) });
+      }
+      return refuse(405, 'method_not_allowed', 'Not allowed.');
+    },
+  };
+  return upstream;
+}
+
+export function operationStore(
+  org: string,
+  composition: string,
+  options: { upstream?: boolean; versions?: readonly CompositionVersionView[] } = {}
+): OperationStore {
   let held: Held[] | null = null;
   let minted = 0;
   const store: OperationStore = {
@@ -133,8 +334,31 @@ export function operationStore(org: string, composition: string): OperationStore
     confirmed: [],
     proposalsRoute,
     proposalRoute,
-    mineEvents: () => [],
+    mineEvents: () => store.upstream?.mine() ?? [],
+    upstream: null,
+    seedProposal(proposal) {
+      const all = state(seenVersions);
+      const seeded = adapt(proposal, org, seenVersions);
+      for (const step of seeded.steps) {
+        const environment = all.find(item => item.view.id === step.params.environment);
+        if (step.kind === 'adopt' && environment)
+          step.base = {
+            ...step.base,
+            environmentEtag: etagOf(environment),
+            inEffect: environment.view.inEffect?.version.id ?? null,
+          };
+        if (step.kind === 'seal_derived')
+          step.base = { ...step.base, headVersionId: seenVersions.at(-1)?.id ?? null };
+      }
+      store.proposals = [seeded, ...store.proposals];
+    },
+    touch(slug) {
+      const item = state(seenVersions).find(entry => entry.view.slug === slug);
+      if (item) item.revision += 1;
+    },
   };
+  let seenVersions: readonly CompositionVersionView[] = options.versions ?? [];
+  if (options.upstream) store.upstream = upstreamStore(org, composition, () => seenVersions);
   let made = 0;
   const etagOf = (item: Held) => `"env-${item.view.slug}-${item.revision}"`;
 
@@ -162,7 +386,15 @@ export function operationStore(org: string, composition: string): OperationStore
     request: CompositionRequest,
     versions: readonly CompositionVersionView[]
   ): CompositionReply {
+    seenVersions = versions;
     const all = state(versions);
+    // The upstream badge of each environment (F6): its counts by the version in effect there.
+    if (store.upstream)
+      for (const item of all)
+        item.view = {
+          ...item.view,
+          upstream: store.upstream.environmentCounts(item.view.inEffect?.version.id ?? null),
+        };
     const [, , , , , , slug, section, key] = request.parts;
     const ifMatch = request.header?.('if-match');
     if (!slug) {

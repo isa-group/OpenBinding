@@ -68,6 +68,7 @@ const VISITOR: string[] = [
   '/orgs/ghost-lab/members',
   '/compositions/ghost-lab/fleet-plan',
   '/compositions/ghost-lab/fleet-plan/operation',
+  '/compositions/ghost-lab/fleet-plan/operation?event=00000000-0000-4000-8000-000000000047',
   '/compositions/isa-demo/ghost/versions',
   '/p/00000000-0000-4000-8000-000000000001',
   '/engines/ghost/solver/1.0.0',
@@ -80,6 +81,7 @@ const MEMBER: string[] = [
   '/problems/isa-demo/ghost?sphereStep=pricing&sphere=6ade364540e55445692b0eda',
   '/compositions/isa-demo/ghost',
   '/compositions/other-lab/fleet-plan/operation',
+  '/compositions/other-lab/fleet-plan/operation?event=00000000-0000-4000-8000-000000000047',
   '/problems/isa-demo/ghost',
   '/problems/other-lab/checkout-flow/versions',
   '/runs/isa-demo/00000000-0000-4000-8000-000000000002',
@@ -124,6 +126,13 @@ test('the Operation tab of a public composition is the in-place 404 for a visito
   await expect(tabs.getByRole('link', { name: 'Overview' })).toBeVisible({ timeout: 15_000 });
   await expect(tabs.getByRole('link', { name: 'Operation' })).toHaveCount(0);
   await page.goto('/compositions/lab-other/fleet-routing/operation');
+  await expect(page.locator('main').getByRole('heading', { name: 'Page not found' })).toBeVisible({
+    timeout: 15_000,
+  });
+  // An upstream event of it is the same in-place 404 (F6: events are members' only).
+  await page.goto(
+    '/compositions/lab-other/fleet-routing/operation?event=00000000-0000-4000-8000-000000000047'
+  );
   await expect(page.locator('main').getByRole('heading', { name: 'Page not found' })).toBeVisible({
     timeout: 15_000,
   });
