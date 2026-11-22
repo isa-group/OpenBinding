@@ -244,3 +244,12 @@ export type UpstreamWatchSummary = Schemas['UpstreamWatchSummary'];
 
 /** An upstream event of any organization the account belongs to (`GET /v1/users/me/upstream-events`). */
 export type MyUpstreamEvent = Schemas['MyUpstreamEvent'];
+
+/** A proposal: an organization's typed steps that change nothing until its author confirms them (`…/proposals/{proposal}`). */
+export type ProposalView = Schemas['ProposalView'];
+
+/** One typed step of a proposal, with its base, its stored preview (on a proposal's own read) and its outcome. */
+export type ProposalStepView = Schemas['ProposalStepView'];
+
+/** What a web proposal asks for: `adopt`, or `derive_and_adopt` (`POST …/compositions/{composition}/proposals`). */
+export type ProposalCreate = Schemas['ProposalCreate'];

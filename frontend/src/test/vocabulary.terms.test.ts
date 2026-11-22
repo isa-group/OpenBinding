@@ -59,7 +59,7 @@ const application = Object.fromEntries(
  * editor, Language), the problem screens (`modules/problem`), and the layers they are built from.
  */
 const SCOPE =
-  /^\/src\/(modules\/language\/|modules\/problem\/|modules\/core\/components\/(candidate-matrix|composition-renderer|pricing-card|problems-panel|provider-map|rules-and-objectives|upstream-badge|upstream-change-summary|value-badge|workflow-graph)\/|modules\/composition\/(api|components|hooks|pages|utils)\/|modules\/core\/utils\/(composition|binding)\/|modules\/composition-editor\/|modules\/run\/components\/derive\/)/;
+  /^\/src\/(modules\/language\/|modules\/problem\/|modules\/core\/components\/(candidate-matrix|composition-renderer|pricing-card|problems-panel|provider-map|proposal-card|rules-and-objectives|upstream-badge|upstream-change-summary|value-badge|workflow-graph)\/|modules\/composition\/(api|components|hooks|pages|utils)\/|modules\/core\/utils\/(composition|binding)\/|modules\/composition-editor\/|modules\/run\/components\/derive\/)/;
 const SCOPE_AREAS = [
   '/src/modules/language/',
   '/src/modules/problem/',
@@ -69,6 +69,8 @@ const SCOPE_AREAS = [
   '/src/modules/core/components/upstream-change-summary/',
   '/src/modules/composition/components/upstream-events-section/',
   '/src/modules/composition/components/upstream-event-detail/',
+  '/src/modules/core/components/proposal-card/',
+  '/src/modules/composition/components/proposals-section/',
   '/src/modules/composition/components/version-graph/',
   '/src/modules/core/utils/composition/',
   '/src/modules/core/utils/binding/',

@@ -5,8 +5,8 @@
 // its subtitle, the primary "New environment" for ADMIN, the empty state, the 1-2-3 column grid) is SPHERE's; there is no
 // search or paging (a composition has a handful of environments). The environment the address names (`?environment=`)
 // opens its detail in place of the grid; under the grid, the composition's upstream changes (F6), whose event the address
-// names (`?event=`) opens in place too. Who sees what follows the roles: every member reads, whoever the environment's
-// adoption role allows adopts, ADMIN creates, edits and deletes.
+// names (`?event=`) opens in place too; then the composition's proposals. Who sees what follows the roles: every member
+// reads, whoever the environment's adoption role allows adopts, ADMIN creates, edits and deletes.
 
 import { motion } from 'framer-motion';
 import { useState } from 'react';
@@ -28,6 +28,7 @@ import { roleAtLeast } from '../../hooks/useCompositionRole';
 import { mayAdopt } from '../../utils/environments';
 import EnvironmentCard from '../environment-card';
 import EnvironmentFormDialog, { DeleteEnvironmentDialog } from '../environment-form-dialog';
+import ProposalsSection from '../proposals-section';
 import UpstreamEventDetailView from '../upstream-event-detail';
 import UpstreamEventsSection from '../upstream-events-section';
 import EnvironmentDetail from './EnvironmentDetail';
@@ -260,6 +261,20 @@ export default function OperationTab({
           org={org}
           composition={composition}
           refresh={`${refresh}:${nonce}`}
+        />
+      </div>
+
+      <div className="mt-6">
+        <ProposalsSection
+          org={org}
+          composition={composition}
+          versions={versions}
+          environments={list}
+          refresh={refresh}
+          onChanged={() => {
+            setNonce(value => value + 1);
+            onUpstreamChanged?.();
+          }}
         />
       </div>
 
