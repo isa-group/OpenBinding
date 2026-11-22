@@ -626,7 +626,8 @@ What the lab seeds for it (`openbinding-gateway/tools/seed_lab.py`, through the 
   which the `feed-consumer` service reads.
 
 The commands below run on the lab's host. `API=http://localhost:18100/api` (the lab's published port), `OWNER`
-holds `Authorization: Bearer <token>` of `lab-owner` (sign in with `POST $API/v1/auth/login`), and
+holds `X-API-Key: <lab-owner's key>` (derived from the demo password, as demo script v2's setup shows; a token from
+`POST $API/v1/auth/login` also works, but expires after `ACCESS_TOKEN_TTL_S`, 300 s), and
 `C="docker compose -f compose.lab.json"` (or the `lab_compose` tools). Nothing below prints a key:
 
 ```sh
@@ -692,16 +693,20 @@ scenarios, and each scenario publishes once per lab. The env example already poi
 
 Every step below has its **API track**: a command that shows the same thing, so a slow engine or a screen problem never
 stalls the demo (F6-D adds the click path of each step and its timing). The commands run on the lab's host, beside the
-variables of demo script v1 (`API`, `T`, `FEED_KEY`, `C`) and `DEMO_SEED_PASSWORD`:
+variables of demo script v1 (`API`, `T`, `FEED_KEY`, `C`) and `DEMO_SEED_PASSWORD`. They act as `lab-owner` through its
+personal API key, which the seed derives from the demo password like the feed key and grants every permission but the
+administrator's, so nothing expires during the 20 minutes (a signed-in token would: it lives
+`ACCESS_TOKEN_TTL_S`, 300 s); nothing below prints the key:
 
 ```sh
 P=$API/v1/organizations/lab-main/problems/tomatometer-email
 PROPOSALS=$API/v1/organizations/lab-main/proposals
 BREVO=6ade2d4440e55445692b07f1
 NEXT=1.2.0   # the new version's label: 1.2.0 on a fresh lab, 1.3.0 once walk 14 has sealed 1.2.0
-TOKEN=$(curl -s $API/v1/auth/login -H 'Content-Type: application/json' \
-  -d "{\"username_or_email\":\"lab-owner\",\"password\":\"$DEMO_SEED_PASSWORD\"}" | python3 -c 'import json,sys;print(json.load(sys.stdin)["access_token"])')
-OWNER="Authorization: Bearer $TOKEN"
+# lab-owner's personal API key, derived from the demo password as the seed derives it (seed_lab.api_key_for): it does
+# not expire, while a sign-in's access token lives 5 minutes (ACCESS_TOKEN_TTL_S) and would answer 401 from minute ~5.
+OWNER_KEY=$(python3 -c 'import hashlib,hmac,os; d=hmac.new(os.environ["DEMO_SEED_PASSWORD"].encode(), b"openbinding-lab-seed:apikey:lab-owner", hashlib.sha256).hexdigest(); print(f"obk_{d[:8]}_{d[8:]}")')
+OWNER="X-API-Key: $OWNER_KEY"
 JSON='Content-Type: application/json'
 j() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }   # j 'an expression of d'
 ```
