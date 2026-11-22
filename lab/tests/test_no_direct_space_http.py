@@ -33,12 +33,14 @@ TEST_NAME = re.compile(r"(^test_.*\.py$|\.(test|spec)\.[cm]?[jt]sx?$)")
 # PricingSource port (core/outbound.py), and the SPHERE fixture recorder is run by hand, anonymous and GET only,
 # to record the answers the tests read offline (tests/fixtures/sphere). The lab's SPHERE stand-in serves those answers
 # and forwards only what it has no recording for, anonymous and GET only, never a key or a scenario family
-# (lab/tests/test_lab_sphere_stub.py holds it to that).
+# (lab/tests/test_lab_sphere_stub.py holds it to that). The API smoke reads SPHERE_URL only to tell whether the lab's
+# SPHERE is that stand-in, and talks to its control port (publish, state) inside the compose network, never to SPHERE.
 ALLOWED_PREFIXES = (
     "lab/tools/",
     "openbinding-gateway/src/openbinding_gateway/modules/plans/",
     "openbinding-gateway/tools/record_sphere_fixtures.py",
     "openbinding-gateway/tools/sphere_lab.py",
+    "openbinding-gateway/tools/smoke_lab.py",
 )
 # The only file under lab/tools that may be a direct caller; a new one needs a deliberate edit here and in
 # the ADR.
