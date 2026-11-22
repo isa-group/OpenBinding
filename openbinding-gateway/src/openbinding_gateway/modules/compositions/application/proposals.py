@@ -736,7 +736,8 @@ async def _store(
             # A rollback expires every row the session holds: read them again before the retry (or the caller's reply).
             for held in (organization, composition, caller):
                 if held is not None:
-                    await session.refresh(held)
+                    # One deleted meanwhile stays expired: the retry's lock finds the composition gone (its 404).
+                    await reread(session, held)
             if _lost_pending_race(error) and attempt == 1:
                 continue
             if _lost_pending_race(error):
@@ -750,7 +751,10 @@ async def _store(
               steps=[item.kind.name for item, _ in built], origin=origin,
               composition=None if composition is None else composition.slug)
         await session.commit()
-        await session.refresh(row)
+        if not await reread(session, row):
+            # Deleted with its composition or organization right after it was stored (a delete that waited on the
+            # composition's share lock).
+            raise unreadable()
         return row
     raise AssertionError("unreachable")
 
@@ -892,7 +896,8 @@ async def cancel(session: AsyncSession, proposal: Proposal, caller: User) -> Pro
         raise not_pending(proposal)
     audit(session, caller, "composition.proposal_cancelled", TARGET, proposal.id, proposal.organization_id)
     await session.commit()
-    await session.refresh(proposal)
+    if not await reread(session, proposal):
+        raise unreadable()
     return proposal
 
 

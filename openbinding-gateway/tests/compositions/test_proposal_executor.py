@@ -722,3 +722,57 @@ async def test_cancelling_a_proposal_deleted_meanwhile_answers_its_404(api_clien
         await proposals.cancel(db_session, made, user)
 
     assert refused.value.status_code == 404 and refused.value.detail["error"] == "Proposal not found."
+
+
+def _deleted_on_read(monkeypatch, session, proposal_id, *, after: int = 0) -> None:
+    """Delete the proposal behind the session's back the ``after + 1``-th time a proposal is read again: a delete that
+    waited on a lock the last commit released."""
+    real, seen = session.refresh, [0]
+
+    async def refresh(instance, *args, **kwargs):
+        if isinstance(instance, Proposal) and instance.id == proposal_id:
+            seen[0] += 1
+            if seen[0] == after + 1:
+                await _gone(session, proposal_id)
+        return await real(instance, *args, **kwargs)
+
+    monkeypatch.setattr(session, "refresh", refresh)
+
+
+@pytest.mark.parametrize("at", ["finish", "store", "cancel"])
+async def test_a_proposal_deleted_right_after_its_last_write_answers_its_404(api_client, registration, db_session, gate, monkeypatch, at):  # noqa: F811
+    """The run's end, the store and the cancel read the proposal again after their last commit; a composition or
+    organization delete that commits in between makes that read find nothing, which is the proposal's 404."""
+    from fastapi import HTTPException
+
+    t = await tomato_team(api_client, registration, db_session, gate)
+    organization, composition, user = await fresh(db_session, t.found)
+    step = [proposals.StepRequest("adopt", {"environment": "production", "version": "1.1.0"})]
+    if at == "store":
+        real_store = proposals._store
+
+        async def store(session, *args, **kwargs):
+            real_refresh = session.refresh
+
+            async def refresh(instance, *a, **k):
+                if isinstance(instance, Proposal) and instance.status == "pending":
+                    await _gone(session, instance.id)
+                return await real_refresh(instance, *a, **k)
+
+            monkeypatch.setattr(session, "refresh", refresh)
+            return await real_store(session, *args, **kwargs)
+
+        monkeypatch.setattr(proposals, "_store", store)
+        work = proposals.create(db_session, organization, user, step, role=_role("OWNER"), composition=composition)
+    else:
+        made = await proposals.create(db_session, organization, user, step, role=_role("OWNER"),
+                                      composition=composition)
+        # A run reads the proposal again once at its end before the final write, then after it.
+        _deleted_on_read(monkeypatch, db_session, made.id, after=1 if at == "finish" else 0)
+        work = (proposal_executor.confirm(db_session, organization, made.id, user, role=_role("OWNER"))
+                if at == "finish" else proposals.cancel(db_session, made, user))
+
+    with pytest.raises(HTTPException) as refused:
+        await work
+
+    assert refused.value.status_code == 404 and refused.value.detail["error"] == "Proposal not found."

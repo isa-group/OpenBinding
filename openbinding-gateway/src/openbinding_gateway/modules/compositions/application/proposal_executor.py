@@ -316,7 +316,9 @@ async def _finish(session: AsyncSession, row: Proposal, caller: User) -> Proposa
         audit(session, caller, "composition.proposal_finished", TARGET, row.id, row.organization_id, status=final,
               done=done, failed=statuses.count("failed"), skipped=statuses.count("skipped"))
     await session.commit()
-    await session.refresh(row)
+    if not await proposals.reread(session, row):
+        # Deleted right after its last write (a delete that waited on the outcome's lock): applied, and gone.
+        raise proposals.unreadable()
     return row
 
 
