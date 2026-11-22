@@ -70,17 +70,19 @@ judges `updatedAt`: an `executing` proposal with no progress for `PROPOSAL_EXECU
 steps reconciled from `composition_adoptions.proposal_id`, the step that was running marked `failed` ("check whether
 it was applied"), later ones `skipped`, and ends as the executor would: `completed` when every step is done, else
 `partial` or `failed`. Every write is conditional, so the closure and
-a late outcome never both land; this is the one write of the watcher that is not its own state, and it only ends what
-a person started.
+a late outcome never both land. With the cancellation of a deleted account's pending proposals (below) these are the
+only writes of the watcher that are not its own state, and they only end what a person started.
 
 **Locks** follow the delete paths' order: a composition, then its proposals, then their steps. Creating a proposal
 share-locks its composition first; the executor writes a step's outcome after its proposal's stamp; deleting a
 composition, an organization or an account's personal organization locks proposals before steps. Deleting an
 environment share-locks its composition before the environment's row and makes the pending proposals that adopt in it
 `stale`, skipping one another transaction holds (`SKIP LOCKED`; the pre-flight finds the environment missing anyway);
-deleting an account cancels its pending proposals in other organizations before its memberships go, waiting for
-one another transaction holds (a refused organization delete leaves it pending, and a skipped one would stay pending
-under an author nobody can sign in as), and deletes its personal organization's with it.
+deleting an account cancels its pending proposals in other organizations before its memberships go, skipping one
+another transaction holds (waiting could close a cycle with another account's deletion, which holds its personal
+organization's proposals), and deletes its personal organization's with it. What it skips, or a proposal its author's
+other session makes meanwhile, the upstream watcher's housekeeping cancels once the deletion has committed: every
+`pending` proposal of a deleted account, audited as its author's.
 
 **Keys.** A proposal's own routes and the caller's list name no composition, so the key's boundary is checked against
 the proposal's composition there; at confirm each step's own key permission is checked, and a run the key may not see

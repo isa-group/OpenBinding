@@ -48,6 +48,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.public_errors import current_correlation_id as correlation_id
 from ....db.models import (
+    AuditEvent,
     Composition,
     CompositionAdoption,
     Organization,
@@ -323,6 +324,35 @@ async def _finish(session: AsyncSession, row: Proposal, caller: User) -> Proposa
 
 
 # -- Interrupted runs ------------------------------------------------------------------------------------------------
+
+
+async def cancel_orphaned(factory: Callable[[], AsyncSession]) -> int:
+    """Cancel every ``pending`` proposal whose author's account is deleted; how many. Called by the upstream watcher's
+    housekeeping. The account's deletion cancels them in its own transaction, but it skips one another transaction holds
+    and cannot see one its author's other session made meanwhile; either is left pending under an author nobody can
+    sign in as, until this runs. Audited as the author's, with ``reason: account_deleted``, as the deletion does; a
+    proposal another transaction holds waits for the next cycle (``SKIP LOCKED``)."""
+    async with factory() as session:
+        found = (await session.execute(
+            select(Proposal.id, Proposal.organization_id, Proposal.proposed_by_id)
+            .join(User, User.id == Proposal.proposed_by_id)
+            .where(Proposal.status == "pending", User.deleted_at.is_not(None))
+            .order_by(Proposal.id).with_for_update(skip_locked=True, of=Proposal)
+        )).all()
+        cancelled = 0
+        for proposal_id, organization_id, author_id in found:
+            changed = await session.execute(
+                update(Proposal).where(Proposal.id == proposal_id, Proposal.status == "pending")
+                .values(status="cancelled").execution_options(synchronize_session=False)
+            )
+            if changed.rowcount == 1:
+                cancelled += 1
+                session.add(AuditEvent(
+                    organization_id=organization_id, actor_id=author_id, action="composition.proposal_cancelled",
+                    target_type=TARGET, target_id=proposal_id, detail={"reason": "account_deleted"},
+                ))
+        await session.commit()
+    return cancelled
 
 
 async def close_interrupted(factory: Callable[[], AsyncSession], *, deadline_s: int) -> int:

@@ -776,3 +776,27 @@ async def test_a_proposal_deleted_right_after_its_last_write_answers_its_404(api
         await work
 
     assert refused.value.status_code == 404 and refused.value.detail["error"] == "Proposal not found."
+
+
+async def test_the_housekeeping_cancels_the_pending_proposals_of_a_deleted_account(api_client, registration, db_session, gate):  # noqa: F811
+    """What the account's deletion skipped (held by another transaction) or could not see (made meanwhile by another
+    session of the account) is cancelled by the next cycle, audited as the author's; nobody else's is touched."""
+    from openbinding_gateway.db.models import User
+
+    t = await tomato_team(api_client, registration, db_session, gate)
+    orphan = await propose(api_client, t, t.member, adopt("1.1.0"))
+    kept = await propose(api_client, t, t.owner, adopt("1.1.0"))
+    await db_session.execute(update(User).where(User.id == uuid.UUID(t.ids["member"])).values(deleted_at=clock.utcnow()))
+    await db_session.commit()
+
+    report = await _housekeeping(db_session)
+
+    assert report.cancelled_proposals == 1
+    statuses = {str(row.id): row.status for row in (await db_session.scalars(
+        select(Proposal).execution_options(populate_existing=True))).all()}
+    assert statuses == {orphan["id"]: "cancelled", kept["id"]: "pending"}
+    audited = await db_session.scalar(select(AuditEvent).where(
+        AuditEvent.target_id == uuid.UUID(orphan["id"]), AuditEvent.action == "composition.proposal_cancelled"))
+    assert (str(audited.actor_id), audited.action, audited.detail) == (
+        t.ids["member"], "composition.proposal_cancelled", {"reason": "account_deleted"})
+    assert (await _housekeeping(db_session)).cancelled_proposals == 0

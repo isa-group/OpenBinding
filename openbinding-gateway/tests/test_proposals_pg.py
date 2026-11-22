@@ -369,54 +369,35 @@ async def test_deleting_an_environment_while_its_organization_is_deleted_closes_
     assert await asyncio.wait_for(racing, timeout=10) == "404"
 
 
-@pytest.mark.parametrize("holder", ["refused_organization_delete", "organization_delete", "environment_delete"])
-async def test_cancelling_an_accounts_proposals_waits_for_one_another_transaction_holds(pg, holder) -> None:
-    """The account's cancellation waits for the holder rather than skip the proposal: a refused organization delete
-    lets it go pending (cancelled then), a committed one deletes it, and an environment delete makes it stale (passed
-    over). None is left pending under the deleted author, and none closes a lock cycle."""
-    from openbinding_gateway.db.models import Composition, CompositionEnvironment, Organization, User
-    from openbinding_gateway.modules.compositions.application import environments
-    from openbinding_gateway.routes.organizations import _delete_subtree
+async def test_an_accounts_proposal_another_transaction_holds_is_skipped_then_cancelled_by_the_housekeeping(pg) -> None:
+    """The account's cancellation does not wait for a holder (waiting could close a cycle with another account's
+    deletion): a refused organization delete leaves the proposal pending under the deleted author, and the watcher's
+    housekeeping cancels it once the deletion has committed."""
+    from sqlalchemy import update as sql_update
+
+    from openbinding_gateway.db.models import User
+    from openbinding_gateway.modules.compositions.application.proposal_executor import cancel_orphaned
     from openbinding_gateway.routes.users import cancel_pending_proposals
 
-    w, environment_id = await _operated(pg)
+    w, _ = await _operated(pg)
     proposal_id = await _adopt_proposal(pg, w)
-    if holder == "environment_delete":
-        hold = pg.session()
-        held = await hold.__aenter__()
-        composition = await held.get(Composition, w.composition_id)
-        await environments.lock_composition(held, composition)
-        assert await environments.stale_proposals_adopting_in(
-            held, composition, await held.get(CompositionEnvironment, environment_id),
-            await held.get(User, w.user_id)) == 1
-    else:
-        hold, held = await _held_by_an_organization_delete(pg, w)
-
-    async def cancel() -> int:
-        async with pg.session() as session:
-            cancelled = await cancel_pending_proposals(session, await session.get(User, w.user_id), None)
-            await session.commit()
-            return cancelled
-
+    holder, held = await _held_by_an_organization_delete(pg, w)
     try:
-        racing = asyncio.create_task(cancel())
-        await asyncio.sleep(0.3)
-        assert not racing.done()  # waiting for the holder
-        if holder == "refused_organization_delete":
-            await held.rollback()
-        elif holder == "organization_delete":
-            await _delete_subtree(held, await held.get(Organization, w.organization_id), [w.organization_id])
-            await held.commit()
-        else:
-            await held.commit()
-        cancelled = await asyncio.wait_for(racing, timeout=10)
+        async with pg.session() as session:
+            cancelled = await asyncio.wait_for(
+                cancel_pending_proposals(session, await session.get(User, w.user_id), None), timeout=10)
+            await session.execute(sql_update(User).where(User.id == w.user_id).values(deleted_at=utcnow()))
+            await session.commit()
+        assert await cancel_orphaned(pg.session) == 0  # still held: the next cycle
     finally:
-        await hold.__aexit__(None, None, None)
+        await held.rollback()  # the delete is refused (historical_references)
+        await holder.__aexit__(None, None, None)
+    assert cancelled == 0
     async with pg.session() as session:
-        row = await session.get(Proposal, proposal_id)
-    expected = {"refused_organization_delete": (1, "cancelled"), "organization_delete": (0, None),
-                "environment_delete": (0, "stale")}[holder]
-    assert (cancelled, None if row is None else row.status) == expected
+        assert (await session.get(Proposal, proposal_id)).status == "pending"
+    assert await cancel_orphaned(pg.session) == 1
+    async with pg.session() as session:
+        assert (await session.get(Proposal, proposal_id)).status == "cancelled"
 
 
 async def test_the_create_that_loses_the_one_pending_race_supersedes_the_winner(pg) -> None:

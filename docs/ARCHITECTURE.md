@@ -648,7 +648,8 @@ makes the proposal `stale` and nothing changes. It then claims the proposal and 
 `derive.derive_and_seal` (the derive route's own sequence) and `adoption.adopt()` (the one adopt path), writing each
 outcome as it ends with a progress stamp, skipping a step whose dependency did not complete, and ending `completed`,
 `partial` or `failed`; nothing is retried or rolled back. The upstream watcher's housekeeping closes a run with no
-progress for `PROPOSAL_EXECUTION_DEADLINE_S`. Routes: `…/compositions/{composition}/proposals` (create, list),
+progress for `PROPOSAL_EXECUTION_DEADLINE_S`, and cancels any pending proposal whose author's account is deleted (one the
+account's deletion skipped because another transaction held it). Routes: `…/compositions/{composition}/proposals` (create, list),
 `/v1/organizations/{org}/proposals/{proposal}` (read, cancel, `…/confirm`) and `/v1/users/me/proposals`.
 
 ### 7.4 Study
