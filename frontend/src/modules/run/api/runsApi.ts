@@ -145,6 +145,11 @@ export interface RunsApi {
   list: (org: string, filters?: RunFilters, signal?: AbortSignal) => Promise<RunList>;
   /** 404 for anyone outside the organization, platform administrators included. */
   get: (org: string, run: string, signal?: AbortSignal) => Promise<JobDetail>;
+  /**
+   * The run's server-sent events (`GET …/runs/{run}/events`: a `job` event with its status at each change, a keep-alive
+   * comment while it is quiet, `session-ended` when the session is), as the raw response to read as a stream.
+   */
+  events?: (org: string, run: string, signal?: AbortSignal) => Promise<Response>;
   /** Needs MEMBER. 402, 403, 404, 409, 422, 429 and 503 each say why nothing started. */
   create: (org: string, request: LaunchRequest, idempotencyKey: string) => Promise<JobReceipt>;
   /** 409 `terminal_job` when it had already finished. */
@@ -189,6 +194,11 @@ export function useRunsApi(): RunsApi {
         ),
       get: async (org, run, signal) =>
         readResponse<JobDetail>(await fetchWithInterceptor(runRoute(org, run), { signal })),
+      events: (org, run, signal) =>
+        fetchWithInterceptor(`${runRoute(org, run)}/events`, {
+          headers: { Accept: 'text/event-stream' },
+          signal,
+        }),
       create: (org, request, idempotencyKey) =>
         post<JobReceipt>(runsRoute(org), {
           headers: { 'Idempotency-Key': idempotencyKey },

@@ -1040,6 +1040,15 @@ function runRoutes(request: Request, orgSlug: string): Reply {
   }
   if (action === 'neighborhood') return ok({ ...NEIGHBORHOOD, jobId: runId });
   const detail = orgSlug === 'isa-demo' ? jobDetail(runId) : null;
+  // The run's event stream (F6): one snapshot, then the end (the page reads the run again, and falls back to asking).
+  if (action === 'events')
+    return detail
+      ? {
+          status: 200,
+          type: 'text/event-stream',
+          text: `event: job\ndata: ${JSON.stringify({ id: runId, status: (detail as { status?: string }).status ?? 'completed' })}\n\n`,
+        }
+      : notFound('Run not found.');
   return detail ? ok(detail) : notFound('Run not found.');
 }
 
