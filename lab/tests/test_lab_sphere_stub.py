@@ -189,6 +189,9 @@ def test_a_throttle_gives_one_429_with_retry_after_then_normal_answers(lab):
         assert lab.post(f"/_lab/throttle?seconds={bad}")[0] == 400
 
 
+ORIGIN_ETAG = '"origin-1"'
+
+
 class Upstream:
     """A stand-in for the public SPHERE behind the passthrough: it records what it was asked."""
 
@@ -204,7 +207,14 @@ class Upstream:
                 owner.requests.append((self.path, {k.lower(): v for k, v in self.headers.items()}))
                 time.sleep(delay_s)
                 body = b'{"pricings": []}'
+                if status == 200 and self.headers.get("if-none-match") == ORIGIN_ETAG:
+                    self.send_response(304)
+                    self.send_header("etag", ORIGIN_ETAG)
+                    self.send_header("ratelimit-remaining", "0")
+                    self.end_headers()
+                    return
                 self.send_response(status)
+                self.send_header("etag", ORIGIN_ETAG)
                 self.send_header("content-type", "application/json")
                 self.send_header("set-cookie", "a=b")
                 self.send_header("retry-after", "120")
@@ -318,6 +328,26 @@ def test_a_failing_passthrough_stays_with_its_path(status, delay_s, expected):
         assert not [name for name in sent if name.startswith("ratelimit-") or name in ("retry-after", "location")]
         # The families keep answering at once, whatever the passthrough did.
         assert running.get(MANIFEST)[0] == 200
+    finally:
+        running.close()
+        upstream.close()
+
+
+def test_an_origin_304_to_a_conditional_get_is_passed_on_with_its_etag():
+    upstream = Upstream()
+    running = Running(None, passthrough=upstream.origin)
+    path = "/api/v1/pricings?name=nothing-recorded&limit=24&offset=0"
+    try:
+        status, sent, _ = running.get(path)
+        assert status == 200 and sent["etag"] == ORIGIN_ETAG
+        # The gateway revalidating its cache entry (or the watcher polling) asks with the tag it holds.
+        status, sent, body = running.get(path, **{"If-None-Match": ORIGIN_ETAG})
+        assert (status, sent["etag"], body) == (304, ORIGIN_ETAG, b"")
+        assert "ratelimit-remaining" not in sent
+        assert upstream.requests[-1][1]["if-none-match"] == ORIGIN_ETAG
+        assert running.state()["requests"][sphere_lab.route_key(*path.split("?"))] == {"200": 1, "304": 1}
+        # Another tag is a full answer again.
+        assert running.get(path, **{"If-None-Match": '"older"'})[0] == 200
     finally:
         running.close()
         upstream.close()

@@ -16,8 +16,8 @@ publishing anything to the public SPHERE. It knows only SPHERE's public contract
   integrity check).
 - Anything else is a 404, or, with ``SPHERE_LAB_PASSTHROUGH`` set to an https origin (the public SPHERE), a GET under
   ``/api/v1/`` forwarded **anonymously** (``User-Agent: openbinding-lab-sphere``; no key, no redirect, no proxy) and
-  logged ``sphere_lab_passthrough``. A forwarded path that fails (no answer within 4 s, a transport error, a 429 or a
-  5xx) is a 503 and a redirect a 502, and the origin's ``retry-after`` and ``ratelimit-*`` are not passed on, so the
+  logged ``sphere_lab_passthrough``. An origin's 304 to the gateway's ``If-None-Match`` is passed on as a 304. A
+  forwarded path that fails (no answer within 4 s, a transport error, a 429 or a 5xx) is a 503 and a redirect a 502, and the origin's ``retry-after`` and ``ratelimit-*`` are not passed on, so the
   gateway backs off that path only, never the stand-in's host or its anonymous bucket. The scenario families (every ``pricingId`` of ``scenarios.json``) are never
   forwarded: they always answer here, so a demo never depends on the network.
 
@@ -298,6 +298,8 @@ class StandIn:
 
         Whatever goes wrong upstream stays with this one path: a timeout, a transport failure or a 429 is a 503 (which
         the gateway remembers for that path only), a redirect a 502, and the origin's rate-limit headers are dropped.
+        A 304 to the gateway's own ``If-None-Match`` (its cache revalidating, the watcher polling) is passed on as a
+        304 with its ``ETag``: urllib raises it as an error, but it is the origin saying nothing changed.
         """
         with self.lock:
             self.passthrough_count += 1
@@ -314,9 +316,11 @@ class StandIn:
             return _json(503, {"error": "SERVICE UNAVAILABLE"})
         if status == 429 or status >= 500:
             return _json(503, {"error": "SERVICE UNAVAILABLE"})
-        if 300 <= status < 400 or len(body) > PASSTHROUGH_MAX_BYTES:
-            return _json(502, {"error": "BAD GATEWAY"})
         kept = {name: received[name] for name in FORWARDED_HEADERS if received.get(name) is not None}
+        if status == 304:
+            return 304, kept, b""
+        if 300 <= status < 400 or len(body) > PASSTHROUGH_MAX_BYTES:  # a redirect is never followed nor passed on
+            return _json(502, {"error": "BAD GATEWAY"})
         return status, kept, body
 
 
