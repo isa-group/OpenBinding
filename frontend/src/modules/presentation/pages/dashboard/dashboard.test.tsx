@@ -124,6 +124,22 @@ describe('the dashboard', () => {
     expect(order.indexOf('Upstream changes')).toBe(order.indexOf('Recent compositions') + 1);
   });
 
+  it('says which upstream changes were already reviewed but not resolved', async () => {
+    const [open] = myEvents.events;
+    renderModule(<DashboardPage />, {
+      tree: [group],
+      gateway: fakeGateway({
+        'GET /v1/users/me/compositions': { body: { compositions: [composition], total: 1 } },
+        'GET /v1/users/me/upstream-events': {
+          body: { ...myEvents, events: [{ ...open, state: 'reviewed' }] },
+        },
+        'GET /v1/users/me/proposals': { body: { proposals: [] } },
+      }),
+    });
+    const changes = await screen.findByRole('region', { name: 'Upstream changes' });
+    expect(within(changes).getByRole('listitem')).toHaveTextContent('Reviewed');
+  });
+
   it('hides both panels when there is nothing to show', async () => {
     renderModule(<DashboardPage />, {
       tree: [group],

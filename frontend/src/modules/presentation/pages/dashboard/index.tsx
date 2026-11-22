@@ -26,7 +26,7 @@ import type { CompositionList, MyUpstreamEvent, ProposalView } from '../../../co
 import Iconify from '../../../core/components/iconify';
 import DashboardSkeleton from '../../../core/components/skeletons/dashboard-skeleton';
 import { UpstreamBadge, UpstreamCategoryPill } from '../../../core/components/upstream-badge';
-import { eventHeadline } from '../../../core/utils/composition/upstreamEvents';
+import { eventHeadline, STATE_WORDS } from '../../../core/utils/composition/upstreamEvents';
 import { useProposalsApi } from '../../../composition/api/proposalsApi';
 import { useUpstreamEventsApi } from '../../../composition/api/upstreamEventsApi';
 import { useRecentItems } from '../../../core/hooks/useRecentItems';
@@ -375,6 +375,12 @@ export default function DashboardPage() {
                         </span>
                         <span className="flex flex-wrap items-center gap-2 text-xs text-tp-steel">
                           <UpstreamCategoryPill category={event.category} />
+                          {/* A reviewed binding event stays here until a version resolves it: it says so. */}
+                          {event.state !== 'open' && (
+                            <span className="rounded-full bg-tp-surface px-2 py-0.5 text-[10px] font-medium text-tp-steel">
+                              {STATE_WORDS[event.state]}
+                            </span>
+                          )}
                           <span>{`${event.composition.name} ${event.version.label} · ${event.organization.name}`}</span>
                         </span>
                       </Link>
