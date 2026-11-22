@@ -267,7 +267,8 @@ header and its 33-screen budget).
 - **Resources of an organization** render outside its page, on the card shell, with the breadcrumb "Org / Name":
   `/compositions/:org/:composition/:tab?` (Overview · Analytics · Configuration · Versions · Operation · Settings; the
   version graph and diff in Versions; Operation is the members' tab of composition environments, the one opened in
-  `?environment=<slug>`; `/p/:id` resolves a permanent link), `/problems/:org/:problem/:tab?` (Overview ·
+  `?environment=<slug>`, of the composition's upstream changes, the one opened in place in `?event=<id>` (F6), and of its
+  proposals; `/p/:id` resolves a permanent link), `/problems/:org/:problem/:tab?` (Overview ·
   Candidates · Versions · Runs · Compositions · Source · Settings), `/runs/:org/:run` (Result · Settings · Provenance ·
   Timeline) and `/studies/:org/:study/:tab?` (Setup · Progress · Results · Front · Settings). Creation forms:
   `/compositions/new`, `/runs/new`, `/studies/new`, each with `?org=`.
@@ -307,8 +308,28 @@ header and its 33-screen budget).
   `11-study-front.spec.ts`, and `12-sphere-candidates.spec.ts` against live SPHERE). F3 adds a dialog and a tab, no
   route. F4 adds the Operation tab and its dialogs (environment, adopt, feed key, instantiate a template), no route, so
   the budget stays 38; its walks are `e2e/f4-*.spec.ts` (mocked) and `e2e/live/13-operation.spec.ts` and
-  `14-run-and-templates.spec.ts` (the lab, with its feed consumer and Mailpit). `e2e/live/visual-sweep.spec.ts` sweeps every screen of the route table in both palettes at 1440×900 and
+  `14-run-and-templates.spec.ts` (the lab, with its feed consumer and Mailpit). F6 adds the Operation tab's upstream
+  changes (`?event=`, the event detail in place), its proposals and two dashboard sections, no route, so the budget stays
+  39; its walks are `e2e/f6-*.spec.ts` (mocked) and `e2e/live/15-upstream-events.spec.ts` (the lab, with its SPHERE
+  stand-in). `e2e/live/visual-sweep.spec.ts` sweeps every screen of the route table in both palettes at 1440×900 and
   390×844, a 375 px pass and a dark operating system.
+- **Upstream changes and proposals (F6):** a composition's open upstream events show as a badge (core `UpstreamBadge`,
+  SPHERE's `badgeTones` recipe, the gateway's counts only) on its card page, its cards in every member list, its
+  Versions rows, its environment cards and `CompositionInEffect`; an environment whose affected version a newer one
+  resolved says "Resolved in <version>, not adopted here". The Operation tab lists the events under the environments
+  (what is watched and when it was last checked, chips by state, no-impact ones hidden), and `?event=<id>` opens one in
+  place: the pricing's two versions with their SPHERE links, its category and state, what changed in words (core
+  `UpstreamChangeSummary`), each bound plan before and after (`PricingChangeReview`, read only) or, for the offering, its
+  plans and the margins of each environment before and after (two `MarginTable`s); a MEMBER marks an open event
+  reviewed once, with a note, and is offered Update from SPHERE, the configurator, Run again and, for a resolved event,
+  "Propose adopting <version> in <environment>". Proposals are drawn by the core `ProposalCard` (SPHERE's ORBIT plan
+  card): the Operation tab's Proposals section, the derive dialog's "Adopt in <environment> in the same step" and the
+  configurator's derive (a `derive_and_adopt` proposal confirmed in the same modal) and the event's proposal. The
+  dashboard adds "Upstream changes" and "Your pending proposals". A live `UpstreamEvent` notification opens the event,
+  and the notifications context's `subscribe(kind, listener)` fans it out so the Operation tab, the card page, the
+  member lists and the dashboard read their badges again. The run page follows a run over the gateway's event stream
+  (`core/utils/sse/readEventStream.ts`, SPHERE's ORBIT reader), each `job` event a trigger to read the run again, with
+  the 2 s poll as its fallback only.
 
 ### 5.3 Rendering catalogue
 
@@ -327,7 +348,7 @@ composition.
 | `calculator` | every one-task move with the gateway's comparison word and deltas | `GET …/neighborhood` | Configuration |
 | `configurator` | another binding chosen per task and what the toolchain makes of it | `POST …/evaluate` | Configuration |
 | `showcase` | what a visitor reads: what it does, value status, values, workflow, providers, plans, the problem's reference, and the offering's storefront from the version the evaluation read | the redacted public reads, `GET …/upstream` (public snapshots only) | Overview, for a visitor |
-| `operations` | what an environment's feed serves: the version in effect (`CompositionInEffect`), the margin per plan of its pinned evaluation (`MarginTable`, mounted by the page), and the adoption history (a slot the page fills) | `GET …/environments/{environment}`, `GET …/versions/{version}/margins?evaluation=&users=`, `GET …/upstream`, `GET …/adoptions` | Operation (an environment's detail) |
+| `operations` | what an environment's feed serves: the version in effect (`CompositionInEffect`, with the environment's upstream badge), the margin per plan of its pinned evaluation (`MarginTable`, mounted by the page), the open upstream changes of the version in effect (each a link to its detail), and the adoption history (a slot the page fills) | `GET …/environments/{environment}`, `GET …/versions/{version}/margins?evaluation=&users=`, `GET …/upstream`, `GET …/upstream-events?version=&state=open`, `GET …/adoptions` | Operation (an environment's detail) |
 
 The editor is a page, not a mode: `/editor` (`modules/composition-editor`: bundled Monaco with the gateway's lint and
 completion from the problem, the visual pane, the Problems panel, the publish dialog) on the draft store.
@@ -345,9 +366,13 @@ completion from the problem, the visual pane, the Problems panel, the publish di
 | analytics tab | structure and values per version over time, verified, declared and unverified apart, problem and compilation changes marked, a table for each chart | Analytics |
 | `MetricCards` | a row of key numbers with units | dashboards, headers |
 | `BindingTable`, `QoSAgainstBounds`, `ObjectiveBreakdown`, `EvaluationDiff`, `TradeOffChart`, `RunResult` | the run result: binding, QoS against bounds, objective terms, claimed against evaluated values, the trade-off set | run page, study cell |
-| `CompositionInEffect` (core) | the version in effect in an environment: its adoption, value badge, the candidate per task with the upstream plan it was read from, the offering version its evaluation read; a slot for F6's upstream badge | Operation |
+| `CompositionInEffect` (core) | the version in effect in an environment: its adoption, value badge, the candidate per task with the upstream plan it was read from, the offering version its evaluation read; a slot for the environment's upstream badge | Operation |
 | `MarginTable` (core) | the margin per offering plan as the gateway computed it: amounts as the gateway's strings rounded by their text, a loss in words as well as tone, every status worded; a users field that only asks again | Operation, Configuration (the calculator's demand) |
 | environment card, Operation tab, adopt dialog, adoption history, feed key panel, check panel | SPHERE's collections frame and collection card, the versions tab's rows and the API keys page's reveal-once block applied to environments: the version in effect per environment, adoption with the environment's `If-Match`, the history newest first, the feed's address and its `obe_` keys shown once, "Check now" in one sentence per source | Operation, Versions (Adopt…), run page and derive dialog (Adopt in environment) |
+| `UpstreamBadge` (core) | open upstream events as SPHERE's badge recipe: amber with the open count, rose "Rebinding recommended", neutral "n reviewed" or "Resolved in <version>, not adopted here"; the worst category in its title; nothing without counts | card page, composition cards, Versions rows, environment cards, Operation |
+| `UpstreamChangeSummary` (core) | an upstream event's stored diff in words: why rebinding is recommended, the global values before → after with the delta, each entry's attributes and the target they map to, requirements, notes; for an offering, SPHERE's catalog line and each plan before and after; amounts formatted from their text | the event detail |
+| `ProposalCard` (core) | SPHERE's ORBIT plan card for a proposal: status, source, summary, progress, warnings, the steps with their bases (a part an earlier step decides said as such), each seal step's diff and document through the caller's renderers, the typed phrase, Cancel and "Confirm and apply" | Operation (Proposals, an event's proposal), derive dialog, configurator |
+| upstream events section, event detail, review dialog | the Operation tab's events (watch summary, chips, rows) and one event in place (`?event=`), with "Mark reviewed" (`If-Match`; 412 and 409 worded) | Operation |
 | template card, instantiate dialog | the composition templates of the catalog and starting one (its problem and a sealed first version) | New composition |
 | `VerdictBadge` | OPTIMAL · FEASIBLE · UNSAT · TIMEOUT · INCOMPATIBLE | everywhere a run appears |
 | `BindingSpaceBadge` | the size of the binding space the analysis gives | problem pages, study analytics |

@@ -170,7 +170,8 @@ the configuration compare tray, the study front and the SPHERE wizard's plan pic
 (copied, with logic changed; the header says what) or **pattern-only** (the layout followed, the code written here).
 Generated from the origin header of each file. The F4 screens (the Operation tab, the environment and template cards,
 the adopt dialog, the adoption history and the feed key panel) copy SPHERE at `fc776b4d`, where those files are unchanged
-since `73779a8a`; their rows say so.
+since `73779a8a`; their rows say so. The F6 screens (the upstream badge, the proposal card, the event stream reader) copy
+SPHERE at `73779a8a` (the ORBIT files, byte-identical at `7c7074ff`) and at `7c7074ff` (the badge recipe), as their rows say.
 
 | File | SPHERE origin | Class |
 |---|---|---|
@@ -242,8 +243,10 @@ since `73779a8a`; their rows say so.
 | `frontend/src/modules/composition/components/new-version-menu/index.tsx` | `frontend/src/modules/pricing/components/new-version-menu/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/operation-tab/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/CollectionsTab.tsx` (at `fc776b4d`) | adapted |
 | `frontend/src/modules/composition/components/pricing-link-modal/index.tsx` | `frontend/src/modules/pricing/components/pricing-link-modal/index.tsx` | adapted |
+| `frontend/src/modules/composition/components/proposals-section/ProposalPanel.tsx` | `frontend/src/modules/orbit/hooks/useOrbitChat.ts` (the confirmation marking the plan `EXECUTING` at once, then the server's final plan) | pattern-only |
 | `frontend/src/modules/composition/components/stats/index.tsx` | `frontend/src/modules/pricing/components/stats/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/template-card/index.tsx` | `frontend/src/modules/pricing/components/collection-card/index.tsx` (at `fc776b4d`) | adapted |
+| `frontend/src/modules/composition/components/upstream-events-section/index.tsx` | `frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx` (the version rows) | pattern-only |
 | `frontend/src/modules/composition/components/version-diff/file-diff-view.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/file-diff-view.tsx` | adapted |
 | `frontend/src/modules/composition/components/version-diff/index.tsx` | `frontend/src/modules/pricing/components/pricing-version-diff/index.tsx` | adapted |
 | `frontend/src/modules/composition/components/version-graph/change-summary-card.tsx` | `frontend/src/modules/pricing/components/pricing-version-graph/change-summary-card.tsx` | adapted |
@@ -292,6 +295,7 @@ since `73779a8a`; their rows say so.
 | `frontend/src/modules/core/components/pricing-renderer/source.ts` | `frontend/src/modules/core/components/pricing-renderer/source.ts` | adapted |
 | `frontend/src/modules/core/components/pricing-renderer/tokens.ts` | `frontend/src/modules/core/components/pricing-renderer/tokens.ts` | adapted |
 | `frontend/src/modules/core/components/problems-panel/index.tsx` | `frontend/src/modules/pricing-editor/components/problems-panel/index.tsx` | adapted |
+| `frontend/src/modules/core/components/proposal-card/index.tsx`, `steps.tsx` and `phrase.ts` | `frontend/src/modules/orbit/components/plan-card.tsx` (blob `fa103561`; `plan-tree.ts` not ported) | adapted |
 | `frontend/src/modules/core/components/resource-card-shell/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | adapted |
 | `frontend/src/modules/core/components/resource-list-view/index.tsx` | `frontend/src/modules/core/components/pricing-list-view/index.tsx` | adapted |
 | `frontend/src/modules/core/components/router-link/index.tsx` | `frontend/src/modules/core/components/router-link/index.tsx` | adapted |
@@ -314,6 +318,9 @@ since `73779a8a`; their rows say so.
 | `frontend/src/modules/core/components/switch/index.tsx` | `frontend/src/modules/settings/components/beta-features-section.tsx` | pattern-only |
 | `frontend/src/modules/core/components/tab-bar/index.tsx` | `frontend/src/modules/pricing/pages/card/index.tsx` | pattern-only |
 | `frontend/src/modules/core/components/toast/index.tsx` | `frontend/src/modules/core/components/toast/index.tsx` | adapted |
+| `frontend/src/modules/core/components/upstream-badge/badgeTones.ts` | `frontend/src/modules/organization/pages/organization-detail/components/services/badgeTones.ts` (at `7c7074ff`) | adapted |
+| `frontend/src/modules/core/components/upstream-badge/index.tsx` | `frontend/src/modules/organization/pages/organization-detail/components/services/ServiceKindBadge.tsx` (at `7c7074ff`) | adapted |
+| `frontend/src/modules/core/components/upstream-change-summary/index.tsx` | `frontend/src/modules/pricing/utils/change-summary.ts` (at `7c7074ff`; the catalog line) | pattern-only |
 | `frontend/src/modules/core/components/user-avatar/index.tsx` | `frontend/src/modules/core/components/user-avatar/index.tsx` | adapted (draws SCORETech Identity's descriptor) |
 | `frontend/src/modules/core/contexts/toastContext.tsx` | `frontend/src/modules/core/contexts/toastContext.tsx` | adapted |
 | `frontend/src/modules/core/contexts/useToast.ts` | `frontend/src/modules/core/contexts/useToast.ts` | verbatim |
@@ -333,6 +340,7 @@ since `73779a8a`; their rows say so.
 | `frontend/src/modules/core/utils/sphere/selection-mapping.ts` | `frontend/src/modules/pricing/components/configuration-space-view/selection-mapping.ts` (feat/pricing-renderer) | verbatim |
 | `frontend/src/modules/core/utils/sphere/version-graph.ts` | `frontend/src/modules/pricing/utils/version-graph.ts` | verbatim |
 | `frontend/src/modules/core/utils/sphere/version-order.ts` | `frontend/src/modules/pricing/utils/version-order.ts` | verbatim |
+| `frontend/src/modules/core/utils/sse/readEventStream.ts` | `frontend/src/modules/orbit/api/orbitApi.ts` (`readEventStream`) | adapted |
 | `frontend/src/modules/engine/api/enginesApi.ts` | `frontend/src/modules/api-keys/api/apiKeysApi.ts` | pattern-only |
 | `frontend/src/modules/engine/components/engine-card/index.tsx` | `frontend/src/modules/pricing/components/pricing-card/index.tsx` | adapted |
 | `frontend/src/modules/engine/components/get-engine-menu/index.tsx` | `frontend/src/modules/pricing/components/get-pricing-menu/index.tsx` | adapted |
