@@ -6,7 +6,9 @@ A fake answers the gateway's routes the three steps read, the stand-in's control
 
 from __future__ import annotations
 
+import ast
 import json
+from pathlib import Path
 
 import httpx
 
@@ -151,7 +153,7 @@ class Upstream(Operated):
 def run(fake: Upstream, steps: str = "19,20,21", sphere_url: str = "http://sphere-lab:8080") -> dict:
     ticker = Ticker()
     config = smoke_lab.Config(base_url="http://web:8080", password=PASSWORD, only=smoke_lab.parse_steps(steps),
-                              sphere_url=sphere_url, poll_interval_s=20.0)
+                              sphere_url=sphere_url, upstream_interval_s=20.0)
     with httpx.Client(base_url="http://web:8080", transport=fake.transport()) as client:
         return smoke_lab.run_smoke(config, client, sleep=ticker.sleep, clock=ticker.clock)
 
@@ -215,3 +217,23 @@ def test_the_smoke_reads_the_lab_s_sphere_and_interval_from_the_environment(caps
     report = json.loads(capsys.readouterr().out)
     assert code == smoke_lab.EXIT_OK, report
     assert [step["name"] for step in report["steps"]] == ["upstream_offering_event"]
+
+
+def test_the_watcher_interval_never_slows_the_job_and_study_polling(monkeypatch):
+    """main() builds Config with the watcher's interval apart: jobs and studies are still polled every second."""
+    seen: list[smoke_lab.Config] = []
+
+    def capture(config, client, **kwargs):
+        seen.append(config)
+        return {"ok": True, "failed": 0, "blocked": 0, "steps": []}
+
+    monkeypatch.setattr(smoke_lab, "run_smoke", capture)
+    for environ in ({}, {"UPSTREAM_POLL_INTERVAL_S": "20"}, {"UPSTREAM_POLL_INTERVAL_S": "nonsense"}):
+        smoke_lab.main([], {"DEMO_SEED_PASSWORD": PASSWORD, **environ})
+    assert [config.poll_interval_s for config in seen] == [1.0, 1.0, 1.0]
+    assert [config.upstream_interval_s for config in seen] == [300.0, 20.0, 300.0]
+    # A field declared twice collapses into one silently (the later default wins): the class body names each once.
+    tree = ast.parse(Path(smoke_lab.__file__).read_text(encoding="utf-8"))
+    config = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "Config")
+    names = [item.target.id for item in config.body if isinstance(item, ast.AnnAssign)]
+    assert len(names) == len(set(names)), names

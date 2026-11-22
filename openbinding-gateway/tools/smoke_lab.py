@@ -256,8 +256,9 @@ class Config:
     only: frozenset[int] | None = None
     #: The lab's SPHERE (``SPHERE_URL``): steps 19-21 need the stand-in.
     sphere_url: str = ""
-    #: The watcher's interval (``UPSTREAM_POLL_INTERVAL_S``); step 19 waits for up to three cycles.
-    poll_interval_s: float = 300.0
+    #: The upstream watcher's interval (``UPSTREAM_POLL_INTERVAL_S``); step 19 waits for up to three cycles. Not the
+    #: job and study polling above (``poll_interval_s``), which stays at one second.
+    upstream_interval_s: float = 300.0
 
 
 class StepError(Exception):
@@ -1371,7 +1372,7 @@ def step_upstream_offering_event(lab: Lab) -> Checks:
     checks = lab.begin()
     before = operation_counts(lab)
     lab.feed_etags = [before["feedEtag"]]  # type: ignore[attr-defined]
-    deadline = lab.clock() + 2 * lab.config.poll_interval_s + EVENT_MARGIN_S
+    deadline = lab.clock() + 2 * lab.config.upstream_interval_s + EVENT_MARGIN_S
     revalidated = manifest_304s(lab)
     while revalidated < 1 and lab.clock() < deadline:
         lab.sleep(2.0)
@@ -1385,7 +1386,7 @@ def step_upstream_offering_event(lab: Lab) -> Checks:
     again = status == "already_published"
     if again:
         checks.note(f"{OFFERING_SCENARIO} was published on this lab before: the event it made is checked")
-    deadline = lab.clock() + EVENT_CYCLES * lab.config.poll_interval_s + EVENT_MARGIN_S
+    deadline = lab.clock() + EVENT_CYCLES * lab.config.upstream_interval_s + EVENT_MARGIN_S
     event = offering_event(lab)
     while event is None and lab.clock() < deadline:
         lab.sleep(2.0)
@@ -1685,13 +1686,13 @@ def main(
         print(json.dumps({"tool": "smoke_lab", "ok": False, "error": "DEMO_SEED_PASSWORD is required", "steps": []}))
         return EXIT_CONFIG
     try:
-        poll_interval_s = float(source.get("UPSTREAM_POLL_INTERVAL_S") or 300)
+        upstream_interval_s = float(source.get("UPSTREAM_POLL_INTERVAL_S") or 300)
     except ValueError:
-        poll_interval_s = 300.0
+        upstream_interval_s = 300.0
     config = Config(
         base_url=base_url, password=password, origin=args.origin, evil_origin=args.evil_origin,
         job_timeout_s=args.job_timeout, max_concurrent=args.max_concurrent, skip=args.skip, with_space=args.with_space,
-        only=args.steps, sphere_url=source.get("SPHERE_URL", ""), poll_interval_s=poll_interval_s,
+        only=args.steps, sphere_url=source.get("SPHERE_URL", ""), upstream_interval_s=upstream_interval_s,
     )
     with httpx.Client(base_url=base_url, transport=transport, follow_redirects=False) as client:
         report = run_smoke(config, client, sleep=sleep)
