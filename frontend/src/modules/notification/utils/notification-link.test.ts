@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { notificationBody, notificationLink, timeAgo } from './notification-link';
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
+import Iconify from '../../core/components/iconify';
+import { NOTIFICATION_KINDS } from '../api/notificationsApi';
+import { KIND_ICONS, notificationBody, notificationLink, timeAgo } from './notification-link';
 import upstream from '../../../test/fixtures/core/upstream.notifications.json';
 
 describe('notificationLink', () => {
@@ -81,6 +85,14 @@ describe('notificationLink', () => {
     expect(notificationBody({ kind: 'UpstreamEvent', body: 'as sent', payload: {} })).toBe(
       'as sent'
     );
+  });
+
+  it('draws an icon for every kind', () => {
+    for (const kind of NOTIFICATION_KINDS) {
+      const { container, unmount } = render(createElement(Iconify, { icon: KIND_ICONS[kind] }));
+      expect(container.querySelector('svg'), kind).not.toBeNull();
+      unmount();
+    }
   });
 
   it('says how long ago', () => {
