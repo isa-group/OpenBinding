@@ -19,6 +19,12 @@ interface Props {
   loading?: boolean;
   /** Why the margins could not be read, in words. */
   error?: string | null;
+  /** The heading, "Margin per plan" by default (an upstream event's two tables say before and after). */
+  title?: string;
+  /** What the rows were computed from, instead of the caption the answer gives. */
+  caption?: string;
+  /** Leave the basis column out (rows an upstream event stored carry none). */
+  hideBasis?: boolean;
 }
 
 /** The caption: what the rows were computed from. */
@@ -66,7 +72,15 @@ function Amount({
   );
 }
 
-export function MarginTable({ margins, users, loading = false, error = null }: Props) {
+export function MarginTable({
+  margins,
+  users,
+  loading = false,
+  error = null,
+  title = 'Margin per plan',
+  caption,
+  hideBasis = false,
+}: Props) {
   const usersId = useId();
   const status = margins ? marginsStatusText(margins) : null;
   const currency = margins?.currency ?? null;
@@ -75,7 +89,7 @@ export function MarginTable({ margins, users, loading = false, error = null }: P
     <div className="flex min-w-0 flex-col gap-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-tp-ink">Margin per plan</h3>
+          <h3 className="text-sm font-semibold text-tp-ink">{title}</h3>
           <p className="text-xs text-tp-steel">
             Each plan’s revenue a month minus the upstream cost per user
             {currency ? `, in ${currency}` : ''}.
@@ -138,12 +152,12 @@ export function MarginTable({ margins, users, loading = false, error = null }: P
         )}
       </div>
       {margins && margins.rows.length > 0 && (
-        <DataTable label="Margin per plan" minWidth={640} caption={basisText(margins)}>
+        <DataTable label={title} minWidth={640} caption={caption ?? basisText(margins)}>
           <thead>
             <tr>
               <th scope="col">Plan</th>
               <th scope="col">Add-on</th>
-              <th scope="col">Basis</th>
+              {!hideBasis && <th scope="col">Basis</th>}
               <th scope="col" className="text-right">
                 Revenue
               </th>
@@ -172,9 +186,11 @@ export function MarginTable({ margins, users, loading = false, error = null }: P
                   )}
                 </td>
                 <td>{row.addOns.length ? row.addOns.join(', ') : '—'}</td>
-                <td className="text-tp-steel">
-                  {row.basis === 'seat' ? 'Per seat' : 'Per subscription'}
-                </td>
+                {!hideBasis && (
+                  <td className="text-tp-steel">
+                    {row.basis === 'seat' ? 'Per seat' : 'Per subscription'}
+                  </td>
+                )}
                 <td className="text-right">
                   <Amount value={row.revenue} currency={currency} row={row} />
                 </td>

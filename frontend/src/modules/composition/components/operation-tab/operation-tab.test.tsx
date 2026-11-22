@@ -3,10 +3,13 @@ import { describe, expect, it } from 'vitest';
 import type { CompositionView } from '../../../core/api/types';
 import environments from '../../../../test/fixtures/core/tomatometer.environments.json';
 import production from '../../../../test/fixtures/core/tomatometer.environment.production.json';
+import events from '../../../../test/fixtures/core/upstream.tomatometer.events.json';
+import valuesChanged from '../../../../test/fixtures/core/upstream.tomatometer.event.values-changed.json';
 import { fakeGateway, renderModule } from '../../../../test/moduleKit';
 import OperationTab from '.';
 
 const ROOT = '/v1/organizations/isa-demo/compositions/tomatometer/environments';
+const EVENTS = '/v1/organizations/isa-demo/compositions/tomatometer/upstream-events';
 
 const composition = {
   id: 'c-1',
@@ -27,7 +30,11 @@ const render = (role: 'VIEWER' | 'MEMBER' | 'ADMIN', routes = {}, entry = '/') =
     />,
     {
       entry,
-      gateway: fakeGateway({ [`GET ${ROOT}`]: { body: environments }, ...routes }),
+      gateway: fakeGateway({
+        [`GET ${ROOT}`]: { body: environments },
+        [`GET ${EVENTS}`]: { body: events },
+        ...routes,
+      }),
     }
   );
 
@@ -103,5 +110,32 @@ describe('the Operation tab', () => {
     expect(screen.getByRole('link', { name: /All environments/ })).toBeInTheDocument();
     expect(screen.getByText('Expected users').nextSibling).toHaveTextContent('1,000');
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+
+  it('lists the upstream changes under the environments', async () => {
+    render('VIEWER');
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Upstream changes' })
+    ).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'brevo 2026-10 → 2026-11' })).toHaveAttribute(
+      'href',
+      `/compositions/isa-demo/tomatometer/operation?event=${valuesChanged.id}`
+    );
+  });
+
+  it('opens the event the address names in place, with a way back to the tab', async () => {
+    render(
+      'VIEWER',
+      {
+        [`GET ${EVENTS}/${valuesChanged.id}`]: { body: valuesChanged, headers: { ETag: '"e"' } },
+      },
+      `/?event=${valuesChanged.id}`
+    );
+    expect(await screen.findByRole('heading', { level: 2, name: 'brevo' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /All upstream changes/ })).toHaveAttribute(
+      'href',
+      '/compositions/isa-demo/tomatometer/operation'
+    );
+    expect(screen.queryByRole('heading', { level: 2, name: 'Environments' })).toBeNull();
   });
 });

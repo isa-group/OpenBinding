@@ -4,7 +4,8 @@
 // Changes: a composition's environments instead of an organization's collections: the frame (a hairline card, an h2 with
 // its subtitle, the primary "New environment" for ADMIN, the empty state, the 1-2-3 column grid) is SPHERE's; there is no
 // search or paging (a composition has a handful of environments). The environment the address names (`?environment=`)
-// opens its detail in place of the grid. Who sees what follows the roles: every member reads, whoever the environment's
+// opens its detail in place of the grid; under the grid, the composition's upstream changes (F6), whose event the address
+// names (`?event=`) opens in place too. Who sees what follows the roles: every member reads, whoever the environment's
 // adoption role allows adopts, ADMIN creates, edits and deletes.
 
 import { motion } from 'framer-motion';
@@ -27,6 +28,8 @@ import { roleAtLeast } from '../../hooks/useCompositionRole';
 import { mayAdopt } from '../../utils/environments';
 import EnvironmentCard from '../environment-card';
 import EnvironmentFormDialog, { DeleteEnvironmentDialog } from '../environment-form-dialog';
+import UpstreamEventDetailView from '../upstream-event-detail';
+import UpstreamEventsSection from '../upstream-events-section';
 import EnvironmentDetail from './EnvironmentDetail';
 
 interface Props {
@@ -54,6 +57,7 @@ export default function OperationTab({
   const { addToast } = useToast();
   const [query] = useSearchParams();
   const selected = query.get('environment');
+  const event = query.get('event');
   const canAdminister = roleAtLeast(role, 'ADMIN');
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<{
@@ -91,6 +95,19 @@ export default function OperationTab({
 
   const failure = environments.status === 'error' ? classifyAuthError(environments.error) : null;
   const list = environments.data ?? environments.stale ?? [];
+
+  if (event)
+    return (
+      <UpstreamEventDetailView
+        org={org}
+        composition={composition}
+        versions={versions}
+        eventId={event}
+        role={role}
+        backTo={detailTo()}
+        refresh={`${refresh}:${nonce}`}
+      />
+    );
 
   if (selected)
     return (
@@ -230,6 +247,14 @@ export default function OperationTab({
           lists what can be adopted.
         </p>
       )}
+
+      <div className="mt-6">
+        <UpstreamEventsSection
+          org={org}
+          composition={composition}
+          refresh={`${refresh}:${nonce}`}
+        />
+      </div>
 
       {creating && (
         <EnvironmentFormDialog

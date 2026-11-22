@@ -1,6 +1,6 @@
 // One environment of a composition on the Operation tab (`?environment=<slug>`): what it is, who answers for it, and the
-// version in effect. SPHERE has no environments; the header follows the composition page's own sections. ADMIN edits and
-// deletes it from here with the `ETag` this read answered.
+// version in effect with its open upstream changes. SPHERE has no environments; the header follows the composition page's
+// own sections. ADMIN edits and deletes it from here with the `ETag` this read answered.
 
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -19,6 +19,7 @@ import type { OrgRole } from '../../../organization/api/organizationsApi';
 import { compositionPath } from '../../../../routes/paths/compositions';
 import { compositionsApi, useCompositionsApi } from '../../api/compositionsApi';
 import { useEnvironmentsApi } from '../../api/environmentsApi';
+import { useUpstreamEventsApi } from '../../api/upstreamEventsApi';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
 import AdoptionHistory from '../adoption-history';
 import CheckPanel from '../check-panel';
@@ -86,6 +87,20 @@ export default function EnvironmentDetail({
             evaluation: current.evaluation?.id,
           })
         : null
+  );
+  // The open upstream changes of the version in effect, asked for only when the environment counts some.
+  const eventsApi = useUpstreamEventsApi();
+  const counted = (loaded?.upstream?.open ?? 0) > 0;
+  const events = useResource(
+    `environment-events:${org}/${composition.slug}/${current?.version.id ?? 'none'}/${counted}:${nonce}`,
+    async () =>
+      current && counted
+        ? ((
+            await eventsApi
+              .list(org, composition.slug, { version: current.version.id, state: 'open' })
+              .catch(() => null)
+          )?.events ?? [])
+        : []
   );
   const upstream = useResource(
     `environment-upstream:${org}/${composition.slug}/${current?.version.id ?? 'none'}`,
@@ -245,6 +260,12 @@ export default function EnvironmentDetail({
               compositionPath(org, composition.slug, undefined, { version: label }),
             onAdopt: canAdopt ? () => onAdopt?.(environment) : undefined,
             badge: <UpstreamBadge upstream={environment.upstream} />,
+            events: {
+              items: events.data ?? [],
+              eventHref: event =>
+                compositionPath(org, composition.slug, 'operation', { event: event.id }),
+              allHref: compositionPath(org, composition.slug, 'operation'),
+            },
             margins: (
               <MarginTable
                 margins={margins.data ?? margins.stale ?? null}

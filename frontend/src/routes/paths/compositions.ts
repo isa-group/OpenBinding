@@ -30,14 +30,15 @@ export interface CompositionsFilter {
 }
 
 /**
- * The query of a composition page: the version shown (`version`), the pair the Versions tab compares (`from`, `to`), and the
- * environment the Operation tab opens (`environment`, its slug).
+ * The query of a composition page: the version shown (`version`), the pair the Versions tab compares (`from`, `to`), the
+ * environment the Operation tab opens (`environment`, its slug), and the upstream event it opens in place (`event`, its id).
  */
 export interface CompositionQuery {
   version?: number | string;
   from?: number | string;
   to?: number | string;
   environment?: string;
+  event?: string;
 }
 
 function withQuery(
