@@ -1,8 +1,9 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { CompositionView } from '../../../core/api/types';
 import list from '../../../../test/fixtures/core/upstream.tomatometer.events.json';
 import two from '../../../../test/fixtures/core/upstream.tomatometer.events.two.json';
+import offering from '../../../../test/fixtures/core/upstream.tomatometer.event.offering-changed.json';
 import { fakeGateway, renderModule } from '../../../../test/moduleKit';
 import UpstreamEventsSection from '.';
 
@@ -69,5 +70,34 @@ describe('the upstream changes of the Operation tab', () => {
     expect(await screen.findByLabelText('Watched pricings')).toHaveTextContent(
       'atenea/dropbox is paused: it is no longer readable in SPHERE.'
     );
+  });
+
+  it('says an offering event affects the environments, not that its version is in effect there', async () => {
+    draw({ ...list, events: [{ ...offering, environments: ['production', 'staging'] }] });
+    const rows = await screen.findByRole('list', { name: 'Upstream events' });
+    const [row] = within(rows).getAllByRole('listitem');
+    expect(row).toHaveTextContent(
+      'The offering, against version 1.1.0 · affects production, staging'
+    );
+    expect(row).not.toHaveTextContent('in effect in');
+  });
+
+  it('says when the older changes could not be read, and lets the reader try again', async () => {
+    let older = 0;
+    renderModule(<UpstreamEventsSection org="fixtures" composition={composition} />, {
+      gateway: fakeGateway({
+        [`GET ${EVENTS}`]: ({ path }: { path: string }) => {
+          if (!path.includes('before=')) return { body: { ...list, nextBefore: 'cursor-1' } };
+          older += 1;
+          return { status: 503, body: { code: 'unavailable', detail: 'Try later' } };
+        },
+      }),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Show older changes' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The older changes couldn’t be read. Try again.'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Show older changes' }));
+    await waitFor(() => expect(older).toBe(2));
   });
 });

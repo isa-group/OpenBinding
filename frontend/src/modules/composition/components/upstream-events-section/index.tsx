@@ -1,8 +1,10 @@
+// Pattern only, after SPHERE frontend/src/modules/pricing/components/pricing-versions-tab/index.tsx (revision 73779a8a),
+// https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
+// MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // The upstream changes of a composition on its Operation tab (F6): which pricings its live versions read and when they were
 // last checked, filter chips by state (no-impact events hidden by default), and the events newest first, each a row that
-// opens its detail in place (`?event=<id>`). The rows follow SPHERE's version rows (frontend/src/modules/pricing/
-// components/pricing-versions-tab, revision 73779a8a, the recipe the Versions tab already ports): a label, pills, the
-// date, the facts in a small line. What is "superseded" or "withdrawn" is the gateway's (`supersededBy`,
+// opens its detail in place (`?event=<id>`). The rows follow SPHERE's version rows (the recipe the Versions tab already
+// ports): a label, pills, the date, the facts in a small line. What is "superseded" or "withdrawn" is the gateway's (`supersededBy`,
 // `newVersionWithdrawn`); nothing is classified here.
 
 import { formatDistanceToNow, parseISO } from 'date-fns';
@@ -98,7 +100,9 @@ function EventRow({ org, slug, event }: { org: string; slug: string; event: Upst
           {event.subject === 'offering'
             ? `The offering, against version ${event.version.label}`
             : `Version ${event.version.label}${event.tasks.length ? ` · ${event.tasks.join(', ')}` : ''}`}
-          {event.environments.length > 0 && ' · in effect in '}
+          {/* An offering event affects every environment with a version in effect, whichever version it is. */}
+          {event.environments.length > 0 &&
+            (event.subject === 'offering' ? ' · affects ' : ' · in effect in ')}
           {event.environments.map((environment, index) => (
             <span key={environment}>
               {index > 0 && ', '}
@@ -139,6 +143,7 @@ export default function UpstreamEventsSection({ org, composition, refresh = 0 }:
     next: string | null;
   } | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [moreFailed, setMoreFailed] = useState(false);
   const read = useResource<UpstreamEventList>(key, () =>
     api.list(org, composition.slug, { limit: PAGE })
   );
@@ -155,6 +160,7 @@ export default function UpstreamEventsSection({ org, composition, refresh = 0 }:
   const loadMore = async () => {
     if (!nextBefore || loadingMore) return;
     setLoadingMore(true);
+    setMoreFailed(false);
     try {
       const answer = await api.list(org, composition.slug, { limit: PAGE, before: nextBefore });
       setOlder({
@@ -162,6 +168,8 @@ export default function UpstreamEventsSection({ org, composition, refresh = 0 }:
         events: [...(extra?.events ?? []), ...answer.events],
         next: answer.nextBefore,
       });
+    } catch {
+      setMoreFailed(true);
     } finally {
       setLoadingMore(false);
     }
@@ -265,10 +273,15 @@ export default function UpstreamEventsSection({ org, composition, refresh = 0 }:
               type="button"
               onClick={() => void loadMore()}
               disabled={loadingMore}
-              className="cursor-pointer text-xs text-tp-steel underline decoration-dotted hover:text-tp-ink disabled:cursor-wait"
+              className="inline-flex min-h-6 cursor-pointer items-center text-xs text-tp-steel underline decoration-dotted hover:text-tp-ink disabled:cursor-wait"
             >
               {loadingMore ? 'Loading…' : 'Show older changes'}
             </button>
+            {moreFailed && (
+              <p role="alert" className="m-0 mt-1 text-xs text-red-700">
+                The older changes couldn’t be read. Try again.
+              </p>
+            )}
           </div>
         )}
       </div>

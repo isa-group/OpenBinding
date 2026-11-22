@@ -5,6 +5,8 @@ import environments from '../../../../test/fixtures/core/tomatometer.environment
 import production from '../../../../test/fixtures/core/tomatometer.environment.production.json';
 import events from '../../../../test/fixtures/core/upstream.tomatometer.events.json';
 import valuesChanged from '../../../../test/fixtures/core/upstream.tomatometer.event.values-changed.json';
+import offeringChanged from '../../../../test/fixtures/core/upstream.tomatometer.event.offering-changed.json';
+import productionCounting from '../../../../test/fixtures/core/upstream.tomatometer.environment.production.json';
 import { fakeGateway, renderModule } from '../../../../test/moduleKit';
 import OperationTab from '.';
 
@@ -110,6 +112,39 @@ describe('the Operation tab', () => {
     expect(screen.getByRole('link', { name: /All environments/ })).toBeInTheDocument();
     expect(screen.getByText('Expected users').nextSibling).toHaveTextContent('1,000');
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+
+  it('lists in an environment every open change it counts: its version’s and the offering’s', async () => {
+    const asked: string[] = [];
+    render(
+      'VIEWER',
+      {
+        [`GET ${ROOT}/production`]: {
+          body: { ...productionCounting, upstream: { ...productionCounting.upstream, open: 2 } },
+          headers: { ETag: '"7"' },
+        },
+        [`GET ${EVENTS}`]: ({ path }: { path: string }) => {
+          asked.push(path);
+          const query = new URLSearchParams(path.split('?')[1] ?? '');
+          const shown =
+            query.get('subject') === 'offering'
+              ? [offeringChanged]
+              : query.get('subject') === 'binding'
+                ? [valuesChanged]
+                : [valuesChanged, offeringChanged];
+          return { body: { ...events, events: shown } };
+        },
+      },
+      '/?environment=production'
+    );
+    await screen.findByRole('heading', { level: 2, name: 'Production' });
+    expect(
+      await screen.findByRole('link', { name: 'brevo 2026-10 → 2026-11' })
+    ).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /1\.0\.0 → 1\.2\.0/ })).toBeInTheDocument();
+    expect(
+      asked.some(path => path.includes('subject=offering') && path.includes('state=open'))
+    ).toBe(true);
   });
 
   it('lists the upstream changes under the environments', async () => {

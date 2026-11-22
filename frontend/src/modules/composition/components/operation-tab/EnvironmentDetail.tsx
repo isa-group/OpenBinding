@@ -88,19 +88,31 @@ export default function EnvironmentDetail({
           })
         : null
   );
-  // The open upstream changes of the version in effect, asked for only when the environment counts some.
+  // The open upstream changes the environment counts, asked for only when it counts some: the binding events of the
+  // version in effect and the composition's offering events (an environment's counts include both), newest first.
   const eventsApi = useUpstreamEventsApi();
   const counted = (loaded?.upstream?.open ?? 0) > 0;
   const events = useResource(
     `environment-events:${org}/${composition.slug}/${current?.version.id ?? 'none'}/${counted}:${nonce}`,
-    async () =>
-      current && counted
-        ? ((
-            await eventsApi
-              .list(org, composition.slug, { version: current.version.id, state: 'open' })
-              .catch(() => null)
-          )?.events ?? [])
-        : []
+    async () => {
+      if (!current || !counted) return [];
+      const [own, offering] = await Promise.all([
+        eventsApi
+          .list(org, composition.slug, {
+            version: current.version.id,
+            subject: 'binding',
+            state: 'open',
+          })
+          .catch(() => null),
+        eventsApi
+          .list(org, composition.slug, { subject: 'offering', state: 'open' })
+          .catch(() => null),
+      ]);
+      const seen = new Set<string>();
+      return [...(own?.events ?? []), ...(offering?.events ?? [])]
+        .filter(event => !seen.has(event.id) && Boolean(seen.add(event.id)))
+        .sort((a, b) => b.detectedAt.localeCompare(a.detectedAt));
+    }
   );
   const upstream = useResource(
     `environment-upstream:${org}/${composition.slug}/${current?.version.id ?? 'none'}`,
