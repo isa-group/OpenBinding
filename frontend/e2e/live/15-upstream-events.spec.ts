@@ -227,7 +227,8 @@ test('J1 · Brevo raises PROFESSIONAL: the team is told, the badges show, the ev
 
   await page.goto(PAGE);
   await expect(main.getByRole('link', { name: /upstream change/ }).first()).toBeVisible();
-  await capture(page, testInfo, 'f6-badge');
+  // The badge is in the header: the screen as seen (the overview below is the longest page of the lab).
+  await capture(page, testInfo, 'f6-badge', { fullPage: false });
   await page.goto(`/orgs/${ORG}/compositions`);
   await expect(main.getByRole('article', { name: 'TomatoMeter' })).toContainText(/upstream change/);
   await page.goto(OPERATION);
@@ -272,7 +273,7 @@ test('J2 · the viewer is offered nothing; the member marks it reviewed; a stale
   await page.locator('main').getByRole('button', { name: 'Mark reviewed' }).click();
   const dialog = page.getByRole('dialog', { name: 'Mark reviewed' });
   await dialog.getByRole('textbox', { name: 'Note' }).fill('Seen; re-solving');
-  await capture(page, testInfo, 'f6-review');
+  await capture(page, testInfo, 'f6-review', { fullPage: false });
   await dialog.getByRole('button', { name: 'Mark reviewed' }).click();
   await expect(page.locator('main').getByText('“Seen; re-solving”')).toBeVisible();
   await expect(page.locator('main').getByText('Reviewed', { exact: true }).first()).toBeVisible();
