@@ -75,6 +75,8 @@ export interface OperationStore {
     versions: readonly CompositionVersionView[],
     derive: Derive
   ) => CompositionReply;
+  /** `GET /v1/users/me/upstream-events`: TomatoMeter's open events when a spec seeded them (e2e/f6-*.spec.ts), else none. */
+  mineEvents: () => unknown[];
   /** Answers `/v1/organizations/{org}/proposals/{proposal}[/confirm]` (read, confirm, cancel). */
   proposalRoute: (
     request: CompositionRequest,
@@ -131,6 +133,7 @@ export function operationStore(org: string, composition: string): OperationStore
     confirmed: [],
     proposalsRoute,
     proposalRoute,
+    mineEvents: () => [],
   };
   let made = 0;
   const etagOf = (item: Held) => `"env-${item.view.slug}-${item.revision}"`;

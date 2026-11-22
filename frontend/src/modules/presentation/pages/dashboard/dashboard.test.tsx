@@ -1,6 +1,8 @@
 import { screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeGateway, orgNode, renderModule } from '../../../../test/moduleKit';
+import myEvents from '../../../../test/fixtures/core/upstream.me.events.json';
+import myProposals from '../../../../test/fixtures/core/zproposals.me.json';
 import DashboardPage from '.';
 
 const runs = vi.hoisted(() => ({ list: vi.fn() }));
@@ -94,5 +96,45 @@ describe('the dashboard', () => {
       '/orgs/new'
     );
     expect(screen.getByText(/I have an invitation link/)).toBeInTheDocument();
+  });
+
+  it('shows the open upstream changes and the account’s pending proposals after the recent compositions', async () => {
+    renderModule(<DashboardPage />, {
+      tree: [group],
+      gateway: fakeGateway({
+        'GET /v1/users/me/compositions': { body: { compositions: [composition], total: 1 } },
+        'GET /v1/users/me/upstream-events': { body: myEvents },
+        'GET /v1/users/me/proposals': { body: myProposals },
+      }),
+    });
+    const changes = await screen.findByRole('region', { name: 'Upstream changes' });
+    const [event] = myEvents.events;
+    expect(within(changes).getByRole('link', { name: /brevo 2026-10 → 2026-11/ })).toHaveAttribute(
+      'href',
+      `/compositions/${event.organization.slug}/${event.composition.slug}/operation?event=${event.id}`
+    );
+    expect(changes).toHaveTextContent('Values changed');
+    const pending = screen.getByRole('region', { name: 'Your pending proposals' });
+    expect(pending).toHaveTextContent(myProposals.proposals[0].summary);
+    expect(pending).toHaveTextContent('waiting for your confirmation');
+    const order = screen
+      .getAllByRole('region')
+      .map(region => region.getAttribute('aria-label'))
+      .filter(Boolean);
+    expect(order.indexOf('Upstream changes')).toBe(order.indexOf('Recent compositions') + 1);
+  });
+
+  it('hides both panels when there is nothing to show', async () => {
+    renderModule(<DashboardPage />, {
+      tree: [group],
+      gateway: fakeGateway({
+        'GET /v1/users/me/compositions': { body: { compositions: [composition], total: 1 } },
+        'GET /v1/users/me/upstream-events': { body: { events: [] } },
+        'GET /v1/users/me/proposals': { body: { proposals: [] } },
+      }),
+    });
+    await screen.findByRole('region', { name: 'Recent compositions' });
+    expect(screen.queryByRole('region', { name: 'Upstream changes' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Your pending proposals' })).toBeNull();
   });
 });

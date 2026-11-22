@@ -1071,6 +1071,17 @@ function userRoutes(request: Request): Reply {
       return subId === 'beta-features' ? ok({ enabled: false }) : notFound();
     case 'compositions':
       return request.compositions.mineList(request);
+    case 'upstream-events':
+      // The dashboard's open upstream changes (F6): TomatoMeter's when the page seeded its upstream, none otherwise.
+      return ok({ events: request.compositions.operation?.mineEvents() ?? [] });
+    case 'proposals':
+      // The dashboard's pending proposals of the account (F6): TomatoMeter's pending ones of the page, none otherwise.
+      return ok({
+        proposals:
+          request.compositions.operation?.proposals.filter(
+            item => item.mine && item.status === 'pending'
+          ) ?? [],
+      });
     default:
       return method === 'GET' ? notFound() : { status: 204 };
   }

@@ -2,10 +2,10 @@
 // https://github.com/SCORELabUS/SPHERE. Copyright (c) 2024 Alejandro García Fernández.
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's workspace: the stat tiles count organizations, the compositions the account reads and the runs
-// running; recent organizations, compositions and problems (recents the account can still read, else the latest
-// compositions), then the recent runs of the organizations; OpenBinding's quick actions; the empty state for an account
-// without organizations, with the invitation hint; links instead of `router.push` buttons; the
-// greeting uses the username (OpenBinding keeps no first name).
+// running; recent organizations and compositions (recents the account can still read, else the latest compositions), the
+// open upstream changes and the account's pending proposals (F6; each hidden when empty), recent problems, then the recent
+// runs of the organizations; OpenBinding's quick actions; the empty state for an account without organizations, with the
+// invitation hint; links instead of `router.push` buttons; the greeting uses the username (OpenBinding keeps no first name).
 
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -22,10 +22,13 @@ import { problemPath } from '../../../../routes/paths/problems';
 import { launchPath, runPath } from '../../../../routes/paths/runs';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { readResponse } from '../../../core/api/http';
-import type { CompositionList } from '../../../core/api/types';
+import type { CompositionList, MyUpstreamEvent, ProposalView } from '../../../core/api/types';
 import Iconify from '../../../core/components/iconify';
 import DashboardSkeleton from '../../../core/components/skeletons/dashboard-skeleton';
-import { UpstreamBadge } from '../../../core/components/upstream-badge';
+import { UpstreamBadge, UpstreamCategoryPill } from '../../../core/components/upstream-badge';
+import { eventHeadline } from '../../../core/utils/composition/upstreamEvents';
+import { useProposalsApi } from '../../../composition/api/proposalsApi';
+import { useUpstreamEventsApi } from '../../../composition/api/upstreamEventsApi';
 import { useRecentItems } from '../../../core/hooks/useRecentItems';
 import { fadeInUp, staggerContainer, transitionDefault } from '../../../core/utils/motion-variants';
 import { useUpstreamRefresh } from '../../../notification/hooks/useUpstreamRefresh';
@@ -34,6 +37,8 @@ import { useOrganization } from '../../../organization/hooks/useOrganization';
 
 const RECENT_LIMIT = 3;
 const RUNS_SHOWN = 5;
+const UPSTREAM_SHOWN = 5;
+const PROPOSALS_SHOWN = 5;
 
 type Composition = CompositionList['compositions'][number];
 
@@ -83,6 +88,10 @@ export default function DashboardPage() {
   const [compositions, setCompositions] = useState<Composition[]>([]);
   const [compositionsTotal, setCompositionsTotal] = useState(0);
   const [runs, setRuns] = useState<Array<Job & { orgSlug: string }>>([]);
+  const [upstreamEvents, setUpstreamEvents] = useState<MyUpstreamEvent[]>([]);
+  const [pendingProposals, setPendingProposals] = useState<ProposalView[]>([]);
+  const upstreamApi = useUpstreamEventsApi();
+  const proposalsApi = useProposalsApi();
   const [isLoading, setIsLoading] = useState(true);
 
   // An upstream event arrived: the compositions' badges are read again.
@@ -122,6 +131,23 @@ export default function DashboardPage() {
       current = false;
     };
   }, [orgKey, organizationsLoading, fetchWithInterceptor, arrived]);
+
+  // The open upstream changes of the account's organizations and its own pending proposals; each panel hides when empty.
+  useEffect(() => {
+    if (organizationsLoading) return;
+    let current = true;
+    Promise.all([
+      upstreamApi.mine(UPSTREAM_SHOWN).catch(() => [] as MyUpstreamEvent[]),
+      proposalsApi.mine(PROPOSALS_SHOWN).catch(() => [] as ProposalView[]),
+    ]).then(([events, proposals]) => {
+      if (!current) return;
+      setUpstreamEvents(events);
+      setPendingProposals(proposals.filter(proposal => proposal.status === 'pending'));
+    });
+    return () => {
+      current = false;
+    };
+  }, [organizationsLoading, upstreamApi, proposalsApi, arrived]);
 
   const bySlug = useMemo(() => new Map(organizations.map(org => [org.slug, org])), [organizations]);
   const byId = useMemo(() => new Map(organizations.map(org => [org.id, org])), [organizations]);
@@ -327,6 +353,73 @@ export default function DashboardPage() {
                 </ul>
               )}
             </Section>
+
+            {upstreamEvents.length > 0 && (
+              <Section title="Upstream changes" delay={0.17}>
+                <ul className="divide-y divide-tp-hairline rounded-xl border border-tp-hairline bg-tp-canvas">
+                  {upstreamEvents.map(event => (
+                    <li key={event.id}>
+                      <Link
+                        to={compositionPath(
+                          event.organization.slug,
+                          event.composition.slug,
+                          'operation',
+                          {
+                            event: event.id,
+                          }
+                        )}
+                        className="flex flex-col gap-1 px-4 py-3 text-sm hover:bg-tp-surface/50 sm:flex-row sm:items-center sm:gap-3"
+                      >
+                        <span className="min-w-0 flex-1 truncate font-medium text-tp-ink">
+                          {eventHeadline(event)}
+                        </span>
+                        <span className="flex flex-wrap items-center gap-2 text-xs text-tp-steel">
+                          <UpstreamCategoryPill category={event.category} />
+                          <span>{`${event.composition.name} ${event.version.label} · ${event.organization.name}`}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            )}
+
+            {pendingProposals.length > 0 && (
+              <Section title="Your pending proposals" delay={0.18}>
+                <ul className="divide-y divide-tp-hairline rounded-xl border border-tp-hairline bg-tp-canvas">
+                  {pendingProposals.map(proposal => (
+                    <li key={proposal.id}>
+                      {proposal.composition ? (
+                        <Link
+                          to={compositionPath(
+                            proposal.organization.slug,
+                            proposal.composition.slug,
+                            'operation'
+                          )}
+                          className="flex flex-col gap-1 px-4 py-3 text-sm hover:bg-tp-surface/50 sm:flex-row sm:items-center sm:gap-3"
+                        >
+                          <span className="min-w-0 flex-1 truncate font-medium text-tp-ink">
+                            {proposal.summary}
+                          </span>
+                          <span className="text-xs text-tp-steel">
+                            {`${proposal.composition.name} · ${proposal.organization.name} · waiting for your confirmation`}
+                          </span>
+                        </Link>
+                      ) : (
+                        <span className="flex flex-col gap-1 px-4 py-3 text-sm">
+                          <span className="truncate font-medium text-tp-ink">
+                            {proposal.summary}
+                          </span>
+                          <span className="text-xs text-tp-steel">
+                            {proposal.organization.name}
+                          </span>
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            )}
 
             <Section title="Recent problems" delay={0.2}>
               {recentProbs.length === 0 ? (
