@@ -34,7 +34,7 @@ from typing import Any, Literal, Optional, Union
 from fastapi import HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import func, select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, InvalidRequestError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....collaboration import ROLE_STRENGTH
@@ -186,6 +186,15 @@ def transient(error: HTTPException) -> bool:
     """A refusal that says nothing about the request: a busy slot or spent budget (429), or a dependency that does not
     answer (5xx). It is passed on as it is (the caller may retry), never read as a refusal of a step or a stale base."""
     return error.status_code == status.HTTP_429_TOO_MANY_REQUESTS or error.status_code >= 500
+
+
+async def reread(session: AsyncSession, row: Any) -> bool:
+    """Read ``row`` again; ``False`` when it is gone (its composition or organization was deleted meanwhile)."""
+    try:
+        await session.refresh(row)
+    except InvalidRequestError:
+        return False
+    return True
 
 
 def _stale(reason: str, base: Any = None, current: Any = None) -> dict[str, Any]:
@@ -878,7 +887,8 @@ async def cancel(session: AsyncSession, proposal: Proposal, caller: User) -> Pro
         .values(status="cancelled").execution_options(synchronize_session=False)
     )
     if changed.rowcount != 1:
-        await session.refresh(proposal)
+        if not await reread(session, proposal):
+            raise unreadable()
         raise not_pending(proposal)
     audit(session, caller, "composition.proposal_cancelled", TARGET, proposal.id, proposal.organization_id)
     await session.commit()

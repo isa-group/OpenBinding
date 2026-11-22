@@ -11,7 +11,7 @@ import uuid
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from _b1_helpers import gate, make_key, put_member  # noqa: F401
@@ -672,3 +672,53 @@ async def test_a_busy_diff_serves_the_view_without_it_after_the_writes(api_clien
     assert confirmed.json()["status"] == "completed" and confirmed.json()["steps"][0]["preview"]["diff"] is None
     read = await api_client.get(t.proposal(made["id"]), headers=t.member)
     assert read.status_code == 200 and read.json()["steps"][0]["preview"]["diff"] is None
+
+
+async def _gone(session, proposal_id) -> None:
+    """Delete a proposal as a concurrent composition or organization delete does: behind the session's back."""
+    await session.execute(delete(ProposalStep).where(ProposalStep.proposal_id == proposal_id)
+                          .execution_options(synchronize_session=False))
+    await session.execute(delete(Proposal).where(Proposal.id == proposal_id).execution_options(synchronize_session=False))
+    await session.commit()
+
+
+@pytest.mark.parametrize("at", ["claim", "stale"])
+async def test_a_proposal_deleted_before_its_claim_answers_its_404(api_client, registration, db_session, gate, step_kinds, monkeypatch, at):  # noqa: F811
+    """Deleted between the pre-flight and the claim (or the stale mark): confirm answers the proposal's 404, not a
+    server error, and nothing is applied."""
+    t = await tomato_team(api_client, registration, db_session, gate)
+    revision_kind, _ = step_kinds
+    organization, composition, user = await fresh(db_session, t.found)
+    made = await proposals.create(db_session, organization, user, [
+        proposals.StepRequest("test_revision", {"revision": "tomatometer-email@3"}),
+    ], role=_role("OWNER"), composition=composition)
+    proposal_id = made.id
+
+    async def deleted_meanwhile(context, step):
+        await _gone(context.session, proposal_id)
+        return [{"reason": "head_version_changed", "base": None, "current": None}] if at == "stale" else []
+
+    monkeypatch.setattr(revision_kind, "check_base", deleted_meanwhile)
+    refused = await confirm(api_client, t, t.owner, str(proposal_id))
+
+    assert refused.status_code == 404 and code(refused) == "not_found", refused.text
+    body = refused.json()
+    assert (body["detail"] if isinstance(body.get("detail"), dict) else body)["error"] == "Proposal not found."
+    assert await _count(db_session, AuditEvent, AuditEvent.target_id == proposal_id,
+                        AuditEvent.action.in_(["composition.proposal_confirmed", "composition.proposal_stale"])) == 0
+
+
+async def test_cancelling_a_proposal_deleted_meanwhile_answers_its_404(api_client, registration, db_session, gate):  # noqa: F811
+    from fastapi import HTTPException
+
+    t = await tomato_team(api_client, registration, db_session, gate)
+    organization, composition, user = await fresh(db_session, t.found)
+    made = await proposals.create(db_session, organization, user, [
+        proposals.StepRequest("adopt", {"environment": "production", "version": "1.1.0"}),
+    ], role=_role("OWNER"), composition=composition)
+    await _gone(db_session, made.id)
+
+    with pytest.raises(HTTPException) as refused:
+        await proposals.cancel(db_session, made, user)
+
+    assert refused.value.status_code == 404 and refused.value.detail["error"] == "Proposal not found."

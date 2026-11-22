@@ -44,7 +44,6 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
-from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.public_errors import current_correlation_id as correlation_id
@@ -127,15 +126,6 @@ def _error_of(error: HTTPException) -> dict[str, Any]:
     return out
 
 
-async def _refresh(session: AsyncSession, row: Any) -> bool:
-    """Read ``row`` again; ``False`` when it is gone (its composition or organization was deleted meanwhile)."""
-    try:
-        await session.refresh(row)
-    except InvalidRequestError:
-        return False
-    return True
-
-
 async def _reload(context: Context) -> None:
     """After a rollback (a refused apply), the context's rows are read again, the API key that authenticated the
     request included (a later step may read its grants); a pre-flight's derivations are dropped, since they hold rows of
@@ -149,7 +139,7 @@ async def _reload(context: Context) -> None:
             rows.append(candidate)
     for row in rows:
         if row is not None:
-            await _refresh(session, row)
+            await proposals.reread(session, row)
     context.derived.clear()
 
 
@@ -238,7 +228,9 @@ async def confirm(
                 stale=stale,
             )
         await session.rollback()
-        await session.refresh(row)
+        if not await proposals.reread(session, row):
+            # Deleted with its composition or organization since it was read: its 404.
+            raise proposals.unreadable()
         raise proposals.not_pending(row)
 
     # The claim (ORBIT's claimForExecution): one confirmation runs it.
@@ -250,7 +242,9 @@ async def confirm(
     )
     if claimed.rowcount != 1:
         await session.rollback()
-        await session.refresh(row)
+        if not await proposals.reread(session, row):
+            # Deleted with its composition or organization since it was read: its 404.
+            raise proposals.unreadable()
         raise proposals.not_pending(row)
     audit(session, caller, "composition.proposal_confirmed", TARGET, proposal_id, organization_id,
           phrase=bool(row.confirmation_phrase))
@@ -305,7 +299,7 @@ async def confirm(
 
 
 async def _finish(session: AsyncSession, row: Proposal, caller: User) -> Proposal:
-    if not await _refresh(session, row):
+    if not await proposals.reread(session, row):
         # Deleted with its composition or organization while it ran: what was applied stands, the proposal is gone.
         await session.rollback()
         raise proposals.unreadable()
