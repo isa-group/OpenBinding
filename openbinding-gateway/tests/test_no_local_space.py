@@ -1,8 +1,10 @@
 """SPHERE and SPACE are remote; no manifest runs either of them.
 
 No manifest (docker-compose.yml, deploy/**, every lab profile including compose.lab-pricing.json) keeps a SPACE
-service, network, profile or volume, or the destructive key, and no manifest defines SPHERE. The optional pricing
-profile is one one-shot, ``pricing-bootstrap``, that talks to the remote SPACE.
+service, network, profile or volume, or the destructive key, and no manifest defines SPHERE. The one exception is the
+lab's SPHERE stand-in (F6-C): ``sphere-lab`` in ``compose.lab.json``, built from ``lab/sphere/Dockerfile`` (recorded
+answers served by ``tools/sphere_lab.py``), never a SPHERE image. The optional pricing profile is one one-shot,
+``pricing-bootstrap``, that talks to the remote SPACE.
 """
 
 from __future__ import annotations
@@ -70,9 +72,21 @@ def _local_space_problems(manifest: dict, text: str) -> list[str]:
     return problems
 
 
-def _sphere_problems(manifest: dict) -> list[str]:
+#: The lab's SPHERE stand-in, the only service named after SPHERE: built here, from recorded answers.
+STAND_IN = ("compose.lab.json", "sphere-lab", {"context": ".", "dockerfile": "lab/sphere/Dockerfile"})
+
+
+def _sphere_problems(manifest: dict, label: str = "") -> list[str]:
     services = manifest.get("services") or {}
-    return [n for n, s in services.items() if _is_sphere_service(n, s or {})]
+    found = []
+    for name, service in services.items():
+        service = service or {}
+        if not _is_sphere_service(name, service):
+            continue
+        if (label, name, service.get("build")) == STAND_IN and "image" not in service:
+            continue
+        found.append(name)
+    return found
 
 
 def _manifests() -> list[tuple[str, dict, str]]:
@@ -102,7 +116,18 @@ def test_no_manifest_has_local_space() -> None:
 
 def test_no_manifest_defines_sphere() -> None:
     for label, parsed, _ in _manifests():
-        assert not _sphere_problems(parsed), label
+        assert not _sphere_problems(parsed, label), label
+
+
+def test_the_only_sphere_service_is_the_lab_stand_in_built_from_this_repository() -> None:
+    lab = next(parsed for label, parsed, _ in _manifests() if label == "compose.lab.json")
+    assert [n for n, s in lab["services"].items() if _is_sphere_service(n, s or {})] == ["sphere-lab"]
+    assert lab["services"]["sphere-lab"]["build"] == STAND_IN[2]
+    # Anything else named after SPHERE, or the stand-in pulled as an image, is still refused.
+    assert _sphere_problems({"services": {"sphere-lab": {"image": "sphere:latest", "build": STAND_IN[2]}}},
+                            "compose.lab.json") == ["sphere-lab"]
+    assert _sphere_problems({"services": {"sphere-lab": {"build": STAND_IN[2]}}}, "docker-compose.yml") == ["sphere-lab"]
+    assert _sphere_problems({"services": {"sphere": {"image": "sphere"}}}, "compose.lab.json") == ["sphere"]
 
 
 def test_pricing_profile_is_one_bootstrap_service_without_volumes() -> None:
