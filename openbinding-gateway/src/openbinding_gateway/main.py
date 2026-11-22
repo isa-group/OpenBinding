@@ -1346,6 +1346,11 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
                 " A request may also find every Composition2Yaml or evaluation slot of this gateway busy: "
                 "`composition_busy`, `Retry-After: 1`."
             )
+        elif path.endswith("/proposals/{proposal}/confirm"):
+            refused["description"] += (
+                " A seal step's derivation may also find every Composition2Yaml or evaluation slot of this gateway "
+                "busy: `composition_busy`, `Retry-After: 1`; the proposal stays pending."
+            )
         if not any(path.startswith(prefix) for prefix in _PROBLEM_JSON_PREFIXES):
             refused["content"] = {
                 JSON_MEDIA_TYPE: {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}
