@@ -78,18 +78,20 @@ A static check also exists (`lab/tests/test_lab_compose.py`).
 | `seed` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 384 MiB | `profiles: ["seed"]`; not started by `up` |
 | `mailpit` | `axllent/mailpit:v1.33.0`, pinned by digest | 64 MiB | the lab's outbox: SMTP 1025 and HTTP 8025 on the compose network only, `MP_WEBROOT=/mailpit/`, `MP_MAX_MESSAGES=500`; people read it **read-only** at `<lab origin>/mailpit/` through `web` (only `GET`: marking a message read fails quietly) |
 | `feed-consumer` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 96 MiB | `python tools/feed_consumer.py`, the lab's stand-in for TomatoMeter: reads the feed of `lab-main/tomatometer` `production` with the key in `/handoff/openbinding.json` (volume `lab-handoff`, written by the seed), every 3 s; `GET /state` and `POST /send` (the daily summary into Mailpit, tagged with the provider) on 8090 inside the network; waits, healthy, until the seed has run |
+| `sphere-lab` | `lab/sphere/Dockerfile` (context `.`, `python:3.11-slim` pinned by digest; only `openbinding-gateway/tools/sphere_lab.py` and the recorded set `openbinding-gateway/tests/fixtures/sphere`) | 64 MiB | the lab's **SPHERE stand-in** (F6), standard library only, `USER 10001`, volume `lab-sphere` on `/state`: the recorded SPHERE answers and the synthetic scenarios a demo publishes on port 8080, the gateway's default SPHERE (`SPHERE_URL=http://sphere-lab:8080`); a control port 8081 (`POST /_lab/publish/<scenario>`, `GET /_lab/state`, `POST /_lab/throttle?seconds=N`) reachable only inside the compose network: no published port, never proxied by `web`. Unrecorded GETs go to the public SPHERE anonymously (`DEMO_SPHERE_LAB_PASSTHROUGH`), except the scenario families (Brevo set B and `sphere/tomatometer`), which always answer here. `gateway`, `worker` and `seed` wait for it to be healthy |
 | `e2e` | `frontend/Dockerfile.e2e` (`mcr.microsoft.com/playwright:v1.62.1-jammy`, the version `pnpm-lock.yaml` resolves for `@playwright/test`) | 576 MiB | `user: pwuser`, volume `lab-e2e` on `/results`; runs the live specs when `DEMO_E2E=1`, then stays alive; healthy when `/results/done` exists |
 
-**Memory sum of all `mem_limit`: 3936 MiB** (3.84375 GiB; lab ceiling 4096 MiB,
-160 MiB to spare; Mailpit and the feed consumer add 160 MiB to the 3776 MiB before them).
+**Memory sum of all `mem_limit`: 4000 MiB** (3.90625 GiB; lab ceiling 4096 MiB,
+96 MiB to spare; the SPHERE stand-in adds 64 MiB to the 3936 MiB before it, and Mailpit and the feed consumer had
+added 160 MiB to the 3776 MiB before them), over 14 services.
 It includes `seed`, which only runs on demand,
-so the steady state is 3552 MiB. `test_lab_compose.py` and
-`test_container_hardening.py` recompute the sum and fail if it is not 3936 or
+so the steady state is 3616 MiB. `test_lab_compose.py` and
+`test_container_hardening.py` recompute the sum and fail if it is not 4000 or
 if this document does not state it. `mem_limit` bounds the container, not the
 page cache of the named volumes, and image builds are not limited by it.
 
 Optional: the pricing profile `compose.lab-pricing.json` is a 96 MiB one-shot against the remote SPACE, a separate
-project outside this 3936 MiB sum; see `docs/qa/PRICING_PROFILE.md` (removed with the factory artifacts in `e47da50d5`; in git history).
+project outside this 4000 MiB sum; see `docs/qa/PRICING_PROFILE.md` (removed with the factory artifacts in `e47da50d5`; in git history).
 
 **Unprivileged containers.** The gateway image (`gateway`, `worker`, `seed`) runs as
 UID/GID 10001 with no login shell. Root inside a rootless
@@ -160,6 +162,9 @@ Contents access to `javiercavlop/bim-toolchain`.
 | `DEMO_E2E` | e2e | `1` runs the live specs when the service starts; anything else (`0`, unset) only creates `/results/done` and sleeps. See "Browser specs and visual QA inside the lab" |
 | `DEMO_PUBLIC_ORIGIN` | gateway, worker (`PUBLIC_BASE_URL` only), seed | optional; default `http://localhost:18100`. The origin the browser reaches the lab by, with no trailing slash (for example `https://demo.example.org`). It becomes `PUBLIC_BASE_URL` and `FRONTEND_URL` (the worker gets only `PUBLIC_BASE_URL`) and is appended to `CORS_ALLOW_ORIGINS` after `http://localhost:${DEMO_LAB_PORT:-18100},http://127.0.0.1:${DEMO_LAB_PORT:-18100}`. Unset or empty, the URLs stay `http://localhost:18100` and the list gains an empty item that `Settings.cors_origin_list` discards, so CORS allows only the two local origins. The published port is `127.0.0.1:${DEMO_LAB_PORT:-18100}` |
 | `DEMO_LAB_PORT` | `web` (published port), gateway, worker, seed (image tag and local CORS origins) | optional; default `18100` (the develop lab); PR previews use 18101-18199. The loopback port `web` publishes (`127.0.0.1:<port>`). It also sets the gateway image tag `openbinding-lab-gateway:<port>` and the local CORS origins `http://localhost:<port>,http://127.0.0.1:<port>`. The `DEMO_PUBLIC_ORIGIN` defaults keep `http://localhost:18100` |
+| `DEMO_SPHERE_REQUIRE_HTTPS` | gateway, worker, seed (as `SPHERE_REQUIRE_HTTPS`) | `false` with the stand-in (the env example's value: plain http to `sphere-lab`, a private address); `true` against the public SPHERE. `APP_ENV=prod` refuses `false`, and registries and Pricing2Yaml URLs stay https either way |
+| `DEMO_UPSTREAM_POLL_S` | gateway, worker, seed (as `UPSTREAM_POLL_INTERVAL_S`) | `20` with the stand-in (an upstream change shows within one cycle, the watcher ticking every 5 s); `300` against the public SPHERE. `lab/tests/test_lab_compose.py` allows the example a poll under 60 s only while its `SPHERE_URL` names the stand-in |
+| `DEMO_SPHERE_LAB_PASSTHROUGH` | sphere-lab (as `SPHERE_LAB_PASSTHROUGH`) | `https://sphere.score.us.es`: the origin unrecorded GETs (walk 12's live searches) are forwarded to, anonymously and logged `sphere_lab_passthrough`; empty, they answer 404. The scenario families are never forwarded |
 | `SMOKE_BASE_URL` | seed (`smoke_lab.py`) | fixed in the file to `http://web:8080` on `seed` only |
 
 The file writes no SPACE service or plan name: those come from `DEMO_*`
@@ -176,8 +181,11 @@ it starts. If the variable is unset, compose gives an empty value, which the
 gateway refuses to start with.
 
 Private, supplied by the supervisor and only referenced as `${NAME}` (the file
-holds no value and no default): `SPACE_URL`, `SPACE_API_KEY`, `SPHERE_URL`,
-`SPACE_ORGANIZATION_ID` (OpenBinding holds no SPHERE key: it reads SPHERE anonymously). The last
+holds no value and no default): `SPACE_URL`, `SPACE_API_KEY`, `SPHERE_URL`, `SPHERE_PUBLIC_URL`,
+`SPACE_ORGANIZATION_ID` (OpenBinding holds no SPHERE key: it reads SPHERE anonymously). The env example sets
+`SPHERE_URL=http://sphere-lab:8080` (the stand-in) and `SPHERE_PUBLIC_URL=https://sphere.score.us.es` (where "Open in
+SPHERE" links point); to run the lab against the public SPHERE instead, override `SPHERE_URL=https://sphere.score.us.es
+DEMO_SPHERE_REQUIRE_HTTPS=true DEMO_UPSTREAM_POLL_S=300` (the stand-in still starts, unused). The last
 one goes to `gateway`, `worker` and `seed`: the gateway verifies every pricing
 token against SPACE's published keys for that organization (with SPACE enabled
 it warns at startup without it, and `APP_ENV=prod` refuses to start), and
@@ -683,7 +691,7 @@ the reproducible artefact.
   possible peers.
 - `engine-minizinc` at 192 MiB runs Node plus MiniZinc and its solver as child
   processes; a large model may not fit. Raising it means lowering something
-  else to stay under 4096 MiB (the current total, 3936 MiB, leaves 160 MiB).
+  else to stay under 4096 MiB (the current total, 4000 MiB, leaves 96 MiB).
 - A single worker serves the `default` queue with two threads; concurrent jobs
   can delay each other.
 - `gateway`, `worker` and `seed` share one image, `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`
@@ -698,3 +706,9 @@ the reproducible artefact.
   image (`python:3.11-slim`) is a tag and the Debian packages are not pinned, so the image
   is not byte-for-byte reproducible.
 - No TLS, no backups of the volumes, one host.
+- **The SPHERE stand-in.** Scenario versions (synthetic ids starting `6fff`) exist only in the stand-in: "Open in
+  SPHERE" for one of them leads to a 404 on the public SPHERE. The published scenarios stay in the `lab-sphere` volume
+  until `down --volumes`; there is no unpublish, so **each scenario publishes once per lab** (a repeat answers
+  `already_published` and changes nothing). The recorded answers are the public SPHERE as recorded (2026-11-18 to
+  2026-11-21); a family that changed on the public SPHERE since is served as recorded. Against the public SPHERE
+  (`SPHERE_URL` overridden) no upstream change ever appears.

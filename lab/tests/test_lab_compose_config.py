@@ -34,6 +34,10 @@ DUMMY_ENV = {
     "SPACE_API_KEY": "",
     "SPACE_ORGANIZATION_ID": "",
     "SPHERE_URL": "",
+    "SPHERE_PUBLIC_URL": "",
+    "DEMO_SPHERE_REQUIRE_HTTPS": "true",
+    "DEMO_UPSTREAM_POLL_S": "300",
+    "DEMO_SPHERE_LAB_PASSTHROUGH": "",
 }
 
 # `${NAME}` or `${NAME:-default}`; the `$$` escapes are removed before matching.

@@ -2,7 +2,9 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { API, ORG, OTHER_ORG, PROBLEMS_TAB, signInByApi, watchPageErrors } from './support';
 
 /**
- * F3 against the lab and live SPHERE (anonymous, through the gateway; the browser never calls SPHERE):
+ * F3 against the lab and live SPHERE (anonymous, through the gateway; the browser never calls SPHERE). The lab's SPHERE is
+ * its stand-in (`sphere-lab`, F6-C): the recorded families answer from the recording, and searches and reads it has no
+ * recording for are passed through to the public SPHERE, anonymously (a key the Connections tab sends never leaves it):
  *
  * - J1/J2: a problem born from two SPHERE pricings, pinned to their recorded versions (Mailgun and Postmark of danruilop1, both
  *   `2026-10`), Postmark's own name for the monthly limit chosen in the mapping, previewed and created; its Candidates tab says

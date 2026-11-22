@@ -21,9 +21,9 @@ IMAGE_USER = 10001
 ARTIFACT_DIR = "/var/lib/openbinding/artifacts"
 SHARED_IMAGE = "openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}"
 MAX_MIB = 4096
-# The sum of every mem_limit of compose.lab.json, seed included (docs/DEMO.md states it): 3776 before Mailpit (64)
-# and the feed consumer (96), 3456 before e2e (576).
-EXPECTED_MIB = 3936
+# The sum of every mem_limit of compose.lab.json, seed included (docs/DEMO.md states it): 3936 before the SPHERE
+# stand-in (64), 3776 before Mailpit (64) and the feed consumer (96), 3456 before e2e (576).
+EXPECTED_MIB = 4000
 
 # A reference to a variable the supervisor supplies: nothing else may stand where a secret goes.
 ALLOWED_REFERENCE = re.compile(r"\$\{(?:DEMO|SPACE|SPHERE)_[A-Z0-9_]+\}")

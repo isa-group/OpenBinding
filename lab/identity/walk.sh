@@ -32,6 +32,8 @@ export DEMO_FERNET_KEY="${DEMO_FERNET_KEY:-$(python3 -c 'import base64,os;print(
 export DEMO_SEED_PASSWORD="${DEMO_SEED_PASSWORD:-lab-$(openssl rand -hex 12)}" DEMO_SPACE_ENABLED=false DEMO_SPACE_PRICING_VERSION=0.2.0
 export DEMO_SPACE_DEFAULT_PLAN=FREE DEMO_SPACE_DEV_PLAN=FREE DEMO_SPACE_DEV_SERVICE=openbinding-dev SPACE_URL= SPACE_API_KEY=
 export SPACE_ORGANIZATION_ID= SPHERE_URL=https://sphere.score.us.es SPHERE_API_KEY= SPHERE_ORGANIZATION_ID= DEMO_E2E=0
+# The Identity walks read the public SPHERE (the stand-in still starts with the stack, unused).
+export DEMO_SPHERE_REQUIRE_HTTPS=true SPHERE_PUBLIC_URL=https://sphere.score.us.es DEMO_UPSTREAM_POLL_S=300 DEMO_SPHERE_LAB_PASSTHROUGH=
 export DEMO_SEED_TOOL=seed_lab.py DEMO_SEED_ARGS=
 export IDENTITY_CLIENT_ID="ob-walk-${RUN}" IDENTITY_CLIENT_SECRET_PATH="$SECRET_DIR/secret"
 
