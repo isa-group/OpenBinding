@@ -4,7 +4,10 @@
 The gateway polls every watched pricing on its own (``UPSTREAM_POLL_INTERVAL_S``, 300 s by default, 20 s in the lab);
 this tool runs the same cycle once, on demand, for an operator or a demo that does not want to wait:
 
-    docker compose -f compose.lab.json exec gateway python tools/poll_upstream.py --once
+    docker compose -f compose.lab.json exec gateway python tools/poll_upstream.py --once --force
+
+Without ``--force`` it claims only the watches already due, as the gateway's own task does every tick, so it rarely
+finds anything that task has not.
 
 It builds what the gateway's lifespan builds (the settings, the database engine and one ``SphereHttpSource``), takes
 the watcher's advisory lock (a cycle a replica is running at that moment wins, and this one is reported as skipped
