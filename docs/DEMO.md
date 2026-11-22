@@ -672,8 +672,6 @@ the reproducible artefact.
 
 ### What comes next
 
-- **F6-D**: the screens of demo script v2 (badges, the event in place on the Operation tab, "Mark reviewed", the
-  proposal card, derive and adopt in one step) and its click path and timing.
 - **F8**: SPACE links per environment, the upstream ledger with a contract per environment and novation on adopt,
   and the users and demand of the margins read from SPACE contracts instead of `expectedUsers`.
 
@@ -787,6 +785,15 @@ SPHERE from the problem's New version menu and checks the feed, the consumer and
 | 16–17 | (API track: the feed, the consumer, `/send`) Mailpit at `/mailpit/`: the daily summary tagged `provider-resend` |
 | 17–19 | (API track: publish `tomatometer-1.2.0`) the bell: "TomatoMeter 1.2.0: TomatoMeter offering changed"; open it: "1 plan changed · 1 plan with an add-on changed", Basic 0.00 → 0.99 gains dailySummary; production's margins Before and After (Basic −0.51 → 0.48); "The offering is not pinned in the document; this event ends when reviewed"; Mark reviewed |
 | 19–20 | Operation tab: Upstream changes with every event and its state (chip Resolved), Proposals with the applied one under Recent proposals; `production` › Adoption history: `$NEXT` through a proposal; Versions › Compare 1.0.0 → `$NEXT`; the dashboard shows nothing pending |
+
+**Timing (measured, F6-D).** On a stack of its own (`down --volumes`, `up --build --wait`, `seed`, nothing else) the
+screen track ran end to end as live walk 15, with a presenter's pause of 330 s on the Operation tab after minute 5–8
+(the page went on without signing in again). Time on the screens, by block: minutes 0–8 (publish, the event detected,
+told, badged and read) 25 s; the viewer and the review 8 s; the pause 5 min 30 s; minutes 8–9 (the retirement) 17 s;
+minutes 10–16 (Update from SPHERE to revision 4, the configurator, derive and adopt as one proposal, confirmed) 9 s;
+minutes 16–17 (the consumer and Mailpit on Resend) 2 s; an out-of-date proposal 1 s; minutes 17–19 (the offering
+event, published live) 9 s. The watcher found each publish within one 20 s cycle. Everything else in the 20 minutes is
+the presenter's: the minute table is the budget, and the screens never wait on the toolchain for more than a few seconds.
 
 **The joint lab with TomatoMeter (J8).** In TomatoMeter's joint lab (TM `scripts/lab.mjs`, which takes OpenBinding's
 env example, so its SPHERE is the same stand-in) the same chain runs with TomatoMeter's own screens at the end: publish
