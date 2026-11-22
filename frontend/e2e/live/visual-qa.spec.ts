@@ -649,6 +649,68 @@ function sphereStops(): Stop[] {
   ];
 }
 
+/**
+ * F6: TomatoMeter's upstream changes and proposals as walk 15 and the smoke leave them: the card page's header (its badge, or
+ * production's "Resolved in …, not adopted here"), the Operation tab with its events and proposals, each event's detail by
+ * category the lab holds, and the dashboard's panels. Read from the gateway, so a lab without events still passes.
+ */
+async function upstreamStops(page: Page, token: string): Promise<Stop[]> {
+  const root = `${API}/v1/organizations/${ORG}/compositions/tomatometer`;
+  const answer = await page.request.get(`${root}/upstream-events?limit=50`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const events = answer.ok()
+    ? ((await answer.json()) as { events: Array<{ id: string; category: string }> }).events
+    : [];
+  const operation = `/compositions/${ORG}/tomatometer/operation`;
+  const byCategory = new Map<string, string>();
+  for (const event of events)
+    if (!byCategory.has(event.category)) byCategory.set(event.category, event.id);
+  return [
+    {
+      slug: 'f6-composition-header',
+      path: `/compositions/${ORG}/tomatometer`,
+      ready: target =>
+        target.locator('main').getByRole('heading', { level: 1, name: 'TomatoMeter' }),
+    },
+    {
+      slug: 'f6-operation-events',
+      path: operation,
+      ready: target =>
+        target.locator('main').getByRole('heading', { level: 2, name: 'Upstream changes' }),
+      extra: async target => {
+        await target
+          .locator('main')
+          .getByRole('heading', { level: 2, name: 'Upstream changes' })
+          .scrollIntoViewIfNeeded();
+      },
+    },
+    {
+      slug: 'f6-operation-proposals',
+      path: operation,
+      ready: target =>
+        target.locator('main').getByRole('article', { name: 'Environment Production' }),
+      extra: async target => {
+        const recent = target.locator('main').getByText(/^Recent proposals/);
+        if (await recent.count()) {
+          await recent.first().click();
+          await recent.first().scrollIntoViewIfNeeded();
+        }
+      },
+    },
+    ...[...byCategory.entries()].map(([category, id]) => ({
+      slug: `f6-event-${category.replace(/_/g, '-')}`,
+      path: `${operation}?event=${id}`,
+      ready: (target: Page) => target.locator('main').getByRole('region', { name: 'The change' }),
+    })),
+    {
+      slug: 'f6-dashboard',
+      path: '/',
+      ready: target => target.locator('main').getByRole('region', { name: 'Recent compositions' }),
+    },
+  ];
+}
+
 /** The owner's beta switch, written through the gateway with the revision it read. */
 async function setBeta(page: Page, token: string, enabled: boolean): Promise<void> {
   const setting = `${API}/v1/users/me/settings/beta-features`;
@@ -968,6 +1030,7 @@ test.describe('live · visual QA', () => {
       ...compositionStops(mobile),
       ...problemStops(mobile),
       ...sphereStops(),
+      ...(await upstreamStops(page, token)),
     ];
     const skipped: Array<{ slug: string; why: string }> = [];
     // An engine card, whose plan ceilings come from the published pricing's document.

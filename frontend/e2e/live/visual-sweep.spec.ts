@@ -8,7 +8,8 @@ import { API, CASE, LAB_USERS, ORG, OTHER_ORG, RESULTS_DIR, signInByApi } from '
  *
  * - every screen of the route table (`src/routes/router.tsx`, 39 today) and the extra tabs and dialogs of F2c and F3 (the
  *   organization's tabs, a problem's Candidates and Versions, the study front, a public showcase, a SPHERE problem's Candidates,
- *   the SPHERE wizard's steps, a composition drawn from SPHERE snapshots and the beta Connections tab), in both palettes
+ *   the SPHERE wizard's steps, a composition drawn from SPHERE snapshots and the beta Connections tab; F6's upstream events
+ *   by category), in both palettes
  *   (`data-brand` sphere and openbinding) at 1440×900 and 390×844: the requested brand is the one drawn, nothing scrolls
  *   sideways, nothing throws, and nothing is asked of a CDN;
  * - a 375 px pass over the same screens: no horizontal overflow and no control under 24 px;
@@ -99,6 +100,20 @@ async function stops(page: Page, token: string): Promise<Stop[]> {
   });
   const code = invitation?.code ?? 'none';
   const wizard = `/problems/${ORG}/${TOMATOMETER_PROBLEM}/candidates`;
+  // F6: one upstream event of each category the lab holds after walk 15 and the smoke (values changed and binding invalid
+  // from walk 15, offering changed from smoke 19); no impact and a vanished source are the mocked gallery's.
+  const upstream = await json(
+    page,
+    token,
+    `/v1/organizations/${ORG}/compositions/tomatometer/upstream-events?limit=50`
+  );
+  const eventStops: Stop[] = [];
+  for (const event of (upstream?.events ?? []) as Array<{ id: string; category: string }>)
+    if (!eventStops.some(stop => stop.id === `upstream-event-${event.category}`))
+      eventStops.push({
+        id: `upstream-event-${event.category}`,
+        path: `/compositions/${ORG}/tomatometer/operation?event=${event.id}`,
+      });
   return [
     { id: 'pub-home', path: '/', visitor: true },
     { id: 'org-explore', path: '/organizations' },
@@ -180,6 +195,9 @@ async function stops(page: Page, token: string): Promise<Stop[]> {
       path: `/compositions/${ORG}/tomatometer/operation?environment=staging`,
     },
     { id: 'calculator-margins', path: `/compositions/${ORG}/tomatometer/configuration` },
+    // F6: the Operation tab's upstream changes and proposals (the same address as composition-operation, which they extend
+    // below the environments), and each event's detail.
+    ...eventStops,
     { id: 'template-cards', path: `/compositions/new?org=${ORG}` },
     // F5-D: the owner's personal organization (its list's Personal section is `org-list`): no Leave, no Transfer, in the
     // header or in Members.
