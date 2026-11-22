@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import adoptions from '../../../../test/fixtures/core/tomatometer.adoptions.production.json';
+import throughProposal from '../../../../test/fixtures/core/zproposals.adoptions.production.json';
 import { fakeGateway, renderModule } from '../../../../test/moduleKit';
 import AdoptionHistory from '.';
 
@@ -39,5 +40,25 @@ describe('the adoption history', () => {
     expect(rows[2]).toHaveTextContent(
       'Offering version 1.0.0, read when this version was evaluated.'
     );
+  });
+
+  it('says which adoption a confirmed proposal made, and nothing more for a direct one', async () => {
+    renderModule(
+      <AdoptionHistory
+        org="fixtures"
+        composition="tomatometer"
+        environment="production"
+        inEffect={4}
+      />,
+      {
+        gateway: fakeGateway({
+          'GET /v1/organizations/fixtures/compositions/tomatometer/environments/production/adoptions':
+            { body: throughProposal },
+        }),
+      }
+    );
+    const rows = await screen.findAllByRole('listitem', { name: /Adoption \d/ });
+    expect(rows[0]).toHaveTextContent(', through a proposal');
+    expect(rows[1]).not.toHaveTextContent('through a proposal');
   });
 });
