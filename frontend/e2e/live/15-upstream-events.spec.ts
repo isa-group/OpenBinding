@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
 import {
   API,
   FEED_CONSUMER,
@@ -123,15 +123,29 @@ async function snapshot(request: APIRequestContext, token: string) {
   };
 }
 
+/**
+ * A fresh API token of a role, signed in in a browser context of its own: a sign-in over another's session cookie ends that
+ * session, and an access token lives 300 s, less than the walk, so each test takes the tokens it uses when it starts.
+ */
+async function tokenOf(browser: Browser, role: 'owner' | 'member' | 'viewer'): Promise<string> {
+  const context = await browser.newContext();
+  try {
+    return await signInByApi(await context.newPage(), role);
+  } finally {
+    await context.close();
+  }
+}
+
 const card = (page: Page, name: string) =>
   page.locator('main').getByRole('article', { name: `Environment ${name}` });
 
-test.afterAll(async ({ playwright }) => {
+test.afterAll(async ({ browser, playwright }) => {
   if (!ownerToken) return;
   const request = await playwright.request.newContext({
     baseURL: process.env.BASE_URL ?? 'http://web:8080',
   });
-  await adoptByApi(request, ownerToken, '1.0.0').catch(() => {});
+  const token = await tokenOf(browser, 'owner').catch(() => ownerToken);
+  await adoptByApi(request, token, '1.0.0').catch(() => {});
   await request.dispose();
 });
 
@@ -147,11 +161,8 @@ test('J0 · the lab’s SPHERE is the stand-in, and the walk starts from the see
       'the lab reads another SPHERE: the stand-in was never asked for the scenario families';
   test.skip(unavailable !== null, unavailable ?? '');
   published = ((lab?.published ?? []) as string[]).includes('brevo-professional-up');
-  // Each role signs in in a browser context of its own: a sign-in over another's session cookie ends that session.
-  const tokenOf = async (role: 'member' | 'viewer') =>
-    signInByApi(await (await browser.newContext()).newPage(), role);
-  memberToken = await tokenOf('member');
-  viewerToken = await tokenOf('viewer');
+  memberToken = await tokenOf(browser, 'member');
+  viewerToken = await tokenOf(browser, 'viewer');
   ownerToken = await signInByApi(page, 'owner');
   await adoptByApi(page.request, ownerToken, '1.0.0');
   // Walk 14 leaves its run-derived version in staging; 1.1.0 (Resend) pins no Brevo version.
@@ -164,11 +175,13 @@ test('J0 · the lab’s SPHERE is the stand-in, and the walk starts from the see
 });
 
 test('J1 · Brevo raises PROFESSIONAL: the team is told, the badges show, the event says +50.00, nothing else moves', async ({
+  browser,
   page,
 }, testInfo) => {
   test.skip(unavailable !== null || published || !before, 'see J0');
   test.setTimeout(300_000);
   const errors = watchPageErrors(page);
+  ownerToken = await signInByApi(page, 'owner');
   await publish(page.request, 'brevo-professional-up');
   values = await detected(
     page.request,
@@ -190,10 +203,11 @@ test('J1 · Brevo raises PROFESSIONAL: the team is told, the badges show, the ev
     );
   };
   await expect.poll(() => told(ownerToken), { timeout: 30_000 }).toBe(true);
+  memberToken = await tokenOf(browser, 'member');
+  viewerToken = await tokenOf(browser, 'viewer');
   expect(await told(memberToken)).toBe(true);
   expect(await told(viewerToken)).toBe(false);
 
-  await signInByApi(page, 'owner');
   await page.goto('/notifications');
   const main = page.locator('main');
   await main
@@ -228,6 +242,7 @@ test('J1 · Brevo raises PROFESSIONAL: the team is told, the badges show, the ev
   await capture(page, testInfo, 'f6-events');
 
   // Nothing a person must do was done: the feed, the consumer, the adoption and the counts are the same.
+  ownerToken = await tokenOf(browser, 'owner');
   expect(await snapshot(page.request, ownerToken)).toEqual(before);
   await consumerUntil(page.request, state => state.provider === 'brevo');
   expect(errors).toEqual([]);
@@ -288,6 +303,7 @@ test('J2b · Brevo retires PROFESSIONAL: rebinding recommended, the older change
   test.skip(!values, 'J1 did not detect the event');
   test.setTimeout(300_000);
   const errors = watchPageErrors(page);
+  ownerToken = await signInByApi(page, 'owner');
   await publish(page.request, 'brevo-professional-retired');
   retired = await detected(
     page.request,
@@ -297,7 +313,6 @@ test('J2b · Brevo retires PROFESSIONAL: rebinding recommended, the older change
   const older = (await events(page.request, ownerToken)).find(event => event.id === values!.id);
   expect(older?.supersededBy).toBe(retired.id);
 
-  await signInByApi(page, 'owner');
   await page.goto(OPERATION);
   await expect(card(page, 'Production')).toContainText('Rebinding recommended');
   await expect(
@@ -326,12 +341,13 @@ test('J2b · Brevo retires PROFESSIONAL: rebinding recommended, the older change
 });
 
 test('J3 · the owner updates the problem from SPHERE and derives and adopts Resend PRO as one proposal', async ({
+  browser,
   page,
 }, testInfo) => {
   test.skip(!retired, 'J2b did not detect the retirement');
   test.setTimeout(420_000);
   const errors = watchPageErrors(page);
-  await signInByApi(page, 'owner');
+  ownerToken = await signInByApi(page, 'owner');
   const main = page.locator('main');
 
   // Update from SPHERE: Brevo's pinned version moves to 2027-01, and the problem gets its next revision.
@@ -404,6 +420,7 @@ test('J3 · the owner updates the problem from SPHERE and derives and adopts Res
   await expect(proposal).toContainText('Applied', { timeout: 180_000 });
 
   // Both Brevo events are resolved by the new version; production holds it, adopted through the proposal.
+  ownerToken = await tokenOf(browser, 'owner');
   const after = await events(page.request, ownerToken);
   for (const id of [values!.id, retired!.id])
     expect(after.find(event => event.id === id)?.resolvedBy?.version.label, id).toBe(next);
@@ -444,7 +461,7 @@ test('J5 · a proposal made before production moved is out of date, and nothing 
 }) => {
   test.skip(!next, 'J3 did not adopt');
   const errors = watchPageErrors(page);
-  await signInByApi(page, 'owner');
+  ownerToken = await signInByApi(page, 'owner');
   const made = await page.request.post(`${ROOT}/proposals`, {
     headers: auth(ownerToken),
     data: { kind: 'adopt', environment: 'production', version: '1.0.0', note: 'J5' },
@@ -472,12 +489,12 @@ test('J6 · the offering changed: TomatoMeter 1.2.0 and the margins in productio
   test.skip(unavailable !== null || !ownerToken, 'see J0');
   test.setTimeout(300_000);
   const errors = watchPageErrors(page);
+  ownerToken = await signInByApi(page, 'owner');
   let offering = (await events(page.request, ownerToken, '?subject=offering'))[0];
   if (!offering) {
     await publish(page.request, 'tomatometer-1.2.0');
     offering = await detected(page.request, ownerToken, event => event.subject === 'offering');
   }
-  await signInByApi(page, 'owner');
   await page.goto(`${OPERATION}?event=${offering.id}`);
   const main = page.locator('main');
   await expect(main.getByRole('region', { name: 'Offering plans', exact: true })).toBeVisible();
