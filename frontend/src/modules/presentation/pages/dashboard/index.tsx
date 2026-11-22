@@ -370,7 +370,8 @@ export default function DashboardPage() {
                         )}
                         className="flex flex-col gap-1 px-4 py-3 text-sm hover:bg-tp-surface/50 sm:flex-row sm:items-center sm:gap-3"
                       >
-                        <span className="min-w-0 flex-1 truncate font-medium text-tp-ink">
+                        {/* Wrapped on a phone (a nowrap line would widen the page), cut short from sm up. */}
+                        <span className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere] text-tp-ink sm:truncate">
                           {eventHeadline(event)}
                         </span>
                         <span className="flex flex-wrap items-center gap-2 text-xs text-tp-steel">
@@ -404,7 +405,7 @@ export default function DashboardPage() {
                           )}
                           className="flex flex-col gap-1 px-4 py-3 text-sm hover:bg-tp-surface/50 sm:flex-row sm:items-center sm:gap-3"
                         >
-                          <span className="min-w-0 flex-1 truncate font-medium text-tp-ink">
+                          <span className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere] text-tp-ink sm:truncate">
                             {proposal.summary}
                           </span>
                           <span className="text-xs text-tp-steel">
@@ -413,7 +414,7 @@ export default function DashboardPage() {
                         </Link>
                       ) : (
                         <span className="flex flex-col gap-1 px-4 py-3 text-sm">
-                          <span className="truncate font-medium text-tp-ink">
+                          <span className="font-medium [overflow-wrap:anywhere] text-tp-ink">
                             {proposal.summary}
                           </span>
                           <span className="text-xs text-tp-steel">
