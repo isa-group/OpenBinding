@@ -58,7 +58,13 @@ export default function EnvironmentDetail({
   const api = useEnvironmentsApi();
   const navigate = useNavigate();
   const [nonce, setNonce] = useState(0);
-  const [dialog, setDialog] = useState<'edit' | 'delete' | null>(null);
+  // An edit or a delete keeps the environment and the `ETag` it was opened on: a re-read meanwhile (an upstream arrival)
+  // neither drops its If-Match nor swaps the revision under the values the form shows.
+  const [dialog, setDialog] = useState<{
+    kind: 'edit' | 'delete';
+    environment: CompositionEnvironmentView;
+    etag: string | null;
+  } | null>(null);
   // The last environment read, with the nonce it was read under: a re-read only an upstream arrival asked for (same
   // nonce) that fails keeps it on screen, while a re-read after an edit says its failure.
   const shown = useRef<{
@@ -182,7 +188,8 @@ export default function EnvironmentDetail({
         </p>
       </div>
     );
-  const etag = read.data?.etag ?? null;
+  // The revision of what is shown: during a re-read, the one before it.
+  const etag = read.data?.etag ?? read.stale?.etag ?? null;
   const inEffect = environment.inEffect;
   const operator = environment.operator;
   const canAdopt =
@@ -217,12 +224,16 @@ export default function EnvironmentDetail({
             )}
             {canAdminister && (
               <>
-                <button type="button" onClick={() => setDialog('edit')} className={actionClass}>
+                <button
+                  type="button"
+                  onClick={() => setDialog({ kind: 'edit', environment, etag })}
+                  className={actionClass}
+                >
                   Edit
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDialog('delete')}
+                  onClick={() => setDialog({ kind: 'delete', environment, etag })}
                   className={`${actionClass} text-red-700`}
                 >
                   Delete
@@ -338,11 +349,11 @@ export default function EnvironmentDetail({
         refresh={`${inEffect?.adoption ?? 0}`}
       />
 
-      {dialog === 'edit' && (
+      {dialog?.kind === 'edit' && (
         <EnvironmentFormDialog
           org={org}
           composition={composition.slug}
-          editing={{ environment, etag }}
+          editing={{ environment: dialog.environment, etag: dialog.etag }}
           onClose={() => setDialog(null)}
           onStale={() => {
             setDialog(null);
@@ -355,12 +366,12 @@ export default function EnvironmentDetail({
           }}
         />
       )}
-      {dialog === 'delete' && (
+      {dialog?.kind === 'delete' && (
         <DeleteEnvironmentDialog
           org={org}
           composition={composition.slug}
-          environment={environment}
-          etag={etag}
+          environment={dialog.environment}
+          etag={dialog.etag}
           onClose={() => setDialog(null)}
           onStale={() => {
             setDialog(null);

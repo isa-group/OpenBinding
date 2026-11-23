@@ -209,6 +209,72 @@ describe('the Operation tab', () => {
     expect(screen.queryByText(/The environment couldn’t be loaded/)).toBeNull();
   });
 
+  /** An ADMIN on production, whose re-reads after the first wait until the test lets them answer (revision "8"). */
+  async function adminOnProductionWithSlowReads() {
+    let reads = 0;
+    const waiting: Array<() => void> = [];
+    const base = fakeGateway({
+      [`GET ${ROOT}`]: { body: environments },
+      [`GET ${EVENTS}`]: { body: events },
+      [`PATCH ${ROOT}/production`]: { body: production, headers: { ETag: '"9"' } },
+      [`DELETE ${ROOT}/production`]: { status: 204 },
+    });
+    const gateway = vi.fn(async (path: string, init: RequestInit = {}) => {
+      if ((init.method ?? 'GET') === 'GET' && path.split('?')[0] === `${ROOT}/production`) {
+        reads += 1;
+        const first = reads === 1;
+        if (!first) await new Promise<void>(resolve => waiting.push(resolve));
+        return new Response(JSON.stringify(production), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ETag: first ? '"7"' : '"8"' },
+        });
+      }
+      return base(path, init);
+    });
+    renderModule(
+      <OperationTab
+        org="isa-demo"
+        composition={composition}
+        versions={[]}
+        role="ADMIN"
+        onAdopt={() => {}}
+      />,
+      { entry: '/?environment=production', gateway }
+    );
+    await screen.findByRole('heading', { level: 2, name: 'Production' });
+    return {
+      reads: () => reads,
+      release: () => act(async () => waiting.splice(0).forEach(resolve => resolve())),
+      sent: (method: string) =>
+        gateway.mock.calls
+          .filter(([, init]) => init?.method === method)
+          .map(([, init]) => new Headers(init?.headers).get('If-Match')),
+    };
+  }
+
+  it('saves an edit with the If-Match it was opened on while an upstream arrival re-reads', async () => {
+    const lab = await adminOnProductionWithSlowReads();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    const form = await screen.findByRole('dialog');
+    arrive();
+    await waitFor(() => expect(lab.reads()).toBe(2));
+    fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(lab.sent('PATCH')).toHaveLength(1));
+    expect(lab.sent('PATCH')).toEqual(['"7"']);
+  });
+
+  it('deletes with the If-Match it was opened on, even after the re-read answered a newer revision', async () => {
+    const lab = await adminOnProductionWithSlowReads();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const confirm = await screen.findByRole('dialog');
+    arrive();
+    await waitFor(() => expect(lab.reads()).toBe(2));
+    await lab.release();
+    fireEvent.change(within(confirm).getByRole('textbox'), { target: { value: 'production' } });
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Delete permanently' }));
+    await waitFor(() => expect(lab.sent('DELETE')).toEqual(['"7"']));
+  });
+
   it('lists the upstream changes under the environments', async () => {
     render('VIEWER');
     expect(
