@@ -23,6 +23,7 @@ import { formatValue } from '../../../core/utils/composition/values';
 import { COMPOSITION_FILE } from '../../../core/utils/composition/viewModel';
 import { compositionPath, editorPath } from '../../../../routes/paths/compositions';
 import { readApiError } from '../../../core/api/errors';
+import { latestOffering, OfferingUnreadable, offeringUnreadableText } from './latestOffering';
 import type {
   CompositionDerive,
   CompositionEnvironmentView,
@@ -476,17 +477,17 @@ function DeriveOne({
       return;
     }
     // Into a composition whose latest version states an offering, the new version states the same one (its margins and
-    // its offering's upstream changes go on); a new composition has none.
+    // its offering's upstream changes go on); a new composition has none. A failed read stops here rather than drop it.
     const latest = target?.slug === into ? target.latest_version : null;
-    const offering = latest
-      ? await Promise.resolve()
-          .then(() => compositionsApi.version(org, into, latest.id, { document: true }))
-          .then(
-            read =>
-              (read?.document as { offering?: Record<string, unknown> } | null)?.offering ?? null
-          )
-          .catch(() => null)
-      : null;
+    let offering: Record<string, unknown> | null;
+    try {
+      offering = await latestOffering(org, into, latest);
+    } catch (caught) {
+      if (!(caught instanceof OfferingUnreadable)) throw caught;
+      setRefusal({ message: offeringUnreadableText(caught), findings: [] });
+      setBusy(null);
+      return;
+    }
     const derived = run
       ? runDerivation(run, point, version, false)
       : bindingDerivation(bound as BindingSource, version, false);

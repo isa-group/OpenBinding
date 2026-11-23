@@ -727,6 +727,18 @@ describe('Deriving and adopting in the same step', () => {
     expect(api.derive.mock.calls.every(([, , body]) => body.seal === false)).toBe(true);
   });
 
+  it('derives nothing when the latest version cannot be read, rather than drop its offering', async () => {
+    api.environments.mockResolvedValue([production]);
+    api.version.mockRejectedValue(new HttpError(503, 'Service Unavailable'));
+    const { dialog } = renderBinding(FLEET, 'ADMIN');
+    click(dialog, 'Preview');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      /The latest version .* couldn’t be read \(503\), so its offering can’t be carried into the new version/
+    );
+    expect(api.derive).not.toHaveBeenCalled();
+    expect(within(dialog).queryByRole('region', { name: 'Derived composition.yaml' })).toBeNull();
+  });
+
   it('keeps the offering the composition’s latest version states, in the preview and in the proposal', async () => {
     api.environments.mockResolvedValue([production]);
     api.version.mockResolvedValue({ document: { offering: { sphere: 'sphere/tomatometer' } } });
