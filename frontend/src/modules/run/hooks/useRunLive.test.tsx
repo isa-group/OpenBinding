@@ -13,18 +13,29 @@ const detail = (status: string) => ({ id: 'job-1', status }) as unknown as JobDe
 
 /** A run's event stream the test writes to; each `events` call opens the next one. */
 function streams() {
-  const opened: Array<{ write: (text: string) => void; end: () => void }> = [];
-  api.events.mockImplementation(async () => {
+  const opened: Array<{
+    write: (text: string) => void;
+    end: () => void;
+    signal: AbortSignal;
+    cancelled: () => boolean;
+  }> = [];
+  api.events.mockImplementation(async (_org: string, _job: string, signal: AbortSignal) => {
     let controller!: ReadableStreamDefaultController<Uint8Array>;
+    let cancelled = false;
     const body = new ReadableStream<Uint8Array>({
       start(given) {
         controller = given;
+      },
+      cancel() {
+        cancelled = true;
       },
     });
     const encoder = new TextEncoder();
     opened.push({
       write: text => controller.enqueue(encoder.encode(text)),
       end: () => controller.close(),
+      signal,
+      cancelled: () => cancelled,
     });
     return new Response(body, { status: 200 });
   });
@@ -140,6 +151,41 @@ describe('following a run over its event stream', () => {
     const onStream = api.get.mock.calls.length;
     await act(async () => vi.advanceTimersByTimeAsync(POLL_MS * 5));
     expect(api.get.mock.calls.length).toBe(onStream);
+  });
+
+  it('closes a stream it is reading when the page goes away', async () => {
+    api.get.mockResolvedValue(detail('running'));
+    const opened = streams();
+    const { unmount } = renderHook(() => useRunLive('isa-demo', 'job-1'));
+    await settle();
+    opened[0].write(': keep-alive\n\n');
+    await settle();
+    expect(opened[0].signal.aborted).toBe(false);
+    unmount();
+    await settle();
+    expect(opened[0].signal.aborted).toBe(true);
+    expect(opened[0].cancelled()).toBe(true);
+    await act(async () => vi.advanceTimersByTimeAsync(STREAM_RETRY_MS * 2));
+    expect(opened).toHaveLength(1);
+  });
+
+  it('closes the stream it is reading on refresh(), so one stream is open at a time', async () => {
+    api.get.mockResolvedValue(detail('running'));
+    const opened = streams();
+    const { result } = renderHook(() => useRunLive('isa-demo', 'job-1'));
+    await settle();
+    expect(opened).toHaveLength(1);
+    act(() => result.current.refresh());
+    await settle();
+    expect(opened).toHaveLength(2);
+    expect(opened[0].signal.aborted).toBe(true);
+    expect(opened[0].cancelled()).toBe(true);
+    expect(opened[1].signal.aborted).toBe(false);
+    const getsBefore = api.get.mock.calls.length;
+    opened[1].write('event: job\ndata: {"id":"job-1","status":"running"}\n\n');
+    await settle();
+    // Only the open stream reads the run again.
+    expect(api.get.mock.calls.length).toBe(getsBefore + 1);
   });
 
   it('treats a stream that does not answer within the silence limit as failed', async () => {

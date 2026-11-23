@@ -147,19 +147,25 @@ function follow(
     }
   };
 
-  /** Open the stream within the silence limit (a proxy holding its headers counts as a failure). */
+  /**
+   * Open the stream within the silence limit (a proxy holding its headers counts as a failure). The returned signal
+   * stays tied to the follow until `release()`, so an unmount or a refresh() aborts a stream already being read.
+   */
   const open = async () => {
     const attempt = new AbortController();
     const stop = () => attempt.abort();
+    const release = () => controller.signal.removeEventListener('abort', stop);
     controller.signal.addEventListener('abort', stop);
     const timer = window.setTimeout(stop, OPEN_LIMIT_MS);
     try {
       const response = await events(org, jobId, attempt.signal);
       if (!response.ok) throw new HttpError(response.status, response.statusText);
-      return { response, signal: attempt.signal };
+      return { response, signal: attempt.signal, release };
+    } catch (error) {
+      release();
+      throw error;
     } finally {
       window.clearTimeout(timer);
-      controller.signal.removeEventListener('abort', stop);
     }
   };
 
@@ -179,15 +185,19 @@ function follow(
       let failed = false;
       const opened = Date.now();
       try {
-        const { response, signal } = await open();
-        await readEventStream(
-          response,
-          event => {
-            if (event.event === 'job') void reread();
-            else if (event.event === 'session-ended') sessionEnded = true;
-          },
-          { signal }
-        );
+        const { response, signal, release } = await open();
+        try {
+          await readEventStream(
+            response,
+            event => {
+              if (event.event === 'job') void reread();
+              else if (event.event === 'session-ended') sessionEnded = true;
+            },
+            { signal }
+          );
+        } finally {
+          release();
+        }
       } catch {
         failed = true;
       }
