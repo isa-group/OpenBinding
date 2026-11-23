@@ -181,3 +181,15 @@ describe('the F6 screens', () => {
     expect(source).not.toMatch(/bg-tp-primary\/10[^'"`]*text-tp-accent(?![-\w])/);
   });
 });
+
+describe('the toasts', () => {
+  it('set a title on the primary tint in the accent’s deeper shade, not the accent', () => {
+    const source = readFileSync(
+      `${process.cwd()}/src/modules/core/components/toast/index.tsx`,
+      'utf8'
+    );
+    const tinted = [...source.matchAll(/bgClass: 'bg-tp-primary\/10',[^}]*textClass: '([^']+)'/g)];
+    expect(tinted.length).toBeGreaterThan(0);
+    for (const [, text] of tinted) expect(text).not.toMatch(/^text-tp-accent$/);
+  });
+});

@@ -37,7 +37,7 @@ const kindConfig: Record<
     icon: 'mdi:account-plus',
     bgClass: 'bg-tp-primary/10',
     borderClass: 'border-tp-primary/30',
-    textClass: 'text-tp-accent',
+    textClass: 'text-tp-accent-hover',
     iconClass: 'text-tp-accent',
   },
   System: {
