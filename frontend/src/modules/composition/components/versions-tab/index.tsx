@@ -4,8 +4,8 @@
 // Changes: a composition's versions, which are immutable and referenced: no per-version visibility and no delete. Each row
 // says its values and how far they can be trusted, the problem version it links and where it came from, and offers SPHERE's
 // compare with the previous version, Download YAML, Open in editor and Copy link (the permanent link of a private
-// composition), plus OpenBinding's re-evaluation with the installed toolchain (MEMBER). The pair compared and the view live
-// in the address (`?from=&to=&diff=file`).
+// composition), plus OpenBinding's re-evaluation with the installed toolchain (MEMBER) and the version's upstream badge
+// (F6). The pair compared and the view live in the address (`?from=&to=&diff=file`).
 
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useMemo, useState } from 'react';
@@ -15,6 +15,7 @@ import { problemsApi } from '../../../problem/api/problemsClient';
 import { useResource } from '../../../core/hooks/useResource';
 import { readApiError } from '../../../core/api/errors';
 import type { CompositionVersionView, CompositionView } from '../../../core/api/types';
+import { UpstreamBadge } from '../../../core/components/upstream-badge';
 import { ValueBadge } from '../../../core/components/value-badge/ValueBadge';
 import { useCopy } from '../../../core/hooks/useCopy';
 import { formatValue, valueModels, valueStatus } from '../../../core/utils/composition/values';
@@ -161,6 +162,10 @@ function VersionRow({
             {formatDistanceToNow(parseISO(version.created_at))} ago
           </span>
           <ValueBadge status={valueStatus(version)} />
+          <UpstreamBadge
+            upstream={version.upstream}
+            to={compositionPath(org, composition.slug, 'operation')}
+          />
           {outcome && OUTCOME_NOTE[outcome] && (
             <span className="text-[11px] text-tp-steel">{OUTCOME_NOTE[outcome]}</span>
           )}

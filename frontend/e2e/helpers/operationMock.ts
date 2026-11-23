@@ -8,6 +8,13 @@ import type {
   EnvironmentKeyView,
   EvaluateResult,
   FeedKeyCreated,
+  EnvironmentUpstreamSummary,
+  MyUpstreamEvent,
+  ProposalStepView,
+  ProposalView,
+  UpstreamEventDetail,
+  UpstreamEventList,
+  UpstreamSummary,
 } from '../../src/modules/core/api/types';
 import type { CompositionReply, CompositionRequest } from './mockCompositions';
 
@@ -38,6 +45,20 @@ const ok = (json: unknown, status = 200, headers?: Record<string, string>): Comp
 const refuse = (status: number, code: string, error: string, headers?: Record<string, string>) =>
   ok({ detail: { code, error } }, status, headers);
 
+/** The gateway's `422 proposal_invalid`: a flat problem document with its reasons in `errors`, step by step. */
+const invalidProposal = (step: number, code: string, message: string) =>
+  ok(
+    {
+      type: 'about:blank',
+      title: 'Unprocessable Content',
+      status: 422,
+      code: 'proposal_invalid',
+      detail: 'The proposal cannot be made; `errors` says why, step by step.',
+      errors: [{ step, code, message }],
+    },
+    422
+  );
+
 export interface OperationStore {
   /** Answers `…/compositions/tomatometer/environments…`. */
   route: (
@@ -60,6 +81,72 @@ export interface OperationStore {
   evaluated: Array<Record<string, unknown>>;
   /** Every adoption a page made, in order (environment slug, version label, `If-Match` sent). */
   adopted: Array<{ environment: string; version: string; ifMatch: string | undefined }>;
+  /** The proposals of TomatoMeter: the ones a spec seeded and the ones a page made, newest first. */
+  proposals: ProposalView[];
+  /** Every proposal a page confirmed, in order (its id and the phrase sent). */
+  confirmed: Array<{ id: string; confirmation: string | undefined }>;
+  /**
+   * Answers `…/compositions/tomatometer/proposals` (create, list). `seal` derives and seals a version from a proposal's
+   * source as the shared mock's derive does, and `preview` the same without sealing (its document's text).
+   */
+  proposalsRoute: (
+    request: CompositionRequest,
+    versions: readonly CompositionVersionView[],
+    derive: Derive
+  ) => CompositionReply;
+  /** Answers `/v1/organizations/{org}/proposals/{proposal}[/confirm]` (read, confirm, cancel). */
+  proposalRoute: (
+    request: CompositionRequest,
+    versions: readonly CompositionVersionView[],
+    derive: Derive
+  ) => CompositionReply;
+  /** `GET /v1/users/me/upstream-events`: TomatoMeter's open events when a spec seeded them (e2e/f6-*.spec.ts), else none. */
+  mineEvents: () => unknown[];
+  /** TomatoMeter's upstream events (F6), when the page seeded them (`{ upstream: true }`); null otherwise. */
+  upstream: UpstreamStore | null;
+  /**
+   * Seeds a proposal (a B5 fixture, `src/test/fixtures/core/zproposals.*.json`), its steps' environment bases set to the
+   * environments as they are now, so it is not stale until something moves them.
+   */
+  seedProposal: (proposal: ProposalView) => void;
+  /** Something else adopted or edited an environment: its ETag moves (a proposal built on it goes stale). */
+  touch: (environment: string) => void;
+}
+
+/** The fixture events a spec may publish into the store (`src/test/fixtures/core/upstream.tomatometer.event.<name>.json`). */
+export type UpstreamFixture =
+  'values-changed' | 'binding-invalid' | 'offering-changed' | 'unavailable' | 'withdrawn';
+
+/** TomatoMeter's upstream events in the shared mock: the gateway's F6 fixtures under the mock's ids, and what a page does. */
+export interface UpstreamStore {
+  /** Answers `…/compositions/tomatometer/upstream-events…` (list, read, review). */
+  route: (
+    request: CompositionRequest,
+    versions: readonly CompositionVersionView[]
+  ) => CompositionReply;
+  /** A newer upstream version arrives: the fixture event is added (a binding-invalid one supersedes the values-changed one). */
+  publish: (fixture: UpstreamFixture) => void;
+  /** The composition's counts, as `CompositionView.upstream` carries them. */
+  counts: () => UpstreamSummary;
+  /** A version's counts (`CompositionVersionView.upstream`). */
+  versionCounts: (version: string) => UpstreamSummary;
+  /** An environment's counts, by the version in effect there. */
+  environmentCounts: (inEffect: string | null) => EnvironmentUpstreamSummary;
+  /** The open events as `GET /v1/users/me/upstream-events` lists them. */
+  mine: () => MyUpstreamEvent[];
+  /** The bytes of a snapshot an event names, when the fixtures hold them. */
+  snapshot: (id: string) => string | null;
+  /** Every review a page sent (event id, note, `If-Match`). */
+  reviewed: Array<{ id: string; note: string; ifMatch: string | undefined }>;
+}
+
+/** What a proposal's seal step asks the shared mock: a preview (the document's text) or the sealed version. */
+export interface Derive {
+  preview: (label: string, source: Record<string, unknown>) => string;
+  seal: (
+    label: string,
+    source: Record<string, unknown>
+  ) => CompositionVersionView | CompositionReply;
 }
 
 interface Held {
@@ -87,7 +174,185 @@ function adapt<T>(value: T, org: string, versions: readonly CompositionVersionVi
   return parsed;
 }
 
-export function operationStore(org: string, composition: string): OperationStore {
+const WORST = ['binding_invalid', 'values_changed', 'offering_changed'] as const;
+
+/** The id of the gallery's no-impact event (not a gateway fixture: the store derives it). */
+export const NO_IMPACT_EVENT = '00000000-0000-4000-8000-0000000004e0';
+
+/** Counts of events, each (version, pricing, subject) once: open and reviewed, binding invalid, the worst category. */
+function summarise(events: readonly UpstreamEventDetail[]): UpstreamSummary {
+  const counted = events.filter(
+    event =>
+      event.notify &&
+      !event.supersededBy &&
+      (event.state === 'open' || (event.state === 'reviewed' && event.subject === 'binding'))
+  );
+  const open = counted.filter(event => event.state === 'open').length;
+  const reviewed = counted.filter(event => event.state === 'reviewed').length;
+  const bindingInvalid = counted.filter(event => event.category === 'binding_invalid').length;
+  const worst = WORST.find(category => counted.some(event => event.category === category)) ?? null;
+  return { open, reviewed, bindingInvalid, worst };
+}
+
+function upstreamStore(
+  org: string,
+  composition: string,
+  versionsNow: () => readonly CompositionVersionView[]
+): UpstreamStore {
+  const read = (fixture: UpstreamFixture) =>
+    adapt(
+      core<UpstreamEventDetail>(`upstream.tomatometer.event.${fixture}.json`),
+      org,
+      versionsNow()
+    );
+  const events: UpstreamEventDetail[] = [read('values-changed'), read('offering-changed')];
+  /** A no-impact event (the gallery's, F6): the values-changed fixture as if Brevo had changed another plan only. */
+  const noImpact = (): UpstreamEventDetail => {
+    const base = read('values-changed');
+    const diff = base.diff as {
+      entries?: Array<{ attributes?: Array<{ after: unknown; before: unknown; delta: unknown }> }>;
+    };
+    return {
+      ...base,
+      id: NO_IMPACT_EVENT,
+      category: 'no_impact',
+      notify: false,
+      diff: {
+        ...base.diff,
+        global: [],
+        notes: ['values_not_reevaluated'],
+        entries: (diff.entries ?? []).map(entry => ({
+          ...entry,
+          attributes: (entry.attributes ?? []).map(attribute => ({
+            ...attribute,
+            after: attribute.before,
+            delta: null,
+          })),
+        })),
+      },
+    };
+  };
+  const known = (id: string) =>
+    events.find(event => event.id === id) ??
+    [...(['unavailable', 'withdrawn', 'binding-invalid'] as const).map(read), noImpact()].find(
+      event => event.id === id
+    ) ??
+    null;
+  const etagOf = (event: UpstreamEventDetail) => `"event-${event.id}-${event.state}"`;
+  const snapshots: Record<string, string> = {
+    '00000000-0000-4000-8000-000000000026': coreText('upstream.brevo.2026-10.yaml'),
+    '00000000-0000-4000-8000-000000000048': coreText('upstream.brevo.2026-11.yaml'),
+  };
+  const listed = (event: UpstreamEventDetail) => {
+    const { diff: _diff, ...row } = event;
+    void _diff;
+    return row;
+  };
+  const upstream: UpstreamStore = {
+    reviewed: [],
+    publish(fixture) {
+      const event = read(fixture);
+      if (events.some(item => item.id === event.id)) return;
+      if (fixture === 'binding-invalid')
+        for (const older of events)
+          if (older.category === 'values_changed' && older.subject === 'binding')
+            older.supersededBy = event.id;
+      events.unshift(event);
+    },
+    counts: () => summarise(events),
+    versionCounts: version => summarise(events.filter(event => event.version.id === version)),
+    environmentCounts: inEffect => ({
+      ...summarise(
+        events.filter(
+          event =>
+            inEffect !== null &&
+            (event.version.id === inEffect ||
+              (event.subject === 'offering' && event.state === 'open'))
+        )
+      ),
+      resolvedBy: null,
+    }),
+    mine: () =>
+      events
+        // As the gateway's `mine`: a binding event open or reviewed (not resolved yet), an offering event while open.
+        .filter(
+          event =>
+            event.notify &&
+            (event.subject === 'binding'
+              ? event.state === 'open' || event.state === 'reviewed'
+              : event.state === 'open')
+        )
+        .map(event => ({
+          ...listed(event),
+          organization: { id: `org-${org}`, slug: org, name: 'ISA Demo Group' },
+          composition: { id: `composition-${composition}`, slug: composition, name: 'TomatoMeter' },
+        })) as unknown as MyUpstreamEvent[],
+    snapshot: id => snapshots[id] ?? null,
+    route(request) {
+      const [, , , , , , id, action] = request.parts;
+      if (!id && request.method === 'GET') {
+        const state = request.query.get('state');
+        const version = request.query.get('version');
+        const subject = request.query.get('subject');
+        const category = request.query.get('category');
+        const shown = [...events]
+          .sort((a, b) => b.detectedAt.localeCompare(a.detectedAt))
+          .filter(
+            event =>
+              (!state || event.state === state) &&
+              (!version || event.version.id === version) &&
+              (!subject || event.subject === subject) &&
+              (!category || event.category === category)
+          );
+        const list: UpstreamEventList = {
+          events: shown.map(listed) as UpstreamEventList['events'],
+          counts: {
+            open: events.filter(event => event.state === 'open' && event.category !== 'no_impact')
+              .length,
+            // As the gateway's `state_counts`: a no-impact event counts only under `noImpact`.
+            reviewed: events.filter(
+              event => event.state === 'reviewed' && event.category !== 'no_impact'
+            ).length,
+            resolved: events.filter(
+              event => event.state === 'resolved' && event.category !== 'no_impact'
+            ).length,
+            noImpact: events.filter(event => event.category === 'no_impact').length,
+          },
+          watches: core<UpstreamEventList>('upstream.tomatometer.events.json').watches,
+          nextBefore: null,
+        };
+        return ok(list);
+      }
+      const event = id ? known(id) : null;
+      if (!event) return refuse(404, 'not_found', 'Upstream event not found.');
+      if (!action && request.method === 'GET') return ok(event, 200, { ETag: etagOf(event) });
+      if (action === 'review' && request.method === 'POST') {
+        const ifMatch = request.header?.('if-match');
+        const note = String(request.body().note ?? '');
+        upstream.reviewed.push({ id: event.id, note, ifMatch });
+        if (ifMatch && ifMatch !== etagOf(event))
+          return refuse(412, 'precondition_failed', 'The event changed since it was read.', {
+            ETag: etagOf(event),
+          });
+        if (event.state !== 'open')
+          return refuse(409, 'event_not_reviewable', 'The event was already reviewed or resolved.');
+        event.state = 'reviewed';
+        event.note = note;
+        event.reviewedBy = { username: 'alex.rivera' };
+        event.reviewedAt = STAMP;
+        return ok(event, 200, { ETag: etagOf(event) });
+      }
+      return refuse(405, 'method_not_allowed', 'Not allowed.');
+    },
+  };
+  return upstream;
+}
+
+export function operationStore(
+  org: string,
+  composition: string,
+  options: { upstream?: boolean; versions?: readonly CompositionVersionView[] } = {}
+): OperationStore {
   let held: Held[] | null = null;
   let minted = 0;
   const store: OperationStore = {
@@ -97,7 +362,36 @@ export function operationStore(org: string, composition: string): OperationStore
     check: 'current',
     adopted: [],
     evaluated: [],
+    proposals: [],
+    confirmed: [],
+    proposalsRoute,
+    proposalRoute,
+    mineEvents: () => store.upstream?.mine() ?? [],
+    upstream: null,
+    seedProposal(proposal) {
+      const all = state(seenVersions);
+      const seeded = adapt(proposal, org, seenVersions);
+      for (const step of seeded.steps) {
+        const environment = all.find(item => item.view.id === step.params.environment);
+        if (step.kind === 'adopt' && environment)
+          step.base = {
+            ...step.base,
+            environmentEtag: etagOf(environment),
+            inEffect: environment.view.inEffect?.version.id ?? null,
+          };
+        if (step.kind === 'seal_derived')
+          step.base = { ...step.base, headVersionId: seenVersions.at(-1)?.id ?? null };
+      }
+      store.proposals = [seeded, ...store.proposals];
+    },
+    touch(slug) {
+      const item = state(seenVersions).find(entry => entry.view.slug === slug);
+      if (item) item.revision += 1;
+    },
   };
+  let seenVersions: readonly CompositionVersionView[] = options.versions ?? [];
+  if (options.upstream) store.upstream = upstreamStore(org, composition, () => seenVersions);
+  let made = 0;
   const etagOf = (item: Held) => `"env-${item.view.slug}-${item.revision}"`;
 
   function state(versions: readonly CompositionVersionView[]): Held[] {
@@ -124,7 +418,15 @@ export function operationStore(org: string, composition: string): OperationStore
     request: CompositionRequest,
     versions: readonly CompositionVersionView[]
   ): CompositionReply {
+    seenVersions = versions;
     const all = state(versions);
+    // The upstream badge of each environment (F6): its counts by the version in effect there.
+    if (store.upstream)
+      for (const item of all)
+        item.view = {
+          ...item.view,
+          upstream: store.upstream.environmentCounts(item.view.inEffect?.version.id ?? null),
+        };
     const [, , , , , , slug, section, key] = request.parts;
     const ifMatch = request.header?.('if-match');
     if (!slug) {
@@ -377,6 +679,309 @@ export function operationStore(org: string, composition: string): OperationStore
         rows: base.rows.map(row => ({ ...row, cost: null, margin: null })),
       });
     return ok({ ...base, users: Number(users) });
+  }
+
+  /** A step as the gateway shows it before it runs. */
+  const pendingStep = (
+    step: Partial<ProposalStepView> & Pick<ProposalStepView, 'ordinal' | 'kind' | 'description'>
+  ): ProposalStepView => ({
+    base: {},
+    deferred: [],
+    dependsOn: [],
+    destructive: false,
+    error: null,
+    finishedAt: null,
+    params: {},
+    preview: null,
+    result: null,
+    status: 'pending',
+    ...step,
+  });
+
+  function proposalsRoute(
+    request: CompositionRequest,
+    versions: readonly CompositionVersionView[],
+    derive: Derive
+  ): CompositionReply {
+    if (request.method === 'GET') {
+      const status = request.query.get('status');
+      return ok({
+        proposals: store.proposals
+          .filter(item => !status || item.status === status)
+          .map(item => ({ ...item, steps: item.steps.map(step => ({ ...step, preview: null })) })),
+      });
+    }
+    if (request.method !== 'POST') return refuse(405, 'method_not_allowed', 'Not allowed.');
+    const all = state(versions);
+    const body = request.body();
+    const environment = all.find(
+      item => item.view.slug === body.environment || item.view.id === body.environment
+    );
+    if (!environment)
+      return invalidProposal(
+        1,
+        'environment_not_found',
+        'This composition has no such environment.'
+      );
+    const inEffect = environment.view.inEffect;
+    const adoptBase = {
+      environmentEtag: etagOf(environment),
+      inEffect: inEffect?.version.id ?? null,
+    };
+    made += 1;
+    const id = `00000000-0000-4000-8000-0000000007${String(made).padStart(2, '0')}`;
+    let steps: ProposalStepView[];
+    let summary: string;
+    if (body.kind === 'derive_and_adopt') {
+      const source = (body.source ?? {}) as Record<string, unknown>;
+      const label = String(body.label ?? '');
+      const from =
+        typeof source.revision === 'string'
+          ? source.revision
+          : `run ${String(source.run).slice(0, 8)}`;
+      const pending = adapt(core<ProposalView>('zproposals.pending.json'), org, versions);
+      const preview = pending.steps[0].preview;
+      steps = [
+        pendingStep({
+          ordinal: 1,
+          kind: 'seal_derived',
+          description: `Seal ${label} from ${from}`,
+          params: { label, source },
+          base: {
+            headVersionId: versions.at(-1)?.id ?? null,
+            contentDigest: 'sha256-mock',
+            revisionId: 'rev',
+          },
+          preview: preview && {
+            ...preview,
+            document: derive.preview(label, source),
+            against: inEffect
+              ? {
+                  environment: {
+                    id: environment.view.id,
+                    name: environment.view.name,
+                    slug: environment.view.slug,
+                  },
+                  version: { id: inEffect.version.id, label: inEffect.version.label },
+                }
+              : null,
+          },
+        }),
+        pendingStep({
+          ordinal: 2,
+          kind: 'adopt',
+          description: `Adopt the version step 1 seals in ${environment.view.name}`,
+          params: {
+            environment: environment.view.id,
+            version: '@s1.version',
+            note: String(body.note ?? ''),
+          },
+          base: { ...adoptBase, deferred: ['version'], dependsOn: [1] },
+          deferred: ['version'],
+          dependsOn: [1],
+        }),
+      ];
+      summary = `${steps[0].description}; then ${steps[1].description}`;
+    } else {
+      const asked = String(body.version ?? '');
+      const version = versions.find(item => item.id === asked || item.label === asked);
+      if (!version)
+        return invalidProposal(1, 'version_not_found', 'This composition has no such version.');
+      steps = [
+        pendingStep({
+          ordinal: 1,
+          kind: 'adopt',
+          description: `Adopt ${version.label} in ${environment.view.name}`,
+          params: {
+            environment: environment.view.id,
+            version: version.id,
+            note: String(body.note ?? ''),
+          },
+          base: adoptBase,
+        }),
+      ];
+      summary = steps[0].description;
+    }
+    // A new proposal replaces its author's pending one.
+    for (const item of store.proposals)
+      if (item.status === 'pending' && item.mine) {
+        item.status = 'superseded';
+        item.supersededBy = id;
+      }
+    const proposal: ProposalView = {
+      id,
+      status: 'pending',
+      summary,
+      steps,
+      warnings: [],
+      origin: 'web',
+      mine: true,
+      composition: { id: `composition-${composition}`, slug: composition, name: 'TomatoMeter' },
+      organization: { id: `org-${org}`, slug: org, name: org },
+      proposedBy: { username: 'alex.rivera' },
+      confirmationPhrase: null,
+      upstreamEvent: typeof body.upstreamEvent === 'string' ? body.upstreamEvent : null,
+      supersededBy: null,
+      createdAt: STAMP,
+      confirmedAt: null,
+      completedAt: null,
+    };
+    store.proposals = [proposal, ...store.proposals];
+    return ok(proposal, 201);
+  }
+
+  function proposalRoute(
+    request: CompositionRequest,
+    versions: readonly CompositionVersionView[],
+    derive: Derive
+  ): CompositionReply {
+    const [, , , , id, action] = request.parts;
+    const proposal = store.proposals.find(item => item.id === id);
+    if (!proposal) return refuse(404, 'not_found', 'Proposal not found.');
+    if (!action && request.method === 'GET') return ok(proposal);
+    if (proposal.status !== 'pending')
+      return refuse(409, 'proposal_not_pending', 'This proposal is no longer pending.');
+    if (!action && request.method === 'DELETE') {
+      proposal.status = 'cancelled';
+      return ok(proposal);
+    }
+    if (action !== 'confirm' || request.method !== 'POST')
+      return refuse(405, 'method_not_allowed', 'Not allowed.');
+    store.confirmed.push({
+      id: proposal.id,
+      confirmation: request.body().confirmation as string | undefined,
+    });
+    const all = state(versions);
+    // The pre-flight: every adopt step's environment as it was when proposed.
+    const stale = proposal.steps.flatMap(step => {
+      if (step.kind !== 'adopt') return [];
+      const environment = all.find(item => item.view.id === step.params.environment);
+      const base = step.base as { environmentEtag?: string };
+      if (!environment)
+        return [{ step: step.ordinal, kind: 'adopt', reason: 'environment_missing' }];
+      return etagOf(environment) === base.environmentEtag
+        ? []
+        : [
+            {
+              step: step.ordinal,
+              kind: 'adopt',
+              reason: 'environment_changed',
+              base: base.environmentEtag,
+              current: etagOf(environment),
+            },
+          ];
+    });
+    if (stale.length > 0) {
+      proposal.status = 'stale';
+      return ok(
+        {
+          detail: {
+            code: 'proposal_stale',
+            error:
+              'This proposal is out of date: what it was built on changed since it was made. Nothing was changed.',
+            stale,
+          },
+        },
+        409
+      );
+    }
+    proposal.confirmedAt = STAMP;
+    for (const step of proposal.steps) {
+      const failedDependency = step.dependsOn.some(
+        ordinal => proposal.steps.find(other => other.ordinal === ordinal)?.status !== 'done'
+      );
+      if (failedDependency) {
+        step.status = 'skipped';
+        step.error = {
+          status: 0,
+          code: 'skipped_dependency',
+          message: 'Skipped: a step it depends on did not complete.',
+          detail: null,
+        };
+        continue;
+      }
+      step.finishedAt = STAMP;
+      if (step.kind === 'seal_derived') {
+        const sealed = derive.seal(
+          String(step.params.label),
+          step.params.source as Record<string, unknown>
+        );
+        if ('status' in sealed && 'json' in sealed) {
+          step.status = 'failed';
+          step.error = {
+            status: sealed.status,
+            code: 'derivation_invalid',
+            message: 'The version could not be sealed.',
+            detail: null,
+          };
+          continue;
+        }
+        const version = sealed as CompositionVersionView;
+        versions = [...versions.filter(item => item.id !== version.id), version];
+        step.status = 'done';
+        step.result = { version: { id: version.id, label: version.label }, created: true };
+      } else {
+        const sealedBy = (proposal.steps.find(other => other.ordinal === step.dependsOn[0])
+          ?.result ?? {}) as {
+          version?: { id: string };
+        };
+        const versionId =
+          step.params.version === '@s1.version'
+            ? sealedBy.version?.id
+            : String(step.params.version);
+        const environment = all.find(item => item.view.id === step.params.environment)!;
+        const answer = route(
+          {
+            method: 'POST',
+            parts: [
+              'v1',
+              'organizations',
+              org,
+              'compositions',
+              composition,
+              'environments',
+              environment.view.slug,
+              'adopt',
+            ],
+            query: new URLSearchParams(),
+            body: () => ({ version: versionId, note: step.params.note ?? '' }),
+            text: () => '',
+            header: name =>
+              name === 'if-match'
+                ? String((step.base as { environmentEtag?: string }).environmentEtag)
+                : undefined,
+          },
+          versions
+        );
+        if (answer.status !== 200) {
+          const refusal =
+            (answer.json as { detail?: { code?: string; error?: string } })?.detail ?? {};
+          step.status = 'failed';
+          step.error = {
+            status: answer.status,
+            code: refusal.code ?? 'failed',
+            message: refusal.error ?? 'Not adopted.',
+            detail: null,
+          };
+          continue;
+        }
+        const adoption = (answer.json as { adoption: CompositionAdoptionView }).adoption;
+        adoption.source = 'proposal';
+        adoption.proposal = { id: proposal.id, summary: proposal.summary };
+        step.status = 'done';
+        step.result = {
+          environment: environment.view.slug,
+          ordinal: adoption.ordinal,
+          feedEtag: adoption.feedEtag,
+          versionLabel: adoption.version.label,
+        };
+      }
+    }
+    const done = proposal.steps.filter(step => step.status === 'done').length;
+    proposal.status =
+      done === proposal.steps.length ? 'completed' : done === 0 ? 'failed' : 'partial';
+    proposal.completedAt = STAMP;
+    return ok(proposal);
   }
 
   return store;

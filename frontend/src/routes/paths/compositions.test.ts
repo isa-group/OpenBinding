@@ -53,6 +53,14 @@ describe('the address builders of the compositions area', () => {
     expect(compositionPath('acme', 'a b/c', undefined, { version: '' })).toBe(
       '/compositions/acme/a%20b%2Fc'
     );
+    expect(compositionPath('acme', 'order-desk', 'operation', { event: 'e-1' })).toBe(
+      '/compositions/acme/order-desk/operation?event=e-1'
+    );
+    expect(
+      new URLSearchParams(
+        compositionPath('acme', 'order-desk', 'operation', { event: 'a b&c' }).split('?')[1]
+      ).get('event')
+    ).toBe('a b&c');
     expect(compositionPath('acme', 'order-desk', 'versions', { version: '1.2.0' })).toBe(
       '/compositions/acme/order-desk/versions?version=1.2.0'
     );

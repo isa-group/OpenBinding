@@ -1,12 +1,13 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   API,
   FEED_CONSUMER,
   MAILPIT,
   ORG,
+  adoptByApi,
   capture,
-  labFeedKey,
-  labPassword,
+  consumerUntil,
+  feedEtag,
   signInByApi,
   watchPageErrors,
 } from './support';
@@ -32,7 +33,6 @@ test.describe.configure({ mode: 'serial' });
 const COMPOSITION = 'tomatometer';
 const OPERATION = `/compositions/${ORG}/${COMPOSITION}/operation`;
 const ROOT = `${API}/v1/organizations/${ORG}/compositions/${COMPOSITION}`;
-const ENVIRONMENT = `${ROOT}/environments/production`;
 
 const card = (page: Page, name: string) =>
   page.locator('main').getByRole('article', { name: `Environment ${name}` });
@@ -42,49 +42,6 @@ async function adoptionOf(text: Promise<string | null>): Promise<number> {
   const match = /Adoption #(\d+)/.exec((await text) ?? '');
   expect(match, 'an adoption number is shown').not.toBeNull();
   return Number(match![1]);
-}
-
-/** The feed as TomatoMeter reads it: with the environment's key. */
-async function feedEtag(request: APIRequestContext): Promise<string> {
-  const answer = await request.get(`${ENVIRONMENT}/composition`, {
-    headers: { 'X-API-Key': labFeedKey(labPassword(), ORG, COMPOSITION, 'production') },
-  });
-  expect(answer.status()).toBe(200);
-  return answer.headers()['etag'] ?? '';
-}
-
-/** The consumer's state, polled until `done` holds (up to 30 s; the lab polls the feed every 3 s). */
-async function consumerUntil(
-  request: APIRequestContext,
-  done: (state: Record<string, unknown>) => boolean
-): Promise<Record<string, unknown>> {
-  let state: Record<string, unknown> = {};
-  await expect
-    .poll(
-      async () => {
-        state = (await (await request.get(`${FEED_CONSUMER}/state`)).json()) as Record<
-          string,
-          unknown
-        >;
-        return done(state);
-      },
-      { timeout: 30_000, intervals: [1_000] }
-    )
-    .toBe(true);
-  return state;
-}
-
-/** Adopts a version by the API with the environment's current ETag (the restore; the walk itself adopts on screen). */
-async function adoptByApi(request: APIRequestContext, token: string, label: string) {
-  const headers = { Authorization: `Bearer ${token}` };
-  const read = await request.get(ENVIRONMENT, { headers });
-  const view = (await read.json()) as { inEffect: { version: { label: string } } | null };
-  if (view.inEffect?.version.label === label) return;
-  const answer = await request.post(`${ENVIRONMENT}/adopt`, {
-    headers: { ...headers, 'If-Match': read.headers()['etag'] ?? '' },
-    data: { version: label, note: 'Back to the seed' },
-  });
-  expect(answer.status(), `adopt ${label}: ${await answer.text()}`).toBe(200);
 }
 
 let ownerToken = '';

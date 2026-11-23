@@ -14,6 +14,7 @@ import type { CompositionVersionView, CompositionView } from '../../../core/api/
 import { compositionsApi } from '../../../core/utils/composition/api';
 import { formatValue, valueModels } from '../../../core/utils/composition/values';
 import CompositionCard from '../../../composition/components/composition-card';
+import { useUpstreamRefresh } from '../../../notification/hooks/useUpstreamRefresh';
 import { compositionPath } from '../../../../routes/paths/compositions';
 import { problemPath } from '../../../../routes/paths/problems';
 import { useResource } from '../../../core/hooks/useResource';
@@ -105,7 +106,9 @@ function Linked({
 
 /** The Compositions tab of the problem page: the compositions that link a version of this problem. */
 export default function CompositionsTab({ org, item }: { org: string; item: Problem }) {
-  const list = useResource(`problem-compositions:${org}/${item.slug}`, () =>
+  // An upstream event about one of these compositions arrived: their badges are read again.
+  const arrived = useUpstreamRefresh(org);
+  const list = useResource(`problem-compositions:${org}/${item.slug}:${arrived}`, () =>
     compositionsApi.list(org, { problem: item.slug, sort: 'name', limit: PAGE })
   );
   const rows = list.data?.compositions ?? [];

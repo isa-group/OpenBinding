@@ -3,7 +3,9 @@
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: OpenBinding's derivation (where the version goes, which solution under which label, the previewed document
 // sealed as previewed) drawn on SPHERE's fork modal recipe: the steps, labelled fields, a red refusal box and the
-// right-aligned secondary and primary buttons, in OpenBinding's modal (a focus trap and Escape).
+// right-aligned secondary and primary buttons, in OpenBinding's modal (a focus trap and Escape). Into a composition with an
+// environment the reader may adopt in, the preview also offers "Adopt in <environment> in the same step": a
+// `derive_and_adopt` proposal (F6), shown on its proposal card in the same modal and applied only when confirmed.
 
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -21,12 +23,14 @@ import { formatValue } from '../../../core/utils/composition/values';
 import { COMPOSITION_FILE } from '../../../core/utils/composition/viewModel';
 import { compositionPath, editorPath } from '../../../../routes/paths/compositions';
 import { readApiError } from '../../../core/api/errors';
+import { latestOffering, OfferingUnreadable, offeringUnreadableText } from './latestOffering';
 import type {
   CompositionDerive,
-  CompositionVersionView,
+  CompositionEnvironmentView,
   CompositionView,
   DeriveDraft,
   DeriveResult,
+  ProposalView,
 } from '../../../core/api/types';
 import { fromC2y } from '../../../core/diagnostics/located';
 import { SLUG_PATTERN, slugFromName } from '../../../core/utils/slug';
@@ -52,8 +56,10 @@ import {
   type SingleSource,
 } from './deriveModel';
 import { refusalOf, type Refusal } from './refusal';
-import AdoptDialog from '../../../composition/components/adopt-dialog';
+import { useProposalsApi } from '../../../composition/api/proposalsApi';
+import ProposalPanel from '../../../composition/components/proposals-section/ProposalPanel';
 import { roleAtLeast } from '../../../composition/hooks/useCompositionRole';
+import { useResource } from '../../../core/hooks/useResource';
 import type { OrgRole } from '../../../organization/api/organizationsApi';
 
 type Step = 'where' | 'what' | 'preview';
@@ -223,8 +229,9 @@ export interface DeriveCompositionDialogProps {
   /** Batch mode: called each time a point's composition holds the point as its version 1.0.0. */
   onDerived?: (key: string, derived: DerivedPoint) => void;
   /**
-   * The reader's role in the organization: given, a seal into a composition with an environment it may adopt in offers
-   * "Adopt in environment" beside "Open versions" (F4); without it the dialog opens the versions at once.
+   * The reader's role in the organization: given, a derivation into a composition with an environment it may adopt in
+   * offers "Adopt in <environment> in the same step", a proposal the reader confirms here (F6); sealing alone opens the
+   * versions, as without it.
    */
   role?: OrgRole | null;
 }
@@ -245,12 +252,67 @@ export function DeriveCompositionDialog({
   return <DeriveOne org={org} source={source} onClose={onClose} role={role} />;
 }
 
+/** Derive and adopt in one step: a `derive_and_adopt` proposal of the previewed request, for the reader to confirm. */
+function ProposeButton({
+  org,
+  slug,
+  request,
+  environment,
+  disabled,
+  onBusy,
+  onRefused,
+  onProposed,
+}: {
+  org: string;
+  slug: string;
+  request: CompositionDerive;
+  environment: CompositionEnvironmentView;
+  disabled: boolean;
+  onBusy: (working: boolean) => void;
+  onRefused: (caught: unknown) => void;
+  onProposed: (proposal: ProposalView) => void;
+}) {
+  const api = useProposalsApi();
+  const [working, setWorking] = useState(false);
+  const propose = async () => {
+    if (working) return;
+    setWorking(true);
+    onBusy(true);
+    try {
+      onProposed(
+        await api.create(org, slug, {
+          kind: 'derive_and_adopt',
+          source:
+            request.run !== undefined && request.run !== null
+              ? { run: request.run, point: request.point ?? 0 }
+              : { revision: request.revision ?? '', binding: { ...(request.binding ?? {}) } },
+          label: request.version,
+          environment: environment.slug,
+          note: '',
+          ...(request.offering ? { offering: request.offering } : {}),
+        })
+      );
+    } catch (caught) {
+      onRefused(caught);
+    } finally {
+      setWorking(false);
+      onBusy(false);
+    }
+  };
+  return (
+    <Action variant="primary" busy={working} disabled={disabled} onClick={() => void propose()}>
+      {`Propose sealing and adopting ${request.version}`}
+    </Action>
+  );
+}
+
 /**
  * Derive a composition from a run or from a binding of a problem version (§4 derive): where the version goes (a composition of the
  * organization, or a new one, created when the preview is asked for), which solution (of a run) and under which label, then the
  * document the gateway writes, previewed before it is sealed. A preview and a seal send the same request but `seal`, so the sealed
  * bytes are the previewed ones (F1 D15). The preview can also open in the Editor as a draft. A binding derived into a given
- * composition starts at the label step, with the next minor of that composition's latest label.
+ * composition starts at the label step, with the next minor of that composition's latest label. Deriving and adopting in one
+ * step is a proposal whose seal step stores the same document, checked again when the reader confirms it.
  */
 function DeriveOne({
   org,
@@ -272,14 +334,9 @@ function DeriveOne({
   const points = run ? pointsOf(run.solutions) : [];
 
   const [step, setStep] = useState<Step>(into ? 'what' : 'where');
-  // After a seal into a composition with an environment the reader may adopt in: "Open versions" or "Adopt in environment",
-  // a second human step (adoption is never chained to the derivation).
-  const [sealed, setSealed] = useState<{
-    slug: string;
-    version: CompositionVersionView;
-    toast: string;
-  } | null>(null);
-  const [adoptInto, setAdoptInto] = useState<CompositionView | null>(null);
+  // Seal only (''), or seal and adopt in this environment (its slug) in one proposal the reader confirms here.
+  const [adoptIn, setAdoptIn] = useState('');
+  const [proposal, setProposal] = useState<ProposalView | null>(null);
   const [compositions, setCompositions] = useState<Compositions>({ status: 'loading' });
   const [mode, setMode] = useState<'new' | 'existing'>(into ? 'existing' : 'new');
   const [chosen, setChosen] = useState(into?.slug ?? '');
@@ -294,13 +351,26 @@ function DeriveOne({
   const [label, setLabel] = useState<{ value: string; target: string } | null>(null);
   const [labelError, setLabelError] = useState('');
 
-  const [busy, setBusy] = useState<'preview' | 'seal' | 'draft' | null>(null);
+  const [busy, setBusy] = useState<'preview' | 'seal' | 'draft' | 'propose' | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [preview, setPreview] = useState<{
     request: CompositionDerive;
     slug: string;
     draft: DeriveDraft;
   } | null>(null);
+
+  // The environments of the composition previewed into where the reader may adopt (one read, as the adopt dialog makes).
+  const adoptable = useResource<CompositionEnvironmentView[]>(
+    `derive-environments:${org}/${preview?.slug ?? 'none'}/${role ?? 'none'}`,
+    async () =>
+      preview && role
+        ? (await compositionsApi.environments(org, preview.slug).catch(() => [])).filter(
+            environment => roleAtLeast(role, environment.adoptRole)
+          )
+        : []
+  );
+  const adoptEnvironments = adoptable.data ?? [];
+  const adoptTarget = adoptEnvironments.find(environment => environment.slug === adoptIn) ?? null;
 
   useEffect(() => {
     let active = true;
@@ -406,9 +476,22 @@ function DeriveOne({
       setBusy(null);
       return;
     }
-    const request = run
+    // Into a composition whose latest version states an offering, the new version states the same one (its margins and
+    // its offering's upstream changes go on); a new composition has none. A failed read stops here rather than drop it.
+    const latest = target?.slug === into ? target.latest_version : null;
+    let offering: Record<string, unknown> | null;
+    try {
+      offering = await latestOffering(org, into, latest);
+    } catch (caught) {
+      if (!(caught instanceof OfferingUnreadable)) throw caught;
+      setRefusal({ message: offeringUnreadableText(caught), findings: [] });
+      setBusy(null);
+      return;
+    }
+    const derived = run
       ? runDerivation(run, point, version, false)
       : bindingDerivation(bound as BindingSource, version, false);
+    const request = offering ? { ...derived, offering } : derived;
     try {
       const answer = await compositionsApi.derive(org, into, request);
       if (isSealed(answer.result)) throw new Error('The gateway sealed a preview.');
@@ -432,18 +515,6 @@ function DeriveOne({
       const toast = answer.created
         ? `Version ${label} sealed.`
         : `Version ${label} already holds this document.`;
-      const environments =
-        role && isSealed(answer.result)
-          ? await compositionsApi.environments(org, preview.slug).catch(() => [])
-          : [];
-      if (
-        isSealed(answer.result) &&
-        environments.some(environment => roleAtLeast(role, environment.adoptRole))
-      ) {
-        setSealed({ slug: preview.slug, version: answer.result.version, toast });
-        setBusy(null);
-        return;
-      }
       void navigate(compositionPath(org, preview.slug, 'versions', { version: label }), {
         state: { toast },
         viewTransition: true,
@@ -487,67 +558,62 @@ function DeriveOne({
       ? 'Lowercase letters, numbers and hyphens.'
       : undefined;
 
-  const openVersions = (done: { slug: string; version: CompositionVersionView; toast: string }) =>
-    void navigate(compositionPath(org, done.slug, 'versions', { version: done.version.label }), {
-      state: { toast: done.toast },
-      viewTransition: true,
-    });
-
-  if (sealed && adoptInto)
+  if (proposal && preview) {
+    const settled = proposal.status !== 'pending' && proposal.status !== 'executing';
+    const adopted = proposal.status === 'completed' || proposal.status === 'partial';
     return (
-      <AdoptDialog
-        org={org}
-        composition={adoptInto}
-        versions={[sealed.version]}
-        role={role ?? null}
-        version={sealed.version.id}
-        onClose={() => setAdoptInto(null)}
-        onAdopted={result =>
-          void navigate(
-            compositionPath(org, sealed.slug, 'operation', {
-              environment: result.environment.slug,
-            }),
-            {
-              state: {
-                toast: `Version ${result.adoption.version.label} adopted in ${result.environment.name} (adoption #${result.adoption.ordinal}).`,
-              },
-            }
-          )
-        }
-      />
-    );
-
-  if (sealed)
-    return (
-      <Modal title="Derive a composition" size="lg" onClose={() => openVersions(sealed)}>
+      // A modal of its own (keyed): it takes focus as it opens, since the button that made the proposal is gone.
+      <Modal
+        key="proposal"
+        title="Derive and adopt"
+        size="lg"
+        onClose={() => {
+          if (busy) return;
+          onClose();
+        }}
+      >
         <div className={FORM}>
-          <p className="m-0 text-sm text-tp-ink" role="status">
-            {`${sealed.toast.replace(/\.$/, '')} in ${sealed.slug}.`}
+          <p className={MUTED} role="status">
+            {settled
+              ? 'The proposal was decided. The Operation tab keeps it with the composition’s other proposals.'
+              : `Nothing is sealed or adopted until you confirm. The proposal waits on the Operation tab of ${preview.slug} until you confirm or cancel it, or until you make another one on this composition, which replaces it.`}
           </p>
-          <p className={MUTED}>
-            Nothing is adopted yet. Adopting it in an environment is a separate step: the
-            application reading that environment’s feed gets it on its next poll.
-          </p>
-          {refusal && <RefusalNotice refusal={refusal} />}
+          <ProposalPanel
+            proposal={proposal}
+            context={{
+              org,
+              composition: preview.slug,
+              environments: adoptEnvironments,
+            }}
+            onChanged={changed => {
+              if (changed) setProposal(changed);
+            }}
+          />
           <div className={ACTIONS}>
-            <Action
-              variant="secondary"
-              onClick={() =>
-                void compositionsApi.get(org, sealed.slug).then(
-                  read => setAdoptInto(read.value),
-                  caught => setRefusal(refusalOf(caught, 'derive', from))
-                )
-              }
-            >
-              Adopt in environment…
-            </Action>
-            <Action variant="primary" onClick={() => openVersions(sealed)}>
-              Open versions
-            </Action>
+            {adopted && adoptTarget ? (
+              <Action
+                variant="primary"
+                onClick={() =>
+                  void navigate(
+                    compositionPath(org, preview.slug, 'operation', {
+                      environment: adoptTarget.slug,
+                    }),
+                    { viewTransition: true }
+                  )
+                }
+              >
+                {`Open ${adoptTarget.name}`}
+              </Action>
+            ) : (
+              <Action variant="secondary" onClick={onClose}>
+                Close
+              </Action>
+            )}
           </div>
         </div>
       </Modal>
     );
+  }
 
   return (
     <Modal title="Derive a composition" size="lg" onClose={close}>
@@ -773,6 +839,38 @@ function DeriveOne({
               )}
             </section>
             <ProblemsPanel diagnostics={findings} title="Findings" />
+            {adoptEnvironments.length > 0 && (
+              <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">
+                <legend className="mb-1 p-0 text-[13px] font-semibold text-tp-slate">
+                  After sealing
+                </legend>
+                <label className={RADIO}>
+                  <input
+                    type="radio"
+                    name="dc-adopt"
+                    checked={adoptTarget === null}
+                    onChange={() => setAdoptIn('')}
+                  />
+                  Seal only; adopt it later
+                </label>
+                {adoptEnvironments.map(environment => (
+                  <label key={environment.slug} className={RADIO}>
+                    <input
+                      type="radio"
+                      name="dc-adopt"
+                      checked={adoptTarget?.slug === environment.slug}
+                      onChange={() => setAdoptIn(environment.slug)}
+                    />
+                    {`Adopt in ${environment.name} in the same step`}
+                  </label>
+                ))}
+                {adoptTarget && (
+                  <p className={MUTED}>
+                    {`Both steps become one proposal: you see what it seals and what changes in ${adoptTarget.name}, then confirm it. ${adoptTarget.name}’s feed changes only when you do.`}
+                  </p>
+                )}
+              </fieldset>
+            )}
             {refusal && <RefusalNotice refusal={refusal} />}
             <div className={ACTIONS}>
               <Action variant="secondary" onClick={() => back('what')} disabled={busy !== null}>
@@ -781,14 +879,30 @@ function DeriveOne({
               <Action variant="secondary" onClick={openDraft} disabled={busy !== null}>
                 Open as draft
               </Action>
-              <Action
-                variant="primary"
-                busy={busy === 'seal'}
-                disabled={busy !== null && busy !== 'seal'}
-                onClick={() => void seal()}
-              >
-                {`Seal ${preview.request.version}`}
-              </Action>
+              {adoptTarget ? (
+                <ProposeButton
+                  org={org}
+                  slug={preview.slug}
+                  request={preview.request}
+                  environment={adoptTarget}
+                  disabled={busy !== null && busy !== 'propose'}
+                  onBusy={working => setBusy(working ? 'propose' : null)}
+                  onRefused={caught => setRefusal(refusalOf(caught, 'derive', from))}
+                  onProposed={made => {
+                    setRefusal(null);
+                    setProposal(made);
+                  }}
+                />
+              ) : (
+                <Action
+                  variant="primary"
+                  busy={busy === 'seal'}
+                  disabled={busy !== null && busy !== 'seal'}
+                  onClick={() => void seal()}
+                >
+                  {`Seal ${preview.request.version}`}
+                </Action>
+              )}
             </div>
           </div>
         )}

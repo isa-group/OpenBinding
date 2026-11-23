@@ -35,7 +35,10 @@ export default function CompositionListPage() {
         fetchItems={fetchItems}
         itemKey={item => `${item.organization.slug}/${item.slug}`}
         renderItem={item => (
-          <CompositionCard data={item} to={compositionPath(item.organization.slug, item.slug)} />
+          <CompositionCard
+            data={{ ...item, upstream: null }}
+            to={compositionPath(item.organization.slug, item.slug)}
+          />
         )}
         title="Public compositions"
         subtitle="Browse every public service composition in OpenBinding."

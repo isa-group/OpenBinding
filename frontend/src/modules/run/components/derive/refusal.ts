@@ -1,4 +1,5 @@
 import { readApiError, type ApiError } from '../../../core/api/errors';
+import { proposalErrors } from '../../../core/api/problem';
 
 /** A refusal of the gateway, in words, with the findings a 422 carries. */
 export interface Refusal {
@@ -34,6 +35,16 @@ export function refusalOf(
     return {
       message: `${subject} can’t be written as a composition${code}. The gateway found:`,
       findings: error.diagnostics,
+    };
+  }
+  if (error.status === 422 && error.code === 'proposal_invalid') {
+    // The gateway says why step by step: a label holding another content, a version already in effect…
+    const reasons = proposalErrors(caught)
+      .map(item => item.message)
+      .filter(Boolean);
+    return {
+      message: `The proposal can’t be made${code}${reasons.length ? `: ${reasons.join(' ')}` : '.'}`,
+      findings: [],
     };
   }
   if (error.status === 429) {

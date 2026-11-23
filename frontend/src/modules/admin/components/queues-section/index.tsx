@@ -10,6 +10,7 @@ import { formatDuration } from '../../../core/utils/limits';
 import { useResource } from '../../../core/hooks/useResource';
 import { adminPath, adminUserPath } from '../../../../routes/paths/admin';
 import { useAdminApi } from '../../api/adminApi';
+import type { AdminUpstreamWatch } from '../../../core/api/account';
 import { ageLabel, ageSeconds, count, describeAdminFailure, shortId } from '../../utils/adminModel';
 import { Card, FailureNotice, Loading, Meter, MUTED, SectionHeader, Tag } from '../admin-parts';
 
@@ -22,6 +23,65 @@ const STATES = [
 ] as const;
 
 const REFRESH_MS = 10_000;
+
+const WATCH_STATES: ReadonlyArray<{ id: string; label: string }> = [
+  { id: 'active', label: 'Active' },
+  { id: 'pending', label: 'Pending' },
+  { id: 'unavailable', label: 'Unavailable' },
+  { id: 'notFound', label: 'Not found' },
+  { id: 'gone', label: 'Gone' },
+  { id: 'credentialMissing', label: 'Key missing' },
+  { id: 'registryUnknown', label: 'Registry unknown' },
+  { id: 'idle', label: 'Idle' },
+];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  values_changed: 'values changed',
+  binding_invalid: 'rebinding recommended',
+  offering_changed: 'offering changed',
+  no_impact: 'no impact',
+};
+
+/** The upstream watcher's row (F6): the pricings watched by status, what is due, and what it found in a day. */
+function UpstreamWatchCard({ watch, now }: { watch: AdminUpstreamWatch; now: number }) {
+  const found = Object.entries(watch.eventsLastDay).filter(([, value]) => value > 0);
+  return (
+    <Card
+      title="Upstream watcher"
+      aside={
+        watch.enabled
+          ? `Every ${formatDuration(watch.intervalSeconds)}`
+          : 'Off on this installation'
+      }
+    >
+      <div role="list" aria-label="Watched pricings by status" className="flex flex-wrap gap-2">
+        {WATCH_STATES.filter(
+          state => (watch.watches[state.id] ?? 0) > 0 || state.id === 'active'
+        ).map(state => (
+          <span key={state.id} role="listitem">
+            <Tag tone={state.id === 'active' ? 'success' : 'plain'}>
+              {`${state.label} ${count(watch.watches[state.id] ?? 0)}`}
+            </Tag>
+          </span>
+        ))}
+      </div>
+      <p className={MUTED}>
+        {`${count(watch.due)} due now`}
+        {watch.oldestDueSeconds !== null
+          ? `, the oldest for ${formatDuration(watch.oldestDueSeconds)}`
+          : ''}
+        {` · last answer from upstream ${watch.lastObservedAt ? ageLabel(watch.lastObservedAt, now) + ' ago' : 'never'}`}
+        {` · ${count(watch.unresolvedRefs)} references waiting to be resolved`}
+        {` · ${count(watch.executingProposals)} proposals being applied`}
+      </p>
+      <p className={MUTED}>
+        {found.length > 0
+          ? `In the last day: ${found.map(([category, value]) => `${count(value)} ${CATEGORY_LABELS[category] ?? category}`).join(', ')}.`
+          : 'No upstream change in the last day.'}
+      </p>
+    </Card>
+  );
+}
 
 /** The Queues section of `/admin`: jobs by state and the oldest ones still waiting or running. */
 export default function QueuesSection() {
@@ -214,6 +274,8 @@ export default function QueuesSection() {
           </Card>
         </>
       )}
+
+      {status?.upstreamWatch && <UpstreamWatchCard watch={status.upstreamWatch} now={now} />}
 
       {status && (
         <Card title="What this screen can’t do">

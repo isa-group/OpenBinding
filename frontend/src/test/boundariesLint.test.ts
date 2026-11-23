@@ -66,4 +66,16 @@ describe('the module rule', () => {
     );
     expect(inside.found).toEqual([]);
   });
+
+  it.each([
+    'src/modules/core/components/proposal-card/index.tsx',
+    'src/modules/core/components/proposal-card/steps.tsx',
+    'src/modules/core/components/upstream-badge/index.tsx',
+    'src/modules/core/components/upstream-change-summary/index.tsx',
+    'src/modules/core/components/composition-renderer/modes/operations.tsx',
+  ])('keeps the F6 core component %s free of any domain module', async file => {
+    const { readFileSync } = await import('node:fs');
+    const result = await lint(file, readFileSync(`${process.cwd()}/${file}`, 'utf8'));
+    expect(boundaries(result.messages)).toEqual([]);
+  });
 });

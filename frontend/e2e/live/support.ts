@@ -1,4 +1,4 @@
-import type { Page, TestInfo } from '@playwright/test';
+import { expect, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
 import { prepareCapture, waitUntilSettled } from '../helpers/pageChecks';
 import { signInReturning, type Role as IdentityRole } from '../identity/support';
 
@@ -141,19 +141,88 @@ export const VIEWPORTS = [
 /**
  * Takes the screen at 1440x900 and at 390x844 and saves both in the output directory of the run (`<results>/test-output/<spec>/`),
  * attached to the report as well. The page goes back to the size it had. (The visual QA spec keeps its own pictures in
- * `<results>/screenshots`.)
+ * `<results>/screenshots`.) `fullPage: false` takes the viewport only: a dialog over a very long page (the configurator's
+ * matrix) is what is seen, and a full-page picture of that page can exhaust the browser's memory in the lab container.
  */
-export async function capture(page: Page, testInfo: TestInfo, name: string): Promise<void> {
+export async function capture(
+  page: Page,
+  testInfo: TestInfo,
+  name: string,
+  { fullPage = true }: { fullPage?: boolean } = {}
+): Promise<void> {
   const before = page.viewportSize();
   for (const view of VIEWPORTS) {
     await page.setViewportSize({ width: view.width, height: view.height });
     await waitUntilSettled(page);
     await prepareCapture(page);
     const path = testInfo.outputPath(`${name}-${view.name}.png`);
-    await page.screenshot({ path, fullPage: true, animations: 'disabled' });
+    await page.screenshot({ path, fullPage, animations: 'disabled' });
     await testInfo.attach(`${name}-${view.name}`, { path, contentType: 'image/png' });
   }
   if (before) await page.setViewportSize(before);
 }
 
+import { FEED_CONSUMER, labFeedKey } from './feedKey';
 export { FEED_CONSUMER, MAILPIT, labFeedKey } from './feedKey';
+
+/** The lab's SPHERE stand-in's control port (F6-C), inside the compose network only. */
+export const SPHERE_LAB_CONTROL =
+  process.env.PLAYWRIGHT_SPHERE_LAB_CONTROL ?? 'http://sphere-lab:8081';
+
+/** An environment of a composition of `lab-main`, through the API (`/api/v1/organizations/lab-main/compositions/…`). */
+const environmentRoot = (environment: string, composition = 'tomatometer') =>
+  `${API}/v1/organizations/${ORG}/compositions/${composition}/environments/${environment}`;
+
+/** The feed as TomatoMeter reads it, with the environment's key: its `ETag`. */
+export async function feedEtag(
+  request: APIRequestContext,
+  environment = 'production',
+  composition = 'tomatometer'
+): Promise<string> {
+  const answer = await request.get(`${environmentRoot(environment, composition)}/composition`, {
+    headers: { 'X-API-Key': labFeedKey(labPassword(), ORG, composition, environment) },
+  });
+  expect(answer.status()).toBe(200);
+  return answer.headers()['etag'] ?? '';
+}
+
+/** The lab consumer's state, polled until `done` holds (up to 30 s; the lab polls the feed every 3 s). */
+export async function consumerUntil(
+  request: APIRequestContext,
+  done: (state: Record<string, unknown>) => boolean
+): Promise<Record<string, unknown>> {
+  let state: Record<string, unknown> = {};
+  await expect
+    .poll(
+      async () => {
+        state = (await (await request.get(`${FEED_CONSUMER}/state`)).json()) as Record<
+          string,
+          unknown
+        >;
+        return done(state);
+      },
+      { timeout: 30_000, intervals: [1_000] }
+    )
+    .toBe(true);
+  return state;
+}
+
+/** Adopts a version by the API with the environment's current ETag (a restore; the walks adopt on screen). */
+export async function adoptByApi(
+  request: APIRequestContext,
+  token: string,
+  label: string,
+  environment = 'production',
+  composition = 'tomatometer'
+): Promise<void> {
+  const headers = { Authorization: `Bearer ${token}` };
+  const root = environmentRoot(environment, composition);
+  const read = await request.get(root, { headers });
+  const view = (await read.json()) as { inEffect: { version: { label: string } } | null };
+  if (view.inEffect?.version.label === label) return;
+  const answer = await request.post(`${root}/adopt`, {
+    headers: { ...headers, 'If-Match': read.headers()['etag'] ?? '' },
+    data: { version: label, note: 'Back to the seed' },
+  });
+  expect(answer.status(), `adopt ${label} in ${environment}: ${await answer.text()}`).toBe(200);
+}

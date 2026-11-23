@@ -1,12 +1,41 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { useEffect, useState } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import type { CompositionView } from '../../../core/api/types';
 import environments from '../../../../test/fixtures/core/tomatometer.environments.json';
 import production from '../../../../test/fixtures/core/tomatometer.environment.production.json';
+import events from '../../../../test/fixtures/core/upstream.tomatometer.events.json';
+import valuesChanged from '../../../../test/fixtures/core/upstream.tomatometer.event.values-changed.json';
+import offeringChanged from '../../../../test/fixtures/core/upstream.tomatometer.event.offering-changed.json';
+import productionCounting from '../../../../test/fixtures/core/upstream.tomatometer.environment.production.json';
 import { fakeGateway, renderModule } from '../../../../test/moduleKit';
 import OperationTab from '.';
 
+// An upstream event arriving, as useUpstreamRefresh tells the page (the hook itself is tested on its own).
+const upstreamArrivals = vi.hoisted(() => ({
+  count: 0,
+  listeners: new Set<(count: number) => void>(),
+}));
+vi.mock('../../../notification/hooks/useUpstreamRefresh', () => ({
+  useUpstreamRefresh: () => {
+    const [count, setCount] = useState(upstreamArrivals.count);
+    useEffect(() => {
+      upstreamArrivals.listeners.add(setCount);
+      return () => {
+        upstreamArrivals.listeners.delete(setCount);
+      };
+    }, []);
+    return count;
+  },
+}));
+const arrive = () =>
+  act(() => {
+    upstreamArrivals.count += 1;
+    upstreamArrivals.listeners.forEach(listener => listener(upstreamArrivals.count));
+  });
+
 const ROOT = '/v1/organizations/isa-demo/compositions/tomatometer/environments';
+const EVENTS = '/v1/organizations/isa-demo/compositions/tomatometer/upstream-events';
 
 const composition = {
   id: 'c-1',
@@ -27,7 +56,11 @@ const render = (role: 'VIEWER' | 'MEMBER' | 'ADMIN', routes = {}, entry = '/') =
     />,
     {
       entry,
-      gateway: fakeGateway({ [`GET ${ROOT}`]: { body: environments }, ...routes }),
+      gateway: fakeGateway({
+        [`GET ${ROOT}`]: { body: environments },
+        [`GET ${EVENTS}`]: { body: events },
+        ...routes,
+      }),
     }
   );
 
@@ -103,5 +136,169 @@ describe('the Operation tab', () => {
     expect(screen.getByRole('link', { name: /All environments/ })).toBeInTheDocument();
     expect(screen.getByText('Expected users').nextSibling).toHaveTextContent('1,000');
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+
+  it('lists in an environment every open change it counts: its version’s and the offering’s', async () => {
+    const asked: string[] = [];
+    render(
+      'VIEWER',
+      {
+        [`GET ${ROOT}/production`]: {
+          body: { ...productionCounting, upstream: { ...productionCounting.upstream, open: 2 } },
+          headers: { ETag: '"7"' },
+        },
+        [`GET ${EVENTS}`]: ({ path }: { path: string }) => {
+          asked.push(path);
+          const query = new URLSearchParams(path.split('?')[1] ?? '');
+          const shown =
+            query.get('subject') === 'offering'
+              ? [offeringChanged]
+              : query.get('subject') === 'binding'
+                ? [valuesChanged]
+                : [valuesChanged, offeringChanged];
+          return { body: { ...events, events: shown } };
+        },
+      },
+      '/?environment=production'
+    );
+    await screen.findByRole('heading', { level: 2, name: 'Production' });
+    expect(
+      await screen.findByRole('link', { name: 'brevo 2026-10 → 2026-11' })
+    ).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /1\.0\.0 → 1\.2\.0/ })).toBeInTheDocument();
+    expect(
+      asked.some(path => path.includes('subject=offering') && path.includes('state=open'))
+    ).toBe(true);
+  });
+
+  it('reads an open environment and its upstream changes again when an upstream event arrives', async () => {
+    let reads = 0;
+    let fails = false;
+    render(
+      'VIEWER',
+      {
+        [`GET ${ROOT}/production`]: () => {
+          reads += 1;
+          if (fails) return { status: 503, body: { title: 'Unavailable' } };
+          return reads === 1
+            ? { body: production, headers: { ETag: '"7"' } }
+            : { body: productionCounting, headers: { ETag: '"8"' } };
+        },
+        [`GET ${EVENTS}`]: ({ path }: { path: string }) => {
+          const query = new URLSearchParams(path.split('?')[1] ?? '');
+          return {
+            body: { ...events, events: query.get('subject') === 'offering' ? [] : [valuesChanged] },
+          };
+        },
+      },
+      '/?environment=production'
+    );
+    await screen.findByRole('heading', { level: 2, name: 'Production' });
+    expect(screen.queryByRole('link', { name: 'brevo 2026-10 → 2026-11' })).toBeNull();
+    arrive();
+    expect(
+      await screen.findByRole('link', { name: 'brevo 2026-10 → 2026-11' })
+    ).toBeInTheDocument();
+    expect(reads).toBe(2);
+    // A re-read that fails after another arrival keeps what is shown.
+    fails = true;
+    arrive();
+    await waitFor(() => expect(reads).toBe(3));
+    expect(screen.getByRole('heading', { level: 2, name: 'Production' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'brevo 2026-10 → 2026-11' })).toBeInTheDocument();
+    expect(screen.queryByText(/The environment couldn’t be loaded/)).toBeNull();
+  });
+
+  /** An ADMIN on production, whose re-reads after the first wait until the test lets them answer (revision "8"). */
+  async function adminOnProductionWithSlowReads() {
+    let reads = 0;
+    const waiting: Array<() => void> = [];
+    const base = fakeGateway({
+      [`GET ${ROOT}`]: { body: environments },
+      [`GET ${EVENTS}`]: { body: events },
+      [`PATCH ${ROOT}/production`]: { body: production, headers: { ETag: '"9"' } },
+      [`DELETE ${ROOT}/production`]: { status: 204 },
+    });
+    const gateway = vi.fn(async (path: string, init: RequestInit = {}) => {
+      if ((init.method ?? 'GET') === 'GET' && path.split('?')[0] === `${ROOT}/production`) {
+        reads += 1;
+        const first = reads === 1;
+        if (!first) await new Promise<void>(resolve => waiting.push(resolve));
+        return new Response(JSON.stringify(production), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ETag: first ? '"7"' : '"8"' },
+        });
+      }
+      return base(path, init);
+    });
+    renderModule(
+      <OperationTab
+        org="isa-demo"
+        composition={composition}
+        versions={[]}
+        role="ADMIN"
+        onAdopt={() => {}}
+      />,
+      { entry: '/?environment=production', gateway }
+    );
+    await screen.findByRole('heading', { level: 2, name: 'Production' });
+    return {
+      reads: () => reads,
+      release: () => act(async () => waiting.splice(0).forEach(resolve => resolve())),
+      sent: (method: string) =>
+        gateway.mock.calls
+          .filter(([, init]) => init?.method === method)
+          .map(([, init]) => new Headers(init?.headers).get('If-Match')),
+    };
+  }
+
+  it('saves an edit with the If-Match it was opened on while an upstream arrival re-reads', async () => {
+    const lab = await adminOnProductionWithSlowReads();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    const form = await screen.findByRole('dialog');
+    arrive();
+    await waitFor(() => expect(lab.reads()).toBe(2));
+    fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(lab.sent('PATCH')).toHaveLength(1));
+    expect(lab.sent('PATCH')).toEqual(['"7"']);
+  });
+
+  it('deletes with the If-Match it was opened on, even after the re-read answered a newer revision', async () => {
+    const lab = await adminOnProductionWithSlowReads();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const confirm = await screen.findByRole('dialog');
+    arrive();
+    await waitFor(() => expect(lab.reads()).toBe(2));
+    await lab.release();
+    fireEvent.change(within(confirm).getByRole('textbox'), { target: { value: 'production' } });
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Delete permanently' }));
+    await waitFor(() => expect(lab.sent('DELETE')).toEqual(['"7"']));
+  });
+
+  it('lists the upstream changes under the environments', async () => {
+    render('VIEWER');
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Upstream changes' })
+    ).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'brevo 2026-10 → 2026-11' })).toHaveAttribute(
+      'href',
+      `/compositions/isa-demo/tomatometer/operation?event=${valuesChanged.id}`
+    );
+  });
+
+  it('opens the event the address names in place, with a way back to the tab', async () => {
+    render(
+      'VIEWER',
+      {
+        [`GET ${EVENTS}/${valuesChanged.id}`]: { body: valuesChanged, headers: { ETag: '"e"' } },
+      },
+      `/?event=${valuesChanged.id}`
+    );
+    expect(await screen.findByRole('heading', { level: 2, name: 'brevo' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /All upstream changes/ })).toHaveAttribute(
+      'href',
+      '/compositions/isa-demo/tomatometer/operation'
+    );
+    expect(screen.queryByRole('heading', { level: 2, name: 'Environments' })).toBeNull();
   });
 });

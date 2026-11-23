@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { countScreenLines, readGalleryScreens, type GalleryScreen } from './helpers/galleryRoutes';
 import { installMockApi } from './helpers/mockApi';
+import { NO_IMPACT_EVENT } from './helpers/operationMock';
 import {
   measurePage,
   prepareCapture,
@@ -285,6 +286,69 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of VIEWPORTS) {
         summarize(name);
 
         expect(failures, `${screen.url} on the ${name} gallery`).toEqual([]);
+      });
+    }
+  });
+}
+
+// F6: the states of upstream events and proposals the live lab cannot hold together (no impact, a vanished source), beside
+// the ones it can, on TomatoMeter's Operation tab with its upstream events and a pending proposal seeded.
+const OPERATION = '/compositions/isa-demo/tomatometer/operation';
+const F6_STATES: ReadonlyArray<readonly [string, string, RegExp]> = [
+  ['f6-operation', OPERATION, /^TomatoMeter$/],
+  ['f6-event-values', `${OPERATION}?event=00000000-0000-4000-8000-000000000047`, /^TomatoMeter$/],
+  ['f6-event-retired', `${OPERATION}?event=00000000-0000-4000-8000-000000000051`, /^TomatoMeter$/],
+  ['f6-event-offering', `${OPERATION}?event=00000000-0000-4000-8000-000000000053`, /^TomatoMeter$/],
+  [
+    'f6-event-unavailable',
+    `${OPERATION}?event=00000000-0000-4000-8000-000000000054`,
+    /^TomatoMeter$/,
+  ],
+  [
+    'f6-event-withdrawn',
+    `${OPERATION}?event=00000000-0000-4000-8000-000000000056`,
+    /^TomatoMeter$/,
+  ],
+  ['f6-event-no-impact', `${OPERATION}?event=${NO_IMPACT_EVENT}`, /^TomatoMeter$/],
+];
+
+const PENDING_PROPOSAL = JSON.parse(
+  readFileSync(
+    new URL('../src/test/fixtures/core/zproposals.pending.json', import.meta.url),
+    'utf8'
+  )
+);
+
+for (const { name, viewport, isMobile, deviceScaleFactor } of VIEWPORTS) {
+  test.describe(`${name} · QA gallery · F6 states`, () => {
+    test.use({ viewport, isMobile, deviceScaleFactor, locale: 'en-US', timezoneId: 'UTC' });
+    test.setTimeout(120_000);
+
+    for (const [id, url, heading] of F6_STATES) {
+      test(`${id} ${url}`, async ({ page }) => {
+        mkdirSync(`${SCREENSHOTS}${name}`, { recursive: true });
+        const critical = watchCriticalErrors(page);
+        const mock = await installMockApi(page, 'admin', { tomatometer: true, upstream: true });
+        mock.operation?.seedProposal(PENDING_PROPOSAL);
+        await page.goto(url, { waitUntil: 'domcontentloaded' });
+        await expect(page.locator('header.app-header')).toBeVisible({ timeout: 30_000 });
+        await expect(page.locator('main h1').first()).toHaveText(heading, { timeout: 30_000 });
+        if (url.includes('?event='))
+          await expect(page.locator('main h2').first()).toBeVisible({ timeout: 30_000 });
+        const waiting = await waitUntilSettled(page);
+        await prepareCapture(page);
+        const measured = await measurePage(page);
+        await page.screenshot({
+          path: `${SCREENSHOTS}${name}/${id}.png`,
+          animations: 'disabled',
+          fullPage: true,
+        });
+        const text = await page.evaluate(() => document.body.innerText);
+        expect(text).not.toContain('Something went wrong');
+        expect(waiting, 'still loading').toEqual([]);
+        expect(critical, 'critical console errors').toEqual([]);
+        expect(measured.overflowX, 'scrolls sideways').toBeLessThanOrEqual(1);
+        expect(mock.unmocked, 'asked for what the mock does not answer').toEqual([]);
       });
     }
   });

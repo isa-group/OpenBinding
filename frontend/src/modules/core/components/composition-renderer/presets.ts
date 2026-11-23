@@ -29,7 +29,7 @@ export type RendererMode = Extract<
  * - showcase: a composition as its documents say it, for every reader: what it does, its values and how far they can be trusted,
  *   the workflow, the providers and the upstream plans, the problem it links (named, never opened), and its own pricing;
  * - operations: what an environment's feed serves (the version in effect, its binding and the offering version its evaluation
- *   read), and the environment's adoption history.
+ *   read), the open upstream changes the environment counts (its version's and the offering's), and its adoption history.
  */
 export type Section =
   | 'identity'
@@ -49,6 +49,7 @@ export type Section =
   | 'choice'
   | 'about'
   | 'inEffect'
+  | 'events'
   | 'adoptions';
 
 export const MODE_SECTIONS: Readonly<Record<RendererMode, readonly Section[]>> = {
@@ -67,7 +68,7 @@ export const MODE_SECTIONS: Readonly<Record<RendererMode, readonly Section[]>> =
   comparison: ['changes', 'graph', 'candidates'],
   configurator: ['result', 'choice'],
   showcase: ['about', 'status', 'values', 'graph', 'providers', 'plans', 'problem', 'offering'],
-  operations: ['inEffect', 'adoptions'],
+  operations: ['inEffect', 'events', 'adoptions'],
 };
 
 /** How tightly a mode is laid out: a page of its own, or a panel beside something else. */

@@ -10,7 +10,7 @@
 // title (the engine catalog says whose engines it shows).
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import { useSearchParams } from 'react-router-dom';
 import { readApiError } from '../../api/errors';
@@ -72,6 +72,11 @@ interface Props<T> {
   banner?: ReactNode;
   /** Change it to load the page again (after an item changed). */
   refreshKey?: number;
+  /**
+   * Change it to read the page again in place (an upstream change arrived, F6): what is shown stays, with no loading state
+   * or announcement, and a failed re-read keeps it.
+   */
+  quietKey?: number;
 }
 
 const list = (value: string | null) => (value ? value.split(',').filter(Boolean) : []);
@@ -99,6 +104,7 @@ export default function ResourceListView<T>({
   actions,
   banner,
   refreshKey = 0,
+  quietKey = 0,
 }: Props<T>) {
   const [params, setParams] = useSearchParams();
   const [items, setItems] = useState<T[]>([]);
@@ -108,6 +114,12 @@ export default function ResourceListView<T>({
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+  // What the last loud read asked; a read asking the same again is a quiet one.
+  const asked = useRef<{
+    inputs: string;
+    fetchItems: Props<T>['fetchItems'] | null;
+    quietKey: number;
+  }>({ inputs: '', fetchItems: null, quietKey });
 
   const q = params.get('q') ?? '';
   const page = Math.max(1, Number(params.get('page')) || 1);
@@ -146,9 +158,18 @@ export default function ResourceListView<T>({
     const request: Record<string, string> = Object.fromEntries(search.entries());
     request.limit = String(perPage);
     request.offset = String((page - 1) * perPage);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- SPHERE's loading flag, raised before each request
-    setIsLoading(true);
-    setError(null);
+    const inputs = JSON.stringify([query, page, perPage, attempt, refreshKey]);
+    // Quiet only when the quiet key is what changed (a development double run asks the same again, loudly).
+    const quiet =
+      asked.current.inputs === inputs &&
+      asked.current.fetchItems === fetchItems &&
+      asked.current.quietKey !== quietKey;
+    asked.current = { inputs, fetchItems, quietKey };
+    if (!quiet) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- SPHERE's loading flag, raised before each request
+      setIsLoading(true);
+      setError(null);
+    }
     fetchItems(request, controller.signal)
       .then(answer => {
         if (controller.signal.aborted) return;
@@ -157,7 +178,7 @@ export default function ResourceListView<T>({
         setFacets(answer.facets ?? null);
       })
       .catch(caught => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || quiet) return;
         setItems([]);
         setTotal(0);
         setError(readApiError(caught).message);
@@ -166,7 +187,7 @@ export default function ResourceListView<T>({
         if (!controller.signal.aborted) setIsLoading(false);
       });
     return () => controller.abort();
-  }, [fetchItems, query, page, perPage, attempt, refreshKey]);
+  }, [fetchItems, query, page, perPage, attempt, refreshKey, quietKey]);
 
   const ownerFilters = useMemo(
     () =>

@@ -89,6 +89,37 @@ describe('the composition card page', () => {
     expect(within(tabs).getByRole('link', { name: 'Settings' })).toBeInTheDocument();
   });
 
+  it('shows a member the upstream badge beside the version only when the gateway counts open events', async () => {
+    api.get.mockResolvedValue({
+      value: {
+        ...composition,
+        upstream: { open: 1, reviewed: 0, bindingInvalid: 0, worst: 'values_changed' },
+      },
+      etag: 'W/"3"',
+    });
+    renderCompositionPage(<CompositionCardPage />, {
+      url: '/compositions/isa-demo/fleet-routing',
+      organizations: [orgNode('isa-demo', { effective_role: 'VIEWER' })],
+    });
+    expect(await screen.findByRole('link', { name: '1 upstream change' })).toHaveAttribute(
+      'href',
+      '/compositions/isa-demo/fleet-routing/operation'
+    );
+  });
+
+  it('shows no upstream badge with no counts, nor to a visitor', async () => {
+    api.get.mockResolvedValue({
+      value: { ...composition, upstream: null },
+      etag: 'W/"3"',
+    });
+    renderCompositionPage(<CompositionCardPage />, {
+      url: '/compositions/isa-demo/fleet-routing',
+      organizations: [orgNode('isa-demo', { effective_role: 'VIEWER' })],
+    });
+    await screen.findByRole('heading', { level: 1, name: 'Fleet routing' });
+    expect(screen.queryByText(/upstream change|Rebinding recommended/)).toBeNull();
+  });
+
   it('opens the Get menu with the permanent link of the composition', async () => {
     renderCompositionPage(<CompositionCardPage />, {
       url: '/compositions/isa-demo/fleet-routing',

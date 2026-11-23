@@ -59,6 +59,7 @@ import {
   MdCheckBox,
   MdCheckBoxOutlineBlank,
   MdUndo,
+  MdUpdate,
   MdRedo,
   MdDragIndicator,
   MdSubdirectoryArrowRight,
@@ -167,6 +168,8 @@ const iconMap: Record<string, IconType> = {
   'mdi:chart-box-outline': MdInsertChartOutlined,
   'mdi:tune-variant': MdTune,
   'mdi:content-save-outline': MdSave,
+  // An upstream event's notification and toast (F6).
+  'mdi:update': MdUpdate,
 };
 
 type IconifyProps = {

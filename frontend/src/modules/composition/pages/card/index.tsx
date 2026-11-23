@@ -72,6 +72,8 @@ import { roleAtLeast, useCompositionRole } from '../../hooks/useCompositionRole'
 import { saveBlob, saveText } from '../../utils/download';
 import { useCardComposition, type LoadedComposition } from './hooks';
 import FocusTrapLayer from '../../../core/components/focus-trap-layer';
+import { UpstreamBadge } from '../../../core/components/upstream-badge';
+import { useUpstreamRefresh } from '../../../notification/hooks/useUpstreamRefresh';
 
 type TabId = 'overview' | CompositionTabSegment;
 
@@ -417,12 +419,15 @@ function CardBody({
   tab,
   loaded,
   reload,
+  refresh,
 }: {
   org: string;
   slug: string;
   tab: TabId;
   loaded: LoadedComposition;
   reload: () => void;
+  /** Read again quietly: what is shown stays on a failure. */
+  refresh: () => void;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -434,6 +439,11 @@ function CardBody({
   const roleIn = useCompositionRole();
   const { composition, etag, versions } = loaded;
   const role = roleIn(org);
+  // An upstream event about this composition arrived: its badge is read again with the composition, quietly.
+  const arrived = useUpstreamRefresh(org, slug);
+  useEffect(() => {
+    if (arrived > 0) refresh();
+  }, [arrived, refresh]);
   const member = role !== null;
   const canWrite = roleAtLeast(role, 'MEMBER');
   const canAdminister = roleAtLeast(role, 'ADMIN');
@@ -689,6 +699,12 @@ function CardBody({
             </span>
           )}
           <span>· Updated {updated} ago</span>
+          {member && (
+            <UpstreamBadge
+              upstream={composition.upstream}
+              to={compositionPath(org, slug, 'operation')}
+            />
+          )}
         </div>
       )}
       {!picked && <p className="mt-1 text-sm text-tp-steel">No version yet</p>}
@@ -875,6 +891,7 @@ function CardBody({
             role={role}
             refresh={adoptions}
             onAdopt={environment => setAdopting({ environment: environment.slug })}
+            onUpstreamChanged={reload}
           />
         )}
         {tab === 'settings' && (
@@ -976,7 +993,7 @@ function CardBody({
  */
 export default function CompositionCardPage() {
   const { org = '', composition: slug = '', tab } = useParams();
-  const { state, reload } = useCardComposition(org, slug);
+  const { state, reload, refresh } = useCardComposition(org, slug);
   if (tab !== undefined && !isCompositionTabSegment(tab)) return <NotFoundPage />;
   if (state.status === 'missing') return <NotFoundPage />;
   if (state.status === 'error')
@@ -1011,6 +1028,7 @@ export default function CompositionCardPage() {
       tab={(tab as CompositionTabSegment | undefined) ?? 'overview'}
       loaded={loaded}
       reload={reload}
+      refresh={refresh}
     />
   );
 }

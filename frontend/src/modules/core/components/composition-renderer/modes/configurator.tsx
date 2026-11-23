@@ -228,7 +228,13 @@ function Configurator({
           }))
         : [];
   const flagged = new Set(findings.flatMap(finding => (finding.task ? [finding.task] : [])));
-  const revision = model.status.problemRevision;
+  // The binding is derived on the problem version it was evaluated against: the demand's revision when one is chosen (a
+  // revision made by "Update from SPHERE", F6), the version's own otherwise.
+  const linked = model.status.problemRevision;
+  const revision =
+    linked && demand.revision !== undefined
+      ? linked.replace(/@\d+$/, `@${demand.revision}`)
+      : linked;
   const source = revision ? { revision, binding: fullBinding(model, changed) } : null;
   const comparable = model.status.values === 'verified';
 

@@ -2,6 +2,7 @@ import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CompositionEnvironmentView } from '../../../core/api/types';
 import environments from '../../../../test/fixtures/core/tomatometer.environments.json';
+import upstreamProduction from '../../../../test/fixtures/core/upstream.tomatometer.environment.production.json';
 import { renderModule } from '../../../../test/moduleKit';
 import EnvironmentCard from '.';
 
@@ -44,5 +45,59 @@ describe('the environment card', () => {
     fireEvent.click(screen.getByRole('button', { name: `Actions for ${staging.name}` }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
     expect(edit).toHaveBeenCalled();
+  });
+
+  describe('its upstream badge', () => {
+    const withUpstream = (upstream: CompositionEnvironmentView['upstream']) =>
+      ({ ...production, upstream }) as CompositionEnvironmentView;
+
+    it('shows the open events of the version in effect, as the gateway counts them', () => {
+      renderModule(
+        <EnvironmentCard
+          environment={upstreamProduction as unknown as CompositionEnvironmentView}
+          to="/here?environment=production"
+        />
+      );
+      const card = screen.getByRole('article', { name: 'Environment Production' });
+      expect(card).toHaveTextContent('1 upstream change');
+    });
+
+    it('says reviewed when only reviewed events remain', () => {
+      renderModule(
+        <EnvironmentCard
+          environment={withUpstream({
+            open: 0,
+            reviewed: 1,
+            bindingInvalid: 0,
+            worst: 'values_changed',
+            resolvedBy: null,
+          })}
+          to="/here"
+        />
+      );
+      expect(screen.getByText('1 reviewed')).toBeInTheDocument();
+    });
+
+    it('says a newer version resolved the change and is not adopted here', () => {
+      renderModule(
+        <EnvironmentCard
+          environment={withUpstream({
+            open: 0,
+            reviewed: 0,
+            bindingInvalid: 0,
+            worst: null,
+            resolvedBy: { version: { id: 'v', label: '1.2.0' } },
+          })}
+          to="/here"
+        />
+      );
+      expect(screen.getByText('Resolved in 1.2.0, not adopted here')).toBeInTheDocument();
+      expect(screen.queryByText(/upstream change/)).toBeNull();
+    });
+
+    it('draws nothing without counts', () => {
+      renderModule(<EnvironmentCard environment={withUpstream(null)} to="/here" />);
+      expect(screen.queryByText(/upstream change|reviewed|Resolved in/)).toBeNull();
+    });
   });
 });

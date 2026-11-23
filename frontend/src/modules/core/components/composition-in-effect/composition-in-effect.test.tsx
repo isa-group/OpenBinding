@@ -33,4 +33,15 @@ describe('the composition in effect', () => {
     // Digest hygiene: the feed's ETag and the evaluation's basis are never printed.
     expect(section.textContent).not.toMatch(/sha256-/);
   });
+
+  it('draws the badge it is given beside the heading', () => {
+    render(
+      <MemoryRouter>
+        <CompositionInEffect inEffect={inEffect} badge={<span>2 upstream changes</span>} />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('region', { name: 'In effect' })).toHaveTextContent(
+      '2 upstream changes'
+    );
+  });
 });

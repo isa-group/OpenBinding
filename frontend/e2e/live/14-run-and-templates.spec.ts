@@ -15,7 +15,8 @@ import {
  * chosen provider.
  *
  * - J4: as `lab-member`, a random-search run of `tomatometer-email@3` is followed to its result, kept as the next version of
- *   `tomatometer`, and adopted in `staging` (members adopt there) from the derive dialog's last step, a second human step; then
+ *   `tomatometer` and adopted in `staging` (members adopt there) in the same step: the derive dialog's "Adopt in Staging in the
+ *   same step" makes one proposal of both (F6), confirmed on its card in the same modal; then
  *   as `lab-owner` the run page's "Adopt in environment" adopts that same version in `production`, the environment with a
  *   consumer: the consumer follows that version and the provider of its `binding.dailySummary.candidate` (read from the
  *   version, never a fixed name), mails, and Mailpit's message carries `X-OpenBinding-Composition-Version` and
@@ -114,17 +115,19 @@ test('J4 · a member keeps a run of revision 3 as the next version and adopts it
     'tomatometer-email@3',
     { timeout: 60_000 }
   );
-  await dialog.getByRole('button', { name: `Seal ${derived}` }).click();
-  await expect(dialog).toContainText(`in ${COMPOSITION}.`, { timeout: 60_000 });
+  // A member is offered the environments members adopt in: staging only, beside sealing alone.
+  await expect(dialog.getByRole('radio', { name: /^Adopt in .* in the same step$/ })).toHaveCount(
+    1
+  );
+  await dialog.getByRole('radio', { name: 'Adopt in Staging in the same step' }).check();
   await capture(page, testInfo, 'f4-derive-adopt-step');
-  await dialog.getByRole('button', { name: 'Adopt in environment…' }).click();
-  const adopt = page.getByRole('dialog', { name: 'Adopt a version' });
-  // A member is offered the environments members adopt in: staging only.
-  await expect(adopt.getByRole('combobox', { name: 'Environment' })).toHaveValue('staging');
-  await expect(
-    adopt.getByRole('radio', { name: new RegExp(derived.replaceAll('.', '\\.')) })
-  ).toBeChecked();
-  await adopt.getByRole('button', { name: `Adopt ${derived}` }).click();
+  await dialog.getByRole('button', { name: `Propose sealing and adopting ${derived}` }).click();
+  const proposing = page.getByRole('dialog', { name: 'Derive and adopt' });
+  const card = proposing.getByRole('group', { name: /^Proposal:/ });
+  await expect(card).toContainText('Waiting for your confirmation', { timeout: 60_000 });
+  await card.getByRole('button', { name: 'Confirm and apply' }).click();
+  await expect(card).toContainText('Applied', { timeout: 120_000 });
+  await proposing.getByRole('button', { name: 'Open Staging' }).click();
   await expect(page).toHaveURL(
     new RegExp(`/compositions/${ORG}/${COMPOSITION}/operation\\?environment=staging$`)
   );

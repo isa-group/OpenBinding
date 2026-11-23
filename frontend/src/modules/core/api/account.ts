@@ -194,6 +194,21 @@ export interface AdminQueueStatus {
     createdAt: string;
     budgetSeconds: number;
   }>;
+  /** The upstream watcher (F6): its watches by status, what is due and the events of the last day. */
+  upstreamWatch?: AdminUpstreamWatch;
+}
+
+/** `upstreamWatch` of `GET /v1/admin/queues` (the route answers it without a response model). */
+export interface AdminUpstreamWatch {
+  enabled: boolean;
+  intervalSeconds: number;
+  due: number;
+  oldestDueSeconds: number | null;
+  lastObservedAt: string | null;
+  unresolvedRefs: number;
+  executingProposals: number;
+  eventsLastDay: Record<string, number>;
+  watches: Record<string, number>;
 }
 
 export interface MaintenancePreview {

@@ -3,7 +3,8 @@
 // MIT licence: the full text is in THIRD_PARTY_NOTICES.md.
 // Changes: the stream opens with a single-use ticket (`POST /v1/notifications/stream-ticket`), never with the access token
 // in its URL, and a new ticket is asked for on every reconnection (the gateway ends a stream after 15 minutes); OpenBinding's
-// API base; the unread count arrives in the event itself; the latest callbacks are kept in effects.
+// API base; the unread count arrives in the event itself; the latest callbacks are kept in effects; every notification is
+// also handed to the listeners of its kind (`subscribe` of the notifications context).
 
 import { useEffect, useRef } from 'react';
 import { config } from '../../../config';
@@ -17,11 +18,23 @@ const MAX_DELAY = 60000;
 export function useNotificationsSSE(onNotification?: (notification: Notification) => void) {
   const { user } = useAuth();
   const { createStreamTicket } = useNotificationsApi();
-  const { addNotification, fetchUnreadCount } = useNotificationsContext();
+  const { addNotification, fetchUnreadCount, publish } = useNotificationsContext();
 
-  const latest = useRef({ addNotification, fetchUnreadCount, onNotification, createStreamTicket });
+  const latest = useRef({
+    addNotification,
+    fetchUnreadCount,
+    onNotification,
+    createStreamTicket,
+    publish,
+  });
   useEffect(() => {
-    latest.current = { addNotification, fetchUnreadCount, onNotification, createStreamTicket };
+    latest.current = {
+      addNotification,
+      fetchUnreadCount,
+      onNotification,
+      createStreamTicket,
+      publish,
+    };
   });
 
   const userId = user?.id ?? null;
@@ -74,6 +87,7 @@ export function useNotificationsSSE(onNotification?: (notification: Notification
           const notification = JSON.parse((event as MessageEvent).data) as Notification;
           latest.current.addNotification(notification);
           latest.current.onNotification?.(notification);
+          latest.current.publish(notification);
         } catch {
           /* a malformed event is skipped */
         }

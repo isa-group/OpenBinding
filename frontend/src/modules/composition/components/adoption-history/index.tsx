@@ -45,6 +45,8 @@ function AdoptionRow({
   const page = compositionPath(org, composition, undefined, { version: adoption.version.label });
   const previous = adoption.previousVersion;
   const by = adoption.adoptedBy ? ` by ${adoption.adoptedBy.displayName}` : '';
+  // A confirmed proposal's adoption says so (F6); a direct one says nothing more.
+  const through = adoption.source === 'proposal' ? ', through a proposal' : '';
   return (
     <li
       aria-label={`Adoption ${adoption.ordinal}`}
@@ -76,7 +78,7 @@ function AdoptionRow({
           )}
           {adoption.evaluation && <ValueBadge status={adoption.evaluation.valuesStatus} compact />}
           <span className="text-[11px] text-tp-steel">
-            {`${formatDistanceToNow(parseISO(adoption.adoptedAt))} ago${by}`}
+            {`${formatDistanceToNow(parseISO(adoption.adoptedAt))} ago${by}${through}`}
           </span>
         </div>
         {adoption.note && <p className="mt-1 text-xs text-tp-slate">{adoption.note}</p>}

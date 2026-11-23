@@ -36,6 +36,11 @@ import type { CompositionViewModel } from '../../../core/utils/composition/viewM
 import { compositionFragment } from '../../../core/utils/sphere/composition-fragment';
 import { DeriveCompositionDialog } from '../../../run/components/derive/DeriveCompositionDialog';
 import { bindingDerivation, nextMinor } from '../../../run/components/derive/deriveModel';
+import {
+  latestOffering,
+  OfferingUnreadable,
+  offeringUnreadableText,
+} from '../../../run/components/derive/latestOffering';
 import { editorPath } from '../../../../routes/paths/compositions';
 import { compositionsApi } from '../../api/compositionsApi';
 import ConfigurationDetailsModal from '../configuration-details-modal';
@@ -66,7 +71,7 @@ interface Props {
   candidates?: { status: 'loading' | 'error'; marker: string; retry: () => void } | null;
   /** The gateway says the shown version links no problem after all: the page hides the tab. */
   onNotLinked: () => void;
-  /** The reader's role: after a seal, the derive dialog offers adopting where this role may (F4). */
+  /** The reader's role: the derive dialog offers adopting in the same step where this role may (F6). */
   role?: OrgRole | null;
 }
 
@@ -210,16 +215,27 @@ export default function ConfigurationSpaceView({
     if (draft.busy) return;
     setDraft({ busy: true, error: '' });
     try {
+      // The draft keeps the latest version's offering, as "Derive as a version" does.
+      const offering = await latestOffering(org, slug, composition.latest_version);
+      const derived = bindingDerivation(
+        source,
+        nextMinor(composition.latest_version?.label),
+        false
+      );
       const answer = await compositionsApi.derive(
         org,
         slug,
-        bindingDerivation(source, nextMinor(composition.latest_version?.label), false)
+        offering ? { ...derived, offering } : derived
       );
       if ('version' in answer.result) throw new Error('The gateway sealed a preview.');
       void navigate(
         `${editorPath({ source: { org, slug } })}${compositionFragment(answer.result.content)}`
       );
     } catch (caught) {
+      if (caught instanceof OfferingUnreadable) {
+        setDraft({ busy: false, error: offeringUnreadableText(caught) });
+        return;
+      }
       const error = readApiError(caught);
       const code = error.status
         ? ` (${error.status}${error.code !== 'unknown' ? ` · ${error.code}` : ''})`

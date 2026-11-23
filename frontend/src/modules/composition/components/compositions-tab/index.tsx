@@ -24,6 +24,7 @@ import { useArchiveComposition } from '../../hooks/useArchiveComposition';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
 import type { OrgRole } from '../../../organization/api/organizationsApi';
 import CompositionCard from '../composition-card';
+import { useUpstreamRefresh } from '../../../notification/hooks/useUpstreamRefresh';
 import { archiveMenu } from '../composition-card/menu';
 
 /** Compositions per page of the tab, as SPHERE's organization tabs. */
@@ -86,11 +87,28 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
     return () => window.clearTimeout(timer);
   }, [search, q, change]);
 
+  // An upstream event about one of these compositions arrived: their badges are read again.
+  // That re-read is quiet: the cards stay, with no loading state, and a failed one keeps them.
+  const arrived = useUpstreamRefresh(org.slug);
+  const asked = useRef<{ inputs: string; read: unknown; arrived: number }>({
+    inputs: '',
+    read: null,
+    arrived,
+  });
   useEffect(() => {
     const controller = new AbortController();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- SPHERE's loading flag, raised before each request
-    setIsLoading(true);
-    setError(null);
+    const inputs = JSON.stringify([org.slug, page, q, kindsParam, archived, isPublicView, attempt]);
+    // Quiet only when an arrival is what changed (a development double run asks the same again, loudly).
+    const quiet =
+      asked.current.inputs === inputs &&
+      asked.current.read === getOrganizationCompositions &&
+      asked.current.arrived !== arrived;
+    asked.current = { inputs, read: getOrganizationCompositions, arrived };
+    if (!quiet) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- SPHERE's loading flag, raised before each request
+      setIsLoading(true);
+      setError(null);
+    }
     getOrganizationCompositions(
       org.slug,
       {
@@ -108,7 +126,7 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
         setTotal(answer.total);
       })
       .catch(caught => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || quiet) return;
         setCompositions([]);
         setTotal(0);
         setError(readApiError(caught).message);
@@ -117,7 +135,17 @@ export default function CompositionsTab({ org, myRole, isPublicView }: Props) {
         if (!controller.signal.aborted) setIsLoading(false);
       });
     return () => controller.abort();
-  }, [getOrganizationCompositions, org.slug, page, q, kindsParam, archived, isPublicView, attempt]);
+  }, [
+    getOrganizationCompositions,
+    org.slug,
+    page,
+    q,
+    kindsParam,
+    archived,
+    isPublicView,
+    attempt,
+    arrived,
+  ]);
 
   const archive = useArchiveComposition(useCallback(() => setAttempt(value => value + 1), []));
 

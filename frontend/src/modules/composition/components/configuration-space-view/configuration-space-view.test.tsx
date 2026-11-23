@@ -292,6 +292,36 @@ describe('the Configuration tab', () => {
     });
   });
 
+  it('keeps the latest version’s offering in a draft, and opens none when that version cannot be read', async () => {
+    api.version.mockResolvedValue({
+      ...linked(),
+      document: { ...linked().document, offering: { sphere: 'sphere/tomatometer' } },
+    });
+    renderTab();
+    fireEvent.click(screen.getByRole('radio', { name: 'cand_t6_stripe for T6' }));
+    const result = screen.getByRole('region', { name: 'This binding' });
+    fireEvent.click(within(result).getByRole('button', { name: 'Open as a draft' }));
+    await waitFor(() => expect(where()).toMatch(/^\/editor\?source=isa-demo%2Ffleet-routing#/));
+    expect(api.derive).toHaveBeenCalledWith(
+      'isa-demo',
+      'fleet-routing',
+      expect.objectContaining({ offering: { sphere: 'sphere/tomatometer' }, seal: false })
+    );
+  });
+
+  it('opens no draft when the latest version cannot be read, and says why', async () => {
+    renderTab();
+    fireEvent.click(screen.getByRole('radio', { name: 'cand_t6_stripe for T6' }));
+    const result = screen.getByRole('region', { name: 'This binding' });
+    api.version.mockRejectedValue(new HttpError(503, 'Service Unavailable'));
+    fireEvent.click(within(result).getByRole('button', { name: 'Open as a draft' }));
+    expect(
+      await screen.findByText(/couldn’t be read \(503\), so its offering can’t be carried/)
+    ).toBeInTheDocument();
+    expect(api.derive).not.toHaveBeenCalled();
+    expect(where()).not.toMatch(/^\/editor/);
+  });
+
   it('tries a move of the explorer in the configurator', async () => {
     renderTab();
 

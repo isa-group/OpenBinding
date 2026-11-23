@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EMPTY_QUEUES, MARIA, SAM, queuesAt } from '../../../../test/fixtures/admin';
 import { adminPath } from '../../../../routes/paths/admin';
 import { refusal, renderSection } from '../../utils/adminTestUtils';
+import upstream from '../../../../test/fixtures/core/upstream.admin.queues.json';
 
 const api = vi.hoisted(() => ({ adminQueues: vi.fn() }));
 
@@ -34,6 +35,22 @@ describe('admin-overview, queues section · jobs waiting and running', () => {
     expect(within(items[2]).getByText('Completed')).toBeInTheDocument();
     expect(within(items[2]).getByText('2')).toBeInTheDocument();
     expect(within(items[3]).getByText('Failed')).toBeInTheDocument();
+  });
+
+  it('shows the upstream watcher: its watches by status, what is due and what it found in a day', async () => {
+    api.adminQueues.mockImplementation(async () => ({
+      ...queuesAt(Date.now()),
+      upstreamWatch: upstream.upstreamWatch,
+    }));
+    renderQueues();
+    const watches = await screen.findByRole('list', { name: 'Watched pricings by status' });
+    expect(watches).toHaveTextContent('Active 4');
+    expect(screen.getByText(/0 due now/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'In the last day: 4 rebinding recommended, 1 offering changed, 1 values changed.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('lists the oldest jobs in flight with their owner, budget and age against it', async () => {

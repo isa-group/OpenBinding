@@ -4,8 +4,9 @@
 // Changes: a composition's environments instead of an organization's collections: the frame (a hairline card, an h2 with
 // its subtitle, the primary "New environment" for ADMIN, the empty state, the 1-2-3 column grid) is SPHERE's; there is no
 // search or paging (a composition has a handful of environments). The environment the address names (`?environment=`)
-// opens its detail in place of the grid. Who sees what follows the roles: every member reads, whoever the environment's
-// adoption role allows adopts, ADMIN creates, edits and deletes.
+// opens its detail in place of the grid; under the grid, the composition's upstream changes (F6), whose event the address
+// names (`?event=`) opens in place too; then the composition's proposals. Who sees what follows the roles: every member
+// reads, whoever the environment's adoption role allows adopts, ADMIN creates, edits and deletes.
 
 import { motion } from 'framer-motion';
 import { useState } from 'react';
@@ -24,9 +25,14 @@ import type { OrgRole } from '../../../organization/api/organizationsApi';
 import { compositionPath } from '../../../../routes/paths/compositions';
 import { useEnvironmentsApi } from '../../api/environmentsApi';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
+import { useUpstreamRefresh } from '../../../notification/hooks/useUpstreamRefresh';
 import { mayAdopt } from '../../utils/environments';
 import EnvironmentCard from '../environment-card';
 import EnvironmentFormDialog, { DeleteEnvironmentDialog } from '../environment-form-dialog';
+import ProposalsSection from '../proposals-section';
+import UpstreamEventDetailView from '../upstream-event-detail';
+import ProposeAdoption from '../upstream-event-detail/ProposeAdoption';
+import UpstreamEventsSection from '../upstream-events-section';
 import EnvironmentDetail from './EnvironmentDetail';
 
 interface Props {
@@ -40,6 +46,8 @@ interface Props {
   onAdopt?: (environment: CompositionEnvironmentView) => void;
   /** Bumped by the page when something it did (an adoption) changed the environments. */
   refresh?: number;
+  /** Something done here changed the upstream events (a review): the page reads its counts again. */
+  onUpstreamChanged?: () => void;
 }
 
 export default function OperationTab({
@@ -49,11 +57,13 @@ export default function OperationTab({
   role,
   onAdopt,
   refresh = 0,
+  onUpstreamChanged,
 }: Props) {
   const api = useEnvironmentsApi();
   const { addToast } = useToast();
   const [query] = useSearchParams();
   const selected = query.get('environment');
+  const event = query.get('event');
   const canAdminister = roleAtLeast(role, 'ADMIN');
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<{
@@ -65,8 +75,10 @@ export default function OperationTab({
     etag: string | null;
   } | null>(null);
   const [nonce, setNonce] = useState(0);
+  // An upstream event about this composition arrived: the badges, the events and the event shown are read again.
+  const arrived = useUpstreamRefresh(org, composition.slug);
   const environments = useResource(
-    `composition-environments:${org}/${composition.slug}:${refresh}:${nonce}`,
+    `composition-environments:${org}/${composition.slug}:${refresh}:${nonce}:${arrived}`,
     () => api.listEnvironments(org, composition.slug)
   );
   const changed = (message?: string) => {
@@ -92,6 +104,37 @@ export default function OperationTab({
   const failure = environments.status === 'error' ? classifyAuthError(environments.error) : null;
   const list = environments.data ?? environments.stale ?? [];
 
+  if (event)
+    return (
+      <UpstreamEventDetailView
+        org={org}
+        composition={composition}
+        versions={versions}
+        eventId={event}
+        role={role}
+        backTo={detailTo()}
+        refresh={`${refresh}:${nonce}:${arrived}`}
+        onChanged={() => {
+          setNonce(value => value + 1);
+          onUpstreamChanged?.();
+        }}
+        actions={(detail, _etag, focusHeading) => (
+          <ProposeAdoption
+            org={org}
+            composition={composition.slug}
+            event={detail}
+            environments={list}
+            role={role}
+            onFocusAway={focusHeading}
+            onChanged={() => {
+              setNonce(value => value + 1);
+              onUpstreamChanged?.();
+            }}
+          />
+        )}
+      />
+    );
+
   if (selected)
     return (
       <EnvironmentDetail
@@ -100,6 +143,7 @@ export default function OperationTab({
         composition={composition}
         versions={versions}
         slug={selected}
+        arrived={arrived}
         role={role}
         backTo={detailTo()}
         onAdopt={onAdopt}
@@ -230,6 +274,28 @@ export default function OperationTab({
           lists what can be adopted.
         </p>
       )}
+
+      <div className="mt-6">
+        <UpstreamEventsSection
+          org={org}
+          composition={composition}
+          refresh={`${refresh}:${nonce}:${arrived}`}
+        />
+      </div>
+
+      <div className="mt-6">
+        <ProposalsSection
+          org={org}
+          composition={composition}
+          versions={versions}
+          environments={list}
+          refresh={refresh}
+          onChanged={() => {
+            setNonce(value => value + 1);
+            onUpstreamChanged?.();
+          }}
+        />
+      </div>
 
       {creating && (
         <EnvironmentFormDialog

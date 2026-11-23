@@ -956,7 +956,30 @@ const PUBLIC_ORGANIZATIONS = [
   },
 ];
 
+/** `isa-demo` with the role the page seeded (F6's VIEWER walks), everywhere an organization lists it. */
+function withRole<T>(value: T, role: string | null): T {
+  if (!role) return value;
+  const visit = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(visit);
+    if (!node || typeof node !== 'object') return node;
+    const record = Object.fromEntries(
+      Object.entries(node as Record<string, unknown>).map(([key, item]) => [key, visit(item)])
+    );
+    if (record.slug === 'isa-demo' && 'effective_role' in record) record.effective_role = role;
+    return record;
+  };
+  return visit(value) as T;
+}
+
 function organizationRoutes(request: Request): Reply {
+  const role = request.compositions.role;
+  const reply = organizationRoutesFor(request);
+  return role && reply && reply.json !== undefined
+    ? { ...reply, json: withRole(reply.json, role) }
+    : reply;
+}
+
+function organizationRoutesFor(request: Request): Reply {
   const { parts, query } = request;
   const [, , orgSlug, section] = parts;
   if (!orgSlug) {
@@ -1010,6 +1033,8 @@ function organizationRoutes(request: Request): Reply {
         : ok(presetPage(found.slug === 'isa-demo' ? undefined : []));
     case 'compositions':
       return request.compositions.route(request, found.slug, ORGANIZATIONS);
+    case 'proposals':
+      return request.compositions.proposalRoute(request);
     case 'sphere':
       return sphereRoutes(parts, query) ?? notFound('Not mocked.');
     case 'connections':
@@ -1038,6 +1063,15 @@ function runRoutes(request: Request, orgSlug: string): Reply {
   }
   if (action === 'neighborhood') return ok({ ...NEIGHBORHOOD, jobId: runId });
   const detail = orgSlug === 'isa-demo' ? jobDetail(runId) : null;
+  // The run's event stream (F6): one snapshot, then the end (the page reads the run again, and falls back to asking).
+  if (action === 'events')
+    return detail
+      ? {
+          status: 200,
+          type: 'text/event-stream',
+          text: `event: job\ndata: ${JSON.stringify({ id: runId, status: (detail as { status?: string }).status ?? 'completed' })}\n\n`,
+        }
+      : notFound('Run not found.');
   return detail ? ok(detail) : notFound('Run not found.');
 }
 
@@ -1069,6 +1103,17 @@ function userRoutes(request: Request): Reply {
       return subId === 'beta-features' ? ok({ enabled: false }) : notFound();
     case 'compositions':
       return request.compositions.mineList(request);
+    case 'upstream-events':
+      // The dashboard's open upstream changes (F6): TomatoMeter's when the page seeded its upstream, none otherwise.
+      return ok({ events: request.compositions.operation?.mineEvents() ?? [] });
+    case 'proposals':
+      // The dashboard's pending proposals of the account (F6): TomatoMeter's pending ones of the page, none otherwise.
+      return ok({
+        proposals:
+          request.compositions.operation?.proposals.filter(
+            item => item.mine && item.status === 'pending'
+          ) ?? [],
+      });
     default:
       return method === 'GET' ? notFound() : { status: 204 };
   }
@@ -1233,8 +1278,13 @@ function route(request: Request): Reply | null {
     return request.compositions.publicRoute(request, second, request.signedIn, ORGANIZATIONS);
   }
 
-  // A stored pricing snapshot, under whichever organization its view names (e2e/helpers/sphereMock.ts).
-  if (area === 'organizations' && parts[3] === 'pricing-snapshots') return snapshotRoutes(parts);
+  // A stored pricing snapshot, under whichever organization its view names (e2e/helpers/sphereMock.ts); an upstream event's
+  // two Brevo versions when the page seeded TomatoMeter's events (F6).
+  if (area === 'organizations' && parts[3] === 'pricing-snapshots') {
+    const yaml = request.compositions.operation?.upstream?.snapshot(parts[4] ?? '');
+    if (yaml && parts[5] === 'yaml') return { status: 200, text: yaml, type: 'application/yaml' };
+    return snapshotRoutes(parts);
+  }
 
   switch (area) {
     case 'users':

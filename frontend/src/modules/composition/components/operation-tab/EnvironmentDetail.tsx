@@ -1,8 +1,8 @@
 // One environment of a composition on the Operation tab (`?environment=<slug>`): what it is, who answers for it, and the
-// version in effect. SPHERE has no environments; the header follows the composition page's own sections. ADMIN edits and
-// deletes it from here with the `ETag` this read answered.
+// version in effect with its open upstream changes. SPHERE has no environments; the header follows the composition page's
+// own sections. ADMIN edits and deletes it from here with the `ETag` this read answered.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { classifyAuthError, marker } from '../../../core/api/errors';
 import type {
@@ -12,12 +12,14 @@ import type {
 } from '../../../core/api/types';
 import { CompositionRenderer } from '../../../core/components/composition-renderer/CompositionRenderer';
 import { MarginTable } from '../../../core/components/margin-table';
+import { UpstreamBadge } from '../../../core/components/upstream-badge';
 import { useResource } from '../../../core/hooks/useResource';
 import { compositionViewModel } from '../../../core/utils/composition/viewModel';
 import type { OrgRole } from '../../../organization/api/organizationsApi';
 import { compositionPath } from '../../../../routes/paths/compositions';
 import { compositionsApi, useCompositionsApi } from '../../api/compositionsApi';
 import { useEnvironmentsApi } from '../../api/environmentsApi';
+import { useUpstreamEventsApi } from '../../api/upstreamEventsApi';
 import { roleAtLeast } from '../../hooks/useCompositionRole';
 import AdoptionHistory from '../adoption-history';
 import CheckPanel from '../check-panel';
@@ -34,6 +36,8 @@ interface Props {
   versions: CompositionVersionView[];
   slug: string;
   role: OrgRole | null;
+  /** Grows when an upstream event about the composition arrives: the environment and its events are read again. */
+  arrived?: number;
   /** The address of the grid of environments. */
   backTo: string;
   onAdopt?: (environment: CompositionEnvironmentView) => void;
@@ -46,6 +50,7 @@ export default function EnvironmentDetail({
   composition,
   slug,
   role,
+  arrived = 0,
   backTo,
   onAdopt,
   onChanged,
@@ -53,11 +58,33 @@ export default function EnvironmentDetail({
   const api = useEnvironmentsApi();
   const navigate = useNavigate();
   const [nonce, setNonce] = useState(0);
-  const [dialog, setDialog] = useState<'edit' | 'delete' | null>(null);
+  // An edit or a delete keeps the environment and the `ETag` it was opened on: a re-read meanwhile (an upstream arrival)
+  // neither drops its If-Match nor swaps the revision under the values the form shows.
+  const [dialog, setDialog] = useState<{
+    kind: 'edit' | 'delete';
+    environment: CompositionEnvironmentView;
+    etag: string | null;
+  } | null>(null);
+  // The last environment read, with the nonce it was read under: a re-read only an upstream arrival asked for (same
+  // nonce) that fails keeps it on screen, while a re-read after an edit says its failure.
+  const shown = useRef<{
+    nonce: number;
+    value: Awaited<ReturnType<typeof api.getEnvironment>>;
+  } | null>(null);
   const read = useResource(
-    `composition-environment:${org}/${composition.slug}/${slug}:${nonce}`,
-    () => api.getEnvironment(org, composition.slug, slug)
+    `composition-environment:${org}/${composition.slug}/${slug}:${nonce}:${arrived}`,
+    async () => {
+      try {
+        return await api.getEnvironment(org, composition.slug, slug);
+      } catch (error) {
+        if (shown.current && shown.current.nonce === nonce) return shown.current.value;
+        throw error;
+      }
+    }
   );
+  useEffect(() => {
+    if (read.data) shown.current = { nonce, value: read.data };
+  }, [read.data, nonce]);
   const reload = () => setNonce(value => value + 1);
   const canAdminister = roleAtLeast(role, 'ADMIN');
   const { getVersionMargins } = useCompositionsApi();
@@ -85,6 +112,32 @@ export default function EnvironmentDetail({
             evaluation: current.evaluation?.id,
           })
         : null
+  );
+  // The open upstream changes the environment counts, asked for only when it counts some: the binding events of the
+  // version in effect and the composition's offering events (an environment's counts include both), newest first.
+  const eventsApi = useUpstreamEventsApi();
+  const counted = (loaded?.upstream?.open ?? 0) > 0;
+  const events = useResource(
+    `environment-events:${org}/${composition.slug}/${current?.version.id ?? 'none'}/${counted}:${nonce}:${arrived}`,
+    async () => {
+      if (!current || !counted) return [];
+      const [own, offering] = await Promise.all([
+        eventsApi
+          .list(org, composition.slug, {
+            version: current.version.id,
+            subject: 'binding',
+            state: 'open',
+          })
+          .catch(() => null),
+        eventsApi
+          .list(org, composition.slug, { subject: 'offering', state: 'open' })
+          .catch(() => null),
+      ]);
+      const seen = new Set<string>();
+      return [...(own?.events ?? []), ...(offering?.events ?? [])]
+        .filter(event => !seen.has(event.id) && Boolean(seen.add(event.id)))
+        .sort((a, b) => b.detectedAt.localeCompare(a.detectedAt));
+    }
   );
   const upstream = useResource(
     `environment-upstream:${org}/${composition.slug}/${current?.version.id ?? 'none'}`,
@@ -135,7 +188,8 @@ export default function EnvironmentDetail({
         </p>
       </div>
     );
-  const etag = read.data?.etag ?? null;
+  // The revision of what is shown: during a re-read, the one before it.
+  const etag = read.data?.etag ?? read.stale?.etag ?? null;
   const inEffect = environment.inEffect;
   const operator = environment.operator;
   const canAdopt =
@@ -170,12 +224,16 @@ export default function EnvironmentDetail({
             )}
             {canAdminister && (
               <>
-                <button type="button" onClick={() => setDialog('edit')} className={actionClass}>
+                <button
+                  type="button"
+                  onClick={() => setDialog({ kind: 'edit', environment, etag })}
+                  className={actionClass}
+                >
                   Edit
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDialog('delete')}
+                  onClick={() => setDialog({ kind: 'delete', environment, etag })}
                   className={`${actionClass} text-red-700`}
                 >
                   Delete
@@ -243,6 +301,13 @@ export default function EnvironmentDetail({
             onOpenVersion: label =>
               compositionPath(org, composition.slug, undefined, { version: label }),
             onAdopt: canAdopt ? () => onAdopt?.(environment) : undefined,
+            badge: <UpstreamBadge upstream={environment.upstream} />,
+            events: {
+              items: events.data ?? events.stale ?? [],
+              eventHref: event =>
+                compositionPath(org, composition.slug, 'operation', { event: event.id }),
+              allHref: compositionPath(org, composition.slug, 'operation'),
+            },
             margins: (
               <MarginTable
                 margins={margins.data ?? margins.stale ?? null}
@@ -284,11 +349,11 @@ export default function EnvironmentDetail({
         refresh={`${inEffect?.adoption ?? 0}`}
       />
 
-      {dialog === 'edit' && (
+      {dialog?.kind === 'edit' && (
         <EnvironmentFormDialog
           org={org}
           composition={composition.slug}
-          editing={{ environment, etag }}
+          editing={{ environment: dialog.environment, etag: dialog.etag }}
           onClose={() => setDialog(null)}
           onStale={() => {
             setDialog(null);
@@ -301,12 +366,12 @@ export default function EnvironmentDetail({
           }}
         />
       )}
-      {dialog === 'delete' && (
+      {dialog?.kind === 'delete' && (
         <DeleteEnvironmentDialog
           org={org}
           composition={composition.slug}
-          environment={environment}
-          etag={etag}
+          environment={dialog.environment}
+          etag={dialog.etag}
           onClose={() => setDialog(null)}
           onStale={() => {
             setDialog(null);
