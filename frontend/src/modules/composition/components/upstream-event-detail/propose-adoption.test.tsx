@@ -148,6 +148,23 @@ describe('proposing to adopt the version that resolved an event', () => {
     expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'brevo' }));
   });
 
+  it('moves no focus later when it was closed without adopting', async () => {
+    renderModule(<Tab affected={['production', 'staging']} deferred />, { gateway: gateway() });
+    fireEvent.click(screen.getByRole('button', { name: 'Propose adopting 1.2.0 in production' }));
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Adopt the version that resolved it',
+    });
+    closeIt(dialog);
+    const opener = screen.getByRole('button', { name: 'Propose adopting 1.2.0 in production' });
+    expect(document.activeElement).toBe(opener);
+    // Later, someone else adopts there and the environments are read again while nothing has focus.
+    opener.blur();
+    expect(document.activeElement).toBe(document.body);
+    act(() => later.reread?.());
+    expect(opener.isConnected).toBe(false);
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('puts focus on the heading when the re-read after the close removes the button focus went back to', async () => {
     renderModule(<Tab affected={['production', 'staging']} deferred />, { gateway: gateway() });
     const dialog = await confirmIn('production');

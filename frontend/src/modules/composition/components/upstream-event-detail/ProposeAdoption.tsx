@@ -19,6 +19,9 @@ import ProposalPanel from '../proposals-section/ProposalPanel';
 const actionClass =
   'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-tp-input-border bg-tp-input-bg px-3 text-xs text-tp-ink transition-colors hover:bg-tp-surface focus:border-tp-primary focus:outline-none disabled:cursor-wait disabled:opacity-60';
 
+/** A proposal whose adoption was applied (all of it, or its first steps). */
+const APPLIED: ProposalView['status'][] = ['completed', 'partial'];
+
 interface Props {
   org: string;
   composition: string;
@@ -64,21 +67,21 @@ export default function ProposeAdoption({
   const offered = targets(event, environments, role);
   // The environment whose button opened the modal. Closing puts focus back on that button (the trap cannot: the button
   // was disabled while the proposal was made). When the adoption removed it, now or once the environments are read again
-  // after the close, focus goes where the page says, not to the body.
+  // after the close, focus goes where the page says, not to the body. Only a close after an applied proposal waits for
+  // that re-read: a close without an adoption leaves nothing waiting to move focus later.
   const openedFrom = useRef<string | null>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
-  const closing = useRef<{ slug: string | null } | null>(null);
+  const closing = useRef<{ slug: string | null; applied: boolean } | null>(null);
   const returnedTo = useRef<string | null>(null);
   const offeredKey = offered.map(environment => environment.slug).join(',');
   useEffect(() => {
     if (proposal || !closing.current) return;
-    const { slug } = closing.current;
+    const { slug, applied } = closing.current;
     closing.current = null;
     const button = slug ? buttons.current.get(slug) : undefined;
-    if (button?.isConnected) {
-      button.focus();
-      returnedTo.current = slug;
-    } else onFocusAway?.();
+    returnedTo.current = button?.isConnected && applied ? slug : null;
+    if (button?.isConnected) button.focus();
+    else onFocusAway?.();
   }, [proposal, onFocusAway]);
   useEffect(() => {
     const slug = returnedTo.current;
@@ -88,7 +91,10 @@ export default function ProposeAdoption({
     if (!active || active === document.body || !active.isConnected) onFocusAway?.();
   }, [offeredKey, onFocusAway]);
   const close = () => {
-    closing.current = { slug: openedFrom.current };
+    closing.current = {
+      slug: openedFrom.current,
+      applied: proposal !== null && APPLIED.includes(proposal.status),
+    };
     setProposal(null);
   };
   // An open proposal keeps its card (and its outcome) on screen after the adoption it applied leaves nothing to offer.
