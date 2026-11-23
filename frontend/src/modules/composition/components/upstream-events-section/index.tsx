@@ -106,7 +106,7 @@ function EventRow({ org, slug, event }: { org: string; slug: string; event: Upst
           {event.environments.map((environment, index) => (
             <span key={environment}>
               {index > 0 && ', '}
-              <span className="rounded bg-tp-primary/10 px-1 py-px font-medium text-tp-accent">
+              <span className="rounded bg-tp-primary/10 px-1 py-px font-medium text-tp-accent-hover">
                 {environment}
               </span>
             </span>
@@ -209,7 +209,7 @@ export default function UpstreamEventsSection({ org, composition, refresh = 0 }:
                 type="button"
                 aria-pressed={shown[chip.id]}
                 onClick={() => setShown(current => ({ ...current, [chip.id]: !current[chip.id] }))}
-                className="inline-flex min-h-7 cursor-pointer items-center gap-1 rounded-full border border-tp-hairline px-2.5 text-xs text-tp-slate transition-colors hover:bg-tp-surface aria-pressed:border-tp-primary aria-pressed:bg-tp-primary/10 aria-pressed:text-tp-accent"
+                className="inline-flex min-h-7 cursor-pointer items-center gap-1 rounded-full border border-tp-hairline px-2.5 text-xs text-tp-slate transition-colors hover:bg-tp-surface aria-pressed:border-tp-primary aria-pressed:bg-tp-primary/10 aria-pressed:text-tp-accent-hover"
               >
                 {chip.label}
                 {count !== null && <span className="tabular-nums">{count}</span>}

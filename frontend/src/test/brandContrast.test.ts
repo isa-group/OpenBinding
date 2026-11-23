@@ -121,6 +121,34 @@ describe('the two palettes', () => {
   });
 });
 
+/** A colour at `alpha` over another (Tailwind's `bg-x/10`), as a hex colour. */
+function over(colour: string, alpha: number, background: string): string {
+  const channel = (hex: string, at: number) => Number.parseInt(hex.slice(at, at + 2), 16);
+  return `#${[1, 3, 5]
+    .map(at => Math.round(channel(colour, at) * alpha + channel(background, at) * (1 - alpha)))
+    .map(value => value.toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+/** Small text on the primary at 10 % over the page (`bg-tp-primary/10`): 4.5:1. */
+const ON_PRIMARY_TINT = ['color-tp-accent-hover', 'color-tp-ink'];
+
+for (const [name, palette] of [
+  ['sphere', sphere],
+  ['openbinding', openbinding],
+] as const) {
+  describe(`the ${name} palette's primary tint`, () => {
+    it.each(ON_PRIMARY_TINT)('sets %s on bg-tp-primary/10 at 4.5:1 or more', foreground => {
+      const tint = over(
+        resolve(palette, 'color-tp-primary'),
+        0.1,
+        resolve(palette, 'color-tp-canvas')
+      );
+      expect(ratio(resolve(palette, foreground), tint)).toBeGreaterThanOrEqual(4.5);
+    });
+  });
+}
+
 // The F6 screens (upstream events and proposals) set small text only in the foreground tokens above: no raw severity
 // colour as text, and no small text on the raw primary, which is 3.35:1 with white in SPHERE's palette.
 const F6_FILES = [
@@ -149,5 +177,7 @@ describe('the F6 screens', () => {
       /bg-tp-severity-(error|warning|info|success)(?![-\w])[^'"`]*text-white/
     );
     expect(source).not.toMatch(/text-tp-primary(?![-\w])/);
+    // The accent itself is 4.45:1 (SPHERE) and 4.24:1 (OpenBinding) on the primary tint: its hover shade is the text there.
+    expect(source).not.toMatch(/bg-tp-primary\/10[^'"`]*text-tp-accent(?![-\w])/);
   });
 });
