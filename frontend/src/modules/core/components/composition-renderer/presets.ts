@@ -29,7 +29,7 @@ export type RendererMode = Extract<
  * - showcase: a composition as its documents say it, for every reader: what it does, its values and how far they can be trusted,
  *   the workflow, the providers and the upstream plans, the problem it links (named, never opened), and its own pricing;
  * - operations: what an environment's feed serves (the version in effect, its binding and the offering version its evaluation
- *   read), the open upstream changes of the version in effect, and the environment's adoption history.
+ *   read), the open upstream changes the environment counts (its version's and the offering's), and its adoption history.
  */
 export type Section =
   | 'identity'

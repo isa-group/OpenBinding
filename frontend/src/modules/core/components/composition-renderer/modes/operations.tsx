@@ -1,5 +1,5 @@
-// The renderer's `operations` mode: what an environment's feed serves, the upstream changes of the version in effect and
-// how it got there. SPHERE has no environments; the sections follow the other modes'. The mode takes the environment's
+// The renderer's `operations` mode: what an environment's feed serves, the upstream changes it counts (the version in
+// effect's and the offering's) and how it got there. SPHERE has no environments; the sections follow the other modes'. The mode takes the environment's
 // data and the page's callbacks and slots only (the adoption history is a domain component the page mounts), so core
 // imports no domain module.
 
@@ -13,9 +13,9 @@ import { UpstreamCategoryPill } from '../../upstream-badge';
 import { RendererSection } from '../RendererSection';
 import type { Section } from '../presets';
 
-/** The upstream changes of the version in effect: the gateway's rows and where each opens. */
+/** The open upstream changes an environment counts: the gateway's rows and where each opens. */
 export interface OperationsEvents {
-  /** The open events of the version in effect, as the gateway lists them (newest first). */
+  /** The version in effect's open binding events and the composition's open offering events, newest first. */
   items: UpstreamEventView[];
   /** Where one event opens in place (the Operation tab's `?event=`). */
   eventHref: (event: UpstreamEventView) => string;
@@ -35,7 +35,7 @@ export interface OperationsData {
   onAdopt?: () => void;
   /** The upstream badge of the environment, beside the version in effect. */
   badge?: ReactNode;
-  /** The open upstream changes of the version in effect; the section is left out without any. */
+  /** The open upstream changes the environment counts; the section is left out without any. */
   events?: OperationsEvents | null;
   /** The adoption history, mounted by the page. */
   adoptions?: ReactNode;
@@ -43,12 +43,12 @@ export interface OperationsData {
   margins?: ReactNode;
 }
 
-/** The compact list of the version in effect's open upstream changes, each a link to its detail. */
+/** The compact list of the environment's open upstream changes, each a link to its detail. */
 function EventsSection({ events }: { events: OperationsEvents }) {
   return (
     <RendererSection title="Upstream changes">
       <ul
-        aria-label="Open upstream changes of the version in effect"
+        aria-label="Open upstream changes"
         className="flex flex-col divide-y divide-tp-hairline rounded-lg border border-tp-hairline"
       >
         {events.items.map(event => (
