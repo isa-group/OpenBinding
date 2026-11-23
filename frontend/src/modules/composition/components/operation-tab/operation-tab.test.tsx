@@ -1,5 +1,6 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { useEffect, useState } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import type { CompositionView } from '../../../core/api/types';
 import environments from '../../../../test/fixtures/core/tomatometer.environments.json';
 import production from '../../../../test/fixtures/core/tomatometer.environment.production.json';
@@ -9,6 +10,29 @@ import offeringChanged from '../../../../test/fixtures/core/upstream.tomatometer
 import productionCounting from '../../../../test/fixtures/core/upstream.tomatometer.environment.production.json';
 import { fakeGateway, renderModule } from '../../../../test/moduleKit';
 import OperationTab from '.';
+
+// An upstream event arriving, as useUpstreamRefresh tells the page (the hook itself is tested on its own).
+const upstreamArrivals = vi.hoisted(() => ({
+  count: 0,
+  listeners: new Set<(count: number) => void>(),
+}));
+vi.mock('../../../notification/hooks/useUpstreamRefresh', () => ({
+  useUpstreamRefresh: () => {
+    const [count, setCount] = useState(upstreamArrivals.count);
+    useEffect(() => {
+      upstreamArrivals.listeners.add(setCount);
+      return () => {
+        upstreamArrivals.listeners.delete(setCount);
+      };
+    }, []);
+    return count;
+  },
+}));
+const arrive = () =>
+  act(() => {
+    upstreamArrivals.count += 1;
+    upstreamArrivals.listeners.forEach(listener => listener(upstreamArrivals.count));
+  });
 
 const ROOT = '/v1/organizations/isa-demo/compositions/tomatometer/environments';
 const EVENTS = '/v1/organizations/isa-demo/compositions/tomatometer/upstream-events';
@@ -145,6 +169,44 @@ describe('the Operation tab', () => {
     expect(
       asked.some(path => path.includes('subject=offering') && path.includes('state=open'))
     ).toBe(true);
+  });
+
+  it('reads an open environment and its upstream changes again when an upstream event arrives', async () => {
+    let reads = 0;
+    let fails = false;
+    render(
+      'VIEWER',
+      {
+        [`GET ${ROOT}/production`]: () => {
+          reads += 1;
+          if (fails) return { status: 503, body: { title: 'Unavailable' } };
+          return reads === 1
+            ? { body: production, headers: { ETag: '"7"' } }
+            : { body: productionCounting, headers: { ETag: '"8"' } };
+        },
+        [`GET ${EVENTS}`]: ({ path }: { path: string }) => {
+          const query = new URLSearchParams(path.split('?')[1] ?? '');
+          return {
+            body: { ...events, events: query.get('subject') === 'offering' ? [] : [valuesChanged] },
+          };
+        },
+      },
+      '/?environment=production'
+    );
+    await screen.findByRole('heading', { level: 2, name: 'Production' });
+    expect(screen.queryByRole('link', { name: 'brevo 2026-10 → 2026-11' })).toBeNull();
+    arrive();
+    expect(
+      await screen.findByRole('link', { name: 'brevo 2026-10 → 2026-11' })
+    ).toBeInTheDocument();
+    expect(reads).toBe(2);
+    // A re-read that fails after another arrival keeps what is shown.
+    fails = true;
+    arrive();
+    await waitFor(() => expect(reads).toBe(3));
+    expect(screen.getByRole('heading', { level: 2, name: 'Production' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'brevo 2026-10 → 2026-11' })).toBeInTheDocument();
+    expect(screen.queryByText(/The environment couldn’t be loaded/)).toBeNull();
   });
 
   it('lists the upstream changes under the environments', async () => {

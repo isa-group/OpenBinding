@@ -142,6 +142,7 @@ export default function OperationTab({
         composition={composition}
         versions={versions}
         slug={selected}
+        arrived={arrived}
         role={role}
         backTo={detailTo()}
         onAdopt={onAdopt}

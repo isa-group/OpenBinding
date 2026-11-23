@@ -2,7 +2,7 @@
 // version in effect with its open upstream changes. SPHERE has no environments; the header follows the composition page's
 // own sections. ADMIN edits and deletes it from here with the `ETag` this read answered.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { classifyAuthError, marker } from '../../../core/api/errors';
 import type {
@@ -36,6 +36,8 @@ interface Props {
   versions: CompositionVersionView[];
   slug: string;
   role: OrgRole | null;
+  /** Grows when an upstream event about the composition arrives: the environment and its events are read again. */
+  arrived?: number;
   /** The address of the grid of environments. */
   backTo: string;
   onAdopt?: (environment: CompositionEnvironmentView) => void;
@@ -48,6 +50,7 @@ export default function EnvironmentDetail({
   composition,
   slug,
   role,
+  arrived = 0,
   backTo,
   onAdopt,
   onChanged,
@@ -56,10 +59,26 @@ export default function EnvironmentDetail({
   const navigate = useNavigate();
   const [nonce, setNonce] = useState(0);
   const [dialog, setDialog] = useState<'edit' | 'delete' | null>(null);
+  // The last environment read, with the nonce it was read under: a re-read only an upstream arrival asked for (same
+  // nonce) that fails keeps it on screen, while a re-read after an edit says its failure.
+  const shown = useRef<{
+    nonce: number;
+    value: Awaited<ReturnType<typeof api.getEnvironment>>;
+  } | null>(null);
   const read = useResource(
-    `composition-environment:${org}/${composition.slug}/${slug}:${nonce}`,
-    () => api.getEnvironment(org, composition.slug, slug)
+    `composition-environment:${org}/${composition.slug}/${slug}:${nonce}:${arrived}`,
+    async () => {
+      try {
+        return await api.getEnvironment(org, composition.slug, slug);
+      } catch (error) {
+        if (shown.current && shown.current.nonce === nonce) return shown.current.value;
+        throw error;
+      }
+    }
   );
+  useEffect(() => {
+    if (read.data) shown.current = { nonce, value: read.data };
+  }, [read.data, nonce]);
   const reload = () => setNonce(value => value + 1);
   const canAdminister = roleAtLeast(role, 'ADMIN');
   const { getVersionMargins } = useCompositionsApi();
@@ -93,7 +112,7 @@ export default function EnvironmentDetail({
   const eventsApi = useUpstreamEventsApi();
   const counted = (loaded?.upstream?.open ?? 0) > 0;
   const events = useResource(
-    `environment-events:${org}/${composition.slug}/${current?.version.id ?? 'none'}/${counted}:${nonce}`,
+    `environment-events:${org}/${composition.slug}/${current?.version.id ?? 'none'}/${counted}:${nonce}:${arrived}`,
     async () => {
       if (!current || !counted) return [];
       const [own, offering] = await Promise.all([
@@ -273,7 +292,7 @@ export default function EnvironmentDetail({
             onAdopt: canAdopt ? () => onAdopt?.(environment) : undefined,
             badge: <UpstreamBadge upstream={environment.upstream} />,
             events: {
-              items: events.data ?? [],
+              items: events.data ?? events.stale ?? [],
               eventHref: event =>
                 compositionPath(org, composition.slug, 'operation', { event: event.id }),
               allHref: compositionPath(org, composition.slug, 'operation'),
