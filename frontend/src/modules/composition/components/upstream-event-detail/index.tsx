@@ -7,7 +7,7 @@
 // adopting the version that resolved it. SPHERE has no upstream events; the frame is the Operation tab's own.
 
 import { format, parseISO } from 'date-fns';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { classifyAuthError, marker } from '../../../core/api/errors';
 import type {
@@ -186,6 +186,9 @@ function PlanDrawing({
   );
 }
 
+/** The event's heading: it names the section, and takes focus when an action's button is gone once it is done. */
+const HEADING_ID = 'event-heading';
+
 interface Props {
   org: string;
   composition: CompositionView;
@@ -198,8 +201,15 @@ interface Props {
   backTo: string;
   /** Bumped when something changed the event (a review, a notification). */
   refresh?: string | number;
-  /** More of a person's actions on the event (a proposal), given the event and its `ETag`. */
-  actions?: (event: UpstreamEventDetail, etag: string | null) => ReactNode;
+  /**
+   * More of a person's actions on the event (a proposal), given the event, its `ETag` and a way to put focus on the
+   * event's heading (for an action whose button is gone once it is done).
+   */
+  actions?: (
+    event: UpstreamEventDetail,
+    etag: string | null,
+    focusHeading: () => void
+  ) => ReactNode;
   /** The event changed here (a review): the tab's counts and badges are read again. */
   onChanged?: () => void;
 }
@@ -218,6 +228,14 @@ export default function UpstreamEventDetailView({
   const api = useUpstreamEventsApi();
   const [nonce, setNonce] = useState(0);
   const [reviewing, setReviewing] = useState(false);
+  // A review that went through removes "Mark reviewed": focus then goes to the event's heading, not to the page.
+  const focusAfterReview = useRef(false);
+  const focusHeading = useCallback(() => document.getElementById(HEADING_ID)?.focus(), []);
+  useEffect(() => {
+    if (reviewing || !focusAfterReview.current) return;
+    focusAfterReview.current = false;
+    focusHeading();
+  }, [reviewing, focusHeading]);
   const read = useResource(
     `upstream-event:${org}/${composition.slug}/${eventId}:${refresh}:${nonce}`,
     () => api.get(org, composition.slug, eventId)
@@ -281,7 +299,7 @@ export default function UpstreamEventDetailView({
     <div className="flex min-w-0 flex-col gap-4">
       {back}
       <section
-        aria-labelledby="event-heading"
+        aria-labelledby={HEADING_ID}
         className="rounded-xl border border-tp-hairline bg-tp-canvas"
       >
         <div className="flex flex-col gap-3 border-b border-tp-hairline px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
@@ -290,7 +308,8 @@ export default function UpstreamEventDetailView({
               {offering ? 'The offering changed upstream' : 'A pricing changed upstream'}
             </p>
             <h2
-              id="event-heading"
+              id={HEADING_ID}
+              tabIndex={-1}
               className="font-display text-lg [overflow-wrap:anywhere] text-tp-ink"
             >
               {pricingName(event.pricing)}
@@ -426,7 +445,7 @@ export default function UpstreamEventDetailView({
                 Mark reviewed
               </button>
             )}
-            {actions?.(event, etag)}
+            {actions?.(event, etag, focusHeading)}
             {!offering && link && (
               <>
                 <Link
@@ -515,6 +534,7 @@ export default function UpstreamEventDetailView({
           etag={etag}
           onClose={() => setReviewing(false)}
           onChanged={() => {
+            focusAfterReview.current = true;
             setReviewing(false);
             setNonce(value => value + 1);
             onChanged?.();

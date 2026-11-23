@@ -19,28 +19,34 @@ const event = { ...resolved, environments: ['production'] } as unknown as Upstre
 function Tab() {
   const [shown, setShown] = useState(environments);
   return (
-    <ProposeAdoption
-      org="fixtures"
-      composition="tomatometer"
-      event={event}
-      environments={shown}
-      role="ADMIN"
-      onChanged={() =>
-        setShown(
-          environments.map(environment =>
-            environment.slug === 'production' && environment.inEffect
-              ? {
-                  ...environment,
-                  inEffect: {
-                    ...environment.inEffect,
-                    version: { ...resolved.resolvedBy.version, ordinal: 3 },
-                  },
-                }
-              : environment
+    <>
+      <h2 tabIndex={-1} id="event-heading">
+        brevo
+      </h2>
+      <ProposeAdoption
+        org="fixtures"
+        composition="tomatometer"
+        event={event}
+        environments={shown}
+        role="ADMIN"
+        onFocusAway={() => document.getElementById('event-heading')?.focus()}
+        onChanged={() =>
+          setShown(
+            environments.map(environment =>
+              environment.slug === 'production' && environment.inEffect
+                ? {
+                    ...environment,
+                    inEffect: {
+                      ...environment.inEffect,
+                      version: { ...resolved.resolvedBy.version, ordinal: 3 },
+                    },
+                  }
+                : environment
+            )
           )
-        )
-      }
-    />
+        }
+      />
+    </>
   );
 }
 
@@ -93,5 +99,7 @@ describe('proposing to adopt the version that resolved an event', () => {
     ).toBeInTheDocument();
     fireEvent.click(within(dialog).getAllByRole('button', { name: 'Close' }).at(-1)!);
     expect(screen.queryByRole('dialog')).toBeNull();
+    // The button that opened it is gone: focus goes to the event's heading, not to the page.
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'brevo' }));
   });
 });

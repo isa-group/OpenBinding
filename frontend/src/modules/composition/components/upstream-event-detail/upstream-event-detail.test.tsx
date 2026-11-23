@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CompositionVersionView, CompositionView } from '../../../core/api/types';
 import valuesChanged from '../../../../test/fixtures/core/upstream.tomatometer.event.values-changed.json';
@@ -145,6 +145,26 @@ describe('an upstream event opened in place', () => {
     expect(screen.getByText('Reviewed', { selector: 'dt' }).parentElement).toHaveTextContent(
       reviewed.reviewedBy?.username ?? ''
     );
+  });
+
+  it('puts focus on the event’s heading once a review removes “Mark reviewed”', async () => {
+    let state = 'open';
+    open(valuesChanged, 'MEMBER', {
+      [`GET ${EVENTS}/${valuesChanged.id}`]: () => ({
+        body: { ...valuesChanged, state },
+        headers: { ETag: `"e-${state}"` },
+      }),
+      [`POST ${EVENTS}/${valuesChanged.id}/review`]: () => {
+        state = 'reviewed';
+        return { body: { ...valuesChanged, state } };
+      },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark reviewed' }));
+    const box = screen.getByRole('dialog', { name: 'Mark reviewed' });
+    fireEvent.click(within(box).getByRole('button', { name: 'Mark reviewed' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Mark reviewed' })).toBeNull());
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'brevo' }));
   });
 
   it('is the in-place 404 for an event that is missing', async () => {

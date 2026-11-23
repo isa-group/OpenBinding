@@ -118,13 +118,14 @@ export default function OperationTab({
           setNonce(value => value + 1);
           onUpstreamChanged?.();
         }}
-        actions={detail => (
+        actions={(detail, _etag, focusHeading) => (
           <ProposeAdoption
             org={org}
             composition={composition.slug}
             event={detail}
             environments={list}
             role={role}
+            onFocusAway={focusHeading}
             onChanged={() => {
               setNonce(value => value + 1);
               onUpstreamChanged?.();
