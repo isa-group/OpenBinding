@@ -101,30 +101,31 @@ export default function DashboardPage() {
     if (organizationsLoading) return;
     const slugs = orgKey ? orgKey.split(',').slice(0, RECENT_LIMIT) : [];
     let current = true;
+    // A re-read that fails (an upstream arrival asks one nobody started) keeps what is shown.
     Promise.all([
       fetchWithInterceptor('/v1/users/me/compositions?sort=updated&limit=12')
         .then(response => readResponse<CompositionList>(response))
-        .catch(
-          () => ({ compositions: [], total: 0 }) as Pick<CompositionList, 'compositions' | 'total'>
-        ),
+        .catch(() => null),
       Promise.all(
         slugs.map(slug =>
           runsApi
             .list(slug, { limit: RUNS_SHOWN })
             .then(list => list.runs.map(run => ({ ...run, orgSlug: slug })))
-            .catch(() => [])
+            .catch(() => null)
         )
       ),
     ]).then(([compositionList, runLists]) => {
       if (!current) return;
-      setCompositions(compositionList.compositions ?? []);
-      setCompositionsTotal(compositionList.total ?? 0);
-      setRuns(
-        runLists
-          .flat()
-          .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
-          .slice(0, RUNS_SHOWN)
-      );
+      if (compositionList) {
+        setCompositions(compositionList.compositions ?? []);
+        setCompositionsTotal(compositionList.total ?? 0);
+      }
+      const failed = runLists.some(list => list === null);
+      const fresh = runLists
+        .flatMap(list => list ?? [])
+        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+        .slice(0, RUNS_SHOWN);
+      setRuns(previous => (failed && previous.length > 0 ? previous : fresh));
       setIsLoading(false);
     });
     return () => {
@@ -137,12 +138,14 @@ export default function DashboardPage() {
     if (organizationsLoading) return;
     let current = true;
     Promise.all([
-      upstreamApi.mine(UPSTREAM_SHOWN).catch(() => [] as MyUpstreamEvent[]),
-      proposalsApi.mine(PROPOSALS_SHOWN).catch(() => [] as ProposalView[]),
+      upstreamApi.mine(UPSTREAM_SHOWN).catch(() => null),
+      proposalsApi.mine(PROPOSALS_SHOWN).catch(() => null),
     ]).then(([events, proposals]) => {
       if (!current) return;
-      setUpstreamEvents(events);
-      setPendingProposals(proposals.filter(proposal => proposal.status === 'pending'));
+      // A panel whose read failed keeps what it shows (hidden while it showed nothing).
+      if (events) setUpstreamEvents(events);
+      if (proposals)
+        setPendingProposals(proposals.filter(proposal => proposal.status === 'pending'));
     });
     return () => {
       current = false;

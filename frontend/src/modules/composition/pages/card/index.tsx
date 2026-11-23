@@ -419,12 +419,15 @@ function CardBody({
   tab,
   loaded,
   reload,
+  refresh,
 }: {
   org: string;
   slug: string;
   tab: TabId;
   loaded: LoadedComposition;
   reload: () => void;
+  /** Read again quietly: what is shown stays on a failure. */
+  refresh: () => void;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -436,11 +439,11 @@ function CardBody({
   const roleIn = useCompositionRole();
   const { composition, etag, versions } = loaded;
   const role = roleIn(org);
-  // An upstream event about this composition arrived: its badge is read again with the composition.
+  // An upstream event about this composition arrived: its badge is read again with the composition, quietly.
   const arrived = useUpstreamRefresh(org, slug);
   useEffect(() => {
-    if (arrived > 0) reload();
-  }, [arrived, reload]);
+    if (arrived > 0) refresh();
+  }, [arrived, refresh]);
   const member = role !== null;
   const canWrite = roleAtLeast(role, 'MEMBER');
   const canAdminister = roleAtLeast(role, 'ADMIN');
@@ -990,7 +993,7 @@ function CardBody({
  */
 export default function CompositionCardPage() {
   const { org = '', composition: slug = '', tab } = useParams();
-  const { state, reload } = useCardComposition(org, slug);
+  const { state, reload, refresh } = useCardComposition(org, slug);
   if (tab !== undefined && !isCompositionTabSegment(tab)) return <NotFoundPage />;
   if (state.status === 'missing') return <NotFoundPage />;
   if (state.status === 'error')
@@ -1025,6 +1028,7 @@ export default function CompositionCardPage() {
       tab={(tab as CompositionTabSegment | undefined) ?? 'overview'}
       loaded={loaded}
       reload={reload}
+      refresh={refresh}
     />
   );
 }

@@ -1,4 +1,5 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
+import { useEffect, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeGateway, orgNode, renderModule } from '../../../../test/moduleKit';
 import myEvents from '../../../../test/fixtures/core/upstream.me.events.json';
@@ -10,6 +11,29 @@ vi.mock('../../../run/api/runsClient', async actual => ({
   ...(await actual<typeof import('../../../run/api/runsClient')>()),
   runsApi: runs,
 }));
+
+// An upstream event arriving, as useUpstreamRefresh tells the page (the hook itself is tested on its own).
+const upstreamArrivals = vi.hoisted(() => ({
+  count: 0,
+  listeners: new Set<(count: number) => void>(),
+}));
+vi.mock('../../../notification/hooks/useUpstreamRefresh', () => ({
+  useUpstreamRefresh: () => {
+    const [count, setCount] = useState(upstreamArrivals.count);
+    useEffect(() => {
+      upstreamArrivals.listeners.add(setCount);
+      return () => {
+        upstreamArrivals.listeners.delete(setCount);
+      };
+    }, []);
+    return count;
+  },
+}));
+const arrive = () =>
+  act(() => {
+    upstreamArrivals.count += 1;
+    upstreamArrivals.listeners.forEach(listener => listener(upstreamArrivals.count));
+  });
 
 const group = orgNode('isa-demo', { name: 'ISA Demo Group' });
 const composition = {
@@ -138,6 +162,32 @@ describe('the dashboard', () => {
     });
     const changes = await screen.findByRole('region', { name: 'Upstream changes' });
     expect(within(changes).getByRole('listitem')).toHaveTextContent('Reviewed');
+  });
+
+  it('keeps what it shows when a re-read after an upstream arrival fails', async () => {
+    let failing = false;
+    const answer = (body: unknown) => () =>
+      failing ? { status: 503, body: { title: 'Unavailable' } } : { body };
+    renderModule(<DashboardPage />, {
+      tree: [group],
+      gateway: fakeGateway({
+        'GET /v1/users/me/compositions': answer({ compositions: [composition], total: 1 }),
+        'GET /v1/users/me/upstream-events': answer(myEvents),
+        'GET /v1/users/me/proposals': answer(myProposals),
+      }),
+    });
+    await screen.findByRole('region', { name: 'Upstream changes' });
+    expect(screen.getByRole('link', { name: /Fleet routing/ })).toBeInTheDocument();
+    failing = true;
+    const asked = runs.list.mock.calls.length;
+    runs.list.mockRejectedValue(new Error('unavailable'));
+    arrive();
+    await waitFor(() => expect(runs.list.mock.calls.length).toBeGreaterThan(asked));
+    await act(async () => {});
+    expect(screen.getByRole('region', { name: 'Upstream changes' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Your pending proposals' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Fleet routing/ })).toBeInTheDocument();
+    expect(screen.getAllByText(/random-search/).length).toBeGreaterThan(0);
   });
 
   it('hides both panels when there is nothing to show', async () => {
