@@ -62,21 +62,40 @@ export default function ProposeAdoption({
   const [proposal, setProposal] = useState<ProposalView | null>(null);
   const resolving = event.resolvedBy?.version;
   const offered = targets(event, environments, role);
-  // Closed after its adoption left nothing to offer: the opener is gone, so focus goes where the page says.
-  const closedAway = useRef(false);
+  // The environment whose button opened the modal. Closing puts focus back on that button (the trap cannot: the button
+  // was disabled while the proposal was made). When the adoption removed it, now or once the environments are read again
+  // after the close, focus goes where the page says, not to the body.
+  const openedFrom = useRef<string | null>(null);
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const closing = useRef<{ slug: string | null } | null>(null);
+  const returnedTo = useRef<string | null>(null);
+  const offeredKey = offered.map(environment => environment.slug).join(',');
   useEffect(() => {
-    if (proposal || !closedAway.current) return;
-    closedAway.current = false;
-    onFocusAway?.();
+    if (proposal || !closing.current) return;
+    const { slug } = closing.current;
+    closing.current = null;
+    const button = slug ? buttons.current.get(slug) : undefined;
+    if (button?.isConnected) {
+      button.focus();
+      returnedTo.current = slug;
+    } else onFocusAway?.();
   }, [proposal, onFocusAway]);
+  useEffect(() => {
+    const slug = returnedTo.current;
+    if (!slug || offeredKey.split(',').includes(slug)) return;
+    returnedTo.current = null;
+    const active = document.activeElement;
+    if (!active || active === document.body || !active.isConnected) onFocusAway?.();
+  }, [offeredKey, onFocusAway]);
   const close = () => {
-    closedAway.current = offered.length === 0;
+    closing.current = { slug: openedFrom.current };
     setProposal(null);
   };
   // An open proposal keeps its card (and its outcome) on screen after the adoption it applied leaves nothing to offer.
   if (!resolving || (offered.length === 0 && !proposal)) return null;
 
   const propose = async (environment: CompositionEnvironmentView) => {
+    openedFrom.current = environment.slug;
     setBusy(true);
     setFailure('');
     try {
@@ -109,6 +128,10 @@ export default function ProposeAdoption({
       {offered.map(environment => (
         <button
           key={environment.slug}
+          ref={element => {
+            if (element) buttons.current.set(environment.slug, element);
+            else buttons.current.delete(environment.slug);
+          }}
           type="button"
           disabled={busy}
           onClick={() => void propose(environment)}
