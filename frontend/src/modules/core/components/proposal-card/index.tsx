@@ -36,10 +36,10 @@ const STATUS_LABELS: Record<Status, string> = {
 
 const STATUS_STYLES: Record<Status, string> = {
   pending: 'bg-tp-cream text-tp-primary',
-  executing: 'bg-tp-severity-info-bg text-tp-severity-info',
-  completed: 'bg-tp-severity-success-bg text-tp-severity-success',
-  partial: 'bg-tp-severity-warning-bg text-tp-severity-warning',
-  failed: 'bg-tp-severity-error-bg text-tp-severity-error',
+  executing: 'bg-tp-severity-info-bg text-tp-info-strong',
+  completed: 'bg-tp-severity-success-bg text-tp-success-strong',
+  partial: 'bg-tp-severity-warning-bg text-tp-warning-strong',
+  failed: 'bg-tp-severity-error-bg text-tp-error-strong',
   cancelled: 'bg-tp-hairline-soft text-tp-steel',
   superseded: 'bg-tp-hairline-soft text-tp-steel',
   stale: 'bg-tp-hairline-soft text-tp-steel',
@@ -114,7 +114,7 @@ export function ProposalCard({
       animate={{ opacity: 1, y: 0 }}
       aria-label={`Proposal: ${proposal.summary}`}
       role="group"
-      className={`w-full min-w-0 overflow-hidden rounded-2xl border border-tp-hairline bg-tp-canvas text-left shadow-elevation-2 ${inactive ? 'opacity-70' : ''}`}
+      className={`w-full min-w-0 overflow-hidden rounded-2xl border border-tp-hairline bg-tp-canvas text-left ${inactive ? 'shadow-none' : 'shadow-elevation-2'}`}
     >
       <div className="border-b border-tp-hairline-soft bg-tp-surface px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -172,7 +172,7 @@ export function ProposalCard({
 
       {proposal.warnings.length > 0 && (
         <div className="mx-4 mt-3 rounded-xl border border-tp-severity-warning-border bg-tp-severity-warning-bg px-3 py-2">
-          <p className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold text-tp-severity-warning">
+          <p className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold text-tp-warning-strong">
             <MdWarningAmber size={14} aria-hidden="true" /> Review before confirming
           </p>
           <ul className="list-disc space-y-0.5 pl-5 text-[12px] text-tp-ink-tint">

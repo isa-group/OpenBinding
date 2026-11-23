@@ -54,7 +54,7 @@ function StepIcon({
         <MdCheckCircle
           size={15}
           aria-label="Done"
-          className="mt-[1px] shrink-0 text-tp-severity-success"
+          className="mt-[1px] shrink-0 text-tp-success-strong"
         />
       );
     case 'failed':
@@ -62,7 +62,7 @@ function StepIcon({
         <MdCancel
           size={15}
           aria-label="Failed"
-          className="mt-[1px] shrink-0 text-tp-severity-error"
+          className="mt-[1px] shrink-0 text-tp-error-strong"
         />
       );
     case 'skipped':
@@ -152,7 +152,7 @@ export function StepItem({
           </p>
         )}
         {step.error && (
-          <p className="m-0 text-[11px] [overflow-wrap:anywhere] text-tp-severity-error">
+          <p className="m-0 text-[11px] [overflow-wrap:anywhere] text-tp-error-strong">
             {`${step.error.message}${step.error.status ? ` (${step.error.status})` : ''}`}
           </p>
         )}

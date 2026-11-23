@@ -75,6 +75,12 @@ const TEXT: Array<[string, string]> = [
   ['color-tp-warning-text', 'color-tp-severity-warning-bg'],
   ['color-tp-error-text', 'color-tp-severity-error-bg'],
   ['color-tp-info-text', 'color-tp-severity-info-bg'],
+  ['color-tp-success-strong', 'color-tp-severity-success-bg'],
+  ['color-tp-warning-strong', 'color-tp-severity-warning-bg'],
+  ['color-tp-error-strong', 'color-tp-severity-error-bg'],
+  ['color-tp-info-strong', 'color-tp-severity-info-bg'],
+  ['color-tp-error-strong', 'color-tp-canvas'],
+  ['color-tp-on-primary', 'color-tp-error-strong'],
 ];
 
 /** Fills, borders, icons and large text: 3:1 against the page. */
@@ -112,5 +118,27 @@ describe('the two palettes', () => {
   it('give the OpenBinding palette only names the theme already has', () => {
     for (const key of declarations(blockAfter(":root[data-brand='openbinding']")).keys())
       expect(sphere.has(key)).toBe(true);
+  });
+});
+
+// The F6 screens (upstream events and proposals) set small text only in the foreground tokens above: no raw severity
+// colour as text, and no small text on the raw primary, which is 3.35:1 with white in SPHERE's palette.
+const F6_FILES = [
+  'modules/core/components/proposal-card/index.tsx',
+  'modules/core/components/proposal-card/steps.tsx',
+  'modules/core/components/upstream-badge/index.tsx',
+  'modules/core/components/upstream-change-summary/index.tsx',
+  'modules/composition/components/proposals-section/ProposalPanel.tsx',
+  'modules/composition/components/proposals-section/index.tsx',
+  'modules/composition/components/review-event-dialog/index.tsx',
+  'modules/composition/components/upstream-event-detail/index.tsx',
+  'modules/composition/components/upstream-event-detail/ProposeAdoption.tsx',
+  'modules/composition/components/upstream-events-section/index.tsx',
+];
+
+describe('the F6 screens', () => {
+  it.each(F6_FILES)('%s sets no text in a raw severity colour', file => {
+    const source = readFileSync(`${process.cwd()}/src/${file}`, 'utf8');
+    expect(source).not.toMatch(/text-tp-severity-(error|warning|info|success)(?![-\w])/);
   });
 });

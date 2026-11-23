@@ -139,7 +139,7 @@ export default function ProposalPanel({ proposal: given, context, onChanged }: P
       resultLink={step => resultLink(context, step, against)}
       notice={
         refusal ? (
-          <p role="alert" className="m-0 text-[12px] text-tp-severity-error">
+          <p role="alert" className="m-0 text-[12px] text-tp-error-strong">
             {refusal.text}
           </p>
         ) : null
