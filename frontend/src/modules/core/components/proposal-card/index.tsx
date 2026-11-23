@@ -35,7 +35,7 @@ const STATUS_LABELS: Record<Status, string> = {
 };
 
 const STATUS_STYLES: Record<Status, string> = {
-  pending: 'bg-tp-cream text-tp-primary',
+  pending: 'bg-tp-cream text-tp-accent',
   executing: 'bg-tp-severity-info-bg text-tp-info-strong',
   completed: 'bg-tp-severity-success-bg text-tp-success-strong',
   partial: 'bg-tp-severity-warning-bg text-tp-warning-strong',
@@ -246,8 +246,8 @@ export function ProposalCard({
               disabled={busy || !phraseMatches}
               className={`min-h-8 cursor-pointer rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 destructive
-                  ? 'bg-tp-severity-error text-white hover:bg-red-600'
-                  : 'bg-tp-primary text-tp-on-primary hover:bg-tp-primary-deep'
+                  ? 'bg-tp-error-strong text-tp-on-primary hover:bg-tp-error-text'
+                  : 'bg-tp-accent text-tp-on-primary hover:bg-tp-accent-hover'
               }`}
             >
               {destructive ? 'Delete permanently' : 'Confirm and apply'}

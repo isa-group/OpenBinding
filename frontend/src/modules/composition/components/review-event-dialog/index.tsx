@@ -115,7 +115,7 @@ export default function ReviewEventDialog({
           <button
             type="submit"
             disabled={busy}
-            className="cursor-pointer rounded-lg bg-tp-primary px-4 py-2 text-xs font-semibold text-white hover:bg-tp-primary/90 disabled:cursor-default disabled:opacity-50"
+            className="cursor-pointer rounded-lg bg-tp-accent px-4 py-2 text-xs font-semibold text-tp-on-primary hover:bg-tp-accent-hover disabled:cursor-default disabled:opacity-50"
           >
             {busy ? 'Marking…' : 'Mark reviewed'}
           </button>

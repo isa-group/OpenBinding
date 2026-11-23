@@ -141,4 +141,13 @@ describe('the F6 screens', () => {
     const source = readFileSync(`${process.cwd()}/src/${file}`, 'utf8');
     expect(source).not.toMatch(/text-tp-severity-(error|warning|info|success)(?![-\w])/);
   });
+
+  it.each(F6_FILES)('%s sets no small text on the raw primary or a raw severity fill', file => {
+    const source = readFileSync(`${process.cwd()}/src/${file}`, 'utf8');
+    expect(source).not.toMatch(/bg-tp-primary(?![-\w/])[^'"`]*text-(white|tp-on-primary)/);
+    expect(source).not.toMatch(
+      /bg-tp-severity-(error|warning|info|success)(?![-\w])[^'"`]*text-white/
+    );
+    expect(source).not.toMatch(/text-tp-primary(?![-\w])/);
+  });
 });

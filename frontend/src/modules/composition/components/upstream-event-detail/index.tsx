@@ -421,7 +421,7 @@ export default function UpstreamEventDetailView({
               <button
                 type="button"
                 onClick={() => setReviewing(true)}
-                className="inline-flex h-8 cursor-pointer items-center rounded-lg bg-tp-primary px-3 text-xs font-medium text-white transition-colors hover:bg-tp-primary/90"
+                className="inline-flex h-8 cursor-pointer items-center rounded-lg bg-tp-accent px-3 text-xs font-medium text-tp-on-primary transition-colors hover:bg-tp-accent-hover"
               >
                 Mark reviewed
               </button>
